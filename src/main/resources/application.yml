@@ -1,0 +1,129 @@
+# Server Configuration
+server:
+  port: 8080
+  servlet:
+    context-path: /
+  error:
+    include-message: always
+    include-binding-errors: always
+
+# Spring Configuration
+spring:
+  application:
+    name: smart-money
+  
+  # Database Configuration (H2 for development)
+  datasource:
+    url: jdbc:h2:mem:smartmoney
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: 
+  
+  # H2 Console
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+      settings:
+        web-allow-others: false
+  
+  # JPA Configuration
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.H2Dialect
+        jdbc:
+          batch_size: 20
+        order_inserts: true
+        order_updates: true
+  
+  # Jackson Configuration
+  jackson:
+    date-format: dd/MM/yyyy
+    time-zone: Asia/Ho_Chi_Minh
+    serialization-inclusion: NON_NULL
+  
+  # Servlet Configuration
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
+# Application Configuration
+app:
+  # JWT Configuration
+  jwt:
+    secret: "MySuperSecretKeyForJWTWithAtLeast256BitsLength1234567890ExtraSecureKeyForSmartMoney2024"
+    access-token-expiration: 3600000    # 1 hour in milliseconds
+    refresh-token-expiration: 604800000 # 7 days in milliseconds
+    issuer: "smart-money-app"
+    audience: "smart-money-users"
+    token-prefix: "Bearer "
+  
+  # Cloudinary Configuration
+  cloudinary:
+    cloud-name: ${CLOUDINARY_CLOUD_NAME:your_cloud_name}
+    api-key: ${CLOUDINARY_API_KEY:your_api_key}
+    api-secret: ${CLOUDINARY_API_SECRET:your_api_secret}
+    folder: "smart-money/users"
+    secure: true
+  
+  # Application Settings
+  security:
+    allowed-origins:
+      - "http://localhost:3000"
+      - "http://localhost:8080"
+      - "http://localhost:4200"
+    allowed-methods:
+      - "GET"
+      - "POST"
+      - "PUT"
+      - "PATCH"
+      - "DELETE"
+      - "OPTIONS"
+
+# Logging Configuration
+logging:
+  level:
+    com.example.smartmoney: DEBUG
+    org.springframework.security: INFO
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/smart-money.log
+
+# Springdoc OpenAPI Configuration
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+    enabled: true
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+    operations-sorter: method
+    tags-sorter: alpha
+    url: /api/v3/api-docs
+    display-request-duration: true
+    doc-expansion: none
+    filter: true
+    defaultModelsExpandDepth: 2
+    defaultModelExpandDepth: 2
+  show-actuator: false
+  default-consumes-media-type: application/json
+  default-produces-media-type: application/json
+  paths-to-match:
+    - /api/v1/**
+  group-configs:
+  - group: authentication
+    paths-to-match: /v1/auth/**
+  - group: users
+    paths-to-match: /v1/users/**
+  - group: admin
+    paths-to-match: /v1/admin/**

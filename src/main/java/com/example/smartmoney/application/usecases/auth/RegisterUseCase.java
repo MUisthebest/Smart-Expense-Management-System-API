@@ -1,0 +1,116 @@
+package com.example.smartmoney.application.usecases.auth;
+
+import com.example.smartmoney.application.dtos.requests.auth.RegisterRequest;
+import com.example.smartmoney.application.dtos.responses.UserResponse;
+import com.example.smartmoney.application.dtos.responses.AuthResponse;
+import com.example.smartmoney.application.ports.AuthPort;
+import com.example.smartmoney.domain.models.user.*;
+import com.example.smartmoney.domain.models.user.valueobjects.*;
+import com.example.smartmoney.domain.repositories.UserRepository;
+import com.example.smartmoney.domain.exceptions.DomainException;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Slf4j
+@Service
+@RequiredArgsConstructor
+@Transactional
+public class RegisterUseCase {
+    
+    private final UserRepository userRepository;
+    private final AuthPort authPort;
+    
+    public UserResponse  execute(RegisterRequest request) {
+        // 1. Validate request
+        validateRequest(request);
+        
+        // 2. Check duplicates
+        checkDuplicates(request);
+        
+        // 3. Create value objects
+        Email email = new Email(request.getEmail());
+        Password password = new Password(authPort.encodePassword(request.getPassword()));
+        Phone phone = new Phone(request.getPhone());
+        DateOfBirth dateOfBirth = new DateOfBirth(request.getDateOfBirth());
+        Avatar avatar = new Avatar(request.getAvatar());
+        
+        // 4. Create user
+        User user = User.create(
+            request.getUsername(),
+            request.getFullName(),
+            avatar,
+            password,
+            dateOfBirth,
+            phone,
+            email
+        );
+        
+        // 5. Save user
+        User savedUser = userRepository.save(user);
+        log.info("User registered successfully: {}", savedUser.getUsername());
+        return mapToUserResponse(savedUser);
+    }
+    
+    private void validateRequest(RegisterRequest request) {
+        if (request == null) {
+            throw new DomainException("Register request cannot be null");
+        }
+        
+        // Các validation cơ bản
+        if (request.getEmail() == null || request.getEmail().isBlank()) {
+            throw new DomainException("Email is required");
+        }
+        
+        if (request.getPassword() == null || request.getPassword().isBlank()) {
+            throw new DomainException("Password is required");
+        }
+        
+        if (request.getUsername() == null || request.getUsername().isBlank()) {
+            throw new DomainException("Username is required");
+        }
+        
+        // Password validation (có thể để trong Password value object)
+        if (request.getPassword().length() < 6) {
+            throw new DomainException("Password must be at least 6 characters");
+        }
+
+        if (request.getPassword().length() > 20) {
+            throw new DomainException("Password must not exceed 20 characters");
+        }
+    }
+    
+    private void checkDuplicates(RegisterRequest request) {
+        Email email = new Email(request.getEmail());
+        if (userRepository.existsByEmail(email)) {
+            throw new DomainException("Email already registered");
+        }
+        
+        if (userRepository.existsByUsername(request.getUsername())) {
+            throw new DomainException("Username already taken");
+        }
+        
+        Phone phone = new Phone(request.getPhone());
+        if (userRepository.existsByPhone(phone)) {
+            throw new DomainException("Phone number already registered");
+        }
+    }
+    
+    private UserResponse mapToUserResponse(User user) {
+        UserResponse response = new UserResponse();
+        response.setId(user.getId());
+        response.setUsername(user.getUsername());
+        response.setFullName(user.getFullName());
+        response.setAvatar(user.getAvatar() != null ? user.getAvatar().getUrl() : null);
+        response.setDateOfBirth(user.getDateOfBirth() != null ? 
+            user.getDateOfBirth().getFormattedValue() : null);
+        response.setPhone(user.getPhone() != null ? user.getPhone().getValue() : null);
+        response.setEmail(user.getEmail().getValue());
+        response.setCoin(user.getCoin());
+        response.setRole(user.getRole());
+        response.setRate(user.getRate());
+        response.setActive(user.isActive());
+        return response;
+    }
+}
