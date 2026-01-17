@@ -3,12 +3,16 @@ package com.example.smartmoney.presentation.controllers;
 import com.example.smartmoney.application.dtos.requests.auth.LoginRequest;
 import com.example.smartmoney.application.dtos.requests.auth.RefreshTokenRequest;
 import com.example.smartmoney.application.dtos.requests.auth.RegisterRequest;
+import com.example.smartmoney.application.dtos.requests.auth.GoogleLoginRequest;
+import com.example.smartmoney.application.dtos.requests.auth.FacebookLoginRequest;
 import com.example.smartmoney.application.dtos.responses.CheckResponse;
 import com.example.smartmoney.application.dtos.responses.UserResponse;
 import com.example.smartmoney.application.dtos.responses.AuthResponse;
 import com.example.smartmoney.application.usecases.auth.LoginUseCase;
 import com.example.smartmoney.application.usecases.auth.RefreshTokenUseCase;
 import com.example.smartmoney.application.usecases.auth.RegisterUseCase;
+import com.example.smartmoney.application.usecases.auth.GoogleLoginUseCase;
+import com.example.smartmoney.application.usecases.auth.FacebookLoginUseCase;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -36,6 +40,8 @@ public class AuthController {
     private final RegisterUseCase registerUseCase;
     private final LoginUseCase loginUseCase;
     private final RefreshTokenUseCase refreshTokenUseCase;
+    private final GoogleLoginUseCase googleLoginUseCase;
+    private final FacebookLoginUseCase facebookLoginUseCase;
     
     @Operation(
         summary = "Register new user",
@@ -133,6 +139,106 @@ public class AuthController {
             CheckResponse<AuthResponse> response = CheckResponse.<AuthResponse>builder()
                 .success(false)
                 .message("Login failed: " + e.getMessage())
+                .build();
+            
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
+        }
+    }
+    
+    @Operation(
+        summary = "Google login",
+        description = "Authenticate user with Google ID token"
+    )
+    @ApiResponses({
+        @ApiResponse(
+            responseCode = "200",
+            description = "Google login successful",
+            content = @Content(schema = @Schema(implementation = AuthResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "401",
+            description = "Invalid or expired Google token"
+        ),
+        @ApiResponse(
+            responseCode = "400",
+            description = "Invalid input"
+        )
+    })
+    @PostMapping("/login/google")
+    public ResponseEntity<CheckResponse<AuthResponse>> googleLogin(
+            @Parameter(description = "Google login request with idToken", required = true)
+            @Valid @RequestBody GoogleLoginRequest request) {
+        
+        log.info("Google login attempt");
+        
+        try {
+            AuthResponse authResponse = googleLoginUseCase.execute(request);
+            
+            CheckResponse<AuthResponse> response = CheckResponse.<AuthResponse>builder()
+                .success(true)
+                .message("Google login successful")
+                .data(authResponse)
+                .build();
+            
+            log.info("Google login successful for user");
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            log.warn("Google login failed", e);
+            
+            CheckResponse<AuthResponse> response = CheckResponse.<AuthResponse>builder()
+                .success(false)
+                .message("Google login failed: " + e.getMessage())
+                .build();
+            
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
+        }
+    }
+    
+    @Operation(
+        summary = "Facebook login",
+        description = "Authenticate user with Facebook access token"
+    )
+    @ApiResponses({
+        @ApiResponse(
+            responseCode = "200",
+            description = "Facebook login successful",
+            content = @Content(schema = @Schema(implementation = AuthResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "401",
+            description = "Invalid or expired Facebook token"
+        ),
+        @ApiResponse(
+            responseCode = "400",
+            description = "Invalid input"
+        )
+    })
+    @PostMapping("/login/facebook")
+    public ResponseEntity<CheckResponse<AuthResponse>> facebookLogin(
+            @Parameter(description = "Facebook login request with accessToken", required = true)
+            @Valid @RequestBody FacebookLoginRequest request) {
+        
+        log.info("Facebook login attempt");
+        
+        try {
+            AuthResponse authResponse = facebookLoginUseCase.execute(request);
+            
+            CheckResponse<AuthResponse> response = CheckResponse.<AuthResponse>builder()
+                .success(true)
+                .message("Facebook login successful")
+                .data(authResponse)
+                .build();
+            
+            log.info("Facebook login successful for user");
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            log.warn("Facebook login failed", e);
+            
+            CheckResponse<AuthResponse> response = CheckResponse.<AuthResponse>builder()
+                .success(false)
+                .message("Facebook login failed: " + e.getMessage())
                 .build();
             
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);

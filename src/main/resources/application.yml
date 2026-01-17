@@ -64,6 +64,17 @@ app:
     audience: "smart-money-users"
     token-prefix: "Bearer "
   
+  # Google OAuth Configuration
+  google:
+    oauth2:
+      client-id: ${APP_GOOGLE_CLIENT_ID:}
+      client-secret: ${APP_GOOGLE_CLIENT_SECRET:}
+
+  # Facebook OAuth Configuration
+  facebook:
+    app-id: ${APP_FACEBOOK_APP_ID:}
+    app-secret: ${APP_FACEBOOK_APP_SECRET:}
+
   # Cloudinary Configuration
   cloudinary:
     cloud-name: ${CLOUDINARY_CLOUD_NAME:your_cloud_name}

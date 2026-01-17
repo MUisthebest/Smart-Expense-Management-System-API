@@ -3,7 +3,13 @@ package com.example.smartmoney.domain.models.user;
 import com.example.smartmoney.domain.models.user.valueobjects.*;
 import com.example.smartmoney.domain.models.user.enums.Role;
 import com.example.smartmoney.domain.exceptions.DomainException;
+
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+
+import org.springframework.cglib.core.Local;
+
 import lombok.*;
 
 @Builder(toBuilder = true)
@@ -49,6 +55,64 @@ public class User {
         user.setEmail(email);
         user.setCreatedAt(LocalDateTime.now());
         user.setUpdatedAt(LocalDateTime.now());
+        
+        return user;
+    }
+    
+    // Factory method for Google OAuth registration
+    public static User createGoogleUser(
+            String username,
+            String email,
+            String fullName,
+            Avatar avatarUrl) {
+        
+        User user = new User();
+        user.setUsername(username);
+        user.setEmail(new Email(email));
+        user.setFullName(fullName);
+        user.setAvatar(avatarUrl);
+        // Google users don't have a password initially
+        user.setPassword(Password.fromHash("SOCIAL_LOGIN")); // Empty password for OAuth users
+        // set enough 18 years old as default DOB        
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+        String dob = LocalDate.now().minusYears(18).format(formatter).toString();
+        user.setDateOfBirth(new DateOfBirth(dob));
+        user.setPhone(new Phone("0000000000"));
+        user.setRole(Role.USER);
+        user.setCoin(0);
+        user.setRate(5.0);
+        user.setCreatedAt(LocalDateTime.now());
+        user.setUpdatedAt(LocalDateTime.now());
+        user.setActive(true);
+        
+        return user;
+    }
+    
+    // Factory method for Facebook OAuth registration
+    public static User createFacebookUser(
+            String username,
+            String email,
+            String fullName,
+            Avatar avatarUrl) {
+        
+        User user = new User();
+        user.setUsername(username);
+        user.setEmail(new Email(email));
+        user.setFullName(fullName);
+        user.setAvatar(avatarUrl);
+        // Facebook users don't have a password initially
+        user.setPassword(Password.fromHash("SOCIAL_LOGIN")); // Empty password for OAuth users
+        // set enough 18 years old as default DOB        
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+        String dob = LocalDate.now().minusYears(18).format(formatter).toString();
+        user.setDateOfBirth(new DateOfBirth(dob));
+        user.setPhone(new Phone("0000000000"));
+        user.setRole(Role.USER);
+        user.setCoin(0);
+        user.setRate(5.0);
+        user.setCreatedAt(LocalDateTime.now());
+        user.setUpdatedAt(LocalDateTime.now());
+        user.setActive(true);
         
         return user;
     }
@@ -113,6 +177,16 @@ public class User {
     public void changePassword(String encodedPassword) {
         this.password = Password.fromHash(encodedPassword);
         clearRefreshToken(); // logout all devices
+    }
+    
+    public void activate() {
+        this.active = true;
+        this.updatedAt = LocalDateTime.now();
+    }
+    
+    public void deactivate() {
+        this.active = false;
+        this.updatedAt = LocalDateTime.now();
     }
     
     // Getters and Setters

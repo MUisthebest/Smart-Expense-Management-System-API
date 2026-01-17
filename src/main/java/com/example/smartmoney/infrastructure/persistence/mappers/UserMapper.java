@@ -12,8 +12,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
 @Component
-@Mapper(componentModel = "spring", 
-        imports = {DateTimeFormatter.class, LocalDate.class, LocalDateTime.class})
+@Mapper(componentModel = "spring")
 public abstract class UserMapper {
     
     // Domain -> Entity
