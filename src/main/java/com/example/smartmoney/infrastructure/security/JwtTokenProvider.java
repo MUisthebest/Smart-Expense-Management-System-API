@@ -1,12 +1,12 @@
 package com.example.smartmoney.infrastructure.security;
 
-import com.example.smartmoney.application.ports.AuthPort;
+import com.example.smartmoney.application.ports.auth.AuthPort;
 import com.example.smartmoney.domain.models.user.User;
 import com.example.smartmoney.domain.models.user.valueobjects.Email;
 import com.example.smartmoney.domain.models.user.valueobjects.RefreshToken;
 import com.example.smartmoney.domain.exceptions.AuthenticationException;
 import com.example.smartmoney.domain.repositories.UserRepository;
-import com.example.smartmoney.infrastructure.config.JwtConfig;
+
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
@@ -31,7 +31,7 @@ public class JwtTokenProvider implements AuthPort, UserDetailsService {
     private final JwtConfig jwtConfig;
     private final UserRepository userRepository;
     private final BCryptPasswordEncoder passwordEncoder;
-    
+
     private SecretKey signingKey;
     
     @PostConstruct
@@ -144,6 +144,7 @@ public class JwtTokenProvider implements AuthPort, UserDetailsService {
         return userRepository.findByEmail(email)
             .orElseThrow(() -> new AuthenticationException("User not found with email: " + email.getValue()));
     }
+
     
     // Các method helper không thuộc interface
     public Long getUserIdFromToken(String token) {

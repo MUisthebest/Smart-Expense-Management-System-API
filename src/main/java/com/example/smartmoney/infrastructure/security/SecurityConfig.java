@@ -1,6 +1,5 @@
-package com.example.smartmoney.infrastructure.config;
+package com.example.smartmoney.infrastructure.security;
 
-import com.example.smartmoney.infrastructure.security.AuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

@@ -8,8 +8,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
-import org.springframework.cglib.core.Local;
-
 import lombok.*;
 
 @Builder(toBuilder = true)
@@ -77,7 +75,7 @@ public class User {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
         String dob = LocalDate.now().minusYears(18).format(formatter).toString();
         user.setDateOfBirth(new DateOfBirth(dob));
-        user.setPhone(new Phone("0000000000"));
+        user.setPhone(new Phone("0123456789"));
         user.setRole(Role.USER);
         user.setCoin(0);
         user.setRate(5.0);
@@ -106,7 +104,7 @@ public class User {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
         String dob = LocalDate.now().minusYears(18).format(formatter).toString();
         user.setDateOfBirth(new DateOfBirth(dob));
-        user.setPhone(new Phone("0000000000"));
+        user.setPhone(new Phone("0123456789"));
         user.setRole(Role.USER);
         user.setCoin(0);
         user.setRate(5.0);

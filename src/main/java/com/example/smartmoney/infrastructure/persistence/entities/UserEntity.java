@@ -30,7 +30,7 @@ public class UserEntity {
     @Column(name = "date_of_birth", nullable = false)
     private LocalDate dateOfBirth;
     
-    @Column(name = "phone", unique = true, nullable = false, length = 20)
+    @Column(name = "phone", unique = false, nullable = false, length = 20)
     private String phone;
     
     @Column(name = "email", unique = true, nullable = false, length = 30)

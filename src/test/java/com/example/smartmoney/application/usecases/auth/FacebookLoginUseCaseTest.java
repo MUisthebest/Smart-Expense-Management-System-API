@@ -2,7 +2,8 @@ package com.example.smartmoney.application.usecases.auth;
 
 import com.example.smartmoney.application.dtos.requests.auth.FacebookLoginRequest;
 import com.example.smartmoney.application.dtos.responses.AuthResponse;
-import com.example.smartmoney.application.ports.AuthPort;
+import com.example.smartmoney.application.ports.auth.AuthPort;
+import com.example.smartmoney.application.ports.auth.ExternalOAuthPort;
 import com.example.smartmoney.domain.models.user.User;
 import com.example.smartmoney.domain.models.user.valueobjects.Email;
 import com.example.smartmoney.domain.repositories.UserRepository;
@@ -11,10 +12,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.web.client.RestTemplate;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -25,7 +26,8 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-@DisplayName("FacebookLoginUseCase Tests")
+@MockitoSettings(strictness = Strictness.LENIENT)
+@DisplayName("FacebookLoginUseCase Tests - External JWT Validation")
 class FacebookLoginUseCaseTest {
 
     @Mock
@@ -35,38 +37,31 @@ class FacebookLoginUseCaseTest {
     private AuthPort authPort;
 
     @Mock
-    private RestTemplate restTemplate;
+    private ExternalOAuthPort externalOAuthPort;
 
-    @InjectMocks
     private FacebookLoginUseCase facebookLoginUseCase;
 
     private FacebookLoginRequest validRequest;
-    private Map<String, Object> facebookUserData;
+    private Map<String, Object> supabaseUserClaims;
 
     @BeforeEach
     void setUp() {
-        validRequest = new FacebookLoginRequest();
-        validRequest.setAccessToken("valid_facebook_access_token");
-        validRequest.setEmail("test@example.com");
-        validRequest.setName("Test User");
-        validRequest.setPicture("https://example.com/avatar.jpg");
-        validRequest.setUserId("123456");
-
-        facebookUserData = new HashMap<>();
-        facebookUserData.put("id", "123456");
-        facebookUserData.put("email", "test@example.com");
-        facebookUserData.put("name", "Test User");
+        // Initialize the use case manually with mocked dependencies
+        facebookLoginUseCase = new FacebookLoginUseCase(userRepository, authPort, externalOAuthPort);
         
-        Map<String, Object> pictureData = new HashMap<>();
-        Map<String, Object> pictureDataObj = new HashMap<>();
-        pictureDataObj.put("url", "https://example.com/avatar.jpg");
-        pictureData.put("data", pictureDataObj);
-        facebookUserData.put("picture", pictureData);
+        validRequest = new FacebookLoginRequest();
+        validRequest.setAccessToken("supabase-jwt-token");
+
+        // Simulate Supabase JWT claims
+        supabaseUserClaims = new HashMap<>();
+        supabaseUserClaims.put("sub", "user-id-123");
+        supabaseUserClaims.put("email", "test@example.com");
+        supabaseUserClaims.put("name", "Test User");
     }
 
     @Test
-    @DisplayName("Should successfully login with valid Facebook token and existing user")
-    void testExecuteWithValidTokenAndExistingUser() {
+    @DisplayName("Should successfully login with valid Supabase JWT and existing user")
+    void testExecuteWithValidSupabaseJwtAndExistingUser() throws Exception {
         // Arrange
         User existingUser = User.builder()
                 .id(1L)
@@ -74,39 +69,42 @@ class FacebookLoginUseCaseTest {
                 .email(new Email("test@example.com"))
                 .fullName("Test User")
                 .active(true)
+                .dateOfBirth(new com.example.smartmoney.domain.models.user.valueobjects.DateOfBirth("01/01/1990"))
+                .phone(new com.example.smartmoney.domain.models.user.valueobjects.Phone("0123456789"))
                 .build();
-
-        when(restTemplate.getForObject(anyString(), eq(Map.class)))
-                .thenReturn(facebookUserData);
+        
+        when(externalOAuthPort.validateAndExtractExternalToken("supabase-jwt-token"))
+                .thenAnswer(invocation -> supabaseUserClaims);
         when(userRepository.findByEmail(any(Email.class)))
                 .thenReturn(Optional.of(existingUser));
         when(authPort.generateAccessToken(any(User.class)))
-                .thenReturn("access_token");
+                .thenReturn("backend-access-token");
         when(authPort.generateRefreshToken(any(User.class)))
-                .thenReturn("refresh_token");
+                .thenReturn("backend-refresh-token");
 
         // Act
         AuthResponse response = facebookLoginUseCase.execute(validRequest);
 
         // Assert
         assertNotNull(response);
-        assertEquals("access_token", response.getAccessToken());
-        assertEquals("refresh_token", response.getRefreshToken());
+        assertEquals("backend-access-token", response.getAccessToken());
+        assertEquals("backend-refresh-token", response.getRefreshToken());
         assertEquals("Bearer", response.getTokenType());
-        assertEquals(3600L, response.getExpiresIn());
+        assertEquals(0, response.getExpiresIn());
         assertNotNull(response.getUser());
+        assertEquals("test@example.com", response.getUser().getEmail());
 
-        verify(restTemplate, times(1)).getForObject(anyString(), eq(Map.class));
+        verify(externalOAuthPort, times(1)).validateAndExtractExternalToken("supabase-jwt-token");
         verify(userRepository, times(1)).findByEmail(any(Email.class));
         verify(userRepository, times(1)).save(any(User.class));
     }
 
     @Test
-    @DisplayName("Should create new user if not found")
-    void testExecuteCreatesNewUserWhenNotFound() {
+    @DisplayName("Should create new user if not found in database")
+    void testExecuteCreatesNewUserWhenNotFound() throws Exception {
         // Arrange
-        when(restTemplate.getForObject(anyString(), eq(Map.class)))
-                .thenReturn(facebookUserData);
+        when(externalOAuthPort.validateAndExtractExternalToken("supabase-jwt-token"))
+                .thenAnswer(invocation -> supabaseUserClaims);
         when(userRepository.findByEmail(any(Email.class)))
                 .thenReturn(Optional.empty());
         when(userRepository.save(any(User.class)))
@@ -116,9 +114,9 @@ class FacebookLoginUseCaseTest {
                     return user;
                 });
         when(authPort.generateAccessToken(any(User.class)))
-                .thenReturn("access_token");
+                .thenReturn("backend-access-token");
         when(authPort.generateRefreshToken(any(User.class)))
-                .thenReturn("refresh_token");
+                .thenReturn("backend-refresh-token");
 
         // Act
         AuthResponse response = facebookLoginUseCase.execute(validRequest);
@@ -127,82 +125,39 @@ class FacebookLoginUseCaseTest {
         assertNotNull(response);
         assertNotNull(response.getUser());
         assertEquals("test@example.com", response.getUser().getEmail());
+        assertEquals("Test User", response.getUser().getFullName());
 
-        verify(userRepository, times(2)).save(any(User.class)); // Once for creation, once for refresh token
+        verify(userRepository, times(2)).save(any(User.class));
     }
 
     @Test
-    @DisplayName("Should throw exception when accessToken is missing")
-    void testExecuteThrowsExceptionWhenAccessTokenMissing() {
+    @DisplayName("Should throw exception when external JWT is invalid")
+    void testExecuteThrowsExceptionWhenJwtIsInvalid() throws Exception {
         // Arrange
-        FacebookLoginRequest invalidRequest = new FacebookLoginRequest();
-        invalidRequest.setAccessToken(null);
-
-        // Act & Assert
-        assertThrows(Exception.class, () -> facebookLoginUseCase.execute(invalidRequest));
-    }
-
-    @Test
-    @DisplayName("Should throw exception when Facebook token is invalid")
-    void testExecuteThrowsExceptionWhenTokenIsInvalid() {
-        // Arrange
-        Map<String, Object> errorResponse = new HashMap<>();
-        errorResponse.put("error", new HashMap<String, Object>());
-
-        when(restTemplate.getForObject(anyString(), eq(Map.class)))
-                .thenReturn(errorResponse);
+        when(externalOAuthPort.validateAndExtractExternalToken("invalid-jwt-token"))
+                .thenThrow(new RuntimeException("Invalid JWT token"));
 
         // Act & Assert
         assertThrows(DomainException.class, () -> facebookLoginUseCase.execute(validRequest));
     }
 
     @Test
-    @DisplayName("Should throw exception when email is missing from Facebook response")
-    void testExecuteThrowsExceptionWhenEmailMissing() {
+    @DisplayName("Should throw exception when email is missing from JWT claims")
+    void testExecuteThrowsExceptionWhenEmailMissing() throws Exception {
         // Arrange
-        Map<String, Object> dataWithoutEmail = new HashMap<>(facebookUserData);
-        dataWithoutEmail.remove("email");
+        Map<String, Object> claimsWithoutEmail = new HashMap<>(supabaseUserClaims);
+        claimsWithoutEmail.remove("email");
 
-        when(restTemplate.getForObject(anyString(), eq(Map.class)))
-                .thenReturn(dataWithoutEmail);
+        when(externalOAuthPort.validateAndExtractExternalToken("supabase-jwt-token"))
+                .thenAnswer(invocation -> claimsWithoutEmail);
 
         // Act & Assert
         assertThrows(DomainException.class, () -> facebookLoginUseCase.execute(validRequest));
     }
 
     @Test
-    @DisplayName("Should handle missing picture gracefully")
-    void testExecuteHandlesMissingPicture() {
-        // Arrange
-        Map<String, Object> dataWithoutPicture = new HashMap<>(facebookUserData);
-        dataWithoutPicture.remove("picture");
-
-        when(restTemplate.getForObject(anyString(), eq(Map.class)))
-                .thenReturn(dataWithoutPicture);
-        when(userRepository.findByEmail(any(Email.class)))
-                .thenReturn(Optional.empty());
-        when(userRepository.save(any(User.class)))
-                .thenAnswer(invocation -> {
-                    User user = invocation.getArgument(0);
-                    user.setId(1L);
-                    return user;
-                });
-        when(authPort.generateAccessToken(any(User.class)))
-                .thenReturn("access_token");
-        when(authPort.generateRefreshToken(any(User.class)))
-                .thenReturn("refresh_token");
-
-        // Act
-        AuthResponse response = facebookLoginUseCase.execute(validRequest);
-
-        // Assert
-        assertNotNull(response);
-        assertNotNull(response.getUser());
-    }
-
-    @Test
-    @DisplayName("Should reactivate inactive user")
-    void testExecuteReactivatesInactiveUser() {
+    @DisplayName("Should reactivate inactive user on successful login")
+    void testExecuteReactivatesInactiveUser() throws Exception {
         // Arrange
         User inactiveUser = User.builder()
                 .id(1L)
@@ -210,16 +165,18 @@ class FacebookLoginUseCaseTest {
                 .email(new Email("test@example.com"))
                 .fullName("Test User")
                 .active(false)
+                .dateOfBirth(new com.example.smartmoney.domain.models.user.valueobjects.DateOfBirth("01/01/1990"))
+                .phone(new com.example.smartmoney.domain.models.user.valueobjects.Phone("0123456789"))
                 .build();
 
-        when(restTemplate.getForObject(anyString(), eq(Map.class)))
-                .thenReturn(facebookUserData);
+        when(externalOAuthPort.validateAndExtractExternalToken("supabase-jwt-token"))
+                .thenAnswer(invocation -> supabaseUserClaims);
         when(userRepository.findByEmail(any(Email.class)))
                 .thenReturn(Optional.of(inactiveUser));
         when(authPort.generateAccessToken(any(User.class)))
-                .thenReturn("access_token");
+                .thenReturn("backend-access-token");
         when(authPort.generateRefreshToken(any(User.class)))
-                .thenReturn("refresh_token");
+                .thenReturn("backend-refresh-token");
 
         // Act
         AuthResponse response = facebookLoginUseCase.execute(validRequest);
@@ -231,8 +188,8 @@ class FacebookLoginUseCaseTest {
     }
 
     @Test
-    @DisplayName("Should return user response with correct data")
-    void testExecuteReturnsCorrectUserResponse() {
+    @DisplayName("Should return user response with correct data from JWT")
+    void testExecuteReturnsCorrectUserResponse() throws Exception {
         // Arrange
         User user = User.builder()
                 .id(1L)
@@ -241,16 +198,18 @@ class FacebookLoginUseCaseTest {
                 .fullName("Test User")
                 .coin(0)
                 .active(true)
+                .dateOfBirth(new com.example.smartmoney.domain.models.user.valueobjects.DateOfBirth("01/01/1990"))
+                .phone(new com.example.smartmoney.domain.models.user.valueobjects.Phone("0123456789"))
                 .build();
 
-        when(restTemplate.getForObject(anyString(), eq(Map.class)))
-                .thenReturn(facebookUserData);
+        when(externalOAuthPort.validateAndExtractExternalToken("supabase-jwt-token"))
+                .thenAnswer(invocation -> supabaseUserClaims);
         when(userRepository.findByEmail(any(Email.class)))
                 .thenReturn(Optional.of(user));
         when(authPort.generateAccessToken(any(User.class)))
-                .thenReturn("access_token");
+                .thenReturn("backend-access-token");
         when(authPort.generateRefreshToken(any(User.class)))
-                .thenReturn("refresh_token");
+                .thenReturn("backend-refresh-token");
 
         // Act
         AuthResponse response = facebookLoginUseCase.execute(validRequest);

@@ -1,6 +1,5 @@
 package com.example.smartmoney.infrastructure.security;
 
-import com.example.smartmoney.infrastructure.config.JwtConfig;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;

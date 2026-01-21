@@ -67,6 +67,7 @@ app:
   # Google OAuth Configuration
   google:
     oauth2:
+      enabled: true
       client-id: ${APP_GOOGLE_CLIENT_ID:}
       client-secret: ${APP_GOOGLE_CLIENT_SECRET:}
 
@@ -74,6 +75,15 @@ app:
   facebook:
     app-id: ${APP_FACEBOOK_APP_ID:}
     app-secret: ${APP_FACEBOOK_APP_SECRET:}
+    token-validity-seconds: 3600
+
+  # Supabase Configuration
+  supabase:
+    project-url: ${SUPABASE_PROJECT_URL:}
+    anon-key: ${SUPABASE_ANON_KEY:}      # REQUIRED - Get from Supabase Dashboard
+    service-role-key: ${SUPABASE_SERVICE_ROLE_KEY:}  # OPTIONAL - Only for admin operations
+    jwt-jwk: ${SUPABASE_JWT_JWK:}        # REQUIRED - ES256 public key in JWK format for token validation
+    enabled: true
 
   # Cloudinary Configuration
   cloudinary:

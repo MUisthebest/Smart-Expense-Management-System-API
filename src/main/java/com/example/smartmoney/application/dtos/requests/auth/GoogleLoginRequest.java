@@ -20,3 +20,4 @@ public class GoogleLoginRequest {
     private String givenName;
     private String familyName;
 }
+

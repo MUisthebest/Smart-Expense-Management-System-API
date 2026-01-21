@@ -10,12 +10,11 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class FacebookLoginRequest {
     
-    @NotBlank(message = "accessToken is required")
+    /**
+     * Supabase JWT access token from frontend.
+     * This is obtained after Facebook OAuth authentication via Supabase.
+     * Frontend gets this from supabase.auth.getSession().access_token
+     */
+    @NotBlank(message = "accessToken is required - use Supabase JWT token from frontend")
     private String accessToken;
-    
-    // Optional: You can also receive user data directly from frontend if needed
-    private String email;
-    private String name;
-    private String picture;
-    private String userId;
 }

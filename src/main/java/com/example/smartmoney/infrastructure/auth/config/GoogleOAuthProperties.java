@@ -1,8 +1,8 @@
-package com.example.smartmoney.infrastructure.config;
+package com.example.smartmoney.infrastructure.auth.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
-import jakarta.annotation.PostConstruct;
+
 @Configuration
 @ConfigurationProperties(prefix = "app.google.oauth2")
 public class GoogleOAuthProperties {
@@ -11,16 +11,6 @@ public class GoogleOAuthProperties {
     private String clientSecret;
     private String redirectUri;
     private Integer tokenValiditySeconds = 3600;
-    
-    @PostConstruct
-    public void init() {
-        if (clientId == null || clientId.isBlank()) {
-            throw new IllegalStateException("Google OAuth clientId must be configured");
-        }
-        if (clientSecret == null || clientSecret.isBlank()) {
-            throw new IllegalStateException("Google OAuth clientSecret must be configured");
-        }
-    }
     
     // Getters and Setters
     public String getClientId() {

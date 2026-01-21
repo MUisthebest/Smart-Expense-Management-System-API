@@ -3,9 +3,8 @@ package com.example.smartmoney.application.usecases.auth;
 import com.example.smartmoney.application.dtos.requests.auth.RefreshTokenRequest;
 import com.example.smartmoney.application.dtos.responses.AuthResponse;
 import com.example.smartmoney.application.dtos.responses.UserResponse;
-import com.example.smartmoney.application.ports.AuthPort;
+import com.example.smartmoney.application.ports.auth.AuthPort;
 import com.example.smartmoney.domain.models.user.User;
-import com.example.smartmoney.domain.services.AuthDomainService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,7 +15,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class RefreshTokenUseCase {
     
     private final AuthPort authPort;
-    private final AuthDomainService authService;
     
     public AuthResponse execute(RefreshTokenRequest request) {
         // Validate refresh token và lấy user

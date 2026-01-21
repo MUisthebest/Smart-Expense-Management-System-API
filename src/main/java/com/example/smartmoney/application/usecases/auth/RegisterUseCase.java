@@ -2,8 +2,7 @@ package com.example.smartmoney.application.usecases.auth;
 
 import com.example.smartmoney.application.dtos.requests.auth.RegisterRequest;
 import com.example.smartmoney.application.dtos.responses.UserResponse;
-import com.example.smartmoney.application.dtos.responses.AuthResponse;
-import com.example.smartmoney.application.ports.AuthPort;
+import com.example.smartmoney.application.ports.auth.AuthPort;
 import com.example.smartmoney.domain.models.user.*;
 import com.example.smartmoney.domain.models.user.valueobjects.*;
 import com.example.smartmoney.domain.repositories.UserRepository;

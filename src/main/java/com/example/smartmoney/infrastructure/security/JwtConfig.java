@@ -1,4 +1,4 @@
-package com.example.smartmoney.infrastructure.config;
+package com.example.smartmoney.infrastructure.security;
 
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;

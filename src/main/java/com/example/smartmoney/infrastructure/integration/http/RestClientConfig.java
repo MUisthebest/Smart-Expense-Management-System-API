@@ -1,4 +1,4 @@
-package com.example.smartmoney.infrastructure.config;
+package com.example.smartmoney.infrastructure.integration.http;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

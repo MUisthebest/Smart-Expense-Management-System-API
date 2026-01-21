@@ -1,4 +1,4 @@
-package com.example.smartmoney.infrastructure.config;
+package com.example.smartmoney.infrastructure.integration.cloudinary;
 
 import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;

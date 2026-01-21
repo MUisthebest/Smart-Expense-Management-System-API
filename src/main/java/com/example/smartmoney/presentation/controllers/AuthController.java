@@ -26,6 +26,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/v1/auth")
@@ -41,7 +42,7 @@ public class AuthController {
     private final LoginUseCase loginUseCase;
     private final RefreshTokenUseCase refreshTokenUseCase;
     private final GoogleLoginUseCase googleLoginUseCase;
-    private final FacebookLoginUseCase facebookLoginUseCase;
+    private final Optional<FacebookLoginUseCase> facebookLoginUseCase;
     
     @Operation(
         summary = "Register new user",
@@ -222,7 +223,9 @@ public class AuthController {
         log.info("Facebook login attempt");
         
         try {
-            AuthResponse authResponse = facebookLoginUseCase.execute(request);
+            AuthResponse authResponse = facebookLoginUseCase
+                .orElseThrow(() -> new IllegalStateException("Facebook login is not enabled"))
+                .execute(request);
             
             CheckResponse<AuthResponse> response = CheckResponse.<AuthResponse>builder()
                 .success(true)

@@ -44,7 +44,7 @@ public abstract class UserMapper {
     protected String mapPhoneToEntity(Phone phone) {
         return phone != null ? phone.getValue() : null;
     }
-    
+
     protected LocalDate mapDateOfBirthToEntity(DateOfBirth dateOfBirth) {
         return dateOfBirth != null ? dateOfBirth.getValue() : null;
     }

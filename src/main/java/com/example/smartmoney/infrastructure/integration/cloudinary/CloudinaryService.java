@@ -1,9 +1,9 @@
-package com.example.smartmoney.infrastructure.external;
+package com.example.smartmoney.infrastructure.integration.cloudinary;
 
 import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
 import com.example.smartmoney.domain.exceptions.DomainException;
-import com.example.smartmoney.infrastructure.config.CloudinaryConfig;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
