@@ -3,15 +3,17 @@ package com.example.smartmoney.domain.services;
 import com.example.smartmoney.domain.models.transaction.Transaction;
 import com.example.smartmoney.domain.repositories.TransactionRepository;
 import com.example.smartmoney.domain.exceptions.DomainException;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 
 @Service
-@RequiredArgsConstructor
 public class TransactionDomainService {
     private final TransactionRepository transactionRepository;
+
+    public TransactionDomainService(TransactionRepository transactionRepository) {
+        this.transactionRepository = transactionRepository;
+    }
 
     public Transaction createTransaction(Transaction transaction) {
         return transactionRepository.save(transaction);
