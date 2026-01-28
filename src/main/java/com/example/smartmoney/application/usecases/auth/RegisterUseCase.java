@@ -1,10 +1,11 @@
 package com.example.smartmoney.application.usecases.auth;
 
 import com.example.smartmoney.application.dtos.requests.auth.RegisterRequest;
-import com.example.smartmoney.application.dtos.responses.UserResponse;
-import com.example.smartmoney.application.ports.auth.AuthPort;
-import com.example.smartmoney.domain.models.user.*;
+import com.example.smartmoney.application.utils.OtpGenerator;
+import com.example.smartmoney.application.ports.mail.MailPort;
+import com.example.smartmoney.domain.models.otp.OTP;
 import com.example.smartmoney.domain.models.user.valueobjects.*;
+import com.example.smartmoney.domain.repositories.OTPRepository;
 import com.example.smartmoney.domain.repositories.UserRepository;
 import com.example.smartmoney.domain.exceptions.DomainException;
 import lombok.RequiredArgsConstructor;
@@ -18,38 +19,30 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class RegisterUseCase {
     
+    private final OTPRepository otpRepository;
     private final UserRepository userRepository;
-    private final AuthPort authPort;
-    
-    public UserResponse  execute(RegisterRequest request) {
+    private final MailPort mailPort;
+
+    public void  execute(RegisterRequest request) {
         // 1. Validate request
         validateRequest(request);
         
         // 2. Check duplicates
         checkDuplicates(request);
         
-        // 3. Create value objects
+        // 3. Send Email verification (nếu có)
         Email email = new Email(request.getEmail());
-        Password password = new Password(authPort.encodePassword(request.getPassword()));
-        Phone phone = new Phone(request.getPhone());
-        DateOfBirth dateOfBirth = new DateOfBirth(request.getDateOfBirth());
-        Avatar avatar = new Avatar(request.getAvatar());
-        
-        // 4. Create user
-        User user = User.create(
-            request.getUsername(),
-            request.getFullName(),
-            avatar,
-            password,
-            dateOfBirth,
-            phone,
-            email
-        );
-        
-        // 5. Save user
-        User savedUser = userRepository.save(user);
-        log.info("User registered successfully: {}", savedUser.getUsername());
-        return mapToUserResponse(savedUser);
+        String otp = OtpGenerator.generate(); // 6 số
+        OTP otpModel = OTP.builder()
+            .email(email)
+            .otp(otp)
+            .expiredAt(java.time.LocalDateTime.now().plusMinutes(10))
+            .verified(false)
+            .build();
+        otpRepository.save(otpModel);
+        String subject = "SmartMoney - Email Verification";
+        String body = mailPort.generateVerificationEmail(email.getValue(), otp);
+        mailPort.sendHtmlMail(email.getValue(), subject, body);
     }
     
     private void validateRequest(RegisterRequest request) {
@@ -96,20 +89,4 @@ public class RegisterUseCase {
         }
     }
     
-    private UserResponse mapToUserResponse(User user) {
-        UserResponse response = new UserResponse();
-        response.setId(user.getId());
-        response.setUsername(user.getUsername());
-        response.setFullName(user.getFullName());
-        response.setAvatar(user.getAvatar() != null ? user.getAvatar().getUrl() : null);
-        response.setDateOfBirth(user.getDateOfBirth() != null ? 
-            user.getDateOfBirth().getFormattedValue() : null);
-        response.setPhone(user.getPhone() != null ? user.getPhone().getValue() : null);
-        response.setEmail(user.getEmail().getValue());
-        response.setCoin(user.getCoin());
-        response.setRole(user.getRole());
-        response.setRate(user.getRate());
-        response.setActive(user.isActive());
-        return response;
-    }
 }
