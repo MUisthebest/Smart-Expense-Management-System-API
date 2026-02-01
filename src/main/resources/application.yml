@@ -12,6 +12,7 @@ spring:
   application:
     name: smart-money
   
+  
   # Database Configuration (H2 for development)
   datasource:
     url: jdbc:h2:mem:smartmoney
@@ -84,6 +85,19 @@ app:
     service-role-key: ${SUPABASE_SERVICE_ROLE_KEY:}  # OPTIONAL - Only for admin operations
     jwt-jwk: ${SUPABASE_JWT_JWK:}        # REQUIRED - ES256 public key in JWK format for token validation
     enabled: true
+
+  # Email Configuration
+  mail:
+    host: ${MAIL_HOST:}
+    port: ${MAIL_PORT:}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: ${MAIL_SMTP_AUTH:}
+          starttls:
+            enable: ${MAIL_SMTP_STARTTLS_ENABLE:}
 
   # Cloudinary Configuration
   cloudinary:
