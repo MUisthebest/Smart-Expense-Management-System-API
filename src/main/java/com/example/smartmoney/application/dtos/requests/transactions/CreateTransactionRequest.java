@@ -1,4 +1,4 @@
-package com.example.smartmoney.application.dtos.requests;
+package com.example.smartmoney.application.dtos.requests.transactions;
 
 import com.example.smartmoney.domain.models.transaction.enums.Category;
 import com.example.smartmoney.domain.models.transaction.enums.TransactionType;

@@ -1,7 +1,7 @@
 package com.example.smartmoney.presentation.controllers;
 
-import com.example.smartmoney.application.dtos.requests.CreateTransactionRequest;
-import com.example.smartmoney.application.dtos.requests.UpdateTransactionRequest;
+import com.example.smartmoney.application.dtos.requests.transactions.CreateTransactionRequest;
+import com.example.smartmoney.application.dtos.requests.transactions.UpdateTransactionRequest;
 import com.example.smartmoney.application.dtos.responses.CheckResponse;
 import com.example.smartmoney.application.dtos.responses.TransactionListResponse;
 import com.example.smartmoney.application.dtos.responses.TransactionResponse;
