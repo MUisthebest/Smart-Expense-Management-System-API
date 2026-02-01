@@ -14,6 +14,7 @@ public abstract class OTPMapper {
     @Mapping(target = "otp", source = "domain.otp")
     @Mapping(target = "expiredAt", source = "domain.expiredAt")
     @Mapping(target = "verified", source = "domain.verified")
+    @Mapping(target = "type", source = "domain.type")
     public abstract OTPEntity toEntity(OTP domain);
 
     @Mapping(target = "id", source = "entity.id")
@@ -21,6 +22,7 @@ public abstract class OTPMapper {
     @Mapping(target = "otp", source = "entity.otp")
     @Mapping(target = "expiredAt", source = "entity.expiredAt")
     @Mapping(target = "verified", source = "entity.verified")
+    @Mapping(target = "type", source = "entity.type")
     public abstract OTP toDomain(OTPEntity entity);
 
     // Domain → Entity

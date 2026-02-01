@@ -229,6 +229,7 @@ public class FacebookLoginUseCase {
         response.setPhone(user.getPhone() != null ? user.getPhone().getValue() : null);
         response.setAvatar(user.getAvatar() != null ? user.getAvatar().getUrl() : null);
         response.setActive(user.isActive());
+        response.setRate(user.getRate());
         response.setRole(user.getRole());
         response.setCoin(user.getCoin());
         return response;

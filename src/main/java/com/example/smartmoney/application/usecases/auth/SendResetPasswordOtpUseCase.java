@@ -10,6 +10,7 @@ import com.example.smartmoney.domain.exceptions.DomainException;
 import com.example.smartmoney.domain.repositories.UserRepository;
 import com.example.smartmoney.domain.repositories.OTPRepository;
 import com.example.smartmoney.domain.models.otp.OTP;
+import com.example.smartmoney.domain.models.otp.enums.Type;
 import com.example.smartmoney.domain.models.user.valueobjects.Email;
 import com.example.smartmoney.application.ports.mail.MailPort;
 import com.example.smartmoney.application.utils.OtpGenerator;
@@ -44,6 +45,7 @@ public class SendResetPasswordOtpUseCase {
             .otp(otp)
             .expiredAt(java.time.LocalDateTime.now().plusMinutes(10))
             .verified(false)
+            .type(Type.UPDATE)
             .build();
         otpRepository.save(otpModel);
         String subject = "SmartMoney - Email Verification";

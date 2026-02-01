@@ -7,10 +7,12 @@ import com.example.smartmoney.application.dtos.requests.auth.ResetPasswordReques
 import com.example.smartmoney.application.dtos.requests.auth.SendResetPasswordOtpRequest;
 import com.example.smartmoney.application.dtos.requests.auth.UpdateUserRequest;
 import com.example.smartmoney.application.dtos.requests.auth.VerifyEmailRequest;
+import com.example.smartmoney.application.dtos.requests.auth.VerifyOtpRequest;
 import com.example.smartmoney.application.dtos.requests.auth.GoogleLoginRequest;
 import com.example.smartmoney.application.dtos.requests.auth.FacebookLoginRequest;
 import com.example.smartmoney.application.dtos.responses.CheckResponse;
 import com.example.smartmoney.application.dtos.responses.UserResponse;
+import com.example.smartmoney.application.dtos.responses.VerifyOtpResponse;
 import com.example.smartmoney.application.dtos.responses.AuthResponse;
 import com.example.smartmoney.application.usecases.auth.LoginUseCase;
 import com.example.smartmoney.application.usecases.auth.RefreshTokenUseCase;
@@ -18,6 +20,8 @@ import com.example.smartmoney.application.usecases.auth.RegisterUseCase;
 import com.example.smartmoney.application.usecases.auth.GoogleLoginUseCase;
 import com.example.smartmoney.application.usecases.auth.FacebookLoginUseCase;
 import com.example.smartmoney.application.usecases.auth.VerifyEmailUseCase;
+import com.example.smartmoney.application.usecases.auth.VerifyOtpUseCase;
+import com.example.smartmoney.domain.exceptions.DomainException;
 import com.example.smartmoney.application.usecases.auth.SendResetPasswordOtpUseCase;
 import com.example.smartmoney.application.usecases.auth.ResetPasswordUseCase;
 import com.example.smartmoney.application.usecases.auth.UpdateUserUseCase;
@@ -56,6 +60,7 @@ public class AuthController {
     private final UpdateUserUseCase updateUserUseCase;
     private final SendResetPasswordOtpUseCase sendResetPasswordOtpUseCase;
     private final ResetPasswordUseCase resetPasswordUseCase;
+    private final VerifyOtpUseCase verifyOtpUseCase;
 
     
     @Operation(
@@ -66,12 +71,12 @@ public class AuthController {
         @ApiResponse(
             responseCode = "200",
             description = "User registered successfully",
-            content = @Content(schema = @Schema(implementation = AuthResponse.class))
+            content = @Content(schema = @Schema(implementation = CheckResponse.class))
         ),
         @ApiResponse(
             responseCode = "400",
             description = "Invalid input or user already exists",
-            content = @Content(schema = @Schema(implementation = ApiResponse.class))
+            content = @Content(schema = @Schema(implementation = CheckResponse.class))
         ),
         @ApiResponse(
             responseCode = "500",
@@ -79,7 +84,7 @@ public class AuthController {
         )
     })
     @PostMapping("/register")
-    public ResponseEntity<CheckResponse<AuthResponse>> register(
+    public ResponseEntity<CheckResponse<Void>> register(
             @Parameter(description = "User registration data", required = true)
             @Valid @RequestBody RegisterRequest request) {
         
@@ -87,9 +92,10 @@ public class AuthController {
         try {
             registerUseCase.execute(request);
             
-            CheckResponse<AuthResponse> response = CheckResponse.<AuthResponse>builder()
+            CheckResponse<Void> response = CheckResponse.<Void>builder()
                 .success(true)
                 .message("Registration successful. Please verify your email.")
+                .data(null)
                 .build();
             
             log.info("Registration successful for email: {}", request.getEmail());
@@ -98,7 +104,7 @@ public class AuthController {
         } catch (Exception e) {
             log.warn("Registration failed for email: {}", request.getEmail(), e);
             
-            CheckResponse<AuthResponse> response = CheckResponse.<AuthResponse>builder()
+            CheckResponse<Void> response = CheckResponse.<Void>builder()
                 .success(false)
                 .message("Registration failed: " + e.getMessage())
                 .build();
@@ -115,12 +121,12 @@ public class AuthController {
         @ApiResponse(
             responseCode = "200",
             description = "Save successful",
-            content = @Content(schema = @Schema(implementation = AuthResponse.class))
+            content = @Content(schema = @Schema(implementation = CheckResponse.class))
         ),
         @ApiResponse(
             responseCode = "401",
             description = "Invalid credentials",
-            content = @Content(schema = @Schema(implementation = ApiResponse.class))
+            content = @Content(schema = @Schema(implementation = CheckResponse.class))
         ),
         @ApiResponse(
             responseCode = "400",
@@ -128,18 +134,32 @@ public class AuthController {
         )
     })
     @PostMapping("/verify-email")
-    public ResponseEntity<CheckResponse<UserResponse>> verifyEmail(
+    public ResponseEntity<CheckResponse<Void>> verifyEmail(
             @Valid @RequestBody VerifyEmailRequest request) {
 
-        UserResponse user = verifyEmailUseCase.execute(request);
+        try {
+            verifyEmailUseCase.execute(request);
 
-        return ResponseEntity.ok(
-            CheckResponse.<UserResponse>builder()
-                .success(true)
-                .message("Email verified and user created")
-                .data(user)
-                .build()
-        );
+
+
+                return ResponseEntity.ok(
+                    CheckResponse.<Void>builder()
+                        .success(true)
+                        .message("Email verified and user created")
+                        .data(null)
+                        .build()
+                );
+        }
+        catch (Exception e) {
+                return ResponseEntity.ok(
+                    CheckResponse.<Void>builder()
+                        .success(true)
+                        .message("Invalid OTP")
+                        .data(null)
+                        .build()
+                );
+        }
+ 
     }
     
     
@@ -560,38 +580,107 @@ public class AuthController {
             description = "User not found"
         )
     })
-    @PostMapping("/reset")
-    public ResponseEntity<CheckResponse<Void>> resetPassword(
-            @Parameter(description = "Reset password data with OTP", required = true)
-            @Valid @RequestBody ResetPasswordRequest request) {
+
+    // API 1: Xác thực OTP
+    @PostMapping("/verify-otp")
+    public ResponseEntity<CheckResponse<VerifyOtpResponse>> verifyOtp(
+            @Parameter(description = "Verify OTP data", required = true)
+            @Valid @RequestBody VerifyOtpRequest request) {
         
-        log.info("Reset password request for email: {}", request.getEmail());
+        log.info("Verify OTP request for email: {}", request.getEmail());
         
         try {
-            resetPasswordUseCase.execute(request);
+            VerifyOtpResponse responseData = verifyOtpUseCase.execute(request);
+            
+            CheckResponse<VerifyOtpResponse> response = CheckResponse.<VerifyOtpResponse>builder()
+                .success(true)
+                .message("OTP verified successfully")
+                .data(responseData)
+                .build();
+            
+            log.info("OTP verified successfully for email: {}", request.getEmail());
+            return ResponseEntity.ok(response);
+            
+        } catch (DomainException e) {
+            log.error("Failed to verify OTP for email: {}", request.getEmail(), e);
+            
+            CheckResponse<VerifyOtpResponse> response = CheckResponse.<VerifyOtpResponse>builder()
+                .success(false)
+                .message(e.getMessage())
+                .build();
+            
+            HttpStatus status = HttpStatus.BAD_REQUEST;
+            if (e.getMessage().contains("User not found")) {
+                status = HttpStatus.NOT_FOUND;
+            }
+            
+            return ResponseEntity.status(status).body(response);
+        } catch (Exception e) {
+            log.error("Unexpected error verifying OTP for email: {}", request.getEmail(), e);
+            
+            CheckResponse<VerifyOtpResponse> response = CheckResponse.<VerifyOtpResponse>builder()
+                .success(false)
+                .message("Internal server error")
+                .build();
+            
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+        }
+    }
+    
+    // API 2: Reset password với token
+    @PostMapping("/reset-password")
+    public ResponseEntity<CheckResponse<Void>> resetPassword(
+            @Parameter(description = "Reset password data", required = true)
+            @Valid @RequestBody ResetPasswordRequest request,
+            @RequestHeader(value = "X-Reset-Token", required = false) String resetToken) {
+        
+        log.info("Reset password request");
+        
+        // Validate token
+        if (resetToken == null || resetToken.trim().isEmpty()) {
+            CheckResponse<Void> response = CheckResponse.<Void>builder()
+                .success(false)
+                .message("Reset token is required")
+                .build();
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
+        }
+        
+        try {
+            resetPasswordUseCase.execute(request, resetToken);
             
             CheckResponse<Void> response = CheckResponse.<Void>builder()
                 .success(true)
                 .message("Password reset successful")
                 .build();
             
-            log.info("Password reset successful for email: {}", request.getEmail());
+            log.info("Password reset successful");
             return ResponseEntity.ok(response);
             
-        } catch (Exception e) {
-            log.error("Failed to reset password for email: {}", request.getEmail(), e);
+        } catch (DomainException e) {
+            log.error("Failed to reset password: {}", e.getMessage());
             
             HttpStatus status = HttpStatus.BAD_REQUEST;
-            if (e.getMessage() != null && e.getMessage().contains("not found")) {
+            if (e.getMessage().contains("Invalid or expired reset token")) {
+                status = HttpStatus.UNAUTHORIZED;
+            } else if (e.getMessage().contains("User not found")) {
                 status = HttpStatus.NOT_FOUND;
             }
             
             CheckResponse<Void> response = CheckResponse.<Void>builder()
                 .success(false)
-                .message("Failed to reset password: " + e.getMessage())
+                .message(e.getMessage())
                 .build();
             
             return ResponseEntity.status(status).body(response);
+        } catch (Exception e) {
+            log.error("Unexpected error resetting password", e);
+            
+            CheckResponse<Void> response = CheckResponse.<Void>builder()
+                .success(false)
+                .message("Internal server error")
+                .build();
+            
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
         }
     }
 

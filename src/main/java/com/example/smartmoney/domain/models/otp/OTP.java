@@ -1,8 +1,7 @@
 package com.example.smartmoney.domain.models.otp;
 import com.example.smartmoney.domain.models.user.valueobjects.Email;
-import java.time.LocalDate;
+import com.example.smartmoney.domain.models.otp.enums.Type;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 
 import com.example.smartmoney.domain.exceptions.DomainException;
 
@@ -19,13 +18,15 @@ public class OTP {
     private String otp;
     private LocalDateTime expiredAt;
     private boolean verified;
+    private Type type;
 
-    public static OTP create(Email email, String otp) {
+    public static OTP create(Email email, String otp, Type type ) {
         OTP obj = new OTP();
         obj.setEmail(email);
         obj.setOtp(otp);
         obj.setExpiredAt(LocalDateTime.now().plusMinutes(10));
         obj.setVerified(false);
+        obj.setType(type);
         return obj;
     }
 
@@ -43,6 +44,12 @@ public class OTP {
 
     public void setOtp(String otp) {
         this.otp = otp;
+    }
+    public void setType(Type type) {
+        this.type = type;
+    }
+    public Type getType(){
+        return type;
     }
     public LocalDateTime getExpiredAt() {
         return expiredAt;

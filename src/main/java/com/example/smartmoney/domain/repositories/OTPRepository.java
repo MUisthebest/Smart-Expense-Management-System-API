@@ -6,5 +6,6 @@ import java.util.Optional;
 public interface OTPRepository {  
     void save(OTP otp);
     Optional<OTP> findValidByEmail(Email email);
+    boolean existsValidByEmail(Email email);
     void deleteByEmail(Email email);
 }

@@ -20,4 +20,11 @@ public class OTPEntity {
     private LocalDateTime expiredAt;
     @Column(name = "verified", nullable = false)
     private boolean verified;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "role", nullable = false, length = 10)
+    private Type type;
+    public enum Type {
+        VERIFY,
+        UPDATE
+    }
 }
