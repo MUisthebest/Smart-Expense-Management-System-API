@@ -62,4 +62,9 @@ public class UserRepositoryImpl implements UserRepository {
     public boolean existsByPhone(Phone phone) {
         return jpaUserRepository.existsByPhone(phone.getValue());
     }
+
+    @Override
+    public boolean existsByPhoneAndIdNot(Phone phone, Long id) {
+        return jpaUserRepository.existsByPhoneAndIdNot(phone.getValue(), id);
+    }
 }

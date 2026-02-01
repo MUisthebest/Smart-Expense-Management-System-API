@@ -6,6 +6,10 @@ import com.example.smartmoney.domain.models.user.valueobjects.Email;
 public interface AuthPort {
     String generateAccessToken(User user);
     String generateRefreshToken(User user);
+    String generateResetToken(String email);
+    String validateResetToken(String resetToken);
+    public void invalidateResetToken(String token);
+    public void cleanupExpiredTokens();
     boolean validatePassword(String rawPassword, String encodedPassword);
     String encodePassword(String rawPassword);
     User validateRefreshToken(String refreshToken);    

@@ -22,6 +22,7 @@ import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Component
 @RequiredArgsConstructor
@@ -33,6 +34,22 @@ public class JwtTokenProvider implements AuthPort, UserDetailsService {
     private final BCryptPasswordEncoder passwordEncoder;
 
     private SecretKey signingKey;
+    private final Map<String, TokenData> resetTokenStore = new ConcurrentHashMap<>();
+    private static final long RESET_TOKEN_EXPIRY_MINUTES = 10;
+    
+    private static class TokenData {
+        String email;
+        long expiryTime;
+        
+        TokenData(String email, long expiryTime) {
+            this.email = email;
+            this.expiryTime = expiryTime;
+        }
+        
+        boolean isExpired() {
+            return System.currentTimeMillis() > expiryTime;
+        }
+    }
     
     @PostConstruct
     public void init() {
@@ -90,6 +107,54 @@ public class JwtTokenProvider implements AuthPort, UserDetailsService {
         
         log.debug("Generated refresh token for user ID: {}", user.getId());
         return token;
+    }
+
+    @Override
+    public String generateResetToken(String email) {
+        String token = UUID.randomUUID().toString();
+        
+        long expiryTime = System.currentTimeMillis() + 
+            (RESET_TOKEN_EXPIRY_MINUTES * 60 * 1000);
+        
+        resetTokenStore.put(token, new TokenData(email, expiryTime));
+        
+        log.debug("Generated reset token for email: {}, token: {}", email, token);
+        return token;
+    }
+    
+    @Override
+    public String validateResetToken(String resetToken) {
+        TokenData tokenData = resetTokenStore.get(resetToken);
+        
+        if (tokenData == null) {
+            log.debug("Reset token not found: {}", resetToken);
+            return null;
+        }
+        
+        if (tokenData.isExpired()) {
+            log.debug("Reset token expired: {}", resetToken);
+            resetTokenStore.remove(resetToken);
+            return null;
+        }
+        
+        return tokenData.email;
+    }
+    
+    @Override
+    public void invalidateResetToken(String token) {
+        resetTokenStore.remove(token);
+        log.debug("Reset token invalidated: {}", token);
+    }
+    
+    @Override
+    public void cleanupExpiredTokens() {
+        int initialSize = resetTokenStore.size();
+        resetTokenStore.entrySet().removeIf(entry -> entry.getValue().isExpired());
+        int removedCount = initialSize - resetTokenStore.size();
+        
+        if (removedCount > 0) {
+            log.debug("Cleaned up {} expired reset tokens", removedCount);
+        }
     }
     
     @Override

@@ -4,10 +4,11 @@ import com.example.smartmoney.application.dtos.requests.auth.LoginRequest;
 import com.example.smartmoney.application.dtos.responses.AuthResponse;
 import com.example.smartmoney.application.dtos.responses.UserResponse;
 import com.example.smartmoney.application.ports.auth.AuthPort;
+import com.example.smartmoney.domain.models.otp.OTP;
 import com.example.smartmoney.domain.models.user.*;
 import com.example.smartmoney.domain.models.user.valueobjects.*;
-import com.example.smartmoney.domain.models.user.valueobjects.Email;
 import com.example.smartmoney.domain.repositories.UserRepository;
+import com.example.smartmoney.domain.repositories.OTPRepository;
 import com.example.smartmoney.domain.exceptions.DomainException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,19 +18,26 @@ import org.springframework.transaction.annotation.Transactional;
 public class LoginUseCase {
     
     private final UserRepository userRepository;
+    private final OTPRepository otpRepository;
     private final AuthPort authPort;
     
-    public LoginUseCase(UserRepository userRepository, AuthPort authPort) {
+    public LoginUseCase(UserRepository userRepository, OTPRepository otpRepository, AuthPort authPort) {
         this.userRepository = userRepository;
+        this.otpRepository = otpRepository;
         this.authPort = authPort;
     }
     
     public AuthResponse execute(LoginRequest request) {
         Email email = new Email(request.getEmail());
-        
+
         // Find user by email
         User user = userRepository.findByEmail(email)
             .orElseThrow(() -> new DomainException("Invalid email"));
+
+        boolean hasActiveOTP = otpRepository.existsValidByEmail(email);
+        if (hasActiveOTP) {
+            throw new DomainException("Please verify your email first");
+        }
         
         // Validate password
         if (!authPort.validatePassword(request.getPassword(), user.getPassword().getHash())) {
