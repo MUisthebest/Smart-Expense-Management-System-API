@@ -1,6 +1,6 @@
 package com.example.smartmoney.application.usecases.transaction;
 
-import com.example.smartmoney.application.dtos.requests.CreateTransactionRequest;
+import com.example.smartmoney.application.dtos.requests.transactions.CreateTransactionRequest;
 import com.example.smartmoney.application.dtos.responses.TransactionResponse;
 import com.example.smartmoney.domain.exceptions.DomainException;
 import com.example.smartmoney.domain.models.transaction.Transaction;
