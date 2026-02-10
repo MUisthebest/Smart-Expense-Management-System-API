@@ -38,7 +38,7 @@ public abstract class ProjectEntityMapper {
         return id != null ? id.value() : null;
     }
 
-    protected UUID mapUserIdToEntity(UserId id) {
+    protected Long mapUserIdToEntity(UserId id) {
         return id != null ? id.value() : null;
     }
 

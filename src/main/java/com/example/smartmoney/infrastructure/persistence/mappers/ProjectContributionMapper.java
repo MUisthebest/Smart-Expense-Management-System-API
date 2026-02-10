@@ -32,11 +32,11 @@ public abstract class ProjectContributionMapper {
         return id != null ? new ContributionId(id) : null;
     }
 
-    protected UUID mapUserIdToEntity(UserId id) {
+    protected Long mapUserIdToEntity(UserId id) {
         return id != null ? id.value() : null;
     }
 
-    protected UserId mapUserIdToDomain(UUID id) {
+    protected UserId mapUserIdToDomain(Long id) {
         return id != null ? new UserId(id) : null;
     }
 
