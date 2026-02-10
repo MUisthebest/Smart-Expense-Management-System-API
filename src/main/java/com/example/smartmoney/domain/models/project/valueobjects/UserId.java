@@ -4,18 +4,18 @@ import java.util.Objects;
 import java.util.UUID;
 
 public final class UserId {
-    private final UUID value;
+    private final Long value;
 
-    public UserId(UUID value) {
-        if (value == null) throw new IllegalArgumentException("UserId is null");
+    public UserId(Long value) {
+        if (value == 0L) throw new IllegalArgumentException("UserId is null");
         this.value = value;
     }
 
     public static UserId of(String raw) {
-        return new UserId(UUID.fromString(raw));
+        return new UserId(Long.parseLong(raw));
     }
 
-    public UUID value() {
+    public Long value() {
         return value;
     }
 
@@ -33,6 +33,6 @@ public final class UserId {
 
     @Override
     public String toString() {
-        return value.toString();
+        return Long.toString(value);
     }
 }

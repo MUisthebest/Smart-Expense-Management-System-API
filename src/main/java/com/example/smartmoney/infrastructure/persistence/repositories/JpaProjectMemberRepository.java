@@ -22,5 +22,5 @@ public interface JpaProjectMemberRepository extends JpaRepository<ProjectMemberE
         from ProjectMemberEntity pm
         where pm.userId = :userId and pm.joinStatus = :joinStatus
     """)
-    List<UUID> findProjectIdsByUserIdAndJoinStatus(UUID userId, JoinStatus joinStatus);
+    List<UUID> findProjectIdsByUserIdAndJoinStatus(Long userId, JoinStatus joinStatus);
 }
