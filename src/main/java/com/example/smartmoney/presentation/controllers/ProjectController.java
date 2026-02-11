@@ -4,7 +4,12 @@ import com.example.smartmoney.application.dtos.requests.project.*;
 import com.example.smartmoney.application.dtos.responses.CheckResponse;
 import com.example.smartmoney.application.dtos.responses.project.*;
 import com.example.smartmoney.application.usecases.project.*;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -14,13 +19,14 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/projects")
+@RequestMapping("/api/v1/projects")
 @RequiredArgsConstructor
 @Slf4j
 @Tag(
-        name = "Project",
-        description = "Project"
+        name = "Projects",
+        description = "APIs for managing saving projects (Personal / Group)"
 )
+@SecurityRequirement(name = "bearerAuth")
 public class ProjectController {
 
     private final CreateProjectUseCase createProjectUseCase;
@@ -43,6 +49,17 @@ public class ProjectController {
         return "1";
     }
 
+    // ================= CREATE =================
+
+    @Operation(
+            summary = "Create new project",
+            description = "Create a new saving project (Personal or Group)"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Project created successfully"),
+            @ApiResponse(responseCode = "400", description = "Validation error"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized")
+    })
     @PostMapping
     public CheckResponse<ProjectDetailResponse> create(Authentication auth,
                                                        @Valid @RequestBody CreateProjectRequest req) {
@@ -54,6 +71,13 @@ public class ProjectController {
                 .build();
     }
 
+    // ================= LIST =================
+
+    @Operation(
+            summary = "Get my projects",
+            description = "Retrieve all projects that current user owns or joined"
+    )
+
     @GetMapping
     public CheckResponse<List<ProjectListItemResponse>> listMine(Authentication auth) {
         List<ProjectListItemResponse> data = listMyProjectsUseCase.execute(actorId(auth));
@@ -64,8 +88,17 @@ public class ProjectController {
                 .build();
     }
 
+    // ================= DETAIL =================
+
+    @Operation(
+            summary = "Get project detail",
+            description = "Retrieve detail of a specific project"
+    )
     @GetMapping("/{projectId}")
-    public CheckResponse<ProjectDetailResponse> detail(Authentication auth, @PathVariable String projectId) {
+    public CheckResponse<ProjectDetailResponse> detail(
+            Authentication auth,
+            @Parameter(description = "Project ID (UUID)", example = "550e8400-e29b-41d4-a716-446655440000")
+            @PathVariable String projectId) {
         ProjectDetailResponse data = getProjectDetailUseCase.execute(actorId(auth), projectId);
         return CheckResponse.<ProjectDetailResponse>builder()
                 .success(true)
@@ -74,6 +107,9 @@ public class ProjectController {
                 .build();
     }
 
+    // ================= UPDATE =================
+
+    @Operation(summary = "Update project information")
     @PutMapping("/{projectId}")
     public CheckResponse<ProjectDetailResponse> update(Authentication auth,
                                                        @PathVariable String projectId,
@@ -87,6 +123,10 @@ public class ProjectController {
     }
 
     // ===== Members (GROUP) =====
+
+    // ================= INVITE MEMBER =================
+
+    @Operation(summary = "Invite member to group project")
     @PostMapping("/{projectId}/members/invite")
     public CheckResponse<ProjectDetailResponse> invite(Authentication auth,
                                                        @PathVariable String projectId,
@@ -99,6 +139,7 @@ public class ProjectController {
                 .build();
     }
 
+    @Operation(summary = "Accept project invitation")
     @PostMapping("/{projectId}/members/accept")
     public CheckResponse<ProjectDetailResponse> accept(Authentication auth,
                                                        @PathVariable String projectId) {
@@ -110,6 +151,7 @@ public class ProjectController {
                 .build();
     }
 
+    @Operation(summary = "Set admin role for member")
     @PatchMapping("/{projectId}/members/{userId}/admin")
     public CheckResponse<ProjectDetailResponse> setAdmin(Authentication auth,
                                                          @PathVariable String projectId,
@@ -123,6 +165,7 @@ public class ProjectController {
                 .build();
     }
 
+    @Operation(summary = "Remove member from project")
     @DeleteMapping("/{projectId}/members/{userId}")
     public CheckResponse<ProjectDetailResponse> removeMember(Authentication auth,
                                                              @PathVariable String projectId,
@@ -136,6 +179,8 @@ public class ProjectController {
     }
 
     // ===== Contributions =====
+
+    @Operation(summary = "Add contribution to project")
     @PostMapping("/{projectId}/contributions")
     public CheckResponse<ProjectContributionResponse> addContribution(Authentication auth,
                                                                       @PathVariable String projectId,
@@ -148,6 +193,7 @@ public class ProjectController {
                 .build();
     }
 
+    @Operation(summary = "List contributions of project")
     @GetMapping("/{projectId}/contributions")
     public CheckResponse<List<ProjectContributionResponse>> listContributions(Authentication auth,
                                                                               @PathVariable String projectId) {
@@ -159,6 +205,7 @@ public class ProjectController {
                 .build();
     }
 
+    @Operation(summary = "Get contribution summary")
     @GetMapping("/{projectId}/contributions/summary")
     public CheckResponse<ContributionSummaryResponse> summary(Authentication auth,
                                                               @PathVariable String projectId) {
