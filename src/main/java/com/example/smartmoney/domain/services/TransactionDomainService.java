@@ -6,6 +6,7 @@ import com.example.smartmoney.domain.exceptions.DomainException;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.UUID;
 
 @Service
 public class TransactionDomainService {
@@ -24,7 +25,7 @@ public class TransactionDomainService {
                 .orElseThrow(() -> new DomainException("Transaction not found"));
     }
 
-    public List<Transaction> getTransactionsByUserId(Long userId) {
+    public List<Transaction> getTransactionsByUserId(UUID userId) {
         return transactionRepository.findByUserId(userId);
     }
 

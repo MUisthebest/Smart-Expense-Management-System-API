@@ -10,6 +10,7 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.UUID;
 
 @Repository
 @RequiredArgsConstructor
@@ -31,7 +32,7 @@ public class TransactionRepositoryImpl implements TransactionRepository {
     }
 
     @Override
-    public List<Transaction> findByUserId(Long userId) {
+    public List<Transaction> findByUserId(UUID userId) {
         return jpaTransactionRepository.findByUserId(userId).stream()
                 .map(transactionMapper::toDomain)
                 .collect(Collectors.toList());

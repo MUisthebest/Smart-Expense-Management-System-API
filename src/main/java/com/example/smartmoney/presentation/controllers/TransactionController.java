@@ -26,6 +26,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.UUID;
+
 @RestController
 @RequestMapping("/api/v1/transactions")
 @RequiredArgsConstructor
@@ -71,7 +73,7 @@ public class TransactionController {
             @Valid @RequestBody CreateTransactionRequest request) {
         
         try {
-            Long userId = extractUserIdFromToken(authHeader);
+            UUID userId = extractUserIdFromToken(authHeader);
             log.info("Creating transaction for user ID: {}", userId);
             
             TransactionResponse transactionResponse = createTransactionUseCase.execute(userId, request);
@@ -118,7 +120,7 @@ public class TransactionController {
             @RequestHeader("Authorization") String authHeader) {
         
         try {
-            Long userId = extractUserIdFromToken(authHeader);
+            UUID userId = extractUserIdFromToken(authHeader);
             log.info("Fetching transactions for user ID: {}", userId);
             
             TransactionListResponse transactionListResponse = getUserTransactionsUseCase.execute(userId);
@@ -175,7 +177,7 @@ public class TransactionController {
             @PathVariable Long id) {
         
         try {
-            Long userId = extractUserIdFromToken(authHeader);
+            UUID userId = extractUserIdFromToken(authHeader);
             log.info("Fetching transaction ID: {} for user ID: {}", id, userId);
             
             TransactionResponse transactionResponse = getTransactionUseCase.execute(userId, id);
@@ -243,7 +245,7 @@ public class TransactionController {
             @Valid @RequestBody UpdateTransactionRequest request) {
         
         try {
-            Long userId = extractUserIdFromToken(authHeader);
+            UUID userId = extractUserIdFromToken(authHeader);
             log.info("Updating transaction ID: {} for user ID: {}", id, userId);
             
             TransactionResponse transactionResponse = updateTransactionUseCase.execute(userId, id, request);
@@ -305,7 +307,7 @@ public class TransactionController {
             @PathVariable Long id) {
         
         try {
-            Long userId = extractUserIdFromToken(authHeader);
+            UUID userId = extractUserIdFromToken(authHeader);
             log.info("Deleting transaction ID: {} for user ID: {}", id, userId);
             
             deleteTransactionUseCase.execute(userId, id);
@@ -339,7 +341,7 @@ public class TransactionController {
     /**
      * Extract user ID from JWT token in Authorization header
      */
-    private Long extractUserIdFromToken(String authHeader) {
+    private UUID extractUserIdFromToken(String authHeader) {
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             String token = authHeader.substring(7);
             return jwtTokenProvider.getUserIdFromToken(token);
