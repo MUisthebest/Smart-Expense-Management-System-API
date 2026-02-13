@@ -211,7 +211,7 @@ public class TransactionController {
             @Parameter(description = "Bearer token", required = true, hidden = true)
             @RequestHeader("Authorization") String authHeader,
             @Parameter(description = "Transaction ID", required = true)
-            @PathVariable Long id) {
+            @PathVariable UUID id) {
         
         try {
             UUID userId = extractUserIdFromToken(authHeader);
@@ -277,7 +277,7 @@ public class TransactionController {
             @Parameter(description = "Bearer token", required = true, hidden = true)
             @RequestHeader("Authorization") String authHeader,
             @Parameter(description = "Transaction ID", required = true)
-            @PathVariable Long id,
+            @PathVariable UUID id,
             @Parameter(description = "Transaction update data", required = true)
             @Valid @RequestBody UpdateTransactionRequest request) {
         
@@ -341,7 +341,7 @@ public class TransactionController {
             @Parameter(description = "Bearer token", required = true, hidden = true)
             @RequestHeader("Authorization") String authHeader,
             @Parameter(description = "Transaction ID", required = true)
-            @PathVariable Long id) {
+            @PathVariable UUID id) {
         
         try {
             UUID userId = extractUserIdFromToken(authHeader);

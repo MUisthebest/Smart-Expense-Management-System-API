@@ -12,7 +12,7 @@ import java.util.UUID;
 
 public interface TransactionRepository {
     Transaction save(Transaction transaction);
-    Optional<Transaction> findById(Long id);
+    Optional<Transaction> findById(UUID id);
     List<Transaction> findByUserId(UUID userId);
     List<Transaction> findByUserIdWithFilters(
         UUID userId,
@@ -23,5 +23,5 @@ public interface TransactionRepository {
         Category category,
         TransactionType type
     );
-    void deleteById(Long id);
+    void deleteById(UUID id);
 }

@@ -15,8 +15,8 @@ import java.util.UUID;
 import java.util.Optional;
 
 @Repository
-public interface JpaTransactionRepository extends JpaRepository<TransactionEntity, Long> {
-    Optional<TransactionEntity> findById(Long id);
+public interface JpaTransactionRepository extends JpaRepository<TransactionEntity, UUID> {
+    Optional<TransactionEntity> findById(UUID id);
     List<TransactionEntity> findByUserId(UUID userId);
     
     @Query("SELECT t FROM TransactionEntity t WHERE t.userId = :userId " +
@@ -36,5 +36,5 @@ public interface JpaTransactionRepository extends JpaRepository<TransactionEntit
         @Param("type") TransactionType type
     );
     
-    void deleteById(Long id);
+    void deleteById(UUID id);
 }
