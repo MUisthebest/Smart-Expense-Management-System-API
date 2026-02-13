@@ -18,7 +18,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 public class TransactionResponse {
-    private Long id;
+    private UUID id;
     private UUID userId;
     private BigDecimal amount;
     private TransactionType type;

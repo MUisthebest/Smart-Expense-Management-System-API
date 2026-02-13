@@ -20,7 +20,7 @@ public class TransactionDomainService {
         return transactionRepository.save(transaction);
     }
 
-    public Transaction getTransactionById(Long id) {
+    public Transaction getTransactionById(UUID id) {
         return transactionRepository.findById(id)
                 .orElseThrow(() -> new DomainException("Transaction not found"));
     }
@@ -39,7 +39,7 @@ public class TransactionDomainService {
         return transactionRepository.save(transaction);
     }
 
-    public void deleteTransaction(Long id) {
+    public void deleteTransaction(UUID id) {
         if (!transactionRepository.findById(id).isPresent()) {
             throw new DomainException("Transaction not found");
         }

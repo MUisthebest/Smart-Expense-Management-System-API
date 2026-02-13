@@ -19,7 +19,7 @@ public class UpdateTransactionUseCase {
     private final TransactionRepository transactionRepository;
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
     
-    public TransactionResponse execute(UUID userId, Long transactionId, UpdateTransactionRequest request) {
+    public TransactionResponse execute(UUID userId, UUID transactionId, UpdateTransactionRequest request) {
         if (userId == null) {
             throw new DomainException("User ID is required");
         }

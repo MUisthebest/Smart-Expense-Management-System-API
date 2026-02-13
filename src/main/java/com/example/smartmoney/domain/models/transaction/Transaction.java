@@ -15,7 +15,7 @@ import java.util.UUID;
 @Getter
 @Setter
 public class Transaction {
-    private Long id;
+    private UUID id;
     private UUID userId;
     private Amount amount;
     private TransactionType type;

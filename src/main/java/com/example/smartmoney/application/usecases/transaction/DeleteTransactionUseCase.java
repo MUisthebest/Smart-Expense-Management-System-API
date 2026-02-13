@@ -12,7 +12,7 @@ import java.util.UUID;
 public class DeleteTransactionUseCase {
     private final TransactionRepository transactionRepository;
     
-    public void execute(UUID userId, Long transactionId) {
+    public void execute(UUID userId, UUID transactionId) {
         if (userId == null) {
             throw new DomainException("User ID is required");
         }

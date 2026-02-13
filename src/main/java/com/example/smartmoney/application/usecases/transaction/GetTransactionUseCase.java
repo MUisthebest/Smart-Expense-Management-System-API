@@ -13,7 +13,7 @@ import java.util.UUID;
 public class GetTransactionUseCase {
     private final TransactionRepository transactionRepository;
     
-    public TransactionResponse execute(UUID userId, Long transactionId) {
+    public TransactionResponse execute(UUID userId, UUID transactionId) {
         if (userId == null) {
             throw new DomainException("User ID is required");
         }

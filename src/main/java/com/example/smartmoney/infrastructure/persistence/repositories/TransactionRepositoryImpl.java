@@ -30,7 +30,7 @@ public class TransactionRepositoryImpl implements TransactionRepository {
     }
 
     @Override
-    public Optional<Transaction> findById(Long id) {
+    public Optional<Transaction> findById(UUID id) {
         return jpaTransactionRepository.findById(id)
                 .map(transactionMapper::toDomain);
     }
@@ -59,7 +59,7 @@ public class TransactionRepositoryImpl implements TransactionRepository {
     }
 
     @Override
-    public void deleteById(Long id) {
+    public void deleteById(UUID id) {
         jpaTransactionRepository.deleteById(id);
     }
 }
