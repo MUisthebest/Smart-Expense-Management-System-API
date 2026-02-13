@@ -3,10 +3,11 @@ package com.example.smartmoney.application.dtos.responses;
 import com.example.smartmoney.domain.models.user.enums.Role;
 import lombok.Data;
 import lombok.*;
+import java.util.UUID;
 
 @Data
 public class UserResponse {
-    private Long id;
+    private UUID id;
     private String username;
     private String fullName;
     private String avatar;

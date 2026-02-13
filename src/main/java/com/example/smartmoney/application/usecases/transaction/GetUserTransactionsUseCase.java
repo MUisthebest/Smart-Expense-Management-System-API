@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -16,7 +17,7 @@ import java.util.stream.Collectors;
 public class GetUserTransactionsUseCase {
     private final TransactionRepository transactionRepository;
     
-    public TransactionListResponse execute(Long userId) {
+    public TransactionListResponse execute(UUID userId) {
         if (userId == null) {
             throw new DomainException("User ID is required");
         }
