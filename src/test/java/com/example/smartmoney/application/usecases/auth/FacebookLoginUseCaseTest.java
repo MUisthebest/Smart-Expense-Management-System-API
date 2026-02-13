@@ -20,6 +20,7 @@ import org.mockito.quality.Strictness;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -64,7 +65,7 @@ class FacebookLoginUseCaseTest {
     void testExecuteWithValidSupabaseJwtAndExistingUser() throws Exception {
         // Arrange
         User existingUser = User.builder()
-                .id(1L)
+                .id(new UUID(0L, 0L))
                 .username("testuser")
                 .email(new Email("test@example.com"))
                 .fullName("Test User")
@@ -110,7 +111,7 @@ class FacebookLoginUseCaseTest {
         when(userRepository.save(any(User.class)))
                 .thenAnswer(invocation -> {
                     User user = invocation.getArgument(0);
-                    user.setId(1L);
+                    user.setId(new UUID(0L, 0L));
                     return user;
                 });
         when(authPort.generateAccessToken(any(User.class)))
@@ -160,7 +161,7 @@ class FacebookLoginUseCaseTest {
     void testExecuteReactivatesInactiveUser() throws Exception {
         // Arrange
         User inactiveUser = User.builder()
-                .id(1L)
+                .id(new UUID(0L, 0L))
                 .username("testuser")
                 .email(new Email("test@example.com"))
                 .fullName("Test User")
@@ -192,7 +193,7 @@ class FacebookLoginUseCaseTest {
     void testExecuteReturnsCorrectUserResponse() throws Exception {
         // Arrange
         User user = User.builder()
-                .id(1L)
+                .id(new UUID(0L, 0L))
                 .username("testuser")
                 .email(new Email("test@example.com"))
                 .fullName("Test User")
@@ -216,7 +217,7 @@ class FacebookLoginUseCaseTest {
 
         // Assert
         assertNotNull(response.getUser());
-        assertEquals(1L, response.getUser().getId());
+        assertEquals(new UUID(0L, 0L), response.getUser().getId());
         assertEquals("testuser", response.getUser().getUsername());
         assertEquals("test@example.com", response.getUser().getEmail());
         assertEquals("Test User", response.getUser().getFullName());
