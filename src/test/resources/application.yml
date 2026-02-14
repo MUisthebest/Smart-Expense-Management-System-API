@@ -1,0 +1,124 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /api/v1
+  error:
+    include-message: always
+    include-binding-errors: always
+    include-stacktrace: never
+    include-exception: false
+
+spring:
+  application:
+    name: smart-money
+  
+  # H2 Database for Tests
+  datasource:
+    url: jdbc:h2:mem:testdb
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  
+  # H2 Console (enabled for debugging tests)
+  h2:
+    console:
+      enabled: true
+  
+  # JPA Configuration for Tests
+  jpa:
+    hibernate:
+      ddl-auto: create-drop  # Auto-create schema from entities, drop after tests
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.H2Dialect
+        jdbc:
+          batch_size: 20
+        order_inserts: true
+        order_updates: true
+  
+  # Disable Flyway for tests (Hibernate will manage schema)
+  flyway:
+    enabled: false
+  
+  # Jackson Configuration
+  jackson:
+    date-format: dd/MM/yyyy
+    time-zone: Asia/Ho_Chi_Minh
+  
+  # Mail Configuration (dummy values for tests)
+  mail:
+    host: smtp.test.com
+    port: 587
+    username: test@test.com
+    password: test-password
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+# Application Configuration for Tests
+app:
+  # JWT Configuration
+  jwt:
+    secret: "TestSecretKeyForJWTWithAtLeast256BitsLength1234567890TestSecretKeyForTests"
+    access-token-expiration: 3600000
+    refresh-token-expiration: 604800000
+    issuer: "smart-money-test"
+    audience: "smart-money-test-users"
+    token-prefix: "Bearer "
+
+  # Google OAuth Configuration
+  google:
+    oauth2:
+      enabled: true
+      client-id: "test-google-client-id"
+      client-secret: "test-google-client-secret"
+
+  # Facebook OAuth Configuration
+  facebook:
+    app-id: "test-facebook-app-id"
+    app-secret: "test-facebook-app-secret"
+    token-validity-seconds: 3600
+
+  # Supabase Configuration
+  supabase:
+    project-url: "https://test.supabase.co"
+    anon-key: "test-anon-key"
+    service-role-key: "test-service-role-key"
+    jwt-jwk: '{"keys":[{"kty":"RSA","n":"test","e":"AQAB"}]}'
+    enabled: true
+
+  # Email Configuration
+  mail:
+    host: "smtp.test.com"
+    port: 587
+    username: "test@test.com"
+    password: "test-password"
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+  # Cloudinary Configuration
+  cloudinary:
+    cloud-name: "test-cloud"
+    api-key: "test-api-key"
+    api-secret: "test-api-secret"
+    folder: "smart-money/users"
+    secure: true
+
+
+# Logging Configuration
+logging:
+  level:
+    root: INFO
+    com.example.smartmoney: DEBUG
+    org.springframework.web: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
