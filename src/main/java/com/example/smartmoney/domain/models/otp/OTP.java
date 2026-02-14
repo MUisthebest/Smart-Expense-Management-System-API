@@ -2,6 +2,7 @@ package com.example.smartmoney.domain.models.otp;
 import com.example.smartmoney.domain.models.user.valueobjects.Email;
 import com.example.smartmoney.domain.models.otp.enums.Type;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 import com.example.smartmoney.domain.exceptions.DomainException;
 
@@ -13,7 +14,7 @@ import lombok.*;
 @Getter
 @Setter
 public class OTP {
-    private Long id;
+    private UUID id;
     private Email email;
     private String otp;
     private LocalDateTime expiredAt;

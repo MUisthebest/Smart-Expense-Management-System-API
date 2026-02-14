@@ -3,6 +3,7 @@ package com.example.smartmoney.application.usecases.auth;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import java.util.UUID;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.example.smartmoney.application.dtos.responses.UserResponse;
@@ -20,7 +21,7 @@ public class UpdateUserUseCase {
 
     private final UserRepository userRepository;
 
-    public UserResponse execute(Long userId, UpdateUserRequest request) {
+    public UserResponse execute(UUID userId, UpdateUserRequest request) {
         log.info("Updating user with id: {}", userId);
 
         User user = userRepository.findById(userId)

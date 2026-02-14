@@ -11,14 +11,15 @@ import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.UUID;
 
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class TransactionResponse {
-    private Long id;
-    private Long userId;
+    private UUID id;
+    private UUID userId;
     private BigDecimal amount;
     private TransactionType type;
     private Category category;

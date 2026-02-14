@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -18,7 +19,7 @@ public class CreateTransactionUseCase {
     private final TransactionRepository transactionRepository;
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
     
-    public TransactionResponse execute(Long userId, CreateTransactionRequest request) {
+    public TransactionResponse execute(UUID userId, CreateTransactionRequest request) {
         if (userId == null) {
             throw new DomainException("User ID is required");
         }

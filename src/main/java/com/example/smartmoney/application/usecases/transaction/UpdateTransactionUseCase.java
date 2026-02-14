@@ -8,6 +8,7 @@ import com.example.smartmoney.domain.models.transaction.valueobjects.Amount;
 import com.example.smartmoney.domain.repositories.TransactionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import java.util.UUID;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -18,7 +19,7 @@ public class UpdateTransactionUseCase {
     private final TransactionRepository transactionRepository;
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
     
-    public TransactionResponse execute(Long userId, Long transactionId, UpdateTransactionRequest request) {
+    public TransactionResponse execute(UUID userId, UUID transactionId, UpdateTransactionRequest request) {
         if (userId == null) {
             throw new DomainException("User ID is required");
         }

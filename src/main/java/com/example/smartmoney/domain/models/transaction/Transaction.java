@@ -7,6 +7,7 @@ import com.example.smartmoney.domain.exceptions.DomainException;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Builder(toBuilder = true)
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -14,8 +15,8 @@ import java.time.LocalDateTime;
 @Getter
 @Setter
 public class Transaction {
-    private Long id;
-    private Long userId;
+    private UUID id;
+    private UUID userId;
     private Amount amount;
     private TransactionType type;
     private Category category;
@@ -26,7 +27,7 @@ public class Transaction {
 
     // Factory method
     public static Transaction create(
-            Long userId,
+            UUID userId,
             Amount amount,
             TransactionType type,
             Category category,
