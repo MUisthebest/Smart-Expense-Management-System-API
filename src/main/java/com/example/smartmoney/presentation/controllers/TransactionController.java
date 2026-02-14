@@ -105,9 +105,9 @@ public class TransactionController {
     
     @Operation(
         summary = "Get all user transactions",
-        description = "Retrieve all transactions for the authenticated user with optional filters. " +
+        description = "Retrieve all transactions for the authenticated user with optional filters and pagination. " +
                      "Filters include amount range (minAmount, maxAmount), date range (startDate, endDate in format dd/MM/yyyy HH:mm), " +
-                     "category, and transaction type."
+                     "category, and transaction type. Pagination defaults to page=0, size=10."
     )
     @ApiResponses({
         @ApiResponse(
@@ -139,12 +139,16 @@ public class TransactionController {
             @Parameter(description = "Category filter")
             @RequestParam(required = false) Category category,
             @Parameter(description = "Transaction type filter (INCOME or EXPENSE)")
-            @RequestParam(required = false) TransactionType type) {
+            @RequestParam(required = false) TransactionType type,
+            @Parameter(description = "Page number (0-indexed, default: 0)")
+            @RequestParam(required = false, defaultValue = "0") Integer page,
+            @Parameter(description = "Page size (default: 10)")
+            @RequestParam(required = false, defaultValue = "10") Integer size) {
         
         try {
             UUID userId = extractUserIdFromToken(authHeader);
-            log.info("Fetching transactions for user ID: {} with filters - minAmount: {}, maxAmount: {}, startDate: {}, endDate: {}, category: {}, type: {}",
-                    userId, minAmount, maxAmount, startDate, endDate, category, type);
+            log.info("Fetching transactions for user ID: {} with filters - minAmount: {}, maxAmount: {}, startDate: {}, endDate: {}, category: {}, type: {}, page: {}, size: {}",
+                    userId, minAmount, maxAmount, startDate, endDate, category, type, page, size);
             
             // Build filter request
             TransactionFilterRequest filter = TransactionFilterRequest.builder()
@@ -154,6 +158,8 @@ public class TransactionController {
                     .endDate(endDate)
                     .category(category)
                     .type(type)
+                    .page(page)
+                    .size(size)
                     .build();
             
             TransactionListResponse transactionListResponse = getUserTransactionsUseCase.execute(userId, filter);

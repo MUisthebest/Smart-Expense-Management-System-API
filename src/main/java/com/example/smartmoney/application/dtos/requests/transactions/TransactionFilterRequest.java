@@ -20,4 +20,6 @@ public class TransactionFilterRequest {
     private String endDate;   // Format: dd/MM/yyyy HH:mm
     private Category category;
     private TransactionType type;
+    private Integer page;     // Page number (0-indexed)
+    private Integer size;     // Page size (default: 10)
 }

@@ -25,7 +25,12 @@ public class GetUserTransactionsUseCase {
             throw new DomainException("User ID is required");
         }
         
+        // Set default pagination values
+        int page = (filter != null && filter.getPage() != null) ? filter.getPage() : 0;
+        int size = (filter != null && filter.getSize() != null) ? filter.getSize() : 10;
+        
         List<Transaction> transactions;
+        long totalElements = 0;
         
         // Check if any filters are provided
         if (filter != null && hasAnyFilter(filter)) {
@@ -33,8 +38,8 @@ public class GetUserTransactionsUseCase {
             LocalDateTime startDate = parseDate(filter.getStartDate());
             LocalDateTime endDate = parseDate(filter.getEndDate());
             
-            // Find transactions with filters
-            transactions = transactionRepository.findByUserIdWithFilters(
+            // Get total count for pagination
+            totalElements = transactionRepository.countByUserIdWithFilters(
                 userId,
                 filter.getMinAmount(),
                 filter.getMaxAmount(),
@@ -43,9 +48,33 @@ public class GetUserTransactionsUseCase {
                 filter.getCategory(),
                 filter.getType()
             );
+            
+            // Find transactions with filters and pagination
+            transactions = transactionRepository.findByUserIdWithFilters(
+                userId,
+                filter.getMinAmount(),
+                filter.getMaxAmount(),
+                startDate,
+                endDate,
+                filter.getCategory(),
+                filter.getType(),
+                page,
+                size
+            );
         } else {
             // Find all transactions for user without filters
-            transactions = transactionRepository.findByUserId(userId);
+            List<Transaction> allTransactions = transactionRepository.findByUserId(userId);
+            totalElements = allTransactions.size();
+            
+            // Apply pagination manually for non-filtered results
+            int fromIndex = page * size;
+            int toIndex = Math.min(fromIndex + size, allTransactions.size());
+            
+            if (fromIndex < allTransactions.size()) {
+                transactions = allTransactions.subList(fromIndex, toIndex);
+            } else {
+                transactions = List.of();
+            }
         }
         
         // Convert to response DTOs
@@ -53,7 +82,7 @@ public class GetUserTransactionsUseCase {
                 .map(TransactionResponse::fromDomain)
                 .collect(Collectors.toList());
         
-        return TransactionListResponse.of(transactionResponses);
+        return TransactionListResponse.of(transactionResponses, page, size, totalElements);
     }
     
     private boolean hasAnyFilter(TransactionFilterRequest filter) {
