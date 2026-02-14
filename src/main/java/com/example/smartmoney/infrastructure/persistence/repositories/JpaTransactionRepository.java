@@ -19,21 +19,23 @@ public interface JpaTransactionRepository extends JpaRepository<TransactionEntit
     Optional<TransactionEntity> findById(UUID id);
     List<TransactionEntity> findByUserId(UUID userId);
     
-    @Query("SELECT t FROM TransactionEntity t WHERE t.userId = :userId " +
-           "AND (:minAmount IS NULL OR t.amount >= :minAmount) " +
-           "AND (:maxAmount IS NULL OR t.amount <= :maxAmount) " +
-           "AND (:startDate IS NULL OR t.date >= :startDate) " +
-           "AND (:endDate IS NULL OR t.date <= :endDate) " +
-           "AND (:category IS NULL OR t.category = :category) " +
-           "AND (:type IS NULL OR t.type = :type)")
+    // Using nativeQuery with CAST function (Spring Data JPA compatible)
+    @Query(value = "SELECT * FROM transactions t WHERE t.user_id = CAST(:userId AS uuid) " +
+           "AND (CAST(:minAmount AS numeric) IS NULL OR t.amount >= CAST(:minAmount AS numeric)) " +
+           "AND (CAST(:maxAmount AS numeric) IS NULL OR t.amount <= CAST(:maxAmount AS numeric)) " +
+           "AND (CAST(:startDate AS timestamp) IS NULL OR t.date >= CAST(:startDate AS timestamp)) " +
+           "AND (CAST(:endDate AS timestamp) IS NULL OR t.date <= CAST(:endDate AS timestamp)) " +
+           "AND (CAST(:category AS varchar) IS NULL OR t.category = CAST(:category AS varchar)) " +
+           "AND (CAST(:type AS varchar) IS NULL OR t.type = CAST(:type AS varchar))",
+           nativeQuery = true)
     List<TransactionEntity> findByUserIdWithFilters(
         @Param("userId") UUID userId,
         @Param("minAmount") BigDecimal minAmount,
         @Param("maxAmount") BigDecimal maxAmount,
         @Param("startDate") LocalDateTime startDate,
         @Param("endDate") LocalDateTime endDate,
-        @Param("category") Category category,
-        @Param("type") TransactionType type
+        @Param("category") String category,
+        @Param("type") String type
     );
     
     void deleteById(UUID id);
