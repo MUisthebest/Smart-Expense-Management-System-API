@@ -11,7 +11,7 @@ import java.util.UUID;
 @Setter
 public class OTPEntity {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
     @Column(name = "email", nullable = false, length = 100)
     private String email;

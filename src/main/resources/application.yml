@@ -13,34 +13,42 @@ spring:
     name: smart-money
   
   
-  # Database Configuration (H2 for development)
+  # Database Configuration (PostgreSQL/Supabase)
   datasource:
-    url: jdbc:h2:mem:smartmoney
-    driver-class-name: org.h2.Driver
-    username: sa
-    password: 
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/smartmoney}
+    driver-class-name: org.postgresql.Driver
+    username: ${DATABASE_USERNAME:postgres}
+    password: ${DATABASE_PASSWORD:}
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 30000
   
-  # H2 Console
+  # H2 Console (disabled for production)
   h2:
     console:
-      enabled: true
-      path: /h2-console
-      settings:
-        web-allow-others: false
+      enabled: false
   
   # JPA Configuration
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: update  # Flyway manages schema
     show-sql: true
     properties:
       hibernate:
         format_sql: true
-        dialect: org.hibernate.dialect.H2Dialect
+        dialect: org.hibernate.dialect.PostgreSQLDialect
         jdbc:
           batch_size: 20
-        order_inserts: true
-        order_updates: true
+        order-inserts: true
+        order-updates: true
+  
+  # Flyway Configuration
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+    validate-on-migrate: true
   
   # Jackson Configuration
   jackson:
