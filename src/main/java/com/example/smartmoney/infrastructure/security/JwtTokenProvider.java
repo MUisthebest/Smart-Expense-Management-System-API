@@ -188,7 +188,7 @@ public class JwtTokenProvider implements AuthPort, UserDetailsService {
                 throw new AuthenticationException("Invalid token issuer or audience");
             }
             
-            Long userId = Long.parseLong(claims.getSubject());
+            UUID userId = UUID.fromString(claims.getSubject());
             
             // Find user and validate refresh token
             return userRepository.findById(userId)
@@ -212,14 +212,14 @@ public class JwtTokenProvider implements AuthPort, UserDetailsService {
 
     
     // Các method helper không thuộc interface
-    public Long getUserIdFromToken(String token) {
+    public UUID getUserIdFromToken(String token) {
         try {
             Claims claims = Jwts.parserBuilder()
                 .setSigningKey(signingKey)
                 .build()
                 .parseClaimsJws(token)
                 .getBody();
-            return Long.parseLong(claims.getSubject());
+            return UUID.fromString(claims.getSubject());
         } catch (JwtException | IllegalArgumentException ex) {
             throw new AuthenticationException("Invalid token");
         }
@@ -256,13 +256,13 @@ public class JwtTokenProvider implements AuthPort, UserDetailsService {
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         try {
-            Long userId = Long.parseLong(username);
+            UUID userId = UUID.fromString(username);
             User user = userRepository.findById(userId)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found with id: " + userId));
             
             return convertToUserDetails(user);
             
-        } catch (NumberFormatException e) {
+        } catch (IllegalArgumentException e) {
             // If username is not a number, try to find by email
             try {
                 Email email = new Email(username);
@@ -299,14 +299,14 @@ public class JwtTokenProvider implements AuthPort, UserDetailsService {
     /**
      * Extract user ID from token without validation
      */
-    public Optional<Long> extractUserIdFromToken(String token) {
+    public Optional<UUID> extractUserIdFromToken(String token) {
         try {
             Claims claims = Jwts.parserBuilder()
                 .setSigningKey(signingKey)
                 .build()
                 .parseClaimsJws(token)
                 .getBody();
-            return Optional.of(Long.parseLong(claims.getSubject()));
+            return Optional.of(UUID.fromString(claims.getSubject()));
         } catch (Exception e) {
             return Optional.empty();
         }

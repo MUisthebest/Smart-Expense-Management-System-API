@@ -1,7 +1,8 @@
 package com.example.smartmoney.domain.exceptions;
+import java.util.UUID;
 
 public class EntityNotFoundException extends DomainException {
-    public EntityNotFoundException(String entityName, Long id) {
+    public EntityNotFoundException(String entityName, UUID id) {
         super(String.format("%s with id %d not found", entityName, id), "ENTITY_NOT_FOUND");
     }
     
