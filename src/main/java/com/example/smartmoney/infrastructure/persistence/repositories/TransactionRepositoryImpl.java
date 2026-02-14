@@ -51,8 +51,12 @@ public class TransactionRepositoryImpl implements TransactionRepository {
             LocalDateTime endDate,
             Category category,
             TransactionType type) {
+        // Convert enums to String for native query
+        String categoryStr = category != null ? category.name() : null;
+        String typeStr = type != null ? type.name() : null;
+        
         return jpaTransactionRepository.findByUserIdWithFilters(
-                userId, minAmount, maxAmount, startDate, endDate, category, type
+                userId, minAmount, maxAmount, startDate, endDate, categoryStr, typeStr
         ).stream()
                 .map(transactionMapper::toDomain)
                 .collect(Collectors.toList());
