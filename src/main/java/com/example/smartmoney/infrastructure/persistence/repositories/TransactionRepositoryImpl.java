@@ -63,6 +63,47 @@ public class TransactionRepositoryImpl implements TransactionRepository {
     }
 
     @Override
+    public List<Transaction> findByUserIdWithFilters(
+            UUID userId,
+            BigDecimal minAmount,
+            BigDecimal maxAmount,
+            LocalDateTime startDate,
+            LocalDateTime endDate,
+            Category category,
+            TransactionType type,
+            int page,
+            int size) {
+        // Convert enums to String for native query
+        String categoryStr = category != null ? category.name() : null;
+        String typeStr = type != null ? type.name() : null;
+        int offset = page * size;
+        
+        return jpaTransactionRepository.findByUserIdWithFiltersPaginated(
+                userId, minAmount, maxAmount, startDate, endDate, categoryStr, typeStr, size, offset
+        ).stream()
+                .map(transactionMapper::toDomain)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public long countByUserIdWithFilters(
+            UUID userId,
+            BigDecimal minAmount,
+            BigDecimal maxAmount,
+            LocalDateTime startDate,
+            LocalDateTime endDate,
+            Category category,
+            TransactionType type) {
+        // Convert enums to String for native query
+        String categoryStr = category != null ? category.name() : null;
+        String typeStr = type != null ? type.name() : null;
+        
+        return jpaTransactionRepository.countByUserIdWithFilters(
+                userId, minAmount, maxAmount, startDate, endDate, categoryStr, typeStr
+        );
+    }
+
+    @Override
     public void deleteById(UUID id) {
         jpaTransactionRepository.deleteById(id);
     }

@@ -23,5 +23,25 @@ public interface TransactionRepository {
         Category category,
         TransactionType type
     );
+    List<Transaction> findByUserIdWithFilters(
+        UUID userId,
+        BigDecimal minAmount,
+        BigDecimal maxAmount,
+        LocalDateTime startDate,
+        LocalDateTime endDate,
+        Category category,
+        TransactionType type,
+        int page,
+        int size
+    );
+    long countByUserIdWithFilters(
+        UUID userId,
+        BigDecimal minAmount,
+        BigDecimal maxAmount,
+        LocalDateTime startDate,
+        LocalDateTime endDate,
+        Category category,
+        TransactionType type
+    );
     void deleteById(UUID id);
 }
