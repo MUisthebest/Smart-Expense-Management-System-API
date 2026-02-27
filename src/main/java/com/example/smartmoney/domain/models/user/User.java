@@ -197,8 +197,8 @@ public class User {
         if (username == null || username.isEmpty()) {
             throw new DomainException("Username cannot be empty");
         }
-        if (username.length() > 20) {
-            throw new DomainException("Username must not exceed 20 characters");
+        if (username.length() > 30) {
+            throw new DomainException("Username must not exceed 30 characters");
         }
         this.username = username;
     }
