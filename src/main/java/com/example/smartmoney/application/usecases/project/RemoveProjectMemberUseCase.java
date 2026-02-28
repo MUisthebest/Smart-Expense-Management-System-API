@@ -16,7 +16,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class RemoveProjectMemberUseCase {
 
     private final ProjectRepository projectRepository;
-    private final ProjectMapper projectMapper = new ProjectMapper();
 
     @Transactional
     public ProjectDetailResponse execute(String actorId, String projectId, String userId) {
