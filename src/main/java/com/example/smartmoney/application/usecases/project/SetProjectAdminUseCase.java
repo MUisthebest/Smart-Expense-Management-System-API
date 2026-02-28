@@ -27,6 +27,6 @@ public class SetProjectAdminUseCase {
         p.setAdmin(UserId.of(actorId), UserId.of(userId), req.isAdmin());
 
         Project saved = projectRepository.save(p);
-        return projectMapper.toDetail(saved);
+        return ProjectDetailResponse.fromDomain(saved);
     }
 }

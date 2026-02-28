@@ -42,6 +42,7 @@ public class ProjectController {
     private final AddProjectContributionUseCase addProjectContributionUseCase;
     private final ListProjectContributionsUseCase listProjectContributionsUseCase;
     private final GetProjectContributionSummaryUseCase getProjectContributionSummaryUseCase;
+    private final DeleteProjectUseCase deleteProjectUseCase;
 
     private String actorId(Authentication auth) {
         
@@ -214,6 +215,20 @@ public class ProjectController {
                 .success(true)
                 .message("OK")
                 .data(data)
+                .build();
+    }
+
+    @Operation(summary = "Delete project")
+    @DeleteMapping("/{projectId}")
+    public CheckResponse<Void> delete(
+            Authentication auth,
+            @PathVariable String projectId
+    ) {
+        deleteProjectUseCase.execute(actorId(auth), projectId);
+
+        return CheckResponse.<Void>builder()
+                .success(true)
+                .message("Deleted")
                 .build();
     }
 }

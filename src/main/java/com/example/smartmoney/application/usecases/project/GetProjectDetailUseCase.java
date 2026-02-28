@@ -18,7 +18,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class GetProjectDetailUseCase {
 
     private final ProjectRepository projectRepository;
-    private final ProjectMapper projectMapper = new ProjectMapper();
 
     @Transactional(readOnly = true)
     public ProjectDetailResponse execute(String actorId, String projectId) {
@@ -39,6 +38,6 @@ public class GetProjectDetailUseCase {
             }
         }
 
-        return projectMapper.toDetail(p);
+        return ProjectDetailResponse.fromDomain(p);
     }
 }

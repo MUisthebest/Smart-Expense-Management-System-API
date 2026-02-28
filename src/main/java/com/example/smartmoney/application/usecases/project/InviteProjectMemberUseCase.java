@@ -27,7 +27,7 @@ public class InviteProjectMemberUseCase {
         p.inviteMember(UserId.of(actorId), UserId.of(req.getUserId()), req.isAdmin());
 
         Project saved = projectRepository.save(p);
-        return projectMapper.toDetail(saved);
+        return ProjectDetailResponse.fromDomain(saved);
     }
 }
 
