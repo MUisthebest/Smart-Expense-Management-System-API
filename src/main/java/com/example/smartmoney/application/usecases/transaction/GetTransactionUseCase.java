@@ -6,13 +6,14 @@ import com.example.smartmoney.domain.models.transaction.Transaction;
 import com.example.smartmoney.domain.repositories.TransactionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 public class GetTransactionUseCase {
     private final TransactionRepository transactionRepository;
     
-    public TransactionResponse execute(Long userId, Long transactionId) {
+    public TransactionResponse execute(UUID userId, UUID transactionId) {
         if (userId == null) {
             throw new DomainException("User ID is required");
         }

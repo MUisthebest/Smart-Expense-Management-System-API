@@ -9,6 +9,7 @@ import com.example.smartmoney.infrastructure.persistence.mappers.UserMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 import java.util.Optional;
+import java.util.UUID;
 
 @Repository
 @RequiredArgsConstructor
@@ -25,7 +26,7 @@ public class UserRepositoryImpl implements UserRepository {
     }
     
     @Override
-    public Optional<User> findById(Long id) {
+    public Optional<User> findById(UUID id) {
         return jpaUserRepository.findById(id)
             .map(userMapper::toDomain);
     }
@@ -64,7 +65,7 @@ public class UserRepositoryImpl implements UserRepository {
     }
 
     @Override
-    public boolean existsByPhoneAndIdNot(Phone phone, Long id) {
+    public boolean existsByPhoneAndIdNot(Phone phone, UUID id) {
         return jpaUserRepository.existsByPhoneAndIdNot(phone.getValue(), id);
     }
 }

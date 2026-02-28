@@ -40,6 +40,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.util.Optional;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/auth")
@@ -481,7 +482,7 @@ public class AuthController {
 
     @PutMapping("/me")
     public ResponseEntity<CheckResponse<UserResponse>> updateUser(
-            @Parameter(hidden = true) @CurrentUser Long userId,
+            @Parameter(hidden = true) @CurrentUser UUID userId,
             @Parameter(description = "User update data", required = true)
             @Valid @RequestBody UpdateUserRequest request) {
         

@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.Setter;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Entity
 @Table(name = "users")
@@ -12,10 +13,10 @@ import java.time.LocalDateTime;
 @Setter
 public class UserEntity {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
     
-    @Column(name = "username", unique = true, nullable = false, length = 20)
+    @Column(name = "username", unique = true, nullable = false, length = 30)
     private String username;
     
     @Column(name = "full_name", nullable = false, length = 40)
