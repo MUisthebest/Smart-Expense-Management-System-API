@@ -26,6 +26,6 @@ public class AcceptProjectInviteUseCase {
         p.acceptInvite(UserId.of(actorId));
 
         Project saved = projectRepository.save(p);
-        return projectMapper.toDetail(saved);
+        return ProjectDetailResponse.fromDomain(saved);
     }
 }

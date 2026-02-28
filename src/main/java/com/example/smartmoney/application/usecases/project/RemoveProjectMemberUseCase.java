@@ -26,7 +26,7 @@ public class RemoveProjectMemberUseCase {
         p.removeMember(UserId.of(actorId), UserId.of(userId));
 
         Project saved = projectRepository.save(p);
-        return projectMapper.toDetail(saved);
+        return ProjectDetailResponse.fromDomain(saved);
     }
 }
 

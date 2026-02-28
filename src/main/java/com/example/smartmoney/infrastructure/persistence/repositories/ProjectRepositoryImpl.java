@@ -124,9 +124,8 @@ public class ProjectRepositoryImpl implements ProjectRepository {
 
     @Override
     @Transactional
-    public void deleteById(Project project) {
-        if (project == null) return;
-        UUID projectId = project.getId().value();
+    public void deleteById(ProjectId id) {
+        UUID projectId = id.value();
         jpaProjectContributionRepository.deleteByProjectId(projectId);
         jpaProjectMemberRepository.deleteByProjectId(projectId);
         jpaProjectRepository.deleteById(projectId);

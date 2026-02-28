@@ -15,7 +15,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class CreateProjectUseCase {
 
     private final ProjectRepository projectRepository;
-    private final ProjectMapper projectMapper;
 
     @Transactional
     public ProjectDetailResponse execute(String actorId, CreateProjectRequest req) {
@@ -28,6 +27,6 @@ public class CreateProjectUseCase {
                 req.getDeadline()
         );
 
-        return projectMapper.toDetail(projectRepository.save(p));
+        return ProjectDetailResponse.fromDomain(projectRepository.save(p));
     }
 }

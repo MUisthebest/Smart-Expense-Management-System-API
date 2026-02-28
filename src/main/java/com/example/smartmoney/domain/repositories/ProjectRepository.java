@@ -11,5 +11,5 @@ public interface ProjectRepository {
     Optional<Project> findById(ProjectId id);
     List<Project> findAllByUser(UserId userId);
     Project save(Project project);
-    void deleteById(Project id);
+    void deleteById(ProjectId id);
 }

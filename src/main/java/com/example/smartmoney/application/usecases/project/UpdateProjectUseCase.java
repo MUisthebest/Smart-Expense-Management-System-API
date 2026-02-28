@@ -18,7 +18,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class UpdateProjectUseCase {
 
     private final ProjectRepository projectRepository;
-    private final ProjectMapper projectMapper = new ProjectMapper();
 
     @Transactional
     public ProjectDetailResponse execute(String actorId, String projectId, UpdateProjectRequest req) {
@@ -34,6 +33,6 @@ public class UpdateProjectUseCase {
         p.updateInfo(UserId.of(actorId), req.getName(), req.getDescription(), target, req.getDeadline());
 
         Project saved = projectRepository.save(p);
-        return projectMapper.toDetail(saved);
+        return ProjectDetailResponse.fromDomain(saved);
     }
 }

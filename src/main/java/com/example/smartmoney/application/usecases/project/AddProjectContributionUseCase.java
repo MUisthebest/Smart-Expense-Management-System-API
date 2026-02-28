@@ -18,7 +18,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class AddProjectContributionUseCase {
 
     private final ProjectRepository projectRepository;
-    private final ContributionMapper contributionMapper = new ContributionMapper();
 
     @Transactional
     public ProjectContributionResponse execute(String actorId, String projectId, AddProjectContributionRequest req) {
@@ -33,6 +32,6 @@ public class AddProjectContributionUseCase {
         );
 
         projectRepository.save(p);
-        return contributionMapper.toResponse(c);
+        return ProjectContributionResponse.fromDomain(c);
     }
 }

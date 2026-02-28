@@ -15,12 +15,11 @@ import java.util.List;
 public class ListMyProjectsUseCase {
 
     private final ProjectRepository projectRepository;
-    private final ProjectMapper projectMapper = new ProjectMapper();
 
     @Transactional(readOnly = true)
     public List<ProjectListItemResponse> execute(String actorId) {
         List<Project> projects = projectRepository.findAllByUser(UserId.of(actorId));
-        return projects.stream().map(projectMapper::toListItem).toList();
+        return projects.stream().map(ProjectListItemResponse::fromDomain).toList();
     }
 }
 

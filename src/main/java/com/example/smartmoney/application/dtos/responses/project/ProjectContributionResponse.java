@@ -1,5 +1,6 @@
 package com.example.smartmoney.application.dtos.responses.project;
 
+import com.example.smartmoney.domain.models.project.ProjectContribution;
 import lombok.Builder;
 import lombok.Data;
 
@@ -19,4 +20,16 @@ public class ProjectContributionResponse {
     private LocalDate contributionDate;
     private String note;
     private Instant createdAt;
+
+    public static ProjectContributionResponse fromDomain(ProjectContribution c) {
+        return ProjectContributionResponse.builder()
+                .contributionId(c.getId().toString())
+                .userId(c.getUserId().toString())
+                .amount(c.getMoney().amount())
+                .currency(c.getMoney().currency())
+                .contributionDate(c.getContributionDate())
+                .note(c.getNote())
+                .createdAt(c.getCreatedAt())
+                .build();
+    }
 }

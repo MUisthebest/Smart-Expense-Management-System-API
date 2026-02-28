@@ -22,7 +22,6 @@ import java.util.List;
 public class ListProjectContributionsUseCase {
 
     private final ProjectRepository projectRepository;
-    private final ContributionMapper contributionMapper = new ContributionMapper();
 
     @Transactional(readOnly = true)
     public List<ProjectContributionResponse> execute(String actorId, String projectId) {
@@ -46,7 +45,7 @@ public class ListProjectContributionsUseCase {
                         Comparator.comparing((ProjectContribution c) -> c.getContributionDate()).reversed()
                                 .thenComparing(c -> c.getCreatedAt(), Comparator.reverseOrder())
                 )
-                .map(contributionMapper::toResponse)
+                .map(ProjectContributionResponse::fromDomain)
                 .toList();
     }
 }
