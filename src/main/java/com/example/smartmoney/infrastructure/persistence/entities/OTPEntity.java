@@ -3,6 +3,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Entity
 @Table(name = "otps")
@@ -10,8 +11,8 @@ import java.time.LocalDateTime;
 @Setter
 public class OTPEntity {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
     @Column(name = "email", nullable = false, length = 100)
     private String email;
     @Column(name = "otp", nullable = false, length = 10)

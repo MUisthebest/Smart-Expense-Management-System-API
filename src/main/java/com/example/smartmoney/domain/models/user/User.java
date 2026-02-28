@@ -7,6 +7,7 @@ import com.example.smartmoney.domain.exceptions.DomainException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.UUID;
 
 import lombok.*;
 
@@ -16,7 +17,7 @@ import lombok.*;
 @Getter
 @Setter
 public class User {
-    private Long id;
+    private UUID id;
     private String username;           // biệt danh (20 ký tự)
     private String fullName;           // tên (40 ký tự)
     private Avatar avatar;             // URL ảnh
@@ -188,16 +189,16 @@ public class User {
     }
     
     // Getters and Setters
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
+    public UUID getId() { return id; }
+    public void setId(UUID id) { this.id = id; }
     
     public String getUsername() { return username; }
     public void setUsername(String username) {
         if (username == null || username.isEmpty()) {
             throw new DomainException("Username cannot be empty");
         }
-        if (username.length() > 20) {
-            throw new DomainException("Username must not exceed 20 characters");
+        if (username.length() > 30) {
+            throw new DomainException("Username must not exceed 30 characters");
         }
         this.username = username;
     }
