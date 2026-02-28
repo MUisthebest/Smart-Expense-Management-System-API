@@ -17,7 +17,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class InviteProjectMemberUseCase {
 
     private final ProjectRepository projectRepository;
-    private final ProjectMapper projectMapper = new ProjectMapper();
 
     @Transactional
     public ProjectDetailResponse execute(String actorId, String projectId, InviteProjectMemberRequest req) {
