@@ -23,7 +23,7 @@ public class ProjectEntity {
     private UUID id;
 
     @Column(name = "owner_id", nullable = false)
-    private Long ownerId;
+    private UUID ownerId;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "type", nullable = false, length = 20)

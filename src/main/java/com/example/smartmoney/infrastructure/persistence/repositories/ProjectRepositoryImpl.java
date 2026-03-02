@@ -51,7 +51,7 @@ public class ProjectRepositoryImpl implements ProjectRepository {
     @Override
     @Transactional(readOnly = true)
     public List<Project> findAllByUser(UserId userId) {
-        Long uid = userId.value();
+        UUID uid = userId.value();
 
         List<ProjectEntity> owned = jpaProjectRepository.findByOwnerId(uid);
 
