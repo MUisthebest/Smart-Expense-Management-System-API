@@ -22,7 +22,7 @@ public class Project {
     private Money targetAmount;
     private LocalDate deadline;
 
-    private final Map<Long, ProjectMember> members = new HashMap<>();
+    private final Map<UUID, ProjectMember> members = new HashMap<>();
     private final List<ProjectContribution> contributions = new ArrayList<>();
 
     private Project(ProjectId id,
@@ -250,9 +250,9 @@ public class Project {
     }
 
     public Map<UserId, Money> breakdownByUser() {
-        Map<Long, Money> map = new HashMap<>();
+        Map<UUID, Money> map = new HashMap<>();
         for (ProjectContribution c : contributions) {
-            Long uid = c.getUserId().value();
+            UUID uid = c.getUserId().value();
             Money cur = map.getOrDefault(uid, Money.zero(targetAmount.currency()));
             map.put(uid, cur.plus(c.getMoney()));
         }

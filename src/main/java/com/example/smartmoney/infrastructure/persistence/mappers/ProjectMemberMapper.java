@@ -20,11 +20,11 @@ public abstract class ProjectMemberMapper {
     @Mapping(target = "userId", expression = "java(mapUserIdToDomain(entity.getUserId()))")
     public abstract ProjectMember toDomain(ProjectMemberEntity entity);
 
-    protected Long mapUserIdToEntity(UserId userId) {
+    protected UUID mapUserIdToEntity(UserId userId) {
         return userId != null ? userId.value() : null;
     }
 
-    protected UserId mapUserIdToDomain(Long userId) {
+    protected UserId mapUserIdToDomain(UUID userId) {
         return userId != null ? new UserId(userId) : null;
     }
 

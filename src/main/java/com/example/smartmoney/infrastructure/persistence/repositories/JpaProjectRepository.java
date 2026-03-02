@@ -7,5 +7,5 @@ import java.util.List;
 import java.util.UUID;
 
 public interface JpaProjectRepository extends JpaRepository<ProjectEntity, UUID> {
-    List<ProjectEntity> findByOwnerId(Long ownerId);
+    List<ProjectEntity> findByOwnerId(UUID ownerId);
 }

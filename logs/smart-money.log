@@ -1,505 +1,127 @@
-2026-02-28 11:10:31 [main] INFO  c.e.smartmoney.SmartmoneyApplication - Starting SmartmoneyApplication using Java 21.0.6 with PID 17316 (D:\HCMUS\DATN\Source\Smart-Expense-Management-System-API\target\classes started by NamTran in D:\HCMUS\DATN\Source\Smart-Expense-Management-System-API)
-2026-02-28 11:10:31 [main] DEBUG c.e.smartmoney.SmartmoneyApplication - Running with Spring Boot v4.0.1, Spring v7.0.2
-2026-02-28 11:10:31 [main] INFO  c.e.smartmoney.SmartmoneyApplication - No active profile set, falling back to 1 default profile: "default"
-2026-02-28 11:10:31 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
-2026-02-28 11:10:31 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 72 ms. Found 6 JPA repository interfaces.
-2026-02-28 11:10:32 [main] INFO  o.s.boot.tomcat.TomcatWebServer - Tomcat initialized with port 8080 (http)
-2026-02-28 11:10:32 [main] INFO  o.a.catalina.core.StandardService - Starting service [Tomcat]
-2026-02-28 11:10:32 [main] INFO  o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/11.0.15]
-2026-02-28 11:10:32 [main] INFO  o.s.b.w.c.s.WebApplicationContextInitializer - Root WebApplicationContext: initialization completed in 1759 ms
-2026-02-28 11:10:33 [main] INFO  org.hibernate.orm.jpa - HHH008540: Processing PersistenceUnitInfo [name: default]
-2026-02-28 11:10:33 [main] INFO  org.hibernate.orm.core - HHH000001: Hibernate ORM core version 7.2.0.Final
-2026-02-28 11:10:33 [main] INFO  o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
-2026-02-28 11:10:33 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
-2026-02-28 11:10:34 [main] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Added connection conn0: url=jdbc:h2:mem:smartmoney user=SA
-2026-02-28 11:10:34 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
-2026-02-28 11:10:34 [main] WARN  org.hibernate.orm.deprecation - HHH90000025: H2Dialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
-2026-02-28 11:10:34 [main] INFO  o.hibernate.orm.connections.pooling - HHH10001005: Database info:
-	Database JDBC URL [jdbc:h2:mem:smartmoney]
-	Database driver: H2 JDBC Driver
-	Database dialect: H2Dialect
-	Database version: 2.4.240
-	Default catalog/schema: SMARTMONEY/PUBLIC
+2026-03-03 00:01:53 [main] INFO  c.e.smartmoney.SmartmoneyApplication - Starting SmartmoneyApplication using Java 21.0.6 with PID 5252 (D:\HCMUS\DATN\Source\Smart-Expense-Management-System-API\target\classes started by NamTran in D:\HCMUS\DATN\Source\Smart-Expense-Management-System-API)
+2026-03-03 00:01:53 [main] DEBUG c.e.smartmoney.SmartmoneyApplication - Running with Spring Boot v4.0.1, Spring v7.0.2
+2026-03-03 00:01:53 [main] INFO  c.e.smartmoney.SmartmoneyApplication - No active profile set, falling back to 1 default profile: "default"
+2026-03-03 00:01:54 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-03-03 00:01:54 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 63 ms. Found 6 JPA repository interfaces.
+2026-03-03 00:01:55 [main] INFO  o.s.boot.tomcat.TomcatWebServer - Tomcat initialized with port 8080 (http)
+2026-03-03 00:01:55 [main] INFO  o.a.catalina.core.StandardService - Starting service [Tomcat]
+2026-03-03 00:01:55 [main] INFO  o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/11.0.15]
+2026-03-03 00:01:55 [main] INFO  o.s.b.w.c.s.WebApplicationContextInitializer - Root WebApplicationContext: initialization completed in 1519 ms
+2026-03-03 00:01:55 [main] INFO  org.hibernate.orm.jpa - HHH008540: Processing PersistenceUnitInfo [name: default]
+2026-03-03 00:01:55 [main] INFO  org.hibernate.orm.core - HHH000001: Hibernate ORM core version 7.2.0.Final
+2026-03-03 00:01:55 [main] INFO  o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-03-03 00:01:55 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
+2026-03-03 00:01:58 [main] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@2b540131
+2026-03-03 00:01:58 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
+2026-03-03 00:01:58 [main] WARN  org.hibernate.orm.deprecation - HHH90000025: PostgreSQLDialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
+2026-03-03 00:01:58 [main] INFO  o.hibernate.orm.connections.pooling - HHH10001005: Database info:
+	Database JDBC URL [jdbc:postgresql://ep-royal-morning-a13nc72w-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require]
+	Database driver: PostgreSQL JDBC Driver
+	Database dialect: PostgreSQLDialect
+	Database version: 17.8
+	Default catalog/schema: neondb/public
 	Autocommit mode: undefined/unknown
 	Isolation level: READ_COMMITTED [default READ_COMMITTED]
-	JDBC fetch size: 100
+	JDBC fetch size: none
 	Pool: DataSourceConnectionProvider
 	Minimum pool size: undefined/unknown
 	Maximum pool size: undefined/unknown
-2026-02-28 11:10:35 [main] INFO  org.hibernate.orm.core - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
-2026-02-28 11:10:35 [main] INFO  org.hibernate.orm.jdbc.batch - HHH100501: Automatic JDBC statement batching enabled (maximum batch size 20)
-2026-02-28 11:10:35 [main] DEBUG org.hibernate.SQL - 
-    create table otps (
-        id bigint generated by default as identity,
-        email varchar(100) not null,
-        expired_at timestamp(6) not null,
-        otp varchar(10) not null,
-        role enum ('UPDATE','VERIFY') not null,
-        verified boolean not null,
-        primary key (id)
-    )
-2026-02-28 11:10:35 [main] DEBUG org.hibernate.SQL - 
-    create table project_contributions (
-        id uuid not null,
-        amount numeric(19,2) not null,
-        contribution_date date not null,
-        created_at timestamp(6) with time zone not null,
-        currency varchar(10) not null,
-        note varchar(255),
-        project_id uuid not null,
-        user_id bigint not null,
-        primary key (id)
-    )
-2026-02-28 11:10:35 [main] DEBUG org.hibernate.SQL - 
-    create table project_members (
-        id uuid not null,
-        is_admin boolean not null,
-        created_at timestamp(6) with time zone not null,
-        join_status enum ('INVITED','JOINED','LEFT') not null,
-        project_id uuid not null,
-        updated_at timestamp(6) with time zone not null,
-        user_id bigint not null,
-        primary key (id)
-    )
-2026-02-28 11:10:35 [main] DEBUG org.hibernate.SQL - 
-    create table projects (
-        id uuid not null,
-        created_at timestamp(6) with time zone not null,
-        currency varchar(10) not null,
-        deadline date not null,
-        description varchar(500),
-        name varchar(120) not null,
-        owner_id bigint not null,
-        target_amount numeric(19,2) not null,
-        type enum ('GROUP','PERSONAL') not null,
-        updated_at timestamp(6) with time zone not null,
-        primary key (id)
-    )
-2026-02-28 11:10:35 [main] DEBUG org.hibernate.SQL - 
-    create table transactions (
-        id bigint generated by default as identity,
-        amount numeric(38,2) not null,
-        category enum ('CLOTHING','EDUCATION','ENTERTAINMENT','FOOD','HEALTH','OTHER','SHOPPING','TRANSPORTATION','UTILITIES') not null,
-        created_at timestamp(6) not null,
-        date timestamp(6) not null,
-        description varchar(255),
-        type enum ('EXPENSE','INCOME') not null,
-        updated_at timestamp(6) not null,
-        user_id bigint not null,
-        primary key (id)
-    )
-2026-02-28 11:10:35 [main] DEBUG org.hibernate.SQL - 
-    create table users (
-        id bigint generated by default as identity,
-        is_active boolean not null,
-        avatar varchar(500),
-        coin integer not null,
-        created_at timestamp(6) not null,
-        date_of_birth date not null,
-        email varchar(30) not null,
-        full_name varchar(40) not null,
-        password_hash varchar(100) not null,
-        phone varchar(20) not null,
-        rate float(53) not null,
-        refresh_token varchar(500),
-        refresh_token_expiry timestamp(6),
-        role enum ('ADMIN','USER') not null,
-        updated_at timestamp(6) not null,
-        username varchar(20) not null,
-        primary key (id)
-    )
-2026-02-28 11:10:35 [main] DEBUG org.hibernate.SQL - 
-    create index idx_contrib_project 
-       on project_contributions (project_id)
-2026-02-28 11:10:35 [main] DEBUG org.hibernate.SQL - 
-    create index idx_contrib_user 
-       on project_contributions (user_id)
-2026-02-28 11:10:35 [main] DEBUG org.hibernate.SQL - 
-    alter table if exists project_members 
-       drop constraint if exists uk_project_member
-2026-02-28 11:10:35 [main] DEBUG org.hibernate.SQL - 
-    alter table if exists project_members 
-       add constraint uk_project_member unique (project_id, user_id)
-2026-02-28 11:10:35 [main] DEBUG org.hibernate.SQL - 
-    alter table if exists users 
-       drop constraint if exists UK6dotkott2kjsp8vw4d0m25fb7
-2026-02-28 11:10:35 [main] DEBUG org.hibernate.SQL - 
-    alter table if exists users 
-       add constraint UK6dotkott2kjsp8vw4d0m25fb7 unique (email)
-2026-02-28 11:10:35 [main] DEBUG org.hibernate.SQL - 
-    alter table if exists users 
-       drop constraint if exists UKr43af9ap4edm43mmtq01oddj6
-2026-02-28 11:10:35 [main] DEBUG org.hibernate.SQL - 
-    alter table if exists users 
-       add constraint UKr43af9ap4edm43mmtq01oddj6 unique (username)
-2026-02-28 11:10:35 [main] INFO  o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
-2026-02-28 11:10:35 [main] INFO  o.s.d.j.r.q.QueryEnhancerFactories - Hibernate is in classpath; If applicable, HQL parser will be used.
-2026-02-28 11:10:35 [main] INFO  c.e.s.i.security.JwtTokenProvider - JWT Token Provider initialized with secret length: 87
-2026-02-28 11:10:35 [main] DEBUG c.e.s.i.s.AuthenticationFilter - Filter 'authenticationFilter' configured for use
-2026-02-28 11:10:36 [main] INFO  c.e.s.i.mail.config.MailConfig - Initializing JavaMailSender...
-2026-02-28 11:10:36 [main] INFO  c.e.s.i.mail.config.MailProperties - Mail Configuration:
-2026-02-28 11:10:36 [main] INFO  c.e.s.i.mail.config.MailProperties -   Host: smtp.gmail.com
-2026-02-28 11:10:36 [main] INFO  c.e.s.i.mail.config.MailProperties -   Port: 587
-2026-02-28 11:10:36 [main] INFO  c.e.s.i.mail.config.MailProperties -   Username: nhbang22@clc.fitus.edu.vn
-2026-02-28 11:10:36 [main] INFO  c.e.s.i.mail.config.MailProperties -   Protocol: smtp
-2026-02-28 11:10:36 [main] INFO  c.e.s.i.mail.config.MailProperties -   SMTP Auth: true
-2026-02-28 11:10:36 [main] INFO  c.e.s.i.mail.config.MailProperties -   STARTTLS Enabled: true
-2026-02-28 11:10:36 [main] INFO  c.e.s.i.mail.config.MailProperties -   STARTTLS Required: false
-2026-02-28 11:10:36 [main] INFO  c.e.s.i.mail.config.MailConfig - JavaMailSender initialized successfully
-2026-02-28 11:10:36 [main] INFO  c.e.s.i.a.c.SupabaseJwtProperties - ✅ Supabase anonKey is configured for frontend authentication
-2026-02-28 11:10:36 [main] INFO  c.e.s.i.a.c.SupabaseJwtProperties - ✅ Supabase JWT_JWK is configured for ES256 token validation
-2026-02-28 11:10:36 [main] INFO  c.e.s.i.common.DotenvConfig - Environment variables loaded successfully
-2026-02-28 11:10:36 [main] INFO  c.e.s.a.u.auth.FacebookLoginUseCase - ✅ FacebookLoginUseCase initialized - Ready to validate external JWT tokens
-2026-02-28 11:10:36 [main] WARN  o.s.b.j.a.JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
-2026-02-28 11:10:36 [main] INFO  o.s.s.c.a.a.c.InitializeUserDetailsBeanManagerConfigurer$InitializeUserDetailsManagerConfigurer - Global AuthenticationManager configured with UserDetailsService bean with name jwtTokenProvider
-2026-02-28 11:10:37 [main] INFO  o.s.boot.tomcat.TomcatWebServer - Tomcat started on port 8080 (http) with context path '/'
-2026-02-28 11:10:37 [main] INFO  c.e.smartmoney.SmartmoneyApplication - Started SmartmoneyApplication in 6.841 seconds (process running for 7.346)
-2026-02-28 11:16:35 [SpringApplicationShutdownHook] INFO  o.s.boot.tomcat.GracefulShutdown - Commencing graceful shutdown. Waiting for active requests to complete
-2026-02-28 11:16:35 [tomcat-shutdown] INFO  o.s.boot.tomcat.GracefulShutdown - Graceful shutdown complete
-2026-02-28 11:16:35 [SpringApplicationShutdownHook] INFO  o.s.o.j.LocalContainerEntityManagerFactoryBean - Closing JPA EntityManagerFactory for persistence unit 'default'
-2026-02-28 11:16:35 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown initiated...
-2026-02-28 11:16:35 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown completed.
-2026-02-28 17:27:59 [main] INFO  c.e.s.SmartmoneyApplicationTests - Starting SmartmoneyApplicationTests using Java 21.0.6 with PID 20484 (started by NamTran in D:\HCMUS\DATN\Source\Smart-Expense-Management-System-API)
-2026-02-28 17:27:59 [main] DEBUG c.e.s.SmartmoneyApplicationTests - Running with Spring Boot v4.0.1, Spring v7.0.2
-2026-02-28 17:27:59 [main] INFO  c.e.s.SmartmoneyApplicationTests - No active profile set, falling back to 1 default profile: "default"
-2026-02-28 17:28:00 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
-2026-02-28 17:28:00 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 96 ms. Found 6 JPA repository interfaces.
-2026-02-28 17:28:01 [main] INFO  org.hibernate.orm.jpa - HHH008540: Processing PersistenceUnitInfo [name: default]
-2026-02-28 17:28:01 [main] INFO  org.hibernate.orm.core - HHH000001: Hibernate ORM core version 7.2.0.Final
-2026-02-28 17:28:02 [main] INFO  o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
-2026-02-28 17:28:02 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
-2026-02-28 17:28:02 [main] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Added connection conn0: url=jdbc:h2:mem:smartmoney user=SA
-2026-02-28 17:28:02 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
-2026-02-28 17:28:02 [main] WARN  org.hibernate.orm.deprecation - HHH90000025: H2Dialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
-2026-02-28 17:28:02 [main] INFO  o.hibernate.orm.connections.pooling - HHH10001005: Database info:
-	Database JDBC URL [jdbc:h2:mem:smartmoney]
-	Database driver: H2 JDBC Driver
-	Database dialect: H2Dialect
-	Database version: 2.4.240
-	Default catalog/schema: SMARTMONEY/PUBLIC
-	Autocommit mode: undefined/unknown
-	Isolation level: READ_COMMITTED [default READ_COMMITTED]
-	JDBC fetch size: 100
-	Pool: DataSourceConnectionProvider
-	Minimum pool size: undefined/unknown
-	Maximum pool size: undefined/unknown
-2026-02-28 17:28:03 [main] INFO  org.hibernate.orm.core - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
-2026-02-28 17:28:03 [main] INFO  org.hibernate.orm.jdbc.batch - HHH100501: Automatic JDBC statement batching enabled (maximum batch size 20)
-2026-02-28 17:28:03 [main] DEBUG org.hibernate.SQL - 
-    create table otps (
-        id bigint generated by default as identity,
-        email varchar(100) not null,
-        expired_at timestamp(6) not null,
-        otp varchar(10) not null,
-        role enum ('UPDATE','VERIFY') not null,
-        verified boolean not null,
-        primary key (id)
-    )
-2026-02-28 17:28:03 [main] DEBUG org.hibernate.SQL - 
-    create table project_contributions (
-        id uuid not null,
-        amount numeric(19,2) not null,
-        contribution_date date not null,
-        created_at timestamp(6) with time zone not null,
-        currency varchar(10) not null,
-        note varchar(255),
-        project_id uuid not null,
-        user_id bigint not null,
-        primary key (id)
-    )
-2026-02-28 17:28:03 [main] DEBUG org.hibernate.SQL - 
-    create table project_members (
-        id uuid not null,
-        is_admin boolean not null,
-        created_at timestamp(6) with time zone not null,
-        join_status enum ('INVITED','JOINED','LEFT') not null,
-        project_id uuid not null,
-        updated_at timestamp(6) with time zone not null,
-        user_id bigint not null,
-        primary key (id)
-    )
-2026-02-28 17:28:03 [main] DEBUG org.hibernate.SQL - 
-    create table projects (
-        id uuid not null,
-        created_at timestamp(6) with time zone not null,
-        currency varchar(10) not null,
-        deadline date not null,
-        description varchar(500),
-        name varchar(120) not null,
-        owner_id bigint not null,
-        target_amount numeric(19,2) not null,
-        type enum ('GROUP','PERSONAL') not null,
-        updated_at timestamp(6) with time zone not null,
-        primary key (id)
-    )
-2026-02-28 17:28:03 [main] DEBUG org.hibernate.SQL - 
-    create table transactions (
-        id bigint generated by default as identity,
-        amount numeric(38,2) not null,
-        category enum ('CLOTHING','EDUCATION','ENTERTAINMENT','FOOD','HEALTH','OTHER','SHOPPING','TRANSPORTATION','UTILITIES') not null,
-        created_at timestamp(6) not null,
-        date timestamp(6) not null,
-        description varchar(255),
-        type enum ('EXPENSE','INCOME') not null,
-        updated_at timestamp(6) not null,
-        user_id bigint not null,
-        primary key (id)
-    )
-2026-02-28 17:28:03 [main] DEBUG org.hibernate.SQL - 
-    create table users (
-        id bigint generated by default as identity,
-        is_active boolean not null,
-        avatar varchar(500),
-        coin integer not null,
-        created_at timestamp(6) not null,
-        date_of_birth date not null,
-        email varchar(30) not null,
-        full_name varchar(40) not null,
-        password_hash varchar(100) not null,
-        phone varchar(20) not null,
-        rate float(53) not null,
-        refresh_token varchar(500),
-        refresh_token_expiry timestamp(6),
-        role enum ('ADMIN','USER') not null,
-        updated_at timestamp(6) not null,
-        username varchar(20) not null,
-        primary key (id)
-    )
-2026-02-28 17:28:03 [main] DEBUG org.hibernate.SQL - 
-    create index idx_contrib_project 
-       on project_contributions (project_id)
-2026-02-28 17:28:03 [main] DEBUG org.hibernate.SQL - 
-    create index idx_contrib_user 
-       on project_contributions (user_id)
-2026-02-28 17:28:03 [main] DEBUG org.hibernate.SQL - 
-    alter table if exists project_members 
-       drop constraint if exists uk_project_member
-2026-02-28 17:28:03 [main] DEBUG org.hibernate.SQL - 
-    alter table if exists project_members 
-       add constraint uk_project_member unique (project_id, user_id)
-2026-02-28 17:28:03 [main] DEBUG org.hibernate.SQL - 
-    alter table if exists users 
-       drop constraint if exists UK6dotkott2kjsp8vw4d0m25fb7
-2026-02-28 17:28:03 [main] DEBUG org.hibernate.SQL - 
-    alter table if exists users 
-       add constraint UK6dotkott2kjsp8vw4d0m25fb7 unique (email)
-2026-02-28 17:28:03 [main] DEBUG org.hibernate.SQL - 
-    alter table if exists users 
-       drop constraint if exists UKr43af9ap4edm43mmtq01oddj6
-2026-02-28 17:28:03 [main] DEBUG org.hibernate.SQL - 
-    alter table if exists users 
-       add constraint UKr43af9ap4edm43mmtq01oddj6 unique (username)
-2026-02-28 17:28:03 [main] INFO  o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
-2026-02-28 17:28:03 [main] INFO  o.s.d.j.r.q.QueryEnhancerFactories - Hibernate is in classpath; If applicable, HQL parser will be used.
-2026-02-28 17:28:04 [main] INFO  c.e.s.i.security.JwtTokenProvider - JWT Token Provider initialized with secret length: 87
-2026-02-28 17:28:05 [main] INFO  c.e.s.i.a.c.SupabaseJwtProperties - ✅ Supabase anonKey is configured for frontend authentication
-2026-02-28 17:28:05 [main] INFO  c.e.s.i.a.c.SupabaseJwtProperties - ✅ Supabase JWT_JWK is configured for ES256 token validation
-2026-02-28 17:28:05 [main] INFO  c.e.s.i.common.DotenvConfig - Environment variables loaded successfully
-2026-02-28 17:28:05 [main] INFO  c.e.s.a.u.auth.FacebookLoginUseCase - ✅ FacebookLoginUseCase initialized - Ready to validate external JWT tokens
-2026-02-28 17:28:05 [main] WARN  o.s.b.j.a.JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
-2026-02-28 17:28:05 [main] INFO  o.s.s.c.a.a.c.InitializeUserDetailsBeanManagerConfigurer$InitializeUserDetailsManagerConfigurer - Global AuthenticationManager configured with UserDetailsService bean with name jwtTokenProvider
-2026-02-28 17:28:06 [main] INFO  c.e.s.SmartmoneyApplicationTests - Started SmartmoneyApplicationTests in 7.794 seconds (process running for 10.548)
-2026-02-28 17:28:06 [SpringApplicationShutdownHook] INFO  o.s.o.j.LocalContainerEntityManagerFactoryBean - Closing JPA EntityManagerFactory for persistence unit 'default'
-2026-02-28 17:28:06 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown initiated...
-2026-02-28 17:28:06 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown completed.
-2026-02-28 17:34:53 [main] INFO  c.e.smartmoney.SmartmoneyApplication - Starting SmartmoneyApplication using Java 21.0.6 with PID 3784 (D:\HCMUS\DATN\Source\Smart-Expense-Management-System-API\target\classes started by NamTran in D:\HCMUS\DATN\Source\Smart-Expense-Management-System-API)
-2026-02-28 17:34:53 [main] DEBUG c.e.smartmoney.SmartmoneyApplication - Running with Spring Boot v4.0.1, Spring v7.0.2
-2026-02-28 17:34:53 [main] INFO  c.e.smartmoney.SmartmoneyApplication - No active profile set, falling back to 1 default profile: "default"
-2026-02-28 17:34:54 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
-2026-02-28 17:34:54 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 81 ms. Found 6 JPA repository interfaces.
-2026-02-28 17:34:55 [main] INFO  o.s.boot.tomcat.TomcatWebServer - Tomcat initialized with port 8080 (http)
-2026-02-28 17:34:55 [main] INFO  o.a.catalina.core.StandardService - Starting service [Tomcat]
-2026-02-28 17:34:55 [main] INFO  o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/11.0.15]
-2026-02-28 17:34:55 [main] INFO  o.s.b.w.c.s.WebApplicationContextInitializer - Root WebApplicationContext: initialization completed in 1917 ms
-2026-02-28 17:34:55 [main] INFO  org.hibernate.orm.jpa - HHH008540: Processing PersistenceUnitInfo [name: default]
-2026-02-28 17:34:55 [main] INFO  org.hibernate.orm.core - HHH000001: Hibernate ORM core version 7.2.0.Final
-2026-02-28 17:34:56 [main] INFO  o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
-2026-02-28 17:34:56 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
-2026-02-28 17:34:56 [main] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Added connection conn0: url=jdbc:h2:mem:smartmoney user=SA
-2026-02-28 17:34:56 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
-2026-02-28 17:34:56 [main] WARN  org.hibernate.orm.deprecation - HHH90000025: H2Dialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
-2026-02-28 17:34:56 [main] INFO  o.hibernate.orm.connections.pooling - HHH10001005: Database info:
-	Database JDBC URL [jdbc:h2:mem:smartmoney]
-	Database driver: H2 JDBC Driver
-	Database dialect: H2Dialect
-	Database version: 2.4.240
-	Default catalog/schema: SMARTMONEY/PUBLIC
-	Autocommit mode: undefined/unknown
-	Isolation level: READ_COMMITTED [default READ_COMMITTED]
-	JDBC fetch size: 100
-	Pool: DataSourceConnectionProvider
-	Minimum pool size: undefined/unknown
-	Maximum pool size: undefined/unknown
-2026-02-28 17:34:57 [main] INFO  org.hibernate.orm.core - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
-2026-02-28 17:34:57 [main] INFO  org.hibernate.orm.jdbc.batch - HHH100501: Automatic JDBC statement batching enabled (maximum batch size 20)
-2026-02-28 17:34:57 [main] DEBUG org.hibernate.SQL - 
-    create table otps (
-        id bigint generated by default as identity,
-        email varchar(100) not null,
-        expired_at timestamp(6) not null,
-        otp varchar(10) not null,
-        role enum ('UPDATE','VERIFY') not null,
-        verified boolean not null,
-        primary key (id)
-    )
-2026-02-28 17:34:57 [main] DEBUG org.hibernate.SQL - 
-    create table project_contributions (
-        id uuid not null,
-        amount numeric(19,2) not null,
-        contribution_date date not null,
-        created_at timestamp(6) with time zone not null,
-        currency varchar(10) not null,
-        note varchar(255),
-        project_id uuid not null,
-        user_id bigint not null,
-        primary key (id)
-    )
-2026-02-28 17:34:57 [main] DEBUG org.hibernate.SQL - 
-    create table project_members (
-        id uuid not null,
-        is_admin boolean not null,
-        created_at timestamp(6) with time zone not null,
-        join_status enum ('INVITED','JOINED','LEFT') not null,
-        project_id uuid not null,
-        updated_at timestamp(6) with time zone not null,
-        user_id bigint not null,
-        primary key (id)
-    )
-2026-02-28 17:34:57 [main] DEBUG org.hibernate.SQL - 
-    create table projects (
-        id uuid not null,
-        created_at timestamp(6) with time zone not null,
-        currency varchar(10) not null,
-        deadline date not null,
-        description varchar(500),
-        name varchar(120) not null,
-        owner_id bigint not null,
-        target_amount numeric(19,2) not null,
-        type enum ('GROUP','PERSONAL') not null,
-        updated_at timestamp(6) with time zone not null,
-        primary key (id)
-    )
-2026-02-28 17:34:57 [main] DEBUG org.hibernate.SQL - 
-    create table transactions (
-        id bigint generated by default as identity,
-        amount numeric(38,2) not null,
-        category enum ('CLOTHING','EDUCATION','ENTERTAINMENT','FOOD','HEALTH','OTHER','SHOPPING','TRANSPORTATION','UTILITIES') not null,
-        created_at timestamp(6) not null,
-        date timestamp(6) not null,
-        description varchar(255),
-        type enum ('EXPENSE','INCOME') not null,
-        updated_at timestamp(6) not null,
-        user_id bigint not null,
-        primary key (id)
-    )
-2026-02-28 17:34:57 [main] DEBUG org.hibernate.SQL - 
-    create table users (
-        id bigint generated by default as identity,
-        is_active boolean not null,
-        avatar varchar(500),
-        coin integer not null,
-        created_at timestamp(6) not null,
-        date_of_birth date not null,
-        email varchar(30) not null,
-        full_name varchar(40) not null,
-        password_hash varchar(100) not null,
-        phone varchar(20) not null,
-        rate float(53) not null,
-        refresh_token varchar(500),
-        refresh_token_expiry timestamp(6),
-        role enum ('ADMIN','USER') not null,
-        updated_at timestamp(6) not null,
-        username varchar(20) not null,
-        primary key (id)
-    )
-2026-02-28 17:34:57 [main] DEBUG org.hibernate.SQL - 
-    create index idx_contrib_project 
-       on project_contributions (project_id)
-2026-02-28 17:34:57 [main] DEBUG org.hibernate.SQL - 
-    create index idx_contrib_user 
-       on project_contributions (user_id)
-2026-02-28 17:34:57 [main] DEBUG org.hibernate.SQL - 
-    alter table if exists project_members 
-       drop constraint if exists uk_project_member
-2026-02-28 17:34:57 [main] DEBUG org.hibernate.SQL - 
-    alter table if exists project_members 
-       add constraint uk_project_member unique (project_id, user_id)
-2026-02-28 17:34:57 [main] DEBUG org.hibernate.SQL - 
-    alter table if exists users 
-       drop constraint if exists UK6dotkott2kjsp8vw4d0m25fb7
-2026-02-28 17:34:57 [main] DEBUG org.hibernate.SQL - 
-    alter table if exists users 
-       add constraint UK6dotkott2kjsp8vw4d0m25fb7 unique (email)
-2026-02-28 17:34:57 [main] DEBUG org.hibernate.SQL - 
-    alter table if exists users 
-       drop constraint if exists UKr43af9ap4edm43mmtq01oddj6
-2026-02-28 17:34:57 [main] DEBUG org.hibernate.SQL - 
-    alter table if exists users 
-       add constraint UKr43af9ap4edm43mmtq01oddj6 unique (username)
-2026-02-28 17:34:57 [main] INFO  o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
-2026-02-28 17:34:58 [main] INFO  o.s.d.j.r.q.QueryEnhancerFactories - Hibernate is in classpath; If applicable, HQL parser will be used.
-2026-02-28 17:34:58 [main] INFO  c.e.s.i.security.JwtTokenProvider - JWT Token Provider initialized with secret length: 87
-2026-02-28 17:34:58 [main] DEBUG c.e.s.i.s.AuthenticationFilter - Filter 'authenticationFilter' configured for use
-2026-02-28 17:34:59 [main] INFO  c.e.s.i.mail.config.MailConfig - Initializing JavaMailSender...
-2026-02-28 17:34:59 [main] INFO  c.e.s.i.mail.config.MailProperties - Mail Configuration:
-2026-02-28 17:34:59 [main] INFO  c.e.s.i.mail.config.MailProperties -   Host: smtp.gmail.com
-2026-02-28 17:34:59 [main] INFO  c.e.s.i.mail.config.MailProperties -   Port: 587
-2026-02-28 17:34:59 [main] INFO  c.e.s.i.mail.config.MailProperties -   Username: nhbang22@clc.fitus.edu.vn
-2026-02-28 17:34:59 [main] INFO  c.e.s.i.mail.config.MailProperties -   Protocol: smtp
-2026-02-28 17:34:59 [main] INFO  c.e.s.i.mail.config.MailProperties -   SMTP Auth: true
-2026-02-28 17:34:59 [main] INFO  c.e.s.i.mail.config.MailProperties -   STARTTLS Enabled: true
-2026-02-28 17:34:59 [main] INFO  c.e.s.i.mail.config.MailProperties -   STARTTLS Required: false
-2026-02-28 17:34:59 [main] INFO  c.e.s.i.mail.config.MailConfig - JavaMailSender initialized successfully
-2026-02-28 17:34:59 [main] INFO  c.e.s.i.a.c.SupabaseJwtProperties - ✅ Supabase anonKey is configured for frontend authentication
-2026-02-28 17:34:59 [main] INFO  c.e.s.i.a.c.SupabaseJwtProperties - ✅ Supabase JWT_JWK is configured for ES256 token validation
-2026-02-28 17:34:59 [main] INFO  c.e.s.i.common.DotenvConfig - Environment variables loaded successfully
-2026-02-28 17:34:59 [main] INFO  c.e.s.a.u.auth.FacebookLoginUseCase - ✅ FacebookLoginUseCase initialized - Ready to validate external JWT tokens
-2026-02-28 17:34:59 [main] WARN  o.s.b.j.a.JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
-2026-02-28 17:34:59 [main] INFO  o.s.s.c.a.a.c.InitializeUserDetailsBeanManagerConfigurer$InitializeUserDetailsManagerConfigurer - Global AuthenticationManager configured with UserDetailsService bean with name jwtTokenProvider
-2026-02-28 17:35:00 [main] INFO  o.s.boot.tomcat.TomcatWebServer - Tomcat started on port 8080 (http) with context path '/'
-2026-02-28 17:35:00 [main] INFO  c.e.smartmoney.SmartmoneyApplication - Started SmartmoneyApplication in 7.284 seconds (process running for 7.678)
-2026-02-28 17:35:20 [http-nio-8080-exec-1] INFO  o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring DispatcherServlet 'dispatcherServlet'
-2026-02-28 17:35:20 [http-nio-8080-exec-1] INFO  o.s.web.servlet.DispatcherServlet - Initializing Servlet 'dispatcherServlet'
-2026-02-28 17:35:20 [http-nio-8080-exec-1] INFO  o.s.web.servlet.DispatcherServlet - Completed initialization in 2 ms
-2026-02-28 17:35:20 [http-nio-8080-exec-1] INFO  c.e.s.p.controllers.AuthController - Login attempt for email: hathihuonghv@gmail.com
-2026-02-28 17:35:20 [http-nio-8080-exec-1] DEBUG org.hibernate.SQL - 
+2026-03-03 00:01:59 [main] INFO  org.hibernate.orm.core - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-03-03 00:01:59 [main] INFO  org.hibernate.orm.jdbc.batch - HHH100501: Automatic JDBC statement batching enabled (maximum batch size 20)
+2026-03-03 00:01:59 [main] INFO  o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-03-03 00:02:00 [main] INFO  o.s.d.j.r.q.QueryEnhancerFactories - Hibernate is in classpath; If applicable, HQL parser will be used.
+2026-03-03 00:02:00 [main] INFO  c.e.s.i.security.JwtTokenProvider - JWT Token Provider initialized with secret length: 87
+2026-03-03 00:02:00 [main] DEBUG c.e.s.i.s.AuthenticationFilter - Filter 'authenticationFilter' configured for use
+2026-03-03 00:02:00 [main] INFO  c.e.s.i.mail.config.MailConfig - Initializing JavaMailSender...
+2026-03-03 00:02:00 [main] INFO  c.e.s.i.mail.config.MailProperties - Mail Configuration:
+2026-03-03 00:02:00 [main] INFO  c.e.s.i.mail.config.MailProperties -   Host: smtp.gmail.com
+2026-03-03 00:02:00 [main] INFO  c.e.s.i.mail.config.MailProperties -   Port: 587
+2026-03-03 00:02:00 [main] INFO  c.e.s.i.mail.config.MailProperties -   Username: nhbang22@clc.fitus.edu.vn
+2026-03-03 00:02:00 [main] INFO  c.e.s.i.mail.config.MailProperties -   Protocol: smtp
+2026-03-03 00:02:00 [main] INFO  c.e.s.i.mail.config.MailProperties -   SMTP Auth: true
+2026-03-03 00:02:00 [main] INFO  c.e.s.i.mail.config.MailProperties -   STARTTLS Enabled: true
+2026-03-03 00:02:00 [main] INFO  c.e.s.i.mail.config.MailProperties -   STARTTLS Required: false
+2026-03-03 00:02:00 [main] INFO  c.e.s.i.mail.config.MailConfig - JavaMailSender initialized successfully
+2026-03-03 00:02:01 [main] INFO  c.e.s.i.a.c.SupabaseJwtProperties - ✅ Supabase anonKey is configured for frontend authentication
+2026-03-03 00:02:01 [main] INFO  c.e.s.i.a.c.SupabaseJwtProperties - ✅ Supabase JWT_JWK is configured for ES256 token validation
+2026-03-03 00:02:01 [main] INFO  c.e.s.i.common.DotenvConfig - Environment variables loaded successfully
+2026-03-03 00:02:01 [main] INFO  c.e.s.a.u.auth.FacebookLoginUseCase - ✅ FacebookLoginUseCase initialized - Ready to validate external JWT tokens
+2026-03-03 00:02:01 [main] WARN  o.s.b.j.a.JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-03-03 00:02:01 [main] INFO  o.s.s.c.a.a.c.InitializeUserDetailsBeanManagerConfigurer$InitializeUserDetailsManagerConfigurer - Global AuthenticationManager configured with UserDetailsService bean with name jwtTokenProvider
+2026-03-03 00:02:02 [main] INFO  o.s.boot.tomcat.TomcatWebServer - Tomcat started on port 8080 (http) with context path '/'
+2026-03-03 00:02:02 [main] INFO  c.e.smartmoney.SmartmoneyApplication - Started SmartmoneyApplication in 8.917 seconds (process running for 9.396)
+2026-03-03 00:02:11 [http-nio-8080-exec-4] INFO  o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-03-03 00:02:11 [http-nio-8080-exec-4] INFO  o.s.web.servlet.DispatcherServlet - Initializing Servlet 'dispatcherServlet'
+2026-03-03 00:02:11 [http-nio-8080-exec-4] INFO  o.s.web.servlet.DispatcherServlet - Completed initialization in 2 ms
+2026-03-03 00:02:12 [http-nio-8080-exec-4] INFO  c.e.s.p.controllers.AuthController - Register request for email: nhntran22@clc.fitus.edu.vn
+2026-03-03 00:02:12 [http-nio-8080-exec-4] DEBUG org.hibernate.SQL - 
     select
-        ue1_0.id,
-        ue1_0.is_active,
-        ue1_0.avatar,
-        ue1_0.coin,
-        ue1_0.created_at,
-        ue1_0.date_of_birth,
-        ue1_0.email,
-        ue1_0.full_name,
-        ue1_0.password_hash,
-        ue1_0.phone,
-        ue1_0.rate,
-        ue1_0.refresh_token,
-        ue1_0.refresh_token_expiry,
-        ue1_0.role,
-        ue1_0.updated_at,
-        ue1_0.username 
+        ue1_0.id 
     from
         users ue1_0 
     where
-        ue1_0.email=?
-2026-02-28 17:35:20 [http-nio-8080-exec-1] WARN  c.e.s.p.controllers.AuthController - Login failed for email: hathihuonghv@gmail.com
-com.example.smartmoney.domain.exceptions.DomainException: Invalid email
-	at com.example.smartmoney.application.usecases.auth.LoginUseCase.lambda$execute$0(LoginUseCase.java:35)
-	at java.base/java.util.Optional.orElseThrow(Optional.java:403)
-	at com.example.smartmoney.application.usecases.auth.LoginUseCase.execute(LoginUseCase.java:35)
-	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
-	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
-	at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:359)
-	at org.springframework.aop.framework.ReflectiveMethodInvocation.invokeJoinpoint(ReflectiveMethodInvocation.java:190)
-	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:158)
-	at org.springframework.transaction.interceptor.TransactionAspectSupport.invokeWithinTransaction(TransactionAspectSupport.java:370)
+        ue1_0.email=? 
+    fetch
+        first ? rows only
+2026-03-03 00:02:12 [http-nio-8080-exec-4] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id 
+    from
+        users ue1_0 
+    where
+        ue1_0.username=? 
+    fetch
+        first ? rows only
+2026-03-03 00:02:12 [http-nio-8080-exec-4] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id 
+    from
+        users ue1_0 
+    where
+        ue1_0.phone=? 
+    fetch
+        first ? rows only
+2026-03-03 00:02:12 [http-nio-8080-exec-4] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id 
+    from
+        users ue1_0 
+    where
+        ue1_0.email=? 
+    fetch
+        first ? rows only
+2026-03-03 00:02:47 [http-nio-8080-exec-4] INFO  c.e.s.i.m.adapters.SmtpMailAdapter - ✓ HTML email sent to nhntran22@clc.fitus.edu.vn
+2026-03-03 00:02:47 [http-nio-8080-exec-4] DEBUG org.hibernate.SQL - 
+    insert 
+    into
+        users
+        (is_active, avatar, coin, created_at, date_of_birth, email, full_name, password_hash, phone, rate, refresh_token, refresh_token_expiry, role, updated_at, username, id) 
+    values
+        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+2026-03-03 00:02:47 [http-nio-8080-exec-4] INFO  org.hibernate.orm.jdbc.batch - HHH100503: JDBC batch still contained JDBC statements on release
+2026-03-03 00:02:47 [http-nio-8080-exec-4] WARN  org.hibernate.orm.jdbc.error - HHH000247: ErrorCode: 0, SQLState: 23502
+2026-03-03 00:02:47 [http-nio-8080-exec-4] WARN  org.hibernate.orm.jdbc.error - Batch entry 0 insert into users (is_active,avatar,coin,created_at,date_of_birth,email,full_name,password_hash,phone,rate,refresh_token,refresh_token_expiry,role,updated_at,username,id) values (('TRUE'::boolean),(NULL),('0'::int4),('2026-03-03 00:02:12.585208+07'),('2004-05-12 +07'),('nhntran22@clc.fitus.edu.vn'),('Nam Tran'),('$2a$10$M7Dh388Te7MEJ66ThybmR.BGAlhtto7uEs6gyz8QlFpmmeT/RtpU2'),('04460'),('5.0'::double precision),(NULL),(NULL),('USER'),('2026-03-03 00:02:12.585208+07'),('namtran'),('98b4d0d3-7451-48f8-8728-733e94618279'::uuid)) was aborted: ERROR: null value in column "is_email_verified" of relation "users" violates not-null constraint
+  Detail: Failing row contains (98b4d0d3-7451-48f8-8728-733e94618279, t, null, 0, 2026-03-03 00:02:12.585208, 2004-05-12, nhntran22@clc.fitus.edu.vn, Nam Tran, $2a$10$M7Dh388Te7MEJ66ThybmR.BGAlhtto7uEs6gyz8QlFpmmeT/RtpU2, 04460, 5, null, null, USER, 2026-03-03 00:02:12.585208, namtran, null).  Call getNextException to see other errors in the batch.
+2026-03-03 00:02:47 [http-nio-8080-exec-4] WARN  org.hibernate.orm.jdbc.error - HHH000247: ErrorCode: 0, SQLState: 23502
+2026-03-03 00:02:47 [http-nio-8080-exec-4] WARN  org.hibernate.orm.jdbc.error - Batch entry 0 insert into users (is_active,avatar,coin,created_at,date_of_birth,email,full_name,password_hash,phone,rate,refresh_token,refresh_token_expiry,role,updated_at,username,id) values (('TRUE'::boolean),(NULL),('0'::int4),('2026-03-03 00:02:12.585208+07'),('2004-05-12 +07'),('nhntran22@clc.fitus.edu.vn'),('Nam Tran'),('$2a$10$M7Dh388Te7MEJ66ThybmR.BGAlhtto7uEs6gyz8QlFpmmeT/RtpU2'),('04460'),('5.0'::double precision),(NULL),(NULL),('USER'),('2026-03-03 00:02:12.585208+07'),('namtran'),('98b4d0d3-7451-48f8-8728-733e94618279'::uuid)) was aborted: ERROR: null value in column "is_email_verified" of relation "users" violates not-null constraint
+  Detail: Failing row contains (98b4d0d3-7451-48f8-8728-733e94618279, t, null, 0, 2026-03-03 00:02:12.585208, 2004-05-12, nhntran22@clc.fitus.edu.vn, Nam Tran, $2a$10$M7Dh388Te7MEJ66ThybmR.BGAlhtto7uEs6gyz8QlFpmmeT/RtpU2, 04460, 5, null, null, USER, 2026-03-03 00:02:12.585208, namtran, null).  Call getNextException to see other errors in the batch.
+2026-03-03 00:02:47 [http-nio-8080-exec-4] WARN  c.e.s.p.controllers.AuthController - Registration failed for email: nhntran22@clc.fitus.edu.vn
+org.springframework.dao.DataIntegrityViolationException: could not execute batch [Batch entry 0 insert into users (is_active,avatar,coin,created_at,date_of_birth,email,full_name,password_hash,phone,rate,refresh_token,refresh_token_expiry,role,updated_at,username,id) values (('TRUE'::boolean),(NULL),('0'::int4),('2026-03-03 00:02:12.585208+07'),('2004-05-12 +07'),('nhntran22@clc.fitus.edu.vn'),('Nam Tran'),('$2a$10$M7Dh388Te7MEJ66ThybmR.BGAlhtto7uEs6gyz8QlFpmmeT/RtpU2'),('04460'),('5.0'::double precision),(NULL),(NULL),('USER'),('2026-03-03 00:02:12.585208+07'),('namtran'),('98b4d0d3-7451-48f8-8728-733e94618279'::uuid)) was aborted: ERROR: null value in column "is_email_verified" of relation "users" violates not-null constraint
+  Detail: Failing row contains (98b4d0d3-7451-48f8-8728-733e94618279, t, null, 0, 2026-03-03 00:02:12.585208, 2004-05-12, nhntran22@clc.fitus.edu.vn, Nam Tran, $2a$10$M7Dh388Te7MEJ66ThybmR.BGAlhtto7uEs6gyz8QlFpmmeT/RtpU2, 04460, 5, null, null, USER, 2026-03-03 00:02:12.585208, namtran, null).  Call getNextException to see other errors in the batch.] [insert into users (is_active,avatar,coin,created_at,date_of_birth,email,full_name,password_hash,phone,rate,refresh_token,refresh_token_expiry,role,updated_at,username,id) values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)]; SQL [insert into users (is_active,avatar,coin,created_at,date_of_birth,email,full_name,password_hash,phone,rate,refresh_token,refresh_token_expiry,role,updated_at,username,id) values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)]; constraint [is_email_verified]
+	at org.springframework.orm.jpa.hibernate.HibernateExceptionTranslator.convertHibernateAccessException(HibernateExceptionTranslator.java:169)
+	at org.springframework.orm.jpa.hibernate.HibernateExceptionTranslator.convertHibernateAccessException(HibernateExceptionTranslator.java:131)
+	at org.springframework.orm.jpa.hibernate.HibernateExceptionTranslator.translateExceptionIfPossible(HibernateExceptionTranslator.java:105)
+	at org.springframework.orm.jpa.vendor.HibernateJpaDialect.translateExceptionIfPossible(HibernateJpaDialect.java:199)
+	at org.springframework.orm.jpa.JpaTransactionManager.doCommit(JpaTransactionManager.java:557)
+	at org.springframework.transaction.support.AbstractPlatformTransactionManager.processCommit(AbstractPlatformTransactionManager.java:794)
+	at org.springframework.transaction.support.AbstractPlatformTransactionManager.commit(AbstractPlatformTransactionManager.java:757)
+	at org.springframework.transaction.interceptor.TransactionAspectSupport.commitTransactionAfterReturning(TransactionAspectSupport.java:684)
+	at org.springframework.transaction.interceptor.TransactionAspectSupport.invokeWithinTransaction(TransactionAspectSupport.java:406)
 	at org.springframework.transaction.interceptor.TransactionInterceptor.invoke(TransactionInterceptor.java:118)
 	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179)
 	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:719)
-	at com.example.smartmoney.application.usecases.auth.LoginUseCase$$SpringCGLIB$$0.execute(<generated>)
-	at com.example.smartmoney.presentation.controllers.AuthController.login(AuthController.java:194)
+	at com.example.smartmoney.application.usecases.auth.RegisterUseCase$$SpringCGLIB$$0.execute(<generated>)
+	at com.example.smartmoney.presentation.controllers.AuthController.register(AuthController.java:94)
 	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
 	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
 	at org.springframework.web.method.support.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:258)
@@ -593,272 +215,54 @@ com.example.smartmoney.domain.exceptions.DomainException: Invalid email
 	at org.apache.tomcat.util.threads.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:480)
 	at org.apache.tomcat.util.threads.TaskThread$WrappingRunnable.run(TaskThread.java:57)
 	at java.base/java.lang.Thread.run(Thread.java:1583)
-2026-02-28 17:35:32 [http-nio-8080-exec-3] INFO  c.e.s.p.controllers.AuthController - Login attempt for email: hathihuonghv@gmail.com
-2026-02-28 17:35:32 [http-nio-8080-exec-3] DEBUG org.hibernate.SQL - 
-    select
-        ue1_0.id,
-        ue1_0.is_active,
-        ue1_0.avatar,
-        ue1_0.coin,
-        ue1_0.created_at,
-        ue1_0.date_of_birth,
-        ue1_0.email,
-        ue1_0.full_name,
-        ue1_0.password_hash,
-        ue1_0.phone,
-        ue1_0.rate,
-        ue1_0.refresh_token,
-        ue1_0.refresh_token_expiry,
-        ue1_0.role,
-        ue1_0.updated_at,
-        ue1_0.username 
-    from
-        users ue1_0 
-    where
-        ue1_0.email=?
-2026-02-28 17:35:32 [http-nio-8080-exec-3] WARN  c.e.s.p.controllers.AuthController - Login failed for email: hathihuonghv@gmail.com
-com.example.smartmoney.domain.exceptions.DomainException: Invalid email
-	at com.example.smartmoney.application.usecases.auth.LoginUseCase.lambda$execute$0(LoginUseCase.java:35)
-	at java.base/java.util.Optional.orElseThrow(Optional.java:403)
-	at com.example.smartmoney.application.usecases.auth.LoginUseCase.execute(LoginUseCase.java:35)
-	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
-	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
-	at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:359)
-	at org.springframework.aop.framework.ReflectiveMethodInvocation.invokeJoinpoint(ReflectiveMethodInvocation.java:190)
-	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:158)
-	at org.springframework.transaction.interceptor.TransactionAspectSupport.invokeWithinTransaction(TransactionAspectSupport.java:370)
-	at org.springframework.transaction.interceptor.TransactionInterceptor.invoke(TransactionInterceptor.java:118)
-	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179)
-	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:719)
-	at com.example.smartmoney.application.usecases.auth.LoginUseCase$$SpringCGLIB$$0.execute(<generated>)
-	at com.example.smartmoney.presentation.controllers.AuthController.login(AuthController.java:194)
-	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
-	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
-	at org.springframework.web.method.support.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:258)
-	at org.springframework.web.method.support.InvocableHandlerMethod.invokeForRequest(InvocableHandlerMethod.java:190)
-	at org.springframework.web.servlet.mvc.method.annotation.ServletInvocableHandlerMethod.invokeAndHandle(ServletInvocableHandlerMethod.java:117)
-	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.invokeHandlerMethod(RequestMappingHandlerAdapter.java:934)
-	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.handleInternal(RequestMappingHandlerAdapter.java:853)
-	at org.springframework.web.servlet.mvc.method.AbstractHandlerMethodAdapter.handle(AbstractHandlerMethodAdapter.java:86)
-	at org.springframework.web.servlet.DispatcherServlet.doDispatch(DispatcherServlet.java:963)
-	at org.springframework.web.servlet.DispatcherServlet.doService(DispatcherServlet.java:866)
-	at org.springframework.web.servlet.FrameworkServlet.processRequest(FrameworkServlet.java:1003)
-	at org.springframework.web.servlet.FrameworkServlet.doPost(FrameworkServlet.java:903)
-	at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:649)
-	at org.springframework.web.servlet.FrameworkServlet.service(FrameworkServlet.java:874)
-	at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:710)
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:128)
-	at org.apache.tomcat.websocket.server.WsFilter.doFilter(WsFilter.java:53)
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:107)
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:101)
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:107)
-	at org.springframework.web.filter.CompositeFilter$VirtualFilterChain.doFilter(CompositeFilter.java:108)
-	at org.springframework.security.web.FilterChainProxy.lambda$doFilterInternal$3(FilterChainProxy.java:235)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:371)
-	at org.springframework.security.web.access.intercept.AuthorizationFilter.doFilter(AuthorizationFilter.java:101)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:380)
-	at org.springframework.security.web.access.ExceptionTranslationFilter.doFilter(ExceptionTranslationFilter.java:126)
-	at org.springframework.security.web.access.ExceptionTranslationFilter.doFilter(ExceptionTranslationFilter.java:120)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:380)
-	at org.springframework.security.web.session.SessionManagementFilter.doFilter(SessionManagementFilter.java:132)
-	at org.springframework.security.web.session.SessionManagementFilter.doFilter(SessionManagementFilter.java:86)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:380)
-	at org.springframework.security.web.authentication.AnonymousAuthenticationFilter.doFilter(AnonymousAuthenticationFilter.java:100)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:380)
-	at org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter.doFilter(SecurityContextHolderAwareRequestFilter.java:181)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:380)
-	at org.springframework.security.web.savedrequest.RequestCacheAwareFilter.doFilter(RequestCacheAwareFilter.java:63)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:380)
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:101)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:380)
-	at org.springframework.security.web.authentication.logout.LogoutFilter.doFilter(LogoutFilter.java:110)
-	at org.springframework.security.web.authentication.logout.LogoutFilter.doFilter(LogoutFilter.java:96)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:380)
-	at org.springframework.web.filter.CorsFilter.doFilterInternal(CorsFilter.java:91)
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:380)
-	at org.springframework.security.web.header.HeaderWriterFilter.doHeadersAfter(HeaderWriterFilter.java:90)
-	at org.springframework.security.web.header.HeaderWriterFilter.doFilterInternal(HeaderWriterFilter.java:75)
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:380)
-	at org.springframework.security.web.context.SecurityContextHolderFilter.doFilter(SecurityContextHolderFilter.java:82)
-	at org.springframework.security.web.context.SecurityContextHolderFilter.doFilter(SecurityContextHolderFilter.java:69)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:380)
-	at org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter.doFilterInternal(WebAsyncManagerIntegrationFilter.java:62)
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:380)
-	at org.springframework.security.web.session.DisableEncodeUrlFilter.doFilterInternal(DisableEncodeUrlFilter.java:42)
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:380)
-	at org.springframework.security.web.FilterChainProxy.doFilterInternal(FilterChainProxy.java:237)
-	at org.springframework.security.web.FilterChainProxy.doFilter(FilterChainProxy.java:195)
-	at org.springframework.web.filter.CompositeFilter$VirtualFilterChain.doFilter(CompositeFilter.java:113)
-	at org.springframework.web.filter.ServletRequestPathFilter.doFilter(ServletRequestPathFilter.java:52)
-	at org.springframework.web.filter.CompositeFilter$VirtualFilterChain.doFilter(CompositeFilter.java:113)
-	at org.springframework.web.filter.CompositeFilter.doFilter(CompositeFilter.java:74)
-	at org.springframework.security.config.annotation.web.configuration.WebSecurityConfiguration$CompositeFilterChainProxy.doFilter(WebSecurityConfiguration.java:317)
-	at org.springframework.web.filter.DelegatingFilterProxy.invokeDelegate(DelegatingFilterProxy.java:355)
-	at org.springframework.web.filter.DelegatingFilterProxy.doFilter(DelegatingFilterProxy.java:272)
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:107)
-	at org.springframework.web.filter.RequestContextFilter.doFilterInternal(RequestContextFilter.java:100)
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:107)
-	at org.springframework.web.filter.FormContentFilter.doFilterInternal(FormContentFilter.java:93)
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:107)
-	at org.springframework.web.filter.CharacterEncodingFilter.doFilterInternal(CharacterEncodingFilter.java:199)
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:107)
-	at org.apache.catalina.core.StandardWrapperValve.invoke(StandardWrapperValve.java:165)
-	at org.apache.catalina.core.StandardContextValve.invoke(StandardContextValve.java:77)
-	at org.apache.catalina.authenticator.AuthenticatorBase.invoke(AuthenticatorBase.java:482)
-	at org.apache.catalina.core.StandardHostValve.invoke(StandardHostValve.java:113)
-	at org.apache.catalina.valves.ErrorReportValve.invoke(ErrorReportValve.java:83)
-	at org.apache.catalina.core.StandardEngineValve.invoke(StandardEngineValve.java:72)
-	at org.apache.catalina.connector.CoyoteAdapter.service(CoyoteAdapter.java:341)
-	at org.apache.coyote.http11.Http11Processor.service(Http11Processor.java:397)
-	at org.apache.coyote.AbstractProcessorLight.process(AbstractProcessorLight.java:63)
-	at org.apache.coyote.AbstractProtocol$ConnectionHandler.process(AbstractProtocol.java:903)
-	at org.apache.tomcat.util.net.NioEndpoint$SocketProcessor.doRun(NioEndpoint.java:1778)
-	at org.apache.tomcat.util.net.SocketProcessorBase.run(SocketProcessorBase.java:52)
-	at org.apache.tomcat.util.threads.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:946)
-	at org.apache.tomcat.util.threads.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:480)
-	at org.apache.tomcat.util.threads.TaskThread$WrappingRunnable.run(TaskThread.java:57)
-	at java.base/java.lang.Thread.run(Thread.java:1583)
-2026-02-28 17:35:45 [http-nio-8080-exec-9] INFO  c.e.s.p.controllers.AuthController - Login attempt for email: nhntran22@clc.fitus.edu.vn
-2026-02-28 17:35:45 [http-nio-8080-exec-9] DEBUG org.hibernate.SQL - 
-    select
-        ue1_0.id,
-        ue1_0.is_active,
-        ue1_0.avatar,
-        ue1_0.coin,
-        ue1_0.created_at,
-        ue1_0.date_of_birth,
-        ue1_0.email,
-        ue1_0.full_name,
-        ue1_0.password_hash,
-        ue1_0.phone,
-        ue1_0.rate,
-        ue1_0.refresh_token,
-        ue1_0.refresh_token_expiry,
-        ue1_0.role,
-        ue1_0.updated_at,
-        ue1_0.username 
-    from
-        users ue1_0 
-    where
-        ue1_0.email=?
-2026-02-28 17:35:45 [http-nio-8080-exec-9] WARN  c.e.s.p.controllers.AuthController - Login failed for email: nhntran22@clc.fitus.edu.vn
-com.example.smartmoney.domain.exceptions.DomainException: Invalid email
-	at com.example.smartmoney.application.usecases.auth.LoginUseCase.lambda$execute$0(LoginUseCase.java:35)
-	at java.base/java.util.Optional.orElseThrow(Optional.java:403)
-	at com.example.smartmoney.application.usecases.auth.LoginUseCase.execute(LoginUseCase.java:35)
-	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
-	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
-	at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:359)
-	at org.springframework.aop.framework.ReflectiveMethodInvocation.invokeJoinpoint(ReflectiveMethodInvocation.java:190)
-	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:158)
-	at org.springframework.transaction.interceptor.TransactionAspectSupport.invokeWithinTransaction(TransactionAspectSupport.java:370)
-	at org.springframework.transaction.interceptor.TransactionInterceptor.invoke(TransactionInterceptor.java:118)
-	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179)
-	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:719)
-	at com.example.smartmoney.application.usecases.auth.LoginUseCase$$SpringCGLIB$$0.execute(<generated>)
-	at com.example.smartmoney.presentation.controllers.AuthController.login(AuthController.java:194)
-	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
-	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
-	at org.springframework.web.method.support.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:258)
-	at org.springframework.web.method.support.InvocableHandlerMethod.invokeForRequest(InvocableHandlerMethod.java:190)
-	at org.springframework.web.servlet.mvc.method.annotation.ServletInvocableHandlerMethod.invokeAndHandle(ServletInvocableHandlerMethod.java:117)
-	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.invokeHandlerMethod(RequestMappingHandlerAdapter.java:934)
-	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.handleInternal(RequestMappingHandlerAdapter.java:853)
-	at org.springframework.web.servlet.mvc.method.AbstractHandlerMethodAdapter.handle(AbstractHandlerMethodAdapter.java:86)
-	at org.springframework.web.servlet.DispatcherServlet.doDispatch(DispatcherServlet.java:963)
-	at org.springframework.web.servlet.DispatcherServlet.doService(DispatcherServlet.java:866)
-	at org.springframework.web.servlet.FrameworkServlet.processRequest(FrameworkServlet.java:1003)
-	at org.springframework.web.servlet.FrameworkServlet.doPost(FrameworkServlet.java:903)
-	at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:649)
-	at org.springframework.web.servlet.FrameworkServlet.service(FrameworkServlet.java:874)
-	at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:710)
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:128)
-	at org.apache.tomcat.websocket.server.WsFilter.doFilter(WsFilter.java:53)
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:107)
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:101)
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:107)
-	at org.springframework.web.filter.CompositeFilter$VirtualFilterChain.doFilter(CompositeFilter.java:108)
-	at org.springframework.security.web.FilterChainProxy.lambda$doFilterInternal$3(FilterChainProxy.java:235)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:371)
-	at org.springframework.security.web.access.intercept.AuthorizationFilter.doFilter(AuthorizationFilter.java:101)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:380)
-	at org.springframework.security.web.access.ExceptionTranslationFilter.doFilter(ExceptionTranslationFilter.java:126)
-	at org.springframework.security.web.access.ExceptionTranslationFilter.doFilter(ExceptionTranslationFilter.java:120)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:380)
-	at org.springframework.security.web.session.SessionManagementFilter.doFilter(SessionManagementFilter.java:132)
-	at org.springframework.security.web.session.SessionManagementFilter.doFilter(SessionManagementFilter.java:86)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:380)
-	at org.springframework.security.web.authentication.AnonymousAuthenticationFilter.doFilter(AnonymousAuthenticationFilter.java:100)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:380)
-	at org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter.doFilter(SecurityContextHolderAwareRequestFilter.java:181)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:380)
-	at org.springframework.security.web.savedrequest.RequestCacheAwareFilter.doFilter(RequestCacheAwareFilter.java:63)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:380)
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:101)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:380)
-	at org.springframework.security.web.authentication.logout.LogoutFilter.doFilter(LogoutFilter.java:110)
-	at org.springframework.security.web.authentication.logout.LogoutFilter.doFilter(LogoutFilter.java:96)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:380)
-	at org.springframework.web.filter.CorsFilter.doFilterInternal(CorsFilter.java:91)
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:380)
-	at org.springframework.security.web.header.HeaderWriterFilter.doHeadersAfter(HeaderWriterFilter.java:90)
-	at org.springframework.security.web.header.HeaderWriterFilter.doFilterInternal(HeaderWriterFilter.java:75)
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:380)
-	at org.springframework.security.web.context.SecurityContextHolderFilter.doFilter(SecurityContextHolderFilter.java:82)
-	at org.springframework.security.web.context.SecurityContextHolderFilter.doFilter(SecurityContextHolderFilter.java:69)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:380)
-	at org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter.doFilterInternal(WebAsyncManagerIntegrationFilter.java:62)
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:380)
-	at org.springframework.security.web.session.DisableEncodeUrlFilter.doFilterInternal(DisableEncodeUrlFilter.java:42)
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:380)
-	at org.springframework.security.web.FilterChainProxy.doFilterInternal(FilterChainProxy.java:237)
-	at org.springframework.security.web.FilterChainProxy.doFilter(FilterChainProxy.java:195)
-	at org.springframework.web.filter.CompositeFilter$VirtualFilterChain.doFilter(CompositeFilter.java:113)
-	at org.springframework.web.filter.ServletRequestPathFilter.doFilter(ServletRequestPathFilter.java:52)
-	at org.springframework.web.filter.CompositeFilter$VirtualFilterChain.doFilter(CompositeFilter.java:113)
-	at org.springframework.web.filter.CompositeFilter.doFilter(CompositeFilter.java:74)
-	at org.springframework.security.config.annotation.web.configuration.WebSecurityConfiguration$CompositeFilterChainProxy.doFilter(WebSecurityConfiguration.java:317)
-	at org.springframework.web.filter.DelegatingFilterProxy.invokeDelegate(DelegatingFilterProxy.java:355)
-	at org.springframework.web.filter.DelegatingFilterProxy.doFilter(DelegatingFilterProxy.java:272)
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:107)
-	at org.springframework.web.filter.RequestContextFilter.doFilterInternal(RequestContextFilter.java:100)
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:107)
-	at org.springframework.web.filter.FormContentFilter.doFilterInternal(FormContentFilter.java:93)
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:107)
-	at org.springframework.web.filter.CharacterEncodingFilter.doFilterInternal(CharacterEncodingFilter.java:199)
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:107)
-	at org.apache.catalina.core.StandardWrapperValve.invoke(StandardWrapperValve.java:165)
-	at org.apache.catalina.core.StandardContextValve.invoke(StandardContextValve.java:77)
-	at org.apache.catalina.authenticator.AuthenticatorBase.invoke(AuthenticatorBase.java:482)
-	at org.apache.catalina.core.StandardHostValve.invoke(StandardHostValve.java:113)
-	at org.apache.catalina.valves.ErrorReportValve.invoke(ErrorReportValve.java:83)
-	at org.apache.catalina.core.StandardEngineValve.invoke(StandardEngineValve.java:72)
-	at org.apache.catalina.connector.CoyoteAdapter.service(CoyoteAdapter.java:341)
-	at org.apache.coyote.http11.Http11Processor.service(Http11Processor.java:397)
-	at org.apache.coyote.AbstractProcessorLight.process(AbstractProcessorLight.java:63)
-	at org.apache.coyote.AbstractProtocol$ConnectionHandler.process(AbstractProtocol.java:903)
-	at org.apache.tomcat.util.net.NioEndpoint$SocketProcessor.doRun(NioEndpoint.java:1778)
-	at org.apache.tomcat.util.net.SocketProcessorBase.run(SocketProcessorBase.java:52)
-	at org.apache.tomcat.util.threads.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:946)
-	at org.apache.tomcat.util.threads.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:480)
-	at org.apache.tomcat.util.threads.TaskThread$WrappingRunnable.run(TaskThread.java:57)
-	at java.base/java.lang.Thread.run(Thread.java:1583)
-2026-02-28 17:36:14 [SpringApplicationShutdownHook] INFO  o.s.boot.tomcat.GracefulShutdown - Commencing graceful shutdown. Waiting for active requests to complete
-2026-02-28 17:36:14 [tomcat-shutdown] INFO  o.s.boot.tomcat.GracefulShutdown - Graceful shutdown complete
-2026-02-28 17:36:14 [SpringApplicationShutdownHook] INFO  o.s.o.j.LocalContainerEntityManagerFactoryBean - Closing JPA EntityManagerFactory for persistence unit 'default'
-2026-02-28 17:36:14 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown initiated...
-2026-02-28 17:36:14 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown completed.
+Caused by: org.hibernate.exception.ConstraintViolationException: could not execute batch [Batch entry 0 insert into users (is_active,avatar,coin,created_at,date_of_birth,email,full_name,password_hash,phone,rate,refresh_token,refresh_token_expiry,role,updated_at,username,id) values (('TRUE'::boolean),(NULL),('0'::int4),('2026-03-03 00:02:12.585208+07'),('2004-05-12 +07'),('nhntran22@clc.fitus.edu.vn'),('Nam Tran'),('$2a$10$M7Dh388Te7MEJ66ThybmR.BGAlhtto7uEs6gyz8QlFpmmeT/RtpU2'),('04460'),('5.0'::double precision),(NULL),(NULL),('USER'),('2026-03-03 00:02:12.585208+07'),('namtran'),('98b4d0d3-7451-48f8-8728-733e94618279'::uuid)) was aborted: ERROR: null value in column "is_email_verified" of relation "users" violates not-null constraint
+  Detail: Failing row contains (98b4d0d3-7451-48f8-8728-733e94618279, t, null, 0, 2026-03-03 00:02:12.585208, 2004-05-12, nhntran22@clc.fitus.edu.vn, Nam Tran, $2a$10$M7Dh388Te7MEJ66ThybmR.BGAlhtto7uEs6gyz8QlFpmmeT/RtpU2, 04460, 5, null, null, USER, 2026-03-03 00:02:12.585208, namtran, null).  Call getNextException to see other errors in the batch.] [insert into users (is_active,avatar,coin,created_at,date_of_birth,email,full_name,password_hash,phone,rate,refresh_token,refresh_token_expiry,role,updated_at,username,id) values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)]
+	at org.hibernate.exception.internal.SQLStateConversionDelegate.convert(SQLStateConversionDelegate.java:73)
+	at org.hibernate.exception.internal.StandardSQLExceptionConverter.convert(StandardSQLExceptionConverter.java:34)
+	at org.hibernate.engine.jdbc.spi.SqlExceptionHelper.convert(SqlExceptionHelper.java:115)
+	at org.hibernate.engine.jdbc.batch.internal.BatchImpl.lambda$performExecution$0(BatchImpl.java:270)
+	at org.hibernate.engine.jdbc.mutation.internal.PreparedStatementGroupSingleTable.forEachStatement(PreparedStatementGroupSingleTable.java:63)
+	at org.hibernate.engine.jdbc.batch.internal.BatchImpl.performExecution(BatchImpl.java:245)
+	at org.hibernate.engine.jdbc.batch.internal.BatchImpl.execute(BatchImpl.java:224)
+	at org.hibernate.engine.jdbc.internal.JdbcCoordinatorImpl.getBatch(JdbcCoordinatorImpl.java:173)
+	at org.hibernate.engine.jdbc.mutation.internal.MutationExecutorSingleBatched.resolveBatch(MutationExecutorSingleBatched.java:45)
+	at org.hibernate.engine.jdbc.mutation.internal.MutationExecutorSingleBatched.performBatchedOperations(MutationExecutorSingleBatched.java:61)
+	at org.hibernate.engine.jdbc.mutation.internal.AbstractMutationExecutor.execute(AbstractMutationExecutor.java:74)
+	at org.hibernate.engine.jdbc.mutation.internal.AbstractMutationExecutor.execute(AbstractMutationExecutor.java:55)
+	at org.hibernate.persister.entity.mutation.InsertCoordinatorStandard.doStaticInserts(InsertCoordinatorStandard.java:180)
+	at org.hibernate.persister.entity.mutation.InsertCoordinatorStandard.coordinateInsert(InsertCoordinatorStandard.java:120)
+	at org.hibernate.persister.entity.mutation.InsertCoordinatorStandard.insert(InsertCoordinatorStandard.java:93)
+	at org.hibernate.action.internal.EntityInsertAction.execute(EntityInsertAction.java:108)
+	at org.hibernate.engine.spi.ActionQueue.executeActions(ActionQueue.java:634)
+	at org.hibernate.engine.spi.ActionQueue.executeActions(ActionQueue.java:505)
+	at org.hibernate.event.internal.AbstractFlushingEventListener.performExecutions(AbstractFlushingEventListener.java:381)
+	at org.hibernate.event.internal.DefaultFlushEventListener.onFlush(DefaultFlushEventListener.java:40)
+	at org.hibernate.event.service.internal.EventListenerGroupImpl.fireEventOnEachListener(EventListenerGroupImpl.java:138)
+	at org.hibernate.internal.SessionImpl.fireFlush(SessionImpl.java:1489)
+	at org.hibernate.internal.SessionImpl.managedFlush(SessionImpl.java:481)
+	at org.hibernate.internal.SessionImpl.flushBeforeTransactionCompletion(SessionImpl.java:2116)
+	at org.hibernate.internal.SessionImpl.beforeTransactionCompletion(SessionImpl.java:2038)
+	at org.hibernate.engine.jdbc.internal.JdbcCoordinatorImpl.beforeTransactionCompletion(JdbcCoordinatorImpl.java:410)
+	at org.hibernate.resource.transaction.backend.jdbc.internal.JdbcResourceLocalTransactionCoordinatorImpl.beforeCompletionCallback(JdbcResourceLocalTransactionCoordinatorImpl.java:166)
+	at org.hibernate.resource.transaction.backend.jdbc.internal.JdbcResourceLocalTransactionCoordinatorImpl$TransactionDriverControlImpl.commitNoRollbackOnly(JdbcResourceLocalTransactionCoordinatorImpl.java:248)
+	at org.hibernate.resource.transaction.backend.jdbc.internal.JdbcResourceLocalTransactionCoordinatorImpl$TransactionDriverControlImpl.commit(JdbcResourceLocalTransactionCoordinatorImpl.java:242)
+	at org.hibernate.engine.transaction.internal.TransactionImpl.commit(TransactionImpl.java:89)
+	at org.springframework.orm.jpa.JpaTransactionManager.doCommit(JpaTransactionManager.java:553)
+	... 102 common frames omitted
+Caused by: java.sql.BatchUpdateException: Batch entry 0 insert into users (is_active,avatar,coin,created_at,date_of_birth,email,full_name,password_hash,phone,rate,refresh_token,refresh_token_expiry,role,updated_at,username,id) values (('TRUE'::boolean),(NULL),('0'::int4),('2026-03-03 00:02:12.585208+07'),('2004-05-12 +07'),('nhntran22@clc.fitus.edu.vn'),('Nam Tran'),('$2a$10$M7Dh388Te7MEJ66ThybmR.BGAlhtto7uEs6gyz8QlFpmmeT/RtpU2'),('04460'),('5.0'::double precision),(NULL),(NULL),('USER'),('2026-03-03 00:02:12.585208+07'),('namtran'),('98b4d0d3-7451-48f8-8728-733e94618279'::uuid)) was aborted: ERROR: null value in column "is_email_verified" of relation "users" violates not-null constraint
+  Detail: Failing row contains (98b4d0d3-7451-48f8-8728-733e94618279, t, null, 0, 2026-03-03 00:02:12.585208, 2004-05-12, nhntran22@clc.fitus.edu.vn, Nam Tran, $2a$10$M7Dh388Te7MEJ66ThybmR.BGAlhtto7uEs6gyz8QlFpmmeT/RtpU2, 04460, 5, null, null, USER, 2026-03-03 00:02:12.585208, namtran, null).  Call getNextException to see other errors in the batch.
+	at org.postgresql.jdbc.BatchResultHandler.handleError(BatchResultHandler.java:165)
+	at org.postgresql.core.v3.QueryExecutorImpl.processResults(QueryExecutorImpl.java:2422)
+	at org.postgresql.core.v3.QueryExecutorImpl.execute(QueryExecutorImpl.java:580)
+	at org.postgresql.jdbc.PgStatement.internalExecuteBatch(PgStatement.java:891)
+	at org.postgresql.jdbc.PgStatement.executeBatch(PgStatement.java:915)
+	at org.postgresql.jdbc.PgPreparedStatement.executeBatch(PgPreparedStatement.java:1778)
+	at com.zaxxer.hikari.pool.ProxyStatement.executeBatch(ProxyStatement.java:128)
+	at com.zaxxer.hikari.pool.HikariProxyPreparedStatement.executeBatch(HikariProxyPreparedStatement.java)
+	at org.hibernate.engine.jdbc.batch.internal.BatchImpl.lambda$performExecution$0(BatchImpl.java:256)
+	... 129 common frames omitted
+Caused by: org.postgresql.util.PSQLException: ERROR: null value in column "is_email_verified" of relation "users" violates not-null constraint
+  Detail: Failing row contains (98b4d0d3-7451-48f8-8728-733e94618279, t, null, 0, 2026-03-03 00:02:12.585208, 2004-05-12, nhntran22@clc.fitus.edu.vn, Nam Tran, $2a$10$M7Dh388Te7MEJ66ThybmR.BGAlhtto7uEs6gyz8QlFpmmeT/RtpU2, 04460, 5, null, null, USER, 2026-03-03 00:02:12.585208, namtran, null).
+	at org.postgresql.core.v3.QueryExecutorImpl.receiveErrorResponse(QueryExecutorImpl.java:2736)
+	at org.postgresql.core.v3.QueryExecutorImpl.processResults(QueryExecutorImpl.java:2421)
+	... 136 common frames omitted

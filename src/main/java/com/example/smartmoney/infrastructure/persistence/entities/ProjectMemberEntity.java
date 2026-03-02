@@ -25,7 +25,7 @@ public class ProjectMemberEntity {
     private UUID projectId;
 
     @Column(name = "user_id", nullable = false)
-    private Long userId;
+    private UUID userId;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "join_status",  nullable = false, length = 20)
