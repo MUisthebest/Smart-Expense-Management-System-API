@@ -42,8 +42,7 @@ public class ListProjectContributionsUseCase {
 
         return p.getContributions().stream()
                 .sorted(
-                        Comparator.comparing((ProjectContribution c) -> c.getContributionDate()).reversed()
-                                .thenComparing(c -> c.getCreatedAt(), Comparator.reverseOrder())
+                        Comparator.comparing((ProjectContribution c) -> c.getCreatedAt()).reversed()
                 )
                 .map(ProjectContributionResponse::fromDomain)
                 .toList();

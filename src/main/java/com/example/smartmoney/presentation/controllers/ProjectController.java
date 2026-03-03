@@ -46,8 +46,8 @@ public class ProjectController {
 
     private String actorId(Authentication auth) {
         
-        //return auth.getName();
-        return "1";
+        return auth.getName();
+        //return "1";
     }
 
     // ================= CREATE =================

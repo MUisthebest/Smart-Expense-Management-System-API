@@ -5,7 +5,6 @@ import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.time.LocalDate;
 import java.util.UUID;
 
 @Entity
@@ -36,9 +35,6 @@ public class ProjectContributionEntity {
 
     @Column(name = "currency", nullable = false, length = 10)
     private String currency;
-
-    @Column(name = "contribution_date", nullable = false)
-    private LocalDate contributionDate;
 
     @Column(name = "note", length = 255)
     private String note;

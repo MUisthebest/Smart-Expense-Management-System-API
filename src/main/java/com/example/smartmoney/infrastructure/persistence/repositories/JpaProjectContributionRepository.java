@@ -10,7 +10,7 @@ import java.util.UUID;
 
 public interface JpaProjectContributionRepository extends JpaRepository<ProjectContributionEntity, UUID> {
 
-    List<ProjectContributionEntity> findByProjectIdOrderByContributionDateDescCreatedAtDesc(UUID projectId);
+    List<ProjectContributionEntity> findByProjectIdOrderByCreatedAtDesc(UUID projectId);
 
     @Modifying
     @Query("delete from ProjectContributionEntity pc where pc.projectId = :projectId")
