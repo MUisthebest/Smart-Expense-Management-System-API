@@ -32,6 +32,7 @@ public class User {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private boolean active = true;
+    private boolean emailVerified = false;  // Trạng thái xác minh email
     
     
     // Factory method for registration
@@ -83,6 +84,7 @@ public class User {
         user.setCreatedAt(LocalDateTime.now());
         user.setUpdatedAt(LocalDateTime.now());
         user.setActive(true);
+        user.setEmailVerified(true);  // OAuth users have verified emails
         
         return user;
     }
@@ -112,6 +114,7 @@ public class User {
         user.setCreatedAt(LocalDateTime.now());
         user.setUpdatedAt(LocalDateTime.now());
         user.setActive(true);
+        user.setEmailVerified(true);  // OAuth users have verified emails
         
         return user;
     }
@@ -188,6 +191,11 @@ public class User {
         this.updatedAt = LocalDateTime.now();
     }
     
+    public void verifyEmail() {
+        this.emailVerified = true;
+        this.updatedAt = LocalDateTime.now();
+    }
+    
     // Getters and Setters
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }
@@ -256,4 +264,7 @@ public class User {
     
     public boolean isActive() { return active; }
     public void setActive(boolean active) { this.active = active; }
+    
+    public boolean isEmailVerified() { return emailVerified; }
+    public void setEmailVerified(boolean emailVerified) { this.emailVerified = emailVerified; }
 }
