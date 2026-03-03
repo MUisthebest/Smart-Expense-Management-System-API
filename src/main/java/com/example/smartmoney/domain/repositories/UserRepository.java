@@ -12,6 +12,8 @@ public interface UserRepository {
     Optional<User> findByEmail(Email email);
     Optional<User> findByUsername(String username);
     Optional<User> findByPhone(Phone phone);
+    boolean isVerifiedByEmail(Email email);
+    boolean deleteByEmail(Email email);
     boolean existsByEmail(Email email);
     boolean existsByUsername(String username);
     boolean existsByPhone(Phone phone);

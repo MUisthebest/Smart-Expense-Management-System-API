@@ -48,6 +48,22 @@ public class UserRepositoryImpl implements UserRepository {
         return jpaUserRepository.findByPhone(phone.getValue())
             .map(userMapper::toDomain);
     }
+
+    @Override
+    public boolean isVerifiedByEmail(Email email) {
+        return jpaUserRepository.isVerifiedByEmail(email.getValue());
+    }
+
+    @Override
+    public boolean deleteByEmail(Email email) {
+        Optional<UserEntity> userOpt = jpaUserRepository.findByEmail(email.getValue());
+        if (userOpt.isPresent()) {
+            jpaUserRepository.delete(userOpt.get());
+            return true;
+        }
+        return false;
+    }
+
     
     @Override
     public boolean existsByEmail(Email email) {

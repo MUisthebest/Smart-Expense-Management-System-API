@@ -38,9 +38,15 @@ public class RegisterUseCase {
         // 3. Send Email verification (nếu có)
         Email email = new Email(request.getEmail());
 
-                // check duplicate lần cuối (important)
+        // check duplicate lần cuối (important)
         if (userRepository.existsByEmail(email)) {
-            throw new DomainException("Email already registered");
+            if (!userRepository.isVerifiedByEmail(email)) {
+                // Nếu email đã tồn tại nhưng chưa được xác thực, xóa user cũ và OTP liên quan để tạo mới
+                userRepository.deleteByEmail(email);
+                otpRepository.deleteByEmail(email);
+            } else {
+                throw new DomainException("Email already registered");
+            }
         }
 
         User user = User.create(
