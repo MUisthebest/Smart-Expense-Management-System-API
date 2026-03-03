@@ -1,117 +1,957 @@
-2026-02-27 08:50:31 [main] INFO  c.e.smartmoney.SmartmoneyApplication - Starting SmartmoneyApplication using Java 17.0.17 with PID 38664 (C:\Users\ASUS\Documents\GitHub\Smart-Expense-Management-System-API\target\classes started by ASUS in C:\Users\ASUS\Documents\GitHub\Smart-Expense-Management-System-API)
-2026-02-27 08:50:31 [main] DEBUG c.e.smartmoney.SmartmoneyApplication - Running with Spring Boot v4.0.1, Spring v7.0.2
-2026-02-27 08:50:31 [main] INFO  c.e.smartmoney.SmartmoneyApplication - No active profile set, falling back to 1 default profile: "default"
-2026-02-27 08:50:32 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
-2026-02-27 08:50:32 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 80 ms. Found 3 JPA repository interfaces.
-2026-02-27 08:50:33 [main] INFO  o.s.boot.tomcat.TomcatWebServer - Tomcat initialized with port 8080 (http)
-2026-02-27 08:50:33 [main] INFO  o.a.catalina.core.StandardService - Starting service [Tomcat]
-2026-02-27 08:50:33 [main] INFO  o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/11.0.15]
-2026-02-27 08:50:33 [main] INFO  o.s.b.w.c.s.WebApplicationContextInitializer - Root WebApplicationContext: initialization completed in 2046 ms
-2026-02-27 08:50:33 [main] INFO  org.hibernate.orm.jpa - HHH008540: Processing PersistenceUnitInfo [name: default]
-2026-02-27 08:50:34 [main] INFO  org.hibernate.orm.core - HHH000001: Hibernate ORM core version 7.2.0.Final
-2026-02-27 08:50:34 [main] INFO  o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
-2026-02-27 08:50:34 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
-2026-02-27 08:50:36 [main] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@1eddca25
-2026-02-27 08:50:36 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
-2026-02-27 08:50:37 [main] WARN  org.hibernate.orm.deprecation - HHH90000025: PostgreSQLDialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
-2026-02-27 08:50:37 [main] INFO  o.hibernate.orm.connections.pooling - HHH10001005: Database info:
-	Database JDBC URL [jdbc:postgresql://db.ixsqpzgfsweehndqkntm.supabase.co:5432/postgres?sslmode=require]
+2026-03-03 08:26:26 [main] INFO  c.e.smartmoney.SmartmoneyApplication - Starting SmartmoneyApplication using Java 17.0.17 with PID 30900 (C:\Users\ASUS\Documents\GitHub\Smart-Expense-Management-System-API\target\classes started by ASUS in C:\Users\ASUS\Documents\GitHub\Smart-Expense-Management-System-API)
+2026-03-03 08:26:26 [main] DEBUG c.e.smartmoney.SmartmoneyApplication - Running with Spring Boot v4.0.1, Spring v7.0.2
+2026-03-03 08:26:26 [main] INFO  c.e.smartmoney.SmartmoneyApplication - No active profile set, falling back to 1 default profile: "default"
+2026-03-03 08:26:27 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-03-03 08:26:27 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 78 ms. Found 3 JPA repository interfaces.
+2026-03-03 08:26:29 [main] INFO  o.s.boot.tomcat.TomcatWebServer - Tomcat initialized with port 8080 (http)
+2026-03-03 08:26:29 [main] INFO  o.a.catalina.core.StandardService - Starting service [Tomcat]
+2026-03-03 08:26:29 [main] INFO  o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/11.0.15]
+2026-03-03 08:26:29 [main] INFO  o.s.b.w.c.s.WebApplicationContextInitializer - Root WebApplicationContext: initialization completed in 2579 ms
+2026-03-03 08:26:29 [main] INFO  org.hibernate.orm.jpa - HHH008540: Processing PersistenceUnitInfo [name: default]
+2026-03-03 08:26:29 [main] INFO  org.hibernate.orm.core - HHH000001: Hibernate ORM core version 7.2.0.Final
+2026-03-03 08:26:30 [main] INFO  o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-03-03 08:26:30 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
+2026-03-03 08:26:32 [main] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@47e725af
+2026-03-03 08:26:32 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
+2026-03-03 08:26:32 [main] WARN  org.hibernate.orm.deprecation - HHH90000025: PostgreSQLDialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
+2026-03-03 08:26:32 [main] INFO  o.hibernate.orm.connections.pooling - HHH10001005: Database info:
+	Database JDBC URL [jdbc:postgresql://ep-royal-morning-a13nc72w-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require]
 	Database driver: PostgreSQL JDBC Driver
 	Database dialect: PostgreSQLDialect
-	Database version: 17.6
-	Default catalog/schema: postgres/public
+	Database version: 17.8
+	Default catalog/schema: neondb/public
 	Autocommit mode: undefined/unknown
 	Isolation level: READ_COMMITTED [default READ_COMMITTED]
 	JDBC fetch size: none
 	Pool: DataSourceConnectionProvider
 	Minimum pool size: undefined/unknown
 	Maximum pool size: undefined/unknown
-2026-02-27 08:50:38 [main] INFO  org.hibernate.orm.core - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
-2026-02-27 08:50:38 [main] INFO  org.hibernate.orm.jdbc.batch - HHH100501: Automatic JDBC statement batching enabled (maximum batch size 20)
-2026-02-27 08:50:39 [main] DEBUG org.hibernate.SQL - 
-    alter table if exists users 
-       alter column username set data type varchar(30)
-2026-02-27 08:50:39 [main] INFO  o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
-2026-02-27 08:50:40 [main] INFO  o.s.d.j.r.q.QueryEnhancerFactories - Hibernate is in classpath; If applicable, HQL parser will be used.
-2026-02-27 08:50:40 [main] INFO  c.e.s.i.security.JwtTokenProvider - JWT Token Provider initialized with secret length: 87
-2026-02-27 08:50:40 [main] DEBUG c.e.s.i.s.AuthenticationFilter - Filter 'authenticationFilter' configured for use
-2026-02-27 08:50:41 [main] INFO  c.e.s.i.mail.config.MailConfig - Initializing JavaMailSender...
-2026-02-27 08:50:41 [main] INFO  c.e.s.i.mail.config.MailProperties - Mail Configuration:
-2026-02-27 08:50:41 [main] INFO  c.e.s.i.mail.config.MailProperties -   Host: smtp.gmail.com
-2026-02-27 08:50:41 [main] INFO  c.e.s.i.mail.config.MailProperties -   Port: 587
-2026-02-27 08:50:41 [main] INFO  c.e.s.i.mail.config.MailProperties -   Username: nhbang22@clc.fitus.edu.vn
-2026-02-27 08:50:41 [main] INFO  c.e.s.i.mail.config.MailProperties -   Protocol: smtp
-2026-02-27 08:50:41 [main] INFO  c.e.s.i.mail.config.MailProperties -   SMTP Auth: true
-2026-02-27 08:50:41 [main] INFO  c.e.s.i.mail.config.MailProperties -   STARTTLS Enabled: true
-2026-02-27 08:50:41 [main] INFO  c.e.s.i.mail.config.MailProperties -   STARTTLS Required: false
-2026-02-27 08:50:41 [main] INFO  c.e.s.i.mail.config.MailConfig - JavaMailSender initialized successfully
-2026-02-27 08:50:41 [main] INFO  c.e.s.i.a.c.SupabaseJwtProperties - ✅ Supabase anonKey is configured for frontend authentication
-2026-02-27 08:50:41 [main] INFO  c.e.s.i.a.c.SupabaseJwtProperties - ✅ Supabase JWT_JWK is configured for ES256 token validation
-2026-02-27 08:50:41 [main] INFO  c.e.s.i.common.DotenvConfig - Environment variables loaded successfully
-2026-02-27 08:50:41 [main] INFO  c.e.s.a.u.auth.FacebookLoginUseCase - ✅ FacebookLoginUseCase initialized - Ready to validate external JWT tokens
-2026-02-27 08:50:41 [main] WARN  o.s.b.j.a.JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
-2026-02-27 08:50:41 [main] INFO  o.s.s.c.a.a.c.InitializeUserDetailsBeanManagerConfigurer$InitializeUserDetailsManagerConfigurer - Global AuthenticationManager configured with UserDetailsService bean with name jwtTokenProvider
-2026-02-27 08:50:42 [main] INFO  o.s.boot.tomcat.TomcatWebServer - Tomcat started on port 8080 (http) with context path '/'
-2026-02-27 08:50:42 [main] INFO  c.e.smartmoney.SmartmoneyApplication - Started SmartmoneyApplication in 11.176 seconds (process running for 11.661)
-2026-02-27 08:53:46 [SpringApplicationShutdownHook] INFO  o.s.boot.tomcat.GracefulShutdown - Commencing graceful shutdown. Waiting for active requests to complete
-2026-02-27 08:53:46 [tomcat-shutdown] INFO  o.s.boot.tomcat.GracefulShutdown - Graceful shutdown complete
-2026-02-27 08:53:46 [SpringApplicationShutdownHook] INFO  o.s.o.j.LocalContainerEntityManagerFactoryBean - Closing JPA EntityManagerFactory for persistence unit 'default'
-2026-02-27 08:53:46 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown initiated...
-2026-02-27 08:53:47 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown completed.
-2026-02-27 08:53:57 [main] INFO  c.e.smartmoney.SmartmoneyApplication - Starting SmartmoneyApplication using Java 17.0.17 with PID 34836 (C:\Users\ASUS\Documents\GitHub\Smart-Expense-Management-System-API\target\classes started by ASUS in C:\Users\ASUS\Documents\GitHub\Smart-Expense-Management-System-API)
-2026-02-27 08:53:57 [main] DEBUG c.e.smartmoney.SmartmoneyApplication - Running with Spring Boot v4.0.1, Spring v7.0.2
-2026-02-27 08:53:57 [main] INFO  c.e.smartmoney.SmartmoneyApplication - No active profile set, falling back to 1 default profile: "default"
-2026-02-27 08:53:58 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
-2026-02-27 08:53:58 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 69 ms. Found 3 JPA repository interfaces.
-2026-02-27 08:53:59 [main] INFO  o.s.boot.tomcat.TomcatWebServer - Tomcat initialized with port 8080 (http)
-2026-02-27 08:53:59 [main] INFO  o.a.catalina.core.StandardService - Starting service [Tomcat]
-2026-02-27 08:53:59 [main] INFO  o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/11.0.15]
-2026-02-27 08:53:59 [main] INFO  o.s.b.w.c.s.WebApplicationContextInitializer - Root WebApplicationContext: initialization completed in 1490 ms
-2026-02-27 08:53:59 [main] INFO  org.hibernate.orm.jpa - HHH008540: Processing PersistenceUnitInfo [name: default]
-2026-02-27 08:53:59 [main] INFO  org.hibernate.orm.core - HHH000001: Hibernate ORM core version 7.2.0.Final
-2026-02-27 08:53:59 [main] INFO  o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
-2026-02-27 08:53:59 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
-2026-02-27 08:54:02 [main] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@5a35ae82
-2026-02-27 08:54:02 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
-2026-02-27 08:54:02 [main] WARN  org.hibernate.orm.deprecation - HHH90000025: PostgreSQLDialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
-2026-02-27 08:54:03 [main] INFO  o.hibernate.orm.connections.pooling - HHH10001005: Database info:
-	Database JDBC URL [jdbc:postgresql://db.ixsqpzgfsweehndqkntm.supabase.co:5432/postgres?sslmode=require]
+2026-03-03 08:26:34 [main] INFO  org.hibernate.orm.core - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-03-03 08:26:34 [main] INFO  org.hibernate.orm.jdbc.batch - HHH100501: Automatic JDBC statement batching enabled (maximum batch size 20)
+2026-03-03 08:26:35 [main] INFO  o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-03-03 08:26:35 [main] INFO  o.s.d.j.r.q.QueryEnhancerFactories - Hibernate is in classpath; If applicable, HQL parser will be used.
+2026-03-03 08:26:35 [main] INFO  c.e.s.i.security.JwtTokenProvider - JWT Token Provider initialized with secret length: 87
+2026-03-03 08:26:35 [main] DEBUG c.e.s.i.s.AuthenticationFilter - Filter 'authenticationFilter' configured for use
+2026-03-03 08:26:36 [main] INFO  c.e.s.i.mail.config.MailConfig - Initializing JavaMailSender...
+2026-03-03 08:26:36 [main] INFO  c.e.s.i.mail.config.MailProperties - Mail Configuration:
+2026-03-03 08:26:36 [main] INFO  c.e.s.i.mail.config.MailProperties -   Host: smtp.gmail.com
+2026-03-03 08:26:36 [main] INFO  c.e.s.i.mail.config.MailProperties -   Port: 587
+2026-03-03 08:26:36 [main] INFO  c.e.s.i.mail.config.MailProperties -   Username: nhbang22@clc.fitus.edu.vn
+2026-03-03 08:26:36 [main] INFO  c.e.s.i.mail.config.MailProperties -   Protocol: smtp
+2026-03-03 08:26:36 [main] INFO  c.e.s.i.mail.config.MailProperties -   SMTP Auth: true
+2026-03-03 08:26:36 [main] INFO  c.e.s.i.mail.config.MailProperties -   STARTTLS Enabled: true
+2026-03-03 08:26:36 [main] INFO  c.e.s.i.mail.config.MailProperties -   STARTTLS Required: false
+2026-03-03 08:26:36 [main] INFO  c.e.s.i.mail.config.MailConfig - JavaMailSender initialized successfully
+2026-03-03 08:26:37 [main] INFO  c.e.s.i.a.c.SupabaseJwtProperties - ✅ Supabase anonKey is configured for frontend authentication
+2026-03-03 08:26:37 [main] INFO  c.e.s.i.a.c.SupabaseJwtProperties - ✅ Supabase JWT_JWK is configured for ES256 token validation
+2026-03-03 08:26:37 [main] INFO  c.e.s.i.common.DotenvConfig - Environment variables loaded successfully
+2026-03-03 08:26:37 [main] INFO  c.e.s.a.u.auth.FacebookLoginUseCase - ✅ FacebookLoginUseCase initialized - Ready to validate external JWT tokens
+2026-03-03 08:26:37 [main] WARN  o.s.b.j.a.JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-03-03 08:26:37 [main] INFO  o.s.s.c.a.a.c.InitializeUserDetailsBeanManagerConfigurer$InitializeUserDetailsManagerConfigurer - Global AuthenticationManager configured with UserDetailsService bean with name jwtTokenProvider
+2026-03-03 08:26:38 [main] INFO  o.s.boot.tomcat.TomcatWebServer - Tomcat started on port 8080 (http) with context path '/'
+2026-03-03 08:26:38 [main] INFO  c.e.smartmoney.SmartmoneyApplication - Started SmartmoneyApplication in 12.915 seconds (process running for 13.452)
+2026-03-03 08:26:47 [http-nio-8080-exec-1] INFO  o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-03-03 08:26:47 [http-nio-8080-exec-1] INFO  o.s.web.servlet.DispatcherServlet - Initializing Servlet 'dispatcherServlet'
+2026-03-03 08:26:47 [http-nio-8080-exec-1] INFO  o.s.web.servlet.DispatcherServlet - Completed initialization in 2 ms
+2026-03-03 08:26:47 [http-nio-8080-exec-1] INFO  c.e.s.p.controllers.AuthController - Register request for email: moik5985@gmail.com
+2026-03-03 08:26:48 [http-nio-8080-exec-1] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id 
+    from
+        users ue1_0 
+    where
+        ue1_0.email=? 
+    fetch
+        first ? rows only
+2026-03-03 08:26:48 [http-nio-8080-exec-1] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id 
+    from
+        users ue1_0 
+    where
+        ue1_0.username=? 
+    fetch
+        first ? rows only
+2026-03-03 08:26:48 [http-nio-8080-exec-1] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id 
+    from
+        users ue1_0 
+    where
+        ue1_0.phone=? 
+    fetch
+        first ? rows only
+2026-03-03 08:26:48 [http-nio-8080-exec-1] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id 
+    from
+        users ue1_0 
+    where
+        ue1_0.email=? 
+    fetch
+        first ? rows only
+2026-03-03 08:26:54 [http-nio-8080-exec-1] INFO  c.e.s.i.m.adapters.SmtpMailAdapter - ✓ HTML email sent to moik5985@gmail.com
+2026-03-03 08:26:54 [http-nio-8080-exec-1] DEBUG org.hibernate.SQL - 
+    insert 
+    into
+        users
+        (is_active, avatar, coin, created_at, date_of_birth, email, is_email_verified, full_name, password_hash, phone, rate, refresh_token, refresh_token_expiry, role, updated_at, username, id) 
+    values
+        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+2026-03-03 08:26:54 [http-nio-8080-exec-1] DEBUG org.hibernate.SQL - 
+    insert 
+    into
+        otps
+        (email, expired_at, otp, role, verified, id) 
+    values
+        (?, ?, ?, ?, ?, ?)
+2026-03-03 08:26:54 [http-nio-8080-exec-1] INFO  c.e.s.p.controllers.AuthController - Registration successful for email: moik5985@gmail.com
+2026-03-03 08:31:08 [http-nio-8080-exec-2] INFO  c.e.s.p.controllers.AuthController - User logged out successfully
+2026-03-03 08:34:44 [SpringApplicationShutdownHook] INFO  o.s.boot.tomcat.GracefulShutdown - Commencing graceful shutdown. Waiting for active requests to complete
+2026-03-03 08:34:45 [tomcat-shutdown] INFO  o.s.boot.tomcat.GracefulShutdown - Graceful shutdown complete
+2026-03-03 08:34:45 [SpringApplicationShutdownHook] INFO  o.s.o.j.LocalContainerEntityManagerFactoryBean - Closing JPA EntityManagerFactory for persistence unit 'default'
+2026-03-03 08:34:45 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown initiated...
+2026-03-03 08:34:45 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown completed.
+2026-03-03 09:21:24 [main] INFO  c.e.smartmoney.SmartmoneyApplication - Starting SmartmoneyApplication using Java 17.0.17 with PID 32604 (C:\Users\ASUS\Documents\GitHub\Smart-Expense-Management-System-API\target\classes started by ASUS in C:\Users\ASUS\Documents\GitHub\Smart-Expense-Management-System-API)
+2026-03-03 09:21:24 [main] DEBUG c.e.smartmoney.SmartmoneyApplication - Running with Spring Boot v4.0.1, Spring v7.0.2
+2026-03-03 09:21:24 [main] INFO  c.e.smartmoney.SmartmoneyApplication - No active profile set, falling back to 1 default profile: "default"
+2026-03-03 09:21:24 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-03-03 09:21:24 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 69 ms. Found 3 JPA repository interfaces.
+2026-03-03 09:21:25 [main] INFO  o.s.boot.tomcat.TomcatWebServer - Tomcat initialized with port 8080 (http)
+2026-03-03 09:21:25 [main] INFO  o.a.catalina.core.StandardService - Starting service [Tomcat]
+2026-03-03 09:21:25 [main] INFO  o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/11.0.15]
+2026-03-03 09:21:26 [main] INFO  o.s.b.w.c.s.WebApplicationContextInitializer - Root WebApplicationContext: initialization completed in 1859 ms
+2026-03-03 09:21:26 [main] INFO  org.hibernate.orm.jpa - HHH008540: Processing PersistenceUnitInfo [name: default]
+2026-03-03 09:21:26 [main] INFO  org.hibernate.orm.core - HHH000001: Hibernate ORM core version 7.2.0.Final
+2026-03-03 09:21:26 [main] INFO  o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-03-03 09:21:26 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
+2026-03-03 09:21:28 [main] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@687fd6e
+2026-03-03 09:21:28 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
+2026-03-03 09:21:28 [main] WARN  org.hibernate.orm.deprecation - HHH90000025: PostgreSQLDialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
+2026-03-03 09:21:28 [main] INFO  o.hibernate.orm.connections.pooling - HHH10001005: Database info:
+	Database JDBC URL [jdbc:postgresql://ep-royal-morning-a13nc72w-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require]
 	Database driver: PostgreSQL JDBC Driver
 	Database dialect: PostgreSQLDialect
-	Database version: 17.6
-	Default catalog/schema: postgres/public
+	Database version: 17.8
+	Default catalog/schema: neondb/public
 	Autocommit mode: undefined/unknown
 	Isolation level: READ_COMMITTED [default READ_COMMITTED]
 	JDBC fetch size: none
 	Pool: DataSourceConnectionProvider
 	Minimum pool size: undefined/unknown
 	Maximum pool size: undefined/unknown
-2026-02-27 08:54:04 [main] INFO  org.hibernate.orm.core - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
-2026-02-27 08:54:04 [main] INFO  org.hibernate.orm.jdbc.batch - HHH100501: Automatic JDBC statement batching enabled (maximum batch size 20)
-2026-02-27 08:54:04 [main] INFO  o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
-2026-02-27 08:54:05 [main] INFO  o.s.d.j.r.q.QueryEnhancerFactories - Hibernate is in classpath; If applicable, HQL parser will be used.
-2026-02-27 08:54:05 [main] INFO  c.e.s.i.security.JwtTokenProvider - JWT Token Provider initialized with secret length: 87
-2026-02-27 08:54:05 [main] DEBUG c.e.s.i.s.AuthenticationFilter - Filter 'authenticationFilter' configured for use
-2026-02-27 08:54:05 [main] INFO  c.e.s.i.mail.config.MailConfig - Initializing JavaMailSender...
-2026-02-27 08:54:05 [main] INFO  c.e.s.i.mail.config.MailProperties - Mail Configuration:
-2026-02-27 08:54:05 [main] INFO  c.e.s.i.mail.config.MailProperties -   Host: smtp.gmail.com
-2026-02-27 08:54:05 [main] INFO  c.e.s.i.mail.config.MailProperties -   Port: 587
-2026-02-27 08:54:05 [main] INFO  c.e.s.i.mail.config.MailProperties -   Username: nhbang22@clc.fitus.edu.vn
-2026-02-27 08:54:05 [main] INFO  c.e.s.i.mail.config.MailProperties -   Protocol: smtp
-2026-02-27 08:54:05 [main] INFO  c.e.s.i.mail.config.MailProperties -   SMTP Auth: true
-2026-02-27 08:54:05 [main] INFO  c.e.s.i.mail.config.MailProperties -   STARTTLS Enabled: true
-2026-02-27 08:54:05 [main] INFO  c.e.s.i.mail.config.MailProperties -   STARTTLS Required: false
-2026-02-27 08:54:05 [main] INFO  c.e.s.i.mail.config.MailConfig - JavaMailSender initialized successfully
-2026-02-27 08:54:06 [main] INFO  c.e.s.i.a.c.SupabaseJwtProperties - ✅ Supabase anonKey is configured for frontend authentication
-2026-02-27 08:54:06 [main] INFO  c.e.s.i.a.c.SupabaseJwtProperties - ✅ Supabase JWT_JWK is configured for ES256 token validation
-2026-02-27 08:54:06 [main] INFO  c.e.s.i.common.DotenvConfig - Environment variables loaded successfully
-2026-02-27 08:54:06 [main] INFO  c.e.s.a.u.auth.FacebookLoginUseCase - ✅ FacebookLoginUseCase initialized - Ready to validate external JWT tokens
-2026-02-27 08:54:06 [main] WARN  o.s.b.j.a.JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
-2026-02-27 08:54:06 [main] INFO  o.s.s.c.a.a.c.InitializeUserDetailsBeanManagerConfigurer$InitializeUserDetailsManagerConfigurer - Global AuthenticationManager configured with UserDetailsService bean with name jwtTokenProvider
-2026-02-27 08:54:06 [main] INFO  o.s.boot.tomcat.TomcatWebServer - Tomcat started on port 8080 (http) with context path '/'
-2026-02-27 08:54:06 [main] INFO  c.e.smartmoney.SmartmoneyApplication - Started SmartmoneyApplication in 9.662 seconds (process running for 10.039)
-2026-02-27 08:54:10 [SpringApplicationShutdownHook] INFO  o.s.boot.tomcat.GracefulShutdown - Commencing graceful shutdown. Waiting for active requests to complete
-2026-02-27 08:54:10 [tomcat-shutdown] INFO  o.s.boot.tomcat.GracefulShutdown - Graceful shutdown complete
-2026-02-27 08:54:10 [SpringApplicationShutdownHook] INFO  o.s.o.j.LocalContainerEntityManagerFactoryBean - Closing JPA EntityManagerFactory for persistence unit 'default'
-2026-02-27 08:54:10 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown initiated...
-2026-02-27 08:54:11 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown completed.
+2026-03-03 09:21:29 [main] INFO  org.hibernate.orm.core - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-03-03 09:21:29 [main] INFO  org.hibernate.orm.jdbc.batch - HHH100501: Automatic JDBC statement batching enabled (maximum batch size 20)
+2026-03-03 09:21:30 [main] INFO  o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-03-03 09:21:30 [main] INFO  o.s.d.j.r.q.QueryEnhancerFactories - Hibernate is in classpath; If applicable, HQL parser will be used.
+2026-03-03 09:21:30 [main] INFO  c.e.s.i.security.JwtTokenProvider - JWT Token Provider initialized with secret length: 87
+2026-03-03 09:21:30 [main] DEBUG c.e.s.i.s.AuthenticationFilter - Filter 'authenticationFilter' configured for use
+2026-03-03 09:21:31 [main] INFO  c.e.s.i.mail.config.MailConfig - Initializing JavaMailSender...
+2026-03-03 09:21:31 [main] INFO  c.e.s.i.mail.config.MailProperties - Mail Configuration:
+2026-03-03 09:21:31 [main] INFO  c.e.s.i.mail.config.MailProperties -   Host: smtp.gmail.com
+2026-03-03 09:21:31 [main] INFO  c.e.s.i.mail.config.MailProperties -   Port: 587
+2026-03-03 09:21:31 [main] INFO  c.e.s.i.mail.config.MailProperties -   Username: nhbang22@clc.fitus.edu.vn
+2026-03-03 09:21:31 [main] INFO  c.e.s.i.mail.config.MailProperties -   Protocol: smtp
+2026-03-03 09:21:31 [main] INFO  c.e.s.i.mail.config.MailProperties -   SMTP Auth: true
+2026-03-03 09:21:31 [main] INFO  c.e.s.i.mail.config.MailProperties -   STARTTLS Enabled: true
+2026-03-03 09:21:31 [main] INFO  c.e.s.i.mail.config.MailProperties -   STARTTLS Required: false
+2026-03-03 09:21:31 [main] INFO  c.e.s.i.mail.config.MailConfig - JavaMailSender initialized successfully
+2026-03-03 09:21:31 [main] INFO  c.e.s.i.a.c.SupabaseJwtProperties - ✅ Supabase anonKey is configured for frontend authentication
+2026-03-03 09:21:31 [main] INFO  c.e.s.i.a.c.SupabaseJwtProperties - ✅ Supabase JWT_JWK is configured for ES256 token validation
+2026-03-03 09:21:31 [main] INFO  c.e.s.i.common.DotenvConfig - Environment variables loaded successfully
+2026-03-03 09:21:31 [main] INFO  c.e.s.a.u.auth.FacebookLoginUseCase - ✅ FacebookLoginUseCase initialized - Ready to validate external JWT tokens
+2026-03-03 09:21:31 [main] WARN  o.s.b.j.a.JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-03-03 09:21:31 [main] INFO  o.s.s.c.a.a.c.InitializeUserDetailsBeanManagerConfigurer$InitializeUserDetailsManagerConfigurer - Global AuthenticationManager configured with UserDetailsService bean with name jwtTokenProvider
+2026-03-03 09:21:32 [main] INFO  o.s.boot.tomcat.TomcatWebServer - Tomcat started on port 8080 (http) with context path '/'
+2026-03-03 09:21:32 [main] INFO  c.e.smartmoney.SmartmoneyApplication - Started SmartmoneyApplication in 8.565 seconds (process running for 8.995)
+2026-03-03 09:22:31 [http-nio-8080-exec-1] INFO  o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-03-03 09:22:31 [http-nio-8080-exec-1] INFO  o.s.web.servlet.DispatcherServlet - Initializing Servlet 'dispatcherServlet'
+2026-03-03 09:22:31 [http-nio-8080-exec-1] INFO  o.s.web.servlet.DispatcherServlet - Completed initialization in 1 ms
+2026-03-03 09:22:31 [http-nio-8080-exec-1] INFO  c.e.s.p.controllers.AuthController - Google login attempt
+2026-03-03 09:22:32 [http-nio-8080-exec-1] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.full_name,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.email=?
+2026-03-03 09:22:32 [http-nio-8080-exec-1] DEBUG c.e.s.i.security.JwtTokenProvider - Generated refresh token for user ID: 51c068f0-9834-4102-8ba6-b52a2528dbef
+2026-03-03 09:22:32 [http-nio-8080-exec-1] DEBUG org.hibernate.SQL - 
+    update
+        users 
+    set
+        is_active=?,
+        avatar=?,
+        coin=?,
+        created_at=?,
+        date_of_birth=?,
+        email=?,
+        is_email_verified=?,
+        full_name=?,
+        password_hash=?,
+        phone=?,
+        rate=?,
+        refresh_token=?,
+        refresh_token_expiry=?,
+        role=?,
+        updated_at=?,
+        username=? 
+    where
+        id=?
+2026-03-03 09:22:32 [http-nio-8080-exec-1] INFO  c.e.s.p.controllers.AuthController - Google login successful for user
+2026-03-03 09:29:05 [http-nio-8080-exec-3] INFO  c.e.s.p.controllers.AuthController - User logged out successfully
+2026-03-03 09:35:35 [http-nio-8080-exec-4] INFO  c.e.s.p.controllers.AuthController - Google login attempt
+2026-03-03 09:35:35 [http-nio-8080-exec-4] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.full_name,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.email=?
+2026-03-03 09:35:35 [http-nio-8080-exec-4] DEBUG c.e.s.i.security.JwtTokenProvider - Generated refresh token for user ID: 51c068f0-9834-4102-8ba6-b52a2528dbef
+2026-03-03 09:35:35 [http-nio-8080-exec-4] DEBUG org.hibernate.SQL - 
+    update
+        users 
+    set
+        is_active=?,
+        avatar=?,
+        coin=?,
+        created_at=?,
+        date_of_birth=?,
+        email=?,
+        is_email_verified=?,
+        full_name=?,
+        password_hash=?,
+        phone=?,
+        rate=?,
+        refresh_token=?,
+        refresh_token_expiry=?,
+        role=?,
+        updated_at=?,
+        username=? 
+    where
+        id=?
+2026-03-03 09:35:36 [http-nio-8080-exec-4] INFO  c.e.s.p.controllers.AuthController - Google login successful for user
+2026-03-03 09:35:56 [http-nio-8080-exec-6] INFO  c.e.s.p.controllers.AuthController - User logged out successfully
+2026-03-03 09:45:55 [http-nio-8080-exec-8] INFO  c.e.s.p.controllers.AuthController - Google login attempt
+2026-03-03 09:45:55 [http-nio-8080-exec-8] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.full_name,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.email=?
+2026-03-03 09:45:55 [http-nio-8080-exec-8] DEBUG c.e.s.i.security.JwtTokenProvider - Generated refresh token for user ID: 51c068f0-9834-4102-8ba6-b52a2528dbef
+2026-03-03 09:45:55 [http-nio-8080-exec-8] DEBUG org.hibernate.SQL - 
+    update
+        users 
+    set
+        is_active=?,
+        avatar=?,
+        coin=?,
+        created_at=?,
+        date_of_birth=?,
+        email=?,
+        is_email_verified=?,
+        full_name=?,
+        password_hash=?,
+        phone=?,
+        rate=?,
+        refresh_token=?,
+        refresh_token_expiry=?,
+        role=?,
+        updated_at=?,
+        username=? 
+    where
+        id=?
+2026-03-03 09:45:55 [http-nio-8080-exec-8] INFO  c.e.s.p.controllers.AuthController - Google login successful for user
+2026-03-03 09:46:04 [http-nio-8080-exec-7] INFO  c.e.s.p.controllers.AuthController - User logged out successfully
+2026-03-03 10:00:48 [http-nio-8080-exec-1] INFO  c.e.s.p.controllers.AuthController - Google login attempt
+2026-03-03 10:00:48 [http-nio-8080-exec-1] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.full_name,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.email=?
+2026-03-03 10:00:49 [http-nio-8080-exec-1] DEBUG c.e.s.i.security.JwtTokenProvider - Generated refresh token for user ID: 51c068f0-9834-4102-8ba6-b52a2528dbef
+2026-03-03 10:00:49 [http-nio-8080-exec-1] DEBUG org.hibernate.SQL - 
+    update
+        users 
+    set
+        is_active=?,
+        avatar=?,
+        coin=?,
+        created_at=?,
+        date_of_birth=?,
+        email=?,
+        is_email_verified=?,
+        full_name=?,
+        password_hash=?,
+        phone=?,
+        rate=?,
+        refresh_token=?,
+        refresh_token_expiry=?,
+        role=?,
+        updated_at=?,
+        username=? 
+    where
+        id=?
+2026-03-03 10:00:49 [http-nio-8080-exec-1] INFO  c.e.s.p.controllers.AuthController - Google login successful for user
+2026-03-03 10:01:00 [http-nio-8080-exec-2] INFO  c.e.s.p.controllers.AuthController - User logged out successfully
+2026-03-03 10:09:13 [http-nio-8080-exec-5] INFO  c.e.s.p.controllers.AuthController - Google login attempt
+2026-03-03 10:09:13 [http-nio-8080-exec-5] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.full_name,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.email=?
+2026-03-03 10:09:13 [http-nio-8080-exec-5] DEBUG c.e.s.i.security.JwtTokenProvider - Generated refresh token for user ID: 51c068f0-9834-4102-8ba6-b52a2528dbef
+2026-03-03 10:09:13 [http-nio-8080-exec-5] DEBUG org.hibernate.SQL - 
+    update
+        users 
+    set
+        is_active=?,
+        avatar=?,
+        coin=?,
+        created_at=?,
+        date_of_birth=?,
+        email=?,
+        is_email_verified=?,
+        full_name=?,
+        password_hash=?,
+        phone=?,
+        rate=?,
+        refresh_token=?,
+        refresh_token_expiry=?,
+        role=?,
+        updated_at=?,
+        username=? 
+    where
+        id=?
+2026-03-03 10:09:14 [http-nio-8080-exec-5] INFO  c.e.s.p.controllers.AuthController - Google login successful for user
+2026-03-03 10:09:45 [http-nio-8080-exec-4] INFO  c.e.s.p.controllers.AuthController - User logged out successfully
+2026-03-03 10:11:31 [http-nio-8080-exec-9] INFO  c.e.s.p.controllers.AuthController - Google login attempt
+2026-03-03 10:11:32 [http-nio-8080-exec-9] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.full_name,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.email=?
+2026-03-03 10:11:32 [http-nio-8080-exec-9] DEBUG c.e.s.i.security.JwtTokenProvider - Generated refresh token for user ID: 51c068f0-9834-4102-8ba6-b52a2528dbef
+2026-03-03 10:11:32 [http-nio-8080-exec-9] DEBUG org.hibernate.SQL - 
+    update
+        users 
+    set
+        is_active=?,
+        avatar=?,
+        coin=?,
+        created_at=?,
+        date_of_birth=?,
+        email=?,
+        is_email_verified=?,
+        full_name=?,
+        password_hash=?,
+        phone=?,
+        rate=?,
+        refresh_token=?,
+        refresh_token_expiry=?,
+        role=?,
+        updated_at=?,
+        username=? 
+    where
+        id=?
+2026-03-03 10:11:32 [http-nio-8080-exec-9] INFO  c.e.s.p.controllers.AuthController - Google login successful for user
+2026-03-03 10:11:53 [http-nio-8080-exec-7] INFO  c.e.s.p.controllers.AuthController - User logged out successfully
+2026-03-03 10:12:00 [http-nio-8080-exec-10] INFO  c.e.s.p.controllers.AuthController - Google login attempt
+2026-03-03 10:12:00 [http-nio-8080-exec-10] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.full_name,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.email=?
+2026-03-03 10:12:00 [http-nio-8080-exec-10] DEBUG c.e.s.i.security.JwtTokenProvider - Generated refresh token for user ID: 51c068f0-9834-4102-8ba6-b52a2528dbef
+2026-03-03 10:12:00 [http-nio-8080-exec-10] DEBUG org.hibernate.SQL - 
+    update
+        users 
+    set
+        is_active=?,
+        avatar=?,
+        coin=?,
+        created_at=?,
+        date_of_birth=?,
+        email=?,
+        is_email_verified=?,
+        full_name=?,
+        password_hash=?,
+        phone=?,
+        rate=?,
+        refresh_token=?,
+        refresh_token_expiry=?,
+        role=?,
+        updated_at=?,
+        username=? 
+    where
+        id=?
+2026-03-03 10:12:01 [http-nio-8080-exec-10] INFO  c.e.s.p.controllers.AuthController - Google login successful for user
+2026-03-03 10:16:51 [http-nio-8080-exec-2] INFO  c.e.s.p.controllers.AuthController - User logged out successfully
+2026-03-03 10:23:44 [http-nio-8080-exec-5] INFO  c.e.s.p.controllers.AuthController - Google login attempt
+2026-03-03 10:23:45 [http-nio-8080-exec-5] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.full_name,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.email=?
+2026-03-03 10:23:45 [http-nio-8080-exec-5] DEBUG c.e.s.i.security.JwtTokenProvider - Generated refresh token for user ID: 51c068f0-9834-4102-8ba6-b52a2528dbef
+2026-03-03 10:23:45 [http-nio-8080-exec-5] DEBUG org.hibernate.SQL - 
+    update
+        users 
+    set
+        is_active=?,
+        avatar=?,
+        coin=?,
+        created_at=?,
+        date_of_birth=?,
+        email=?,
+        is_email_verified=?,
+        full_name=?,
+        password_hash=?,
+        phone=?,
+        rate=?,
+        refresh_token=?,
+        refresh_token_expiry=?,
+        role=?,
+        updated_at=?,
+        username=? 
+    where
+        id=?
+2026-03-03 10:23:45 [http-nio-8080-exec-5] INFO  c.e.s.p.controllers.AuthController - Google login successful for user
+2026-03-03 10:26:13 [http-nio-8080-exec-6] INFO  c.e.s.p.controllers.AuthController - User logged out successfully
+2026-03-03 10:27:01 [http-nio-8080-exec-9] INFO  c.e.s.p.controllers.AuthController - Google login attempt
+2026-03-03 10:27:02 [http-nio-8080-exec-9] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.full_name,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.email=?
+2026-03-03 10:27:02 [http-nio-8080-exec-9] DEBUG c.e.s.i.security.JwtTokenProvider - Generated refresh token for user ID: 51c068f0-9834-4102-8ba6-b52a2528dbef
+2026-03-03 10:27:02 [http-nio-8080-exec-9] DEBUG org.hibernate.SQL - 
+    update
+        users 
+    set
+        is_active=?,
+        avatar=?,
+        coin=?,
+        created_at=?,
+        date_of_birth=?,
+        email=?,
+        is_email_verified=?,
+        full_name=?,
+        password_hash=?,
+        phone=?,
+        rate=?,
+        refresh_token=?,
+        refresh_token_expiry=?,
+        role=?,
+        updated_at=?,
+        username=? 
+    where
+        id=?
+2026-03-03 10:27:02 [http-nio-8080-exec-9] INFO  c.e.s.p.controllers.AuthController - Google login successful for user
+2026-03-03 10:33:11 [http-nio-8080-exec-7] INFO  c.e.s.p.controllers.AuthController - Google login attempt
+2026-03-03 10:33:11 [http-nio-8080-exec-7] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.full_name,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.email=?
+2026-03-03 10:33:11 [http-nio-8080-exec-7] DEBUG c.e.s.i.security.JwtTokenProvider - Generated refresh token for user ID: 51c068f0-9834-4102-8ba6-b52a2528dbef
+2026-03-03 10:33:11 [http-nio-8080-exec-7] DEBUG org.hibernate.SQL - 
+    update
+        users 
+    set
+        is_active=?,
+        avatar=?,
+        coin=?,
+        created_at=?,
+        date_of_birth=?,
+        email=?,
+        is_email_verified=?,
+        full_name=?,
+        password_hash=?,
+        phone=?,
+        rate=?,
+        refresh_token=?,
+        refresh_token_expiry=?,
+        role=?,
+        updated_at=?,
+        username=? 
+    where
+        id=?
+2026-03-03 10:33:12 [http-nio-8080-exec-7] INFO  c.e.s.p.controllers.AuthController - Google login successful for user
+2026-03-03 10:33:45 [http-nio-8080-exec-10] INFO  c.e.s.p.controllers.AuthController - User logged out successfully
+2026-03-03 10:38:00 [http-nio-8080-exec-2] INFO  c.e.s.p.controllers.AuthController - Google login attempt
+2026-03-03 10:38:00 [http-nio-8080-exec-2] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.full_name,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.email=?
+2026-03-03 10:38:00 [http-nio-8080-exec-2] DEBUG c.e.s.i.security.JwtTokenProvider - Generated refresh token for user ID: 51c068f0-9834-4102-8ba6-b52a2528dbef
+2026-03-03 10:38:00 [http-nio-8080-exec-2] DEBUG org.hibernate.SQL - 
+    update
+        users 
+    set
+        is_active=?,
+        avatar=?,
+        coin=?,
+        created_at=?,
+        date_of_birth=?,
+        email=?,
+        is_email_verified=?,
+        full_name=?,
+        password_hash=?,
+        phone=?,
+        rate=?,
+        refresh_token=?,
+        refresh_token_expiry=?,
+        role=?,
+        updated_at=?,
+        username=? 
+    where
+        id=?
+2026-03-03 10:38:00 [http-nio-8080-exec-2] INFO  c.e.s.p.controllers.AuthController - Google login successful for user
+2026-03-03 10:38:08 [http-nio-8080-exec-3] INFO  c.e.s.p.controllers.AuthController - User logged out successfully
+2026-03-03 10:40:21 [http-nio-8080-exec-4] INFO  c.e.s.p.controllers.AuthController - Google login attempt
+2026-03-03 10:40:21 [http-nio-8080-exec-4] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.full_name,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.email=?
+2026-03-03 10:40:21 [http-nio-8080-exec-4] DEBUG c.e.s.i.security.JwtTokenProvider - Generated refresh token for user ID: 51c068f0-9834-4102-8ba6-b52a2528dbef
+2026-03-03 10:40:21 [http-nio-8080-exec-4] DEBUG org.hibernate.SQL - 
+    update
+        users 
+    set
+        is_active=?,
+        avatar=?,
+        coin=?,
+        created_at=?,
+        date_of_birth=?,
+        email=?,
+        is_email_verified=?,
+        full_name=?,
+        password_hash=?,
+        phone=?,
+        rate=?,
+        refresh_token=?,
+        refresh_token_expiry=?,
+        role=?,
+        updated_at=?,
+        username=? 
+    where
+        id=?
+2026-03-03 10:40:21 [http-nio-8080-exec-4] INFO  c.e.s.p.controllers.AuthController - Google login successful for user
+2026-03-03 10:40:30 [http-nio-8080-exec-6] INFO  c.e.s.p.controllers.AuthController - User logged out successfully
+2026-03-03 10:47:02 [http-nio-8080-exec-8] INFO  c.e.s.p.controllers.AuthController - Google login attempt
+2026-03-03 10:47:02 [http-nio-8080-exec-8] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.full_name,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.email=?
+2026-03-03 10:47:02 [http-nio-8080-exec-8] DEBUG c.e.s.i.security.JwtTokenProvider - Generated refresh token for user ID: 51c068f0-9834-4102-8ba6-b52a2528dbef
+2026-03-03 10:47:02 [http-nio-8080-exec-8] DEBUG org.hibernate.SQL - 
+    update
+        users 
+    set
+        is_active=?,
+        avatar=?,
+        coin=?,
+        created_at=?,
+        date_of_birth=?,
+        email=?,
+        is_email_verified=?,
+        full_name=?,
+        password_hash=?,
+        phone=?,
+        rate=?,
+        refresh_token=?,
+        refresh_token_expiry=?,
+        role=?,
+        updated_at=?,
+        username=? 
+    where
+        id=?
+2026-03-03 10:47:02 [http-nio-8080-exec-8] INFO  c.e.s.p.controllers.AuthController - Google login successful for user
+2026-03-03 10:47:11 [http-nio-8080-exec-7] INFO  c.e.s.p.controllers.AuthController - User logged out successfully
+2026-03-03 10:50:52 [http-nio-8080-exec-1] INFO  c.e.s.p.controllers.AuthController - Google login attempt
+2026-03-03 10:50:52 [http-nio-8080-exec-1] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.full_name,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.email=?
+2026-03-03 10:50:52 [http-nio-8080-exec-1] DEBUG c.e.s.i.security.JwtTokenProvider - Generated refresh token for user ID: 51c068f0-9834-4102-8ba6-b52a2528dbef
+2026-03-03 10:50:52 [http-nio-8080-exec-1] DEBUG org.hibernate.SQL - 
+    update
+        users 
+    set
+        is_active=?,
+        avatar=?,
+        coin=?,
+        created_at=?,
+        date_of_birth=?,
+        email=?,
+        is_email_verified=?,
+        full_name=?,
+        password_hash=?,
+        phone=?,
+        rate=?,
+        refresh_token=?,
+        refresh_token_expiry=?,
+        role=?,
+        updated_at=?,
+        username=? 
+    where
+        id=?
+2026-03-03 10:50:52 [http-nio-8080-exec-1] INFO  c.e.s.p.controllers.AuthController - Google login successful for user
+2026-03-03 10:50:59 [http-nio-8080-exec-2] INFO  c.e.s.p.controllers.AuthController - User logged out successfully
+2026-03-03 10:52:20 [http-nio-8080-exec-5] INFO  c.e.s.p.controllers.AuthController - Google login attempt
+2026-03-03 10:52:20 [http-nio-8080-exec-5] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.full_name,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.email=?
+2026-03-03 10:52:20 [http-nio-8080-exec-5] DEBUG c.e.s.i.security.JwtTokenProvider - Generated refresh token for user ID: 51c068f0-9834-4102-8ba6-b52a2528dbef
+2026-03-03 10:52:20 [http-nio-8080-exec-5] DEBUG org.hibernate.SQL - 
+    update
+        users 
+    set
+        is_active=?,
+        avatar=?,
+        coin=?,
+        created_at=?,
+        date_of_birth=?,
+        email=?,
+        is_email_verified=?,
+        full_name=?,
+        password_hash=?,
+        phone=?,
+        rate=?,
+        refresh_token=?,
+        refresh_token_expiry=?,
+        role=?,
+        updated_at=?,
+        username=? 
+    where
+        id=?
+2026-03-03 10:52:20 [http-nio-8080-exec-5] INFO  c.e.s.p.controllers.AuthController - Google login successful for user
+2026-03-03 10:52:26 [http-nio-8080-exec-4] INFO  c.e.s.p.controllers.AuthController - User logged out successfully
+2026-03-03 10:54:46 [http-nio-8080-exec-9] INFO  c.e.s.p.controllers.AuthController - Google login attempt
+2026-03-03 10:54:47 [http-nio-8080-exec-9] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.full_name,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.email=?
+2026-03-03 10:54:47 [http-nio-8080-exec-9] DEBUG c.e.s.i.security.JwtTokenProvider - Generated refresh token for user ID: 51c068f0-9834-4102-8ba6-b52a2528dbef
+2026-03-03 10:54:47 [http-nio-8080-exec-9] DEBUG org.hibernate.SQL - 
+    update
+        users 
+    set
+        is_active=?,
+        avatar=?,
+        coin=?,
+        created_at=?,
+        date_of_birth=?,
+        email=?,
+        is_email_verified=?,
+        full_name=?,
+        password_hash=?,
+        phone=?,
+        rate=?,
+        refresh_token=?,
+        refresh_token_expiry=?,
+        role=?,
+        updated_at=?,
+        username=? 
+    where
+        id=?
+2026-03-03 10:54:47 [http-nio-8080-exec-9] INFO  c.e.s.p.controllers.AuthController - Google login successful for user
+2026-03-03 10:54:57 [http-nio-8080-exec-8] INFO  c.e.s.p.controllers.AuthController - User logged out successfully
+2026-03-03 10:56:29 [SpringApplicationShutdownHook] INFO  o.s.boot.tomcat.GracefulShutdown - Commencing graceful shutdown. Waiting for active requests to complete
+2026-03-03 10:56:29 [tomcat-shutdown] INFO  o.s.boot.tomcat.GracefulShutdown - Graceful shutdown complete
+2026-03-03 10:56:29 [SpringApplicationShutdownHook] INFO  o.s.o.j.LocalContainerEntityManagerFactoryBean - Closing JPA EntityManagerFactory for persistence unit 'default'
+2026-03-03 10:56:29 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown initiated...
+2026-03-03 10:56:30 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown completed.
