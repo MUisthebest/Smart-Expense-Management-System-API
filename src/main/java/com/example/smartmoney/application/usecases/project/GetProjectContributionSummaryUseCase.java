@@ -17,7 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
+import java.time.Instant;
 import java.util.*;
 
 @Service
@@ -47,9 +47,9 @@ public class GetProjectContributionSummaryUseCase {
 
         Map<UserId, Money> byUser = p.breakdownByUser();
 
-        Map<UserId, LocalDate> lastDate = new HashMap<>();
+        Map<UserId, Instant> lastDate = new HashMap<>();
         for (ProjectContribution c : p.getContributions()) {
-            lastDate.merge(c.getUserId(), c.getContributionDate(),
+            lastDate.merge(c.getUserId(), c.getCreatedAt(),
                     (oldV, newV) -> newV.isAfter(oldV) ? newV : oldV);
         }
 
@@ -65,7 +65,7 @@ public class GetProjectContributionSummaryUseCase {
                             .userId(e.getKey().toString())
                             .totalAmount(e.getValue().amount())
                             .percentOfTarget(percentOfTarget)
-                            .lastContributionDate(lastDate.get(e.getKey()))
+                            .createdAt(lastDate.get(e.getKey()))
                             .build();
                 })
                 .sorted(Comparator.comparing(ContributorResponse::getTotalAmount).reversed())

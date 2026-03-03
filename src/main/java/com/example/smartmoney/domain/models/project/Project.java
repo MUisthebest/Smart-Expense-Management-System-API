@@ -185,15 +185,10 @@ public class Project {
     }
 
     public ProjectContribution addContribution(UserId actorId, BigDecimal amount,
-                                               LocalDate contributionDate,
                                                String note) {
         if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
             throw new ProjectException("Contribution amount must be > 0",
                     ProjectErrorCode.PROJECT_CONTRIBUTION_INVALID_AMOUNT);
-        }
-        if (contributionDate.isAfter(LocalDate.now())) {
-            throw new ProjectException("Contribution date cannot be in the future",
-                    ProjectErrorCode.PROJECT_CONTRIBUTION_INVALID_DATE);
         }
 
         if (type == ProjectType.PERSONAL) {
@@ -202,12 +197,16 @@ public class Project {
                         ProjectErrorCode.PROJECT_PERMISSION_DENIED);
             }
         } else {
+            if (actorId.equals(ownerId)) {
+                // Owner can always contribute in GROUP projects
+            } else {
             ProjectMember member = members.get(actorId.value());
             if (member == null) {
                 throw new ProjectException("Member not found", ProjectErrorCode.PROJECT_MEMBER_NOT_FOUND);
             }
             if (member.getJoinStatus() != JoinStatus.JOINED) {
                 throw new ProjectException("Member not joined", ProjectErrorCode.PROJECT_MEMBER_NOT_FOUND);
+            }
             }
         }
 
@@ -216,7 +215,6 @@ public class Project {
                 ContributionId.newId(),
                 actorId,
                 money,
-                contributionDate,
                 note,
                 Instant.now()
         );

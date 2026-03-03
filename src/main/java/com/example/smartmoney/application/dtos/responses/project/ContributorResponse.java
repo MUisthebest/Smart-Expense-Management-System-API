@@ -4,7 +4,7 @@ import lombok.Builder;
 import lombok.Data;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
+import java.time.Instant;
 
 @Data
 @Builder
@@ -12,5 +12,5 @@ public class ContributorResponse {
     private String userId;
     private BigDecimal totalAmount;
     private BigDecimal percentOfTarget;
-    private LocalDate lastContributionDate;
+    private Instant createdAt;
 }

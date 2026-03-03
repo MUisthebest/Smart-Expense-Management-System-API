@@ -1,20 +1,25 @@
-2026-03-03 08:26:26 [main] INFO  c.e.smartmoney.SmartmoneyApplication - Starting SmartmoneyApplication using Java 17.0.17 with PID 30900 (C:\Users\ASUS\Documents\GitHub\Smart-Expense-Management-System-API\target\classes started by ASUS in C:\Users\ASUS\Documents\GitHub\Smart-Expense-Management-System-API)
-2026-03-03 08:26:26 [main] DEBUG c.e.smartmoney.SmartmoneyApplication - Running with Spring Boot v4.0.1, Spring v7.0.2
-2026-03-03 08:26:26 [main] INFO  c.e.smartmoney.SmartmoneyApplication - No active profile set, falling back to 1 default profile: "default"
-2026-03-03 08:26:27 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
-2026-03-03 08:26:27 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 78 ms. Found 3 JPA repository interfaces.
-2026-03-03 08:26:29 [main] INFO  o.s.boot.tomcat.TomcatWebServer - Tomcat initialized with port 8080 (http)
-2026-03-03 08:26:29 [main] INFO  o.a.catalina.core.StandardService - Starting service [Tomcat]
-2026-03-03 08:26:29 [main] INFO  o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/11.0.15]
-2026-03-03 08:26:29 [main] INFO  o.s.b.w.c.s.WebApplicationContextInitializer - Root WebApplicationContext: initialization completed in 2579 ms
-2026-03-03 08:26:29 [main] INFO  org.hibernate.orm.jpa - HHH008540: Processing PersistenceUnitInfo [name: default]
-2026-03-03 08:26:29 [main] INFO  org.hibernate.orm.core - HHH000001: Hibernate ORM core version 7.2.0.Final
-2026-03-03 08:26:30 [main] INFO  o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
-2026-03-03 08:26:30 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
-2026-03-03 08:26:32 [main] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@47e725af
-2026-03-03 08:26:32 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
-2026-03-03 08:26:32 [main] WARN  org.hibernate.orm.deprecation - HHH90000025: PostgreSQLDialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
-2026-03-03 08:26:32 [main] INFO  o.hibernate.orm.connections.pooling - HHH10001005: Database info:
+2026-03-04 00:00:36 [SpringApplicationShutdownHook] INFO  o.s.boot.tomcat.GracefulShutdown - Commencing graceful shutdown. Waiting for active requests to complete
+2026-03-04 00:00:36 [tomcat-shutdown] INFO  o.s.boot.tomcat.GracefulShutdown - Graceful shutdown complete
+2026-03-04 00:00:36 [SpringApplicationShutdownHook] INFO  o.s.o.j.LocalContainerEntityManagerFactoryBean - Closing JPA EntityManagerFactory for persistence unit 'default'
+2026-03-04 00:00:36 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown initiated...
+2026-03-04 00:00:36 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown completed.
+2026-03-04 00:00:43 [main] INFO  c.e.smartmoney.SmartmoneyApplication - Starting SmartmoneyApplication using Java 21.0.6 with PID 7428 (D:\HCMUS\DATN\Source\Smart-Expense-Management-System-API\target\classes started by NamTran in D:\HCMUS\DATN\Source\Smart-Expense-Management-System-API)
+2026-03-04 00:00:43 [main] DEBUG c.e.smartmoney.SmartmoneyApplication - Running with Spring Boot v4.0.1, Spring v7.0.2
+2026-03-04 00:00:43 [main] INFO  c.e.smartmoney.SmartmoneyApplication - No active profile set, falling back to 1 default profile: "default"
+2026-03-04 00:00:44 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-03-04 00:00:44 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 64 ms. Found 6 JPA repository interfaces.
+2026-03-04 00:00:44 [main] INFO  o.s.boot.tomcat.TomcatWebServer - Tomcat initialized with port 8080 (http)
+2026-03-04 00:00:44 [main] INFO  o.a.catalina.core.StandardService - Starting service [Tomcat]
+2026-03-04 00:00:44 [main] INFO  o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/11.0.15]
+2026-03-04 00:00:44 [main] INFO  o.s.b.w.c.s.WebApplicationContextInitializer - Root WebApplicationContext: initialization completed in 1470 ms
+2026-03-04 00:00:45 [main] INFO  org.hibernate.orm.jpa - HHH008540: Processing PersistenceUnitInfo [name: default]
+2026-03-04 00:00:45 [main] INFO  org.hibernate.orm.core - HHH000001: Hibernate ORM core version 7.2.0.Final
+2026-03-04 00:00:45 [main] INFO  o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-03-04 00:00:45 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
+2026-03-04 00:00:46 [main] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@75adb1c0
+2026-03-04 00:00:46 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
+2026-03-04 00:00:46 [main] WARN  org.hibernate.orm.deprecation - HHH90000025: PostgreSQLDialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
+2026-03-04 00:00:46 [main] INFO  o.hibernate.orm.connections.pooling - HHH10001005: Database info:
 	Database JDBC URL [jdbc:postgresql://ep-royal-morning-a13nc72w-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require]
 	Database driver: PostgreSQL JDBC Driver
 	Database dialect: PostgreSQLDialect
@@ -26,109 +31,390 @@
 	Pool: DataSourceConnectionProvider
 	Minimum pool size: undefined/unknown
 	Maximum pool size: undefined/unknown
-2026-03-03 08:26:34 [main] INFO  org.hibernate.orm.core - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
-2026-03-03 08:26:34 [main] INFO  org.hibernate.orm.jdbc.batch - HHH100501: Automatic JDBC statement batching enabled (maximum batch size 20)
-2026-03-03 08:26:35 [main] INFO  o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
-2026-03-03 08:26:35 [main] INFO  o.s.d.j.r.q.QueryEnhancerFactories - Hibernate is in classpath; If applicable, HQL parser will be used.
-2026-03-03 08:26:35 [main] INFO  c.e.s.i.security.JwtTokenProvider - JWT Token Provider initialized with secret length: 87
-2026-03-03 08:26:35 [main] DEBUG c.e.s.i.s.AuthenticationFilter - Filter 'authenticationFilter' configured for use
-2026-03-03 08:26:36 [main] INFO  c.e.s.i.mail.config.MailConfig - Initializing JavaMailSender...
-2026-03-03 08:26:36 [main] INFO  c.e.s.i.mail.config.MailProperties - Mail Configuration:
-2026-03-03 08:26:36 [main] INFO  c.e.s.i.mail.config.MailProperties -   Host: smtp.gmail.com
-2026-03-03 08:26:36 [main] INFO  c.e.s.i.mail.config.MailProperties -   Port: 587
-2026-03-03 08:26:36 [main] INFO  c.e.s.i.mail.config.MailProperties -   Username: nhbang22@clc.fitus.edu.vn
-2026-03-03 08:26:36 [main] INFO  c.e.s.i.mail.config.MailProperties -   Protocol: smtp
-2026-03-03 08:26:36 [main] INFO  c.e.s.i.mail.config.MailProperties -   SMTP Auth: true
-2026-03-03 08:26:36 [main] INFO  c.e.s.i.mail.config.MailProperties -   STARTTLS Enabled: true
-2026-03-03 08:26:36 [main] INFO  c.e.s.i.mail.config.MailProperties -   STARTTLS Required: false
-2026-03-03 08:26:36 [main] INFO  c.e.s.i.mail.config.MailConfig - JavaMailSender initialized successfully
-2026-03-03 08:26:37 [main] INFO  c.e.s.i.a.c.SupabaseJwtProperties - ✅ Supabase anonKey is configured for frontend authentication
-2026-03-03 08:26:37 [main] INFO  c.e.s.i.a.c.SupabaseJwtProperties - ✅ Supabase JWT_JWK is configured for ES256 token validation
-2026-03-03 08:26:37 [main] INFO  c.e.s.i.common.DotenvConfig - Environment variables loaded successfully
-2026-03-03 08:26:37 [main] INFO  c.e.s.a.u.auth.FacebookLoginUseCase - ✅ FacebookLoginUseCase initialized - Ready to validate external JWT tokens
-2026-03-03 08:26:37 [main] WARN  o.s.b.j.a.JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
-2026-03-03 08:26:37 [main] INFO  o.s.s.c.a.a.c.InitializeUserDetailsBeanManagerConfigurer$InitializeUserDetailsManagerConfigurer - Global AuthenticationManager configured with UserDetailsService bean with name jwtTokenProvider
-2026-03-03 08:26:38 [main] INFO  o.s.boot.tomcat.TomcatWebServer - Tomcat started on port 8080 (http) with context path '/'
-2026-03-03 08:26:38 [main] INFO  c.e.smartmoney.SmartmoneyApplication - Started SmartmoneyApplication in 12.915 seconds (process running for 13.452)
-2026-03-03 08:26:47 [http-nio-8080-exec-1] INFO  o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring DispatcherServlet 'dispatcherServlet'
-2026-03-03 08:26:47 [http-nio-8080-exec-1] INFO  o.s.web.servlet.DispatcherServlet - Initializing Servlet 'dispatcherServlet'
-2026-03-03 08:26:47 [http-nio-8080-exec-1] INFO  o.s.web.servlet.DispatcherServlet - Completed initialization in 2 ms
-2026-03-03 08:26:47 [http-nio-8080-exec-1] INFO  c.e.s.p.controllers.AuthController - Register request for email: moik5985@gmail.com
-2026-03-03 08:26:48 [http-nio-8080-exec-1] DEBUG org.hibernate.SQL - 
+2026-03-04 00:00:47 [main] INFO  org.hibernate.orm.core - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-03-04 00:00:47 [main] INFO  org.hibernate.orm.jdbc.batch - HHH100501: Automatic JDBC statement batching enabled (maximum batch size 20)
+2026-03-04 00:00:47 [main] INFO  o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-03-04 00:00:48 [main] INFO  o.s.d.j.r.q.QueryEnhancerFactories - Hibernate is in classpath; If applicable, HQL parser will be used.
+2026-03-04 00:00:48 [main] INFO  c.e.s.i.security.JwtTokenProvider - JWT Token Provider initialized with secret length: 87
+2026-03-04 00:00:48 [main] DEBUG c.e.s.i.s.AuthenticationFilter - Filter 'authenticationFilter' configured for use
+2026-03-04 00:00:48 [main] INFO  c.e.s.i.mail.config.MailConfig - Initializing JavaMailSender...
+2026-03-04 00:00:48 [main] INFO  c.e.s.i.mail.config.MailProperties - Mail Configuration:
+2026-03-04 00:00:48 [main] INFO  c.e.s.i.mail.config.MailProperties -   Host: smtp.gmail.com
+2026-03-04 00:00:48 [main] INFO  c.e.s.i.mail.config.MailProperties -   Port: 587
+2026-03-04 00:00:48 [main] INFO  c.e.s.i.mail.config.MailProperties -   Username: nhbang22@clc.fitus.edu.vn
+2026-03-04 00:00:48 [main] INFO  c.e.s.i.mail.config.MailProperties -   Protocol: smtp
+2026-03-04 00:00:48 [main] INFO  c.e.s.i.mail.config.MailProperties -   SMTP Auth: true
+2026-03-04 00:00:48 [main] INFO  c.e.s.i.mail.config.MailProperties -   STARTTLS Enabled: true
+2026-03-04 00:00:48 [main] INFO  c.e.s.i.mail.config.MailProperties -   STARTTLS Required: false
+2026-03-04 00:00:48 [main] INFO  c.e.s.i.mail.config.MailConfig - JavaMailSender initialized successfully
+2026-03-04 00:00:49 [main] INFO  c.e.s.i.a.c.SupabaseJwtProperties - ✅ Supabase anonKey is configured for frontend authentication
+2026-03-04 00:00:49 [main] INFO  c.e.s.i.a.c.SupabaseJwtProperties - ✅ Supabase JWT_JWK is configured for ES256 token validation
+2026-03-04 00:00:49 [main] INFO  c.e.s.i.common.DotenvConfig - Environment variables loaded successfully
+2026-03-04 00:00:49 [main] INFO  c.e.s.a.u.auth.FacebookLoginUseCase - ✅ FacebookLoginUseCase initialized - Ready to validate external JWT tokens
+2026-03-04 00:00:49 [main] WARN  o.s.b.j.a.JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-03-04 00:00:49 [main] INFO  o.s.s.c.a.a.c.InitializeUserDetailsBeanManagerConfigurer$InitializeUserDetailsManagerConfigurer - Global AuthenticationManager configured with UserDetailsService bean with name jwtTokenProvider
+2026-03-04 00:00:50 [main] INFO  o.s.boot.tomcat.TomcatWebServer - Tomcat started on port 8080 (http) with context path '/'
+2026-03-04 00:00:50 [main] INFO  c.e.smartmoney.SmartmoneyApplication - Started SmartmoneyApplication in 7.186 seconds (process running for 7.576)
+2026-03-04 00:00:55 [http-nio-8080-exec-1] INFO  o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-03-04 00:00:55 [http-nio-8080-exec-1] INFO  o.s.web.servlet.DispatcherServlet - Initializing Servlet 'dispatcherServlet'
+2026-03-04 00:00:55 [http-nio-8080-exec-1] INFO  o.s.web.servlet.DispatcherServlet - Completed initialization in 2 ms
+2026-03-04 00:00:55 [http-nio-8080-exec-1] DEBUG org.hibernate.SQL - 
     select
-        ue1_0.id 
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.full_name,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.updated_at,
+        ue1_0.username 
     from
         users ue1_0 
     where
-        ue1_0.email=? 
-    fetch
-        first ? rows only
-2026-03-03 08:26:48 [http-nio-8080-exec-1] DEBUG org.hibernate.SQL - 
+        ue1_0.id=?
+2026-03-04 00:00:55 [http-nio-8080-exec-1] DEBUG c.e.s.i.s.AuthenticationFilter - Authenticated user ID: d75d03d0-dff6-4d1d-9c5d-1aa01acdd845
+2026-03-04 00:00:55 [http-nio-8080-exec-1] DEBUG org.hibernate.SQL - 
     select
-        ue1_0.id 
+        pe1_0.id,
+        pe1_0.created_at,
+        pe1_0.currency,
+        pe1_0.deadline,
+        pe1_0.description,
+        pe1_0.name,
+        pe1_0.owner_id,
+        pe1_0.target_amount,
+        pe1_0.type,
+        pe1_0.updated_at 
     from
-        users ue1_0 
+        projects pe1_0 
     where
-        ue1_0.username=? 
-    fetch
-        first ? rows only
-2026-03-03 08:26:48 [http-nio-8080-exec-1] DEBUG org.hibernate.SQL - 
+        pe1_0.id=?
+2026-03-04 00:00:56 [http-nio-8080-exec-1] DEBUG org.hibernate.SQL - 
     select
-        ue1_0.id 
+        pme1_0.id,
+        pme1_0.is_admin,
+        pme1_0.created_at,
+        pme1_0.join_status,
+        pme1_0.project_id,
+        pme1_0.updated_at,
+        pme1_0.user_id 
     from
-        users ue1_0 
+        project_members pme1_0 
     where
-        ue1_0.phone=? 
-    fetch
-        first ? rows only
-2026-03-03 08:26:48 [http-nio-8080-exec-1] DEBUG org.hibernate.SQL - 
+        pme1_0.project_id=?
+2026-03-04 00:00:56 [http-nio-8080-exec-1] DEBUG org.hibernate.SQL - 
     select
-        ue1_0.id 
+        pce1_0.id,
+        pce1_0.amount,
+        pce1_0.created_at,
+        pce1_0.currency,
+        pce1_0.note,
+        pce1_0.project_id,
+        pce1_0.user_id 
     from
-        users ue1_0 
+        project_contributions pce1_0 
     where
-        ue1_0.email=? 
-    fetch
-        first ? rows only
-2026-03-03 08:26:54 [http-nio-8080-exec-1] INFO  c.e.s.i.m.adapters.SmtpMailAdapter - ✓ HTML email sent to moik5985@gmail.com
-2026-03-03 08:26:54 [http-nio-8080-exec-1] DEBUG org.hibernate.SQL - 
+        pce1_0.project_id=? 
+    order by
+        pce1_0.created_at desc
+2026-03-04 00:00:56 [http-nio-8080-exec-1] DEBUG org.hibernate.SQL - 
+    select
+        pme1_0.id,
+        pme1_0.is_admin,
+        pme1_0.created_at,
+        pme1_0.join_status,
+        pme1_0.project_id,
+        pme1_0.updated_at,
+        pme1_0.user_id 
+    from
+        project_members pme1_0 
+    where
+        pme1_0.project_id=?
+2026-03-04 00:00:56 [http-nio-8080-exec-1] DEBUG org.hibernate.SQL - 
+    select
+        pme1_0.id,
+        pme1_0.is_admin,
+        pme1_0.created_at,
+        pme1_0.join_status,
+        pme1_0.project_id,
+        pme1_0.updated_at,
+        pme1_0.user_id 
+    from
+        project_members pme1_0 
+    where
+        pme1_0.id=?
+2026-03-04 00:00:56 [http-nio-8080-exec-1] DEBUG org.hibernate.SQL - 
+    select
+        pce1_0.id,
+        pce1_0.amount,
+        pce1_0.created_at,
+        pce1_0.currency,
+        pce1_0.note,
+        pce1_0.project_id,
+        pce1_0.user_id 
+    from
+        project_contributions pce1_0 
+    where
+        pce1_0.project_id=? 
+    order by
+        pce1_0.created_at desc
+2026-03-04 00:00:56 [http-nio-8080-exec-1] DEBUG org.hibernate.SQL - 
+    select
+        pce1_0.id,
+        pce1_0.amount,
+        pce1_0.created_at,
+        pce1_0.currency,
+        pce1_0.note,
+        pce1_0.project_id,
+        pce1_0.user_id 
+    from
+        project_contributions pce1_0 
+    where
+        pce1_0.id=?
+2026-03-04 00:00:56 [http-nio-8080-exec-1] DEBUG org.hibernate.SQL - 
     insert 
     into
-        users
-        (is_active, avatar, coin, created_at, date_of_birth, email, is_email_verified, full_name, password_hash, phone, rate, refresh_token, refresh_token_expiry, role, updated_at, username, id) 
+        project_members
+        (is_admin, created_at, join_status, project_id, updated_at, user_id, id) 
     values
-        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-2026-03-03 08:26:54 [http-nio-8080-exec-1] DEBUG org.hibernate.SQL - 
-    insert 
-    into
-        otps
-        (email, expired_at, otp, role, verified, id) 
-    values
-        (?, ?, ?, ?, ?, ?)
-2026-03-03 08:26:54 [http-nio-8080-exec-1] INFO  c.e.s.p.controllers.AuthController - Registration successful for email: moik5985@gmail.com
-2026-03-03 08:31:08 [http-nio-8080-exec-2] INFO  c.e.s.p.controllers.AuthController - User logged out successfully
-2026-03-03 08:34:44 [SpringApplicationShutdownHook] INFO  o.s.boot.tomcat.GracefulShutdown - Commencing graceful shutdown. Waiting for active requests to complete
-2026-03-03 08:34:45 [tomcat-shutdown] INFO  o.s.boot.tomcat.GracefulShutdown - Graceful shutdown complete
-2026-03-03 08:34:45 [SpringApplicationShutdownHook] INFO  o.s.o.j.LocalContainerEntityManagerFactoryBean - Closing JPA EntityManagerFactory for persistence unit 'default'
-2026-03-03 08:34:45 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown initiated...
-2026-03-03 08:34:45 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown completed.
-2026-03-03 09:21:24 [main] INFO  c.e.smartmoney.SmartmoneyApplication - Starting SmartmoneyApplication using Java 17.0.17 with PID 32604 (C:\Users\ASUS\Documents\GitHub\Smart-Expense-Management-System-API\target\classes started by ASUS in C:\Users\ASUS\Documents\GitHub\Smart-Expense-Management-System-API)
-2026-03-03 09:21:24 [main] DEBUG c.e.smartmoney.SmartmoneyApplication - Running with Spring Boot v4.0.1, Spring v7.0.2
-2026-03-03 09:21:24 [main] INFO  c.e.smartmoney.SmartmoneyApplication - No active profile set, falling back to 1 default profile: "default"
-2026-03-03 09:21:24 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
-2026-03-03 09:21:24 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 69 ms. Found 3 JPA repository interfaces.
-2026-03-03 09:21:25 [main] INFO  o.s.boot.tomcat.TomcatWebServer - Tomcat initialized with port 8080 (http)
-2026-03-03 09:21:25 [main] INFO  o.a.catalina.core.StandardService - Starting service [Tomcat]
-2026-03-03 09:21:25 [main] INFO  o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/11.0.15]
-2026-03-03 09:21:26 [main] INFO  o.s.b.w.c.s.WebApplicationContextInitializer - Root WebApplicationContext: initialization completed in 1859 ms
-2026-03-03 09:21:26 [main] INFO  org.hibernate.orm.jpa - HHH008540: Processing PersistenceUnitInfo [name: default]
-2026-03-03 09:21:26 [main] INFO  org.hibernate.orm.core - HHH000001: Hibernate ORM core version 7.2.0.Final
-2026-03-03 09:21:26 [main] INFO  o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
-2026-03-03 09:21:26 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
-2026-03-03 09:21:28 [main] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@687fd6e
-2026-03-03 09:21:28 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
-2026-03-03 09:21:28 [main] WARN  org.hibernate.orm.deprecation - HHH90000025: PostgreSQLDialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
-2026-03-03 09:21:28 [main] INFO  o.hibernate.orm.connections.pooling - HHH10001005: Database info:
+        (?, ?, ?, ?, ?, ?, ?)
+2026-03-04 00:00:56 [http-nio-8080-exec-1] INFO  org.hibernate.orm.jdbc.batch - HHH100503: JDBC batch still contained JDBC statements on release
+2026-03-04 00:00:56 [http-nio-8080-exec-1] WARN  org.hibernate.orm.jdbc.error - HHH000247: ErrorCode: 0, SQLState: 23505
+2026-03-04 00:00:56 [http-nio-8080-exec-1] WARN  org.hibernate.orm.jdbc.error - Batch entry 0 insert into project_members (is_admin,created_at,join_status,project_id,updated_at,user_id,id) values (('TRUE'::boolean),('2026-03-03 17:00:56.153241+00'),('JOINED'),('57a8c156-b946-457d-8128-8571b6dd9fb2'::uuid),('2026-03-03 17:00:56.153241+00'),('dbf48427-e4b2-4cd9-b0ce-d63caa62e742'::uuid),('9621f6f6-f11e-4947-9490-905b5e45704e'::uuid)) was aborted: ERROR: duplicate key value violates unique constraint "uk_project_member"
+  Detail: Key (project_id, user_id)=(57a8c156-b946-457d-8128-8571b6dd9fb2, dbf48427-e4b2-4cd9-b0ce-d63caa62e742) already exists.  Call getNextException to see other errors in the batch.
+2026-03-04 00:00:56 [http-nio-8080-exec-1] WARN  org.hibernate.orm.jdbc.error - HHH000247: ErrorCode: 0, SQLState: 23505
+2026-03-04 00:00:56 [http-nio-8080-exec-1] WARN  org.hibernate.orm.jdbc.error - Batch entry 0 insert into project_members (is_admin,created_at,join_status,project_id,updated_at,user_id,id) values (('TRUE'::boolean),('2026-03-03 17:00:56.153241+00'),('JOINED'),('57a8c156-b946-457d-8128-8571b6dd9fb2'::uuid),('2026-03-03 17:00:56.153241+00'),('dbf48427-e4b2-4cd9-b0ce-d63caa62e742'::uuid),('9621f6f6-f11e-4947-9490-905b5e45704e'::uuid)) was aborted: ERROR: duplicate key value violates unique constraint "uk_project_member"
+  Detail: Key (project_id, user_id)=(57a8c156-b946-457d-8128-8571b6dd9fb2, dbf48427-e4b2-4cd9-b0ce-d63caa62e742) already exists.  Call getNextException to see other errors in the batch.
+2026-03-04 00:00:56 [http-nio-8080-exec-1] ERROR c.e.s.p.e.GlobalExceptionHandler - Internal server error
+org.springframework.dao.DataIntegrityViolationException: could not execute batch [Batch entry 0 insert into project_members (is_admin,created_at,join_status,project_id,updated_at,user_id,id) values (('TRUE'::boolean),('2026-03-03 17:00:56.153241+00'),('JOINED'),('57a8c156-b946-457d-8128-8571b6dd9fb2'::uuid),('2026-03-03 17:00:56.153241+00'),('dbf48427-e4b2-4cd9-b0ce-d63caa62e742'::uuid),('9621f6f6-f11e-4947-9490-905b5e45704e'::uuid)) was aborted: ERROR: duplicate key value violates unique constraint "uk_project_member"
+  Detail: Key (project_id, user_id)=(57a8c156-b946-457d-8128-8571b6dd9fb2, dbf48427-e4b2-4cd9-b0ce-d63caa62e742) already exists.  Call getNextException to see other errors in the batch.] [insert into project_members (is_admin,created_at,join_status,project_id,updated_at,user_id,id) values (?,?,?,?,?,?,?)]; SQL [insert into project_members (is_admin,created_at,join_status,project_id,updated_at,user_id,id) values (?,?,?,?,?,?,?)]; constraint [uk_project_member]
+	at org.springframework.orm.jpa.hibernate.HibernateExceptionTranslator.convertHibernateAccessException(HibernateExceptionTranslator.java:169)
+	at org.springframework.orm.jpa.hibernate.HibernateExceptionTranslator.convertHibernateAccessException(HibernateExceptionTranslator.java:131)
+	at org.springframework.orm.jpa.hibernate.HibernateExceptionTranslator.translateExceptionIfPossible(HibernateExceptionTranslator.java:105)
+	at org.springframework.orm.jpa.vendor.HibernateJpaDialect.translateExceptionIfPossible(HibernateJpaDialect.java:199)
+	at org.springframework.orm.jpa.AbstractEntityManagerFactoryBean.translateExceptionIfPossible(AbstractEntityManagerFactoryBean.java:556)
+	at org.springframework.dao.support.ChainedPersistenceExceptionTranslator.translateExceptionIfPossible(ChainedPersistenceExceptionTranslator.java:61)
+	at org.springframework.dao.support.DataAccessUtils.translateIfNecessary(DataAccessUtils.java:346)
+	at org.springframework.dao.support.PersistenceExceptionTranslationInterceptor.invoke(PersistenceExceptionTranslationInterceptor.java:157)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179)
+	at org.springframework.data.jpa.repository.support.CrudMethodMetadataPostProcessor$CrudMethodMetadataPopulatingMethodInterceptor.invoke(CrudMethodMetadataPostProcessor.java:137)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179)
+	at org.springframework.aop.framework.JdkDynamicAopProxy.invoke(JdkDynamicAopProxy.java:222)
+	at jdk.proxy2/jdk.proxy2.$Proxy162.findByProjectId(Unknown Source)
+	at com.example.smartmoney.infrastructure.persistence.repositories.ProjectRepositoryImpl.findById(ProjectRepositoryImpl.java:45)
+	at com.example.smartmoney.infrastructure.persistence.repositories.ProjectRepositoryImpl.save(ProjectRepositoryImpl.java:107)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:359)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.invokeJoinpoint(ReflectiveMethodInvocation.java:190)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:158)
+	at org.springframework.dao.support.PersistenceExceptionTranslationInterceptor.invoke(PersistenceExceptionTranslationInterceptor.java:135)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179)
+	at org.springframework.transaction.interceptor.TransactionAspectSupport.invokeWithinTransaction(TransactionAspectSupport.java:370)
+	at org.springframework.transaction.interceptor.TransactionInterceptor.invoke(TransactionInterceptor.java:118)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179)
+	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:719)
+	at com.example.smartmoney.infrastructure.persistence.repositories.ProjectRepositoryImpl$$SpringCGLIB$$0.save(<generated>)
+	at com.example.smartmoney.application.usecases.project.AddProjectContributionUseCase.execute(AddProjectContributionUseCase.java:34)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:359)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.invokeJoinpoint(ReflectiveMethodInvocation.java:190)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:158)
+	at org.springframework.transaction.interceptor.TransactionAspectSupport.invokeWithinTransaction(TransactionAspectSupport.java:370)
+	at org.springframework.transaction.interceptor.TransactionInterceptor.invoke(TransactionInterceptor.java:118)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179)
+	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:719)
+	at com.example.smartmoney.application.usecases.project.AddProjectContributionUseCase$$SpringCGLIB$$0.execute(<generated>)
+	at com.example.smartmoney.presentation.controllers.ProjectController.addContribution(ProjectController.java:189)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at org.springframework.web.method.support.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:258)
+	at org.springframework.web.method.support.InvocableHandlerMethod.invokeForRequest(InvocableHandlerMethod.java:190)
+	at org.springframework.web.servlet.mvc.method.annotation.ServletInvocableHandlerMethod.invokeAndHandle(ServletInvocableHandlerMethod.java:117)
+	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.invokeHandlerMethod(RequestMappingHandlerAdapter.java:934)
+	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.handleInternal(RequestMappingHandlerAdapter.java:853)
+	at org.springframework.web.servlet.mvc.method.AbstractHandlerMethodAdapter.handle(AbstractHandlerMethodAdapter.java:86)
+	at org.springframework.web.servlet.DispatcherServlet.doDispatch(DispatcherServlet.java:963)
+	at org.springframework.web.servlet.DispatcherServlet.doService(DispatcherServlet.java:866)
+	at org.springframework.web.servlet.FrameworkServlet.processRequest(FrameworkServlet.java:1003)
+	at org.springframework.web.servlet.FrameworkServlet.doPost(FrameworkServlet.java:903)
+	at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:649)
+	at org.springframework.web.servlet.FrameworkServlet.service(FrameworkServlet.java:874)
+	at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:710)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:128)
+	at org.apache.tomcat.websocket.server.WsFilter.doFilter(WsFilter.java:53)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:107)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:110)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:107)
+	at org.springframework.web.filter.CompositeFilter$VirtualFilterChain.doFilter(CompositeFilter.java:108)
+	at org.springframework.security.web.FilterChainProxy.lambda$doFilterInternal$3(FilterChainProxy.java:235)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:371)
+	at org.springframework.security.web.access.intercept.AuthorizationFilter.doFilter(AuthorizationFilter.java:101)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:380)
+	at org.springframework.security.web.access.ExceptionTranslationFilter.doFilter(ExceptionTranslationFilter.java:126)
+	at org.springframework.security.web.access.ExceptionTranslationFilter.doFilter(ExceptionTranslationFilter.java:120)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:380)
+	at org.springframework.security.web.session.SessionManagementFilter.doFilter(SessionManagementFilter.java:132)
+	at org.springframework.security.web.session.SessionManagementFilter.doFilter(SessionManagementFilter.java:86)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:380)
+	at org.springframework.security.web.authentication.AnonymousAuthenticationFilter.doFilter(AnonymousAuthenticationFilter.java:100)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:380)
+	at org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter.doFilter(SecurityContextHolderAwareRequestFilter.java:181)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:380)
+	at org.springframework.security.web.savedrequest.RequestCacheAwareFilter.doFilter(RequestCacheAwareFilter.java:63)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:380)
+	at com.example.smartmoney.infrastructure.security.AuthenticationFilter.doFilterInternal(AuthenticationFilter.java:70)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:380)
+	at org.springframework.security.web.authentication.logout.LogoutFilter.doFilter(LogoutFilter.java:110)
+	at org.springframework.security.web.authentication.logout.LogoutFilter.doFilter(LogoutFilter.java:96)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:380)
+	at org.springframework.web.filter.CorsFilter.doFilterInternal(CorsFilter.java:91)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:380)
+	at org.springframework.security.web.header.HeaderWriterFilter.doHeadersAfter(HeaderWriterFilter.java:90)
+	at org.springframework.security.web.header.HeaderWriterFilter.doFilterInternal(HeaderWriterFilter.java:75)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:380)
+	at org.springframework.security.web.context.SecurityContextHolderFilter.doFilter(SecurityContextHolderFilter.java:82)
+	at org.springframework.security.web.context.SecurityContextHolderFilter.doFilter(SecurityContextHolderFilter.java:69)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:380)
+	at org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter.doFilterInternal(WebAsyncManagerIntegrationFilter.java:62)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:380)
+	at org.springframework.security.web.session.DisableEncodeUrlFilter.doFilterInternal(DisableEncodeUrlFilter.java:42)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:380)
+	at org.springframework.security.web.FilterChainProxy.doFilterInternal(FilterChainProxy.java:237)
+	at org.springframework.security.web.FilterChainProxy.doFilter(FilterChainProxy.java:195)
+	at org.springframework.web.filter.CompositeFilter$VirtualFilterChain.doFilter(CompositeFilter.java:113)
+	at org.springframework.web.filter.ServletRequestPathFilter.doFilter(ServletRequestPathFilter.java:52)
+	at org.springframework.web.filter.CompositeFilter$VirtualFilterChain.doFilter(CompositeFilter.java:113)
+	at org.springframework.web.filter.CompositeFilter.doFilter(CompositeFilter.java:74)
+	at org.springframework.security.config.annotation.web.configuration.WebSecurityConfiguration$CompositeFilterChainProxy.doFilter(WebSecurityConfiguration.java:317)
+	at org.springframework.web.filter.DelegatingFilterProxy.invokeDelegate(DelegatingFilterProxy.java:355)
+	at org.springframework.web.filter.DelegatingFilterProxy.doFilter(DelegatingFilterProxy.java:272)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:107)
+	at org.springframework.web.filter.RequestContextFilter.doFilterInternal(RequestContextFilter.java:100)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:107)
+	at org.springframework.web.filter.FormContentFilter.doFilterInternal(FormContentFilter.java:93)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:107)
+	at org.springframework.web.filter.CharacterEncodingFilter.doFilterInternal(CharacterEncodingFilter.java:199)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:107)
+	at org.apache.catalina.core.StandardWrapperValve.invoke(StandardWrapperValve.java:165)
+	at org.apache.catalina.core.StandardContextValve.invoke(StandardContextValve.java:77)
+	at org.apache.catalina.authenticator.AuthenticatorBase.invoke(AuthenticatorBase.java:482)
+	at org.apache.catalina.core.StandardHostValve.invoke(StandardHostValve.java:113)
+	at org.apache.catalina.valves.ErrorReportValve.invoke(ErrorReportValve.java:83)
+	at org.apache.catalina.core.StandardEngineValve.invoke(StandardEngineValve.java:72)
+	at org.apache.catalina.connector.CoyoteAdapter.service(CoyoteAdapter.java:341)
+	at org.apache.coyote.http11.Http11Processor.service(Http11Processor.java:397)
+	at org.apache.coyote.AbstractProcessorLight.process(AbstractProcessorLight.java:63)
+	at org.apache.coyote.AbstractProtocol$ConnectionHandler.process(AbstractProtocol.java:903)
+	at org.apache.tomcat.util.net.NioEndpoint$SocketProcessor.doRun(NioEndpoint.java:1778)
+	at org.apache.tomcat.util.net.SocketProcessorBase.run(SocketProcessorBase.java:52)
+	at org.apache.tomcat.util.threads.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:946)
+	at org.apache.tomcat.util.threads.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:480)
+	at org.apache.tomcat.util.threads.TaskThread$WrappingRunnable.run(TaskThread.java:57)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+Caused by: org.hibernate.exception.ConstraintViolationException: could not execute batch [Batch entry 0 insert into project_members (is_admin,created_at,join_status,project_id,updated_at,user_id,id) values (('TRUE'::boolean),('2026-03-03 17:00:56.153241+00'),('JOINED'),('57a8c156-b946-457d-8128-8571b6dd9fb2'::uuid),('2026-03-03 17:00:56.153241+00'),('dbf48427-e4b2-4cd9-b0ce-d63caa62e742'::uuid),('9621f6f6-f11e-4947-9490-905b5e45704e'::uuid)) was aborted: ERROR: duplicate key value violates unique constraint "uk_project_member"
+  Detail: Key (project_id, user_id)=(57a8c156-b946-457d-8128-8571b6dd9fb2, dbf48427-e4b2-4cd9-b0ce-d63caa62e742) already exists.  Call getNextException to see other errors in the batch.] [insert into project_members (is_admin,created_at,join_status,project_id,updated_at,user_id,id) values (?,?,?,?,?,?,?)]
+	at org.hibernate.exception.internal.SQLStateConversionDelegate.convert(SQLStateConversionDelegate.java:73)
+	at org.hibernate.exception.internal.StandardSQLExceptionConverter.convert(StandardSQLExceptionConverter.java:34)
+	at org.hibernate.engine.jdbc.spi.SqlExceptionHelper.convert(SqlExceptionHelper.java:115)
+	at org.hibernate.engine.jdbc.batch.internal.BatchImpl.lambda$performExecution$0(BatchImpl.java:270)
+	at org.hibernate.engine.jdbc.mutation.internal.PreparedStatementGroupSingleTable.forEachStatement(PreparedStatementGroupSingleTable.java:63)
+	at org.hibernate.engine.jdbc.batch.internal.BatchImpl.performExecution(BatchImpl.java:245)
+	at org.hibernate.engine.jdbc.batch.internal.BatchImpl.execute(BatchImpl.java:224)
+	at org.hibernate.engine.jdbc.internal.JdbcCoordinatorImpl.getBatch(JdbcCoordinatorImpl.java:173)
+	at org.hibernate.engine.jdbc.mutation.internal.MutationExecutorSingleBatched.resolveBatch(MutationExecutorSingleBatched.java:45)
+	at org.hibernate.engine.jdbc.mutation.internal.MutationExecutorSingleBatched.performBatchedOperations(MutationExecutorSingleBatched.java:61)
+	at org.hibernate.engine.jdbc.mutation.internal.AbstractMutationExecutor.execute(AbstractMutationExecutor.java:74)
+	at org.hibernate.engine.jdbc.mutation.internal.AbstractMutationExecutor.execute(AbstractMutationExecutor.java:55)
+	at org.hibernate.persister.entity.mutation.InsertCoordinatorStandard.doStaticInserts(InsertCoordinatorStandard.java:180)
+	at org.hibernate.persister.entity.mutation.InsertCoordinatorStandard.coordinateInsert(InsertCoordinatorStandard.java:120)
+	at org.hibernate.persister.entity.mutation.InsertCoordinatorStandard.insert(InsertCoordinatorStandard.java:93)
+	at org.hibernate.action.internal.EntityInsertAction.execute(EntityInsertAction.java:108)
+	at org.hibernate.engine.spi.ActionQueue.executeActions(ActionQueue.java:634)
+	at org.hibernate.engine.spi.ActionQueue.executeActions(ActionQueue.java:505)
+	at org.hibernate.event.internal.AbstractFlushingEventListener.performExecutions(AbstractFlushingEventListener.java:381)
+	at org.hibernate.event.internal.DefaultAutoFlushEventListener.onAutoFlush(DefaultAutoFlushEventListener.java:56)
+	at org.hibernate.event.service.internal.EventListenerGroupImpl.fireEventOnEachListener(EventListenerGroupImpl.java:138)
+	at org.hibernate.internal.SessionImpl.autoFlushIfRequired(SessionImpl.java:1440)
+	at org.hibernate.query.sqm.internal.ConcreteSqmSelectQueryPlan.lambda$new$1(ConcreteSqmSelectQueryPlan.java:126)
+	at org.hibernate.query.sqm.internal.ConcreteSqmSelectQueryPlan.withCacheableSqmInterpretation(ConcreteSqmSelectQueryPlan.java:427)
+	at org.hibernate.query.sqm.internal.ConcreteSqmSelectQueryPlan.performList(ConcreteSqmSelectQueryPlan.java:355)
+	at org.hibernate.query.sqm.internal.SqmQueryImpl.doList(SqmQueryImpl.java:374)
+	at org.hibernate.query.spi.AbstractSelectionQuery.list(AbstractSelectionQuery.java:153)
+	at org.hibernate.query.Query.getResultList(Query.java:121)
+	at org.springframework.data.jpa.repository.query.JpaQueryExecution$CollectionExecution.doExecute(JpaQueryExecution.java:132)
+	at org.springframework.data.jpa.repository.query.JpaQueryExecution.execute(JpaQueryExecution.java:99)
+	at org.springframework.data.jpa.repository.query.AbstractJpaQuery.doExecute(AbstractJpaQuery.java:164)
+	at org.springframework.data.jpa.repository.query.AbstractJpaQuery.execute(AbstractJpaQuery.java:154)
+	at org.springframework.data.repository.core.support.RepositoryMethodInvoker.doInvoke(RepositoryMethodInvoker.java:169)
+	at org.springframework.data.repository.core.support.RepositoryMethodInvoker.invoke(RepositoryMethodInvoker.java:158)
+	at org.springframework.data.repository.core.support.QueryExecutorMethodInterceptor.doInvoke(QueryExecutorMethodInterceptor.java:167)
+	at org.springframework.data.repository.core.support.QueryExecutorMethodInterceptor.invoke(QueryExecutorMethodInterceptor.java:146)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179)
+	at org.springframework.data.projection.DefaultMethodInvokingMethodInterceptor.invoke(DefaultMethodInvokingMethodInterceptor.java:69)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179)
+	at org.springframework.transaction.interceptor.TransactionAspectSupport.invokeWithinTransaction(TransactionAspectSupport.java:370)
+	at org.springframework.transaction.interceptor.TransactionInterceptor.invoke(TransactionInterceptor.java:118)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179)
+	at org.springframework.dao.support.PersistenceExceptionTranslationInterceptor.invoke(PersistenceExceptionTranslationInterceptor.java:135)
+	... 125 common frames omitted
+Caused by: java.sql.BatchUpdateException: Batch entry 0 insert into project_members (is_admin,created_at,join_status,project_id,updated_at,user_id,id) values (('TRUE'::boolean),('2026-03-03 17:00:56.153241+00'),('JOINED'),('57a8c156-b946-457d-8128-8571b6dd9fb2'::uuid),('2026-03-03 17:00:56.153241+00'),('dbf48427-e4b2-4cd9-b0ce-d63caa62e742'::uuid),('9621f6f6-f11e-4947-9490-905b5e45704e'::uuid)) was aborted: ERROR: duplicate key value violates unique constraint "uk_project_member"
+  Detail: Key (project_id, user_id)=(57a8c156-b946-457d-8128-8571b6dd9fb2, dbf48427-e4b2-4cd9-b0ce-d63caa62e742) already exists.  Call getNextException to see other errors in the batch.
+	at org.postgresql.jdbc.BatchResultHandler.handleError(BatchResultHandler.java:165)
+	at org.postgresql.core.v3.QueryExecutorImpl.processResults(QueryExecutorImpl.java:2422)
+	at org.postgresql.core.v3.QueryExecutorImpl.execute(QueryExecutorImpl.java:580)
+	at org.postgresql.jdbc.PgStatement.internalExecuteBatch(PgStatement.java:891)
+	at org.postgresql.jdbc.PgStatement.executeBatch(PgStatement.java:915)
+	at org.postgresql.jdbc.PgPreparedStatement.executeBatch(PgPreparedStatement.java:1778)
+	at com.zaxxer.hikari.pool.ProxyStatement.executeBatch(ProxyStatement.java:128)
+	at com.zaxxer.hikari.pool.HikariProxyPreparedStatement.executeBatch(HikariProxyPreparedStatement.java)
+	at org.hibernate.engine.jdbc.batch.internal.BatchImpl.lambda$performExecution$0(BatchImpl.java:256)
+	... 164 common frames omitted
+Caused by: org.postgresql.util.PSQLException: ERROR: duplicate key value violates unique constraint "uk_project_member"
+  Detail: Key (project_id, user_id)=(57a8c156-b946-457d-8128-8571b6dd9fb2, dbf48427-e4b2-4cd9-b0ce-d63caa62e742) already exists.
+	at org.postgresql.core.v3.QueryExecutorImpl.receiveErrorResponse(QueryExecutorImpl.java:2736)
+	at org.postgresql.core.v3.QueryExecutorImpl.processResults(QueryExecutorImpl.java:2421)
+	... 171 common frames omitted
+2026-03-04 00:02:29 [SpringApplicationShutdownHook] INFO  o.s.boot.tomcat.GracefulShutdown - Commencing graceful shutdown. Waiting for active requests to complete
+2026-03-04 00:02:29 [tomcat-shutdown] INFO  o.s.boot.tomcat.GracefulShutdown - Graceful shutdown complete
+2026-03-04 00:02:29 [SpringApplicationShutdownHook] INFO  o.s.o.j.LocalContainerEntityManagerFactoryBean - Closing JPA EntityManagerFactory for persistence unit 'default'
+2026-03-04 00:02:29 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown initiated...
+2026-03-04 00:02:30 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown completed.
+2026-03-04 00:02:38 [main] INFO  c.e.smartmoney.SmartmoneyApplication - Starting SmartmoneyApplication using Java 21.0.6 with PID 24976 (D:\HCMUS\DATN\Source\Smart-Expense-Management-System-API\target\classes started by NamTran in D:\HCMUS\DATN\Source\Smart-Expense-Management-System-API)
+2026-03-04 00:02:38 [main] DEBUG c.e.smartmoney.SmartmoneyApplication - Running with Spring Boot v4.0.1, Spring v7.0.2
+2026-03-04 00:02:38 [main] INFO  c.e.smartmoney.SmartmoneyApplication - No active profile set, falling back to 1 default profile: "default"
+2026-03-04 00:02:39 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-03-04 00:02:39 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 86 ms. Found 6 JPA repository interfaces.
+2026-03-04 00:02:40 [main] INFO  o.s.boot.tomcat.TomcatWebServer - Tomcat initialized with port 8080 (http)
+2026-03-04 00:02:40 [main] INFO  o.a.catalina.core.StandardService - Starting service [Tomcat]
+2026-03-04 00:02:40 [main] INFO  o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/11.0.15]
+2026-03-04 00:02:40 [main] INFO  o.s.b.w.c.s.WebApplicationContextInitializer - Root WebApplicationContext: initialization completed in 1694 ms
+2026-03-04 00:02:40 [main] INFO  org.hibernate.orm.jpa - HHH008540: Processing PersistenceUnitInfo [name: default]
+2026-03-04 00:02:40 [main] INFO  org.hibernate.orm.core - HHH000001: Hibernate ORM core version 7.2.0.Final
+2026-03-04 00:02:41 [main] INFO  o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-03-04 00:02:41 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
+2026-03-04 00:02:42 [main] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@75adb1c0
+2026-03-04 00:02:42 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
+2026-03-04 00:02:42 [main] WARN  org.hibernate.orm.deprecation - HHH90000025: PostgreSQLDialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
+2026-03-04 00:02:42 [main] INFO  o.hibernate.orm.connections.pooling - HHH10001005: Database info:
 	Database JDBC URL [jdbc:postgresql://ep-royal-morning-a13nc72w-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require]
 	Database driver: PostgreSQL JDBC Driver
 	Database dialect: PostgreSQLDialect
@@ -140,35 +426,687 @@
 	Pool: DataSourceConnectionProvider
 	Minimum pool size: undefined/unknown
 	Maximum pool size: undefined/unknown
-2026-03-03 09:21:29 [main] INFO  org.hibernate.orm.core - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
-2026-03-03 09:21:29 [main] INFO  org.hibernate.orm.jdbc.batch - HHH100501: Automatic JDBC statement batching enabled (maximum batch size 20)
-2026-03-03 09:21:30 [main] INFO  o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
-2026-03-03 09:21:30 [main] INFO  o.s.d.j.r.q.QueryEnhancerFactories - Hibernate is in classpath; If applicable, HQL parser will be used.
-2026-03-03 09:21:30 [main] INFO  c.e.s.i.security.JwtTokenProvider - JWT Token Provider initialized with secret length: 87
-2026-03-03 09:21:30 [main] DEBUG c.e.s.i.s.AuthenticationFilter - Filter 'authenticationFilter' configured for use
-2026-03-03 09:21:31 [main] INFO  c.e.s.i.mail.config.MailConfig - Initializing JavaMailSender...
-2026-03-03 09:21:31 [main] INFO  c.e.s.i.mail.config.MailProperties - Mail Configuration:
-2026-03-03 09:21:31 [main] INFO  c.e.s.i.mail.config.MailProperties -   Host: smtp.gmail.com
-2026-03-03 09:21:31 [main] INFO  c.e.s.i.mail.config.MailProperties -   Port: 587
-2026-03-03 09:21:31 [main] INFO  c.e.s.i.mail.config.MailProperties -   Username: nhbang22@clc.fitus.edu.vn
-2026-03-03 09:21:31 [main] INFO  c.e.s.i.mail.config.MailProperties -   Protocol: smtp
-2026-03-03 09:21:31 [main] INFO  c.e.s.i.mail.config.MailProperties -   SMTP Auth: true
-2026-03-03 09:21:31 [main] INFO  c.e.s.i.mail.config.MailProperties -   STARTTLS Enabled: true
-2026-03-03 09:21:31 [main] INFO  c.e.s.i.mail.config.MailProperties -   STARTTLS Required: false
-2026-03-03 09:21:31 [main] INFO  c.e.s.i.mail.config.MailConfig - JavaMailSender initialized successfully
-2026-03-03 09:21:31 [main] INFO  c.e.s.i.a.c.SupabaseJwtProperties - ✅ Supabase anonKey is configured for frontend authentication
-2026-03-03 09:21:31 [main] INFO  c.e.s.i.a.c.SupabaseJwtProperties - ✅ Supabase JWT_JWK is configured for ES256 token validation
-2026-03-03 09:21:31 [main] INFO  c.e.s.i.common.DotenvConfig - Environment variables loaded successfully
-2026-03-03 09:21:31 [main] INFO  c.e.s.a.u.auth.FacebookLoginUseCase - ✅ FacebookLoginUseCase initialized - Ready to validate external JWT tokens
-2026-03-03 09:21:31 [main] WARN  o.s.b.j.a.JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
-2026-03-03 09:21:31 [main] INFO  o.s.s.c.a.a.c.InitializeUserDetailsBeanManagerConfigurer$InitializeUserDetailsManagerConfigurer - Global AuthenticationManager configured with UserDetailsService bean with name jwtTokenProvider
-2026-03-03 09:21:32 [main] INFO  o.s.boot.tomcat.TomcatWebServer - Tomcat started on port 8080 (http) with context path '/'
-2026-03-03 09:21:32 [main] INFO  c.e.smartmoney.SmartmoneyApplication - Started SmartmoneyApplication in 8.565 seconds (process running for 8.995)
-2026-03-03 09:22:31 [http-nio-8080-exec-1] INFO  o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring DispatcherServlet 'dispatcherServlet'
-2026-03-03 09:22:31 [http-nio-8080-exec-1] INFO  o.s.web.servlet.DispatcherServlet - Initializing Servlet 'dispatcherServlet'
-2026-03-03 09:22:31 [http-nio-8080-exec-1] INFO  o.s.web.servlet.DispatcherServlet - Completed initialization in 1 ms
-2026-03-03 09:22:31 [http-nio-8080-exec-1] INFO  c.e.s.p.controllers.AuthController - Google login attempt
-2026-03-03 09:22:32 [http-nio-8080-exec-1] DEBUG org.hibernate.SQL - 
+2026-03-04 00:02:43 [main] INFO  org.hibernate.orm.core - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-03-04 00:02:43 [main] INFO  org.hibernate.orm.jdbc.batch - HHH100501: Automatic JDBC statement batching enabled (maximum batch size 20)
+2026-03-04 00:02:44 [main] INFO  o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-03-04 00:02:44 [main] INFO  o.s.d.j.r.q.QueryEnhancerFactories - Hibernate is in classpath; If applicable, HQL parser will be used.
+2026-03-04 00:02:44 [main] INFO  c.e.s.i.security.JwtTokenProvider - JWT Token Provider initialized with secret length: 87
+2026-03-04 00:02:44 [main] DEBUG c.e.s.i.s.AuthenticationFilter - Filter 'authenticationFilter' configured for use
+2026-03-04 00:02:45 [main] INFO  c.e.s.i.mail.config.MailConfig - Initializing JavaMailSender...
+2026-03-04 00:02:45 [main] INFO  c.e.s.i.mail.config.MailProperties - Mail Configuration:
+2026-03-04 00:02:45 [main] INFO  c.e.s.i.mail.config.MailProperties -   Host: smtp.gmail.com
+2026-03-04 00:02:45 [main] INFO  c.e.s.i.mail.config.MailProperties -   Port: 587
+2026-03-04 00:02:45 [main] INFO  c.e.s.i.mail.config.MailProperties -   Username: nhbang22@clc.fitus.edu.vn
+2026-03-04 00:02:45 [main] INFO  c.e.s.i.mail.config.MailProperties -   Protocol: smtp
+2026-03-04 00:02:45 [main] INFO  c.e.s.i.mail.config.MailProperties -   SMTP Auth: true
+2026-03-04 00:02:45 [main] INFO  c.e.s.i.mail.config.MailProperties -   STARTTLS Enabled: true
+2026-03-04 00:02:45 [main] INFO  c.e.s.i.mail.config.MailProperties -   STARTTLS Required: false
+2026-03-04 00:02:45 [main] INFO  c.e.s.i.mail.config.MailConfig - JavaMailSender initialized successfully
+2026-03-04 00:02:45 [main] INFO  c.e.s.i.a.c.SupabaseJwtProperties - ✅ Supabase anonKey is configured for frontend authentication
+2026-03-04 00:02:45 [main] INFO  c.e.s.i.a.c.SupabaseJwtProperties - ✅ Supabase JWT_JWK is configured for ES256 token validation
+2026-03-04 00:02:45 [main] INFO  c.e.s.i.common.DotenvConfig - Environment variables loaded successfully
+2026-03-04 00:02:45 [main] INFO  c.e.s.a.u.auth.FacebookLoginUseCase - ✅ FacebookLoginUseCase initialized - Ready to validate external JWT tokens
+2026-03-04 00:02:45 [main] WARN  o.s.b.j.a.JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-03-04 00:02:45 [main] INFO  o.s.s.c.a.a.c.InitializeUserDetailsBeanManagerConfigurer$InitializeUserDetailsManagerConfigurer - Global AuthenticationManager configured with UserDetailsService bean with name jwtTokenProvider
+2026-03-04 00:02:46 [main] INFO  o.s.boot.tomcat.TomcatWebServer - Tomcat started on port 8080 (http) with context path '/'
+2026-03-04 00:02:46 [main] INFO  c.e.smartmoney.SmartmoneyApplication - Started SmartmoneyApplication in 8.082 seconds (process running for 8.636)
+2026-03-04 00:02:50 [http-nio-8080-exec-1] INFO  o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-03-04 00:02:50 [http-nio-8080-exec-1] INFO  o.s.web.servlet.DispatcherServlet - Initializing Servlet 'dispatcherServlet'
+2026-03-04 00:02:50 [http-nio-8080-exec-1] INFO  o.s.web.servlet.DispatcherServlet - Completed initialization in 1 ms
+2026-03-04 00:02:50 [http-nio-8080-exec-1] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.full_name,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-03-04 00:02:51 [http-nio-8080-exec-1] DEBUG c.e.s.i.s.AuthenticationFilter - Authenticated user ID: d75d03d0-dff6-4d1d-9c5d-1aa01acdd845
+2026-03-04 00:02:51 [http-nio-8080-exec-1] DEBUG org.hibernate.SQL - 
+    select
+        pe1_0.id,
+        pe1_0.created_at,
+        pe1_0.currency,
+        pe1_0.deadline,
+        pe1_0.description,
+        pe1_0.name,
+        pe1_0.owner_id,
+        pe1_0.target_amount,
+        pe1_0.type,
+        pe1_0.updated_at 
+    from
+        projects pe1_0 
+    where
+        pe1_0.id=?
+2026-03-04 00:02:51 [http-nio-8080-exec-1] DEBUG org.hibernate.SQL - 
+    select
+        pme1_0.id,
+        pme1_0.is_admin,
+        pme1_0.created_at,
+        pme1_0.join_status,
+        pme1_0.project_id,
+        pme1_0.updated_at,
+        pme1_0.user_id 
+    from
+        project_members pme1_0 
+    where
+        pme1_0.project_id=?
+2026-03-04 00:02:51 [http-nio-8080-exec-1] DEBUG org.hibernate.SQL - 
+    select
+        pce1_0.id,
+        pce1_0.amount,
+        pce1_0.created_at,
+        pce1_0.currency,
+        pce1_0.note,
+        pce1_0.project_id,
+        pce1_0.user_id 
+    from
+        project_contributions pce1_0 
+    where
+        pce1_0.project_id=? 
+    order by
+        pce1_0.created_at desc
+2026-03-04 00:02:51 [http-nio-8080-exec-1] DEBUG org.hibernate.SQL - 
+    select
+        pme1_0.id,
+        pme1_0.is_admin,
+        pme1_0.created_at,
+        pme1_0.join_status,
+        pme1_0.project_id,
+        pme1_0.updated_at,
+        pme1_0.user_id 
+    from
+        project_members pme1_0 
+    where
+        pme1_0.project_id=?
+2026-03-04 00:02:51 [http-nio-8080-exec-1] DEBUG org.hibernate.SQL - 
+    select
+        pce1_0.id,
+        pce1_0.amount,
+        pce1_0.created_at,
+        pce1_0.currency,
+        pce1_0.note,
+        pce1_0.project_id,
+        pce1_0.user_id 
+    from
+        project_contributions pce1_0 
+    where
+        pce1_0.project_id=? 
+    order by
+        pce1_0.created_at desc
+2026-03-04 00:02:51 [http-nio-8080-exec-1] DEBUG org.hibernate.SQL - 
+    select
+        pce1_0.id,
+        pce1_0.amount,
+        pce1_0.created_at,
+        pce1_0.currency,
+        pce1_0.note,
+        pce1_0.project_id,
+        pce1_0.user_id 
+    from
+        project_contributions pce1_0 
+    where
+        pce1_0.id=?
+2026-03-04 00:02:51 [http-nio-8080-exec-1] DEBUG org.hibernate.SQL - 
+    insert 
+    into
+        project_contributions
+        (amount, created_at, currency, note, project_id, user_id, id) 
+    values
+        (?, ?, ?, ?, ?, ?, ?)
+2026-03-04 00:02:51 [http-nio-8080-exec-1] DEBUG org.hibernate.SQL - 
+    update
+        projects 
+    set
+        created_at=?,
+        currency=?,
+        deadline=?,
+        description=?,
+        name=?,
+        owner_id=?,
+        target_amount=?,
+        type=?,
+        updated_at=? 
+    where
+        id=?
+2026-03-04 00:02:51 [http-nio-8080-exec-1] DEBUG org.hibernate.SQL - 
+    update
+        project_members 
+    set
+        is_admin=?,
+        created_at=?,
+        join_status=?,
+        project_id=?,
+        updated_at=?,
+        user_id=? 
+    where
+        id=?
+2026-03-04 00:02:51 [http-nio-8080-exec-1] DEBUG org.hibernate.SQL - 
+    update
+        project_contributions 
+    set
+        amount=?,
+        created_at=?,
+        currency=?,
+        note=?,
+        project_id=?,
+        user_id=? 
+    where
+        id=?
+2026-03-04 00:02:51 [http-nio-8080-exec-1] DEBUG org.hibernate.SQL - 
+    select
+        pme1_0.id,
+        pme1_0.is_admin,
+        pme1_0.created_at,
+        pme1_0.join_status,
+        pme1_0.project_id,
+        pme1_0.updated_at,
+        pme1_0.user_id 
+    from
+        project_members pme1_0 
+    where
+        pme1_0.project_id=?
+2026-03-04 00:02:51 [http-nio-8080-exec-1] DEBUG org.hibernate.SQL - 
+    select
+        pce1_0.id,
+        pce1_0.amount,
+        pce1_0.created_at,
+        pce1_0.currency,
+        pce1_0.note,
+        pce1_0.project_id,
+        pce1_0.user_id 
+    from
+        project_contributions pce1_0 
+    where
+        pce1_0.project_id=? 
+    order by
+        pce1_0.created_at desc
+2026-03-04 00:02:59 [http-nio-8080-exec-2] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.full_name,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-03-04 00:02:59 [http-nio-8080-exec-2] DEBUG c.e.s.i.s.AuthenticationFilter - Authenticated user ID: d75d03d0-dff6-4d1d-9c5d-1aa01acdd845
+2026-03-04 00:02:59 [http-nio-8080-exec-2] DEBUG org.hibernate.SQL - 
+    select
+        pe1_0.id,
+        pe1_0.created_at,
+        pe1_0.currency,
+        pe1_0.deadline,
+        pe1_0.description,
+        pe1_0.name,
+        pe1_0.owner_id,
+        pe1_0.target_amount,
+        pe1_0.type,
+        pe1_0.updated_at 
+    from
+        projects pe1_0 
+    where
+        pe1_0.id=?
+2026-03-04 00:02:59 [http-nio-8080-exec-2] DEBUG org.hibernate.SQL - 
+    select
+        pme1_0.id,
+        pme1_0.is_admin,
+        pme1_0.created_at,
+        pme1_0.join_status,
+        pme1_0.project_id,
+        pme1_0.updated_at,
+        pme1_0.user_id 
+    from
+        project_members pme1_0 
+    where
+        pme1_0.project_id=?
+2026-03-04 00:02:59 [http-nio-8080-exec-2] DEBUG org.hibernate.SQL - 
+    select
+        pce1_0.id,
+        pce1_0.amount,
+        pce1_0.created_at,
+        pce1_0.currency,
+        pce1_0.note,
+        pce1_0.project_id,
+        pce1_0.user_id 
+    from
+        project_contributions pce1_0 
+    where
+        pce1_0.project_id=? 
+    order by
+        pce1_0.created_at desc
+2026-03-04 00:02:59 [http-nio-8080-exec-2] DEBUG org.hibernate.SQL - 
+    select
+        pme1_0.id,
+        pme1_0.is_admin,
+        pme1_0.created_at,
+        pme1_0.join_status,
+        pme1_0.project_id,
+        pme1_0.updated_at,
+        pme1_0.user_id 
+    from
+        project_members pme1_0 
+    where
+        pme1_0.project_id=?
+2026-03-04 00:02:59 [http-nio-8080-exec-2] DEBUG org.hibernate.SQL - 
+    select
+        pce1_0.id,
+        pce1_0.amount,
+        pce1_0.created_at,
+        pce1_0.currency,
+        pce1_0.note,
+        pce1_0.project_id,
+        pce1_0.user_id 
+    from
+        project_contributions pce1_0 
+    where
+        pce1_0.project_id=? 
+    order by
+        pce1_0.created_at desc
+2026-03-04 00:02:59 [http-nio-8080-exec-2] DEBUG org.hibernate.SQL - 
+    select
+        pce1_0.id,
+        pce1_0.amount,
+        pce1_0.created_at,
+        pce1_0.currency,
+        pce1_0.note,
+        pce1_0.project_id,
+        pce1_0.user_id 
+    from
+        project_contributions pce1_0 
+    where
+        pce1_0.id=?
+2026-03-04 00:02:59 [http-nio-8080-exec-2] DEBUG org.hibernate.SQL - 
+    insert 
+    into
+        project_contributions
+        (amount, created_at, currency, note, project_id, user_id, id) 
+    values
+        (?, ?, ?, ?, ?, ?, ?)
+2026-03-04 00:02:59 [http-nio-8080-exec-2] DEBUG org.hibernate.SQL - 
+    update
+        projects 
+    set
+        created_at=?,
+        currency=?,
+        deadline=?,
+        description=?,
+        name=?,
+        owner_id=?,
+        target_amount=?,
+        type=?,
+        updated_at=? 
+    where
+        id=?
+2026-03-04 00:02:59 [http-nio-8080-exec-2] DEBUG org.hibernate.SQL - 
+    update
+        project_members 
+    set
+        is_admin=?,
+        created_at=?,
+        join_status=?,
+        project_id=?,
+        updated_at=?,
+        user_id=? 
+    where
+        id=?
+2026-03-04 00:03:00 [http-nio-8080-exec-2] DEBUG org.hibernate.SQL - 
+    select
+        pme1_0.id,
+        pme1_0.is_admin,
+        pme1_0.created_at,
+        pme1_0.join_status,
+        pme1_0.project_id,
+        pme1_0.updated_at,
+        pme1_0.user_id 
+    from
+        project_members pme1_0 
+    where
+        pme1_0.project_id=?
+2026-03-04 00:03:00 [http-nio-8080-exec-2] DEBUG org.hibernate.SQL - 
+    select
+        pce1_0.id,
+        pce1_0.amount,
+        pce1_0.created_at,
+        pce1_0.currency,
+        pce1_0.note,
+        pce1_0.project_id,
+        pce1_0.user_id 
+    from
+        project_contributions pce1_0 
+    where
+        pce1_0.project_id=? 
+    order by
+        pce1_0.created_at desc
+2026-03-04 00:05:26 [SpringApplicationShutdownHook] INFO  o.s.boot.tomcat.GracefulShutdown - Commencing graceful shutdown. Waiting for active requests to complete
+2026-03-04 00:05:26 [tomcat-shutdown] INFO  o.s.boot.tomcat.GracefulShutdown - Graceful shutdown complete
+2026-03-04 00:05:26 [SpringApplicationShutdownHook] INFO  o.s.o.j.LocalContainerEntityManagerFactoryBean - Closing JPA EntityManagerFactory for persistence unit 'default'
+2026-03-04 00:05:26 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown initiated...
+2026-03-04 00:05:26 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown completed.
+2026-03-04 00:05:34 [main] INFO  c.e.smartmoney.SmartmoneyApplication - Starting SmartmoneyApplication using Java 21.0.6 with PID 6832 (D:\HCMUS\DATN\Source\Smart-Expense-Management-System-API\target\classes started by NamTran in D:\HCMUS\DATN\Source\Smart-Expense-Management-System-API)
+2026-03-04 00:05:34 [main] DEBUG c.e.smartmoney.SmartmoneyApplication - Running with Spring Boot v4.0.1, Spring v7.0.2
+2026-03-04 00:05:34 [main] INFO  c.e.smartmoney.SmartmoneyApplication - No active profile set, falling back to 1 default profile: "default"
+2026-03-04 00:05:35 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-03-04 00:05:35 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 64 ms. Found 6 JPA repository interfaces.
+2026-03-04 00:05:36 [main] INFO  o.s.boot.tomcat.TomcatWebServer - Tomcat initialized with port 8080 (http)
+2026-03-04 00:05:36 [main] INFO  o.a.catalina.core.StandardService - Starting service [Tomcat]
+2026-03-04 00:05:36 [main] INFO  o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/11.0.15]
+2026-03-04 00:05:36 [main] INFO  o.s.b.w.c.s.WebApplicationContextInitializer - Root WebApplicationContext: initialization completed in 1594 ms
+2026-03-04 00:05:36 [main] INFO  org.hibernate.orm.jpa - HHH008540: Processing PersistenceUnitInfo [name: default]
+2026-03-04 00:05:36 [main] INFO  org.hibernate.orm.core - HHH000001: Hibernate ORM core version 7.2.0.Final
+2026-03-04 00:05:36 [main] INFO  o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-03-04 00:05:36 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
+2026-03-04 00:05:37 [main] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@3791af
+2026-03-04 00:05:37 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
+2026-03-04 00:05:37 [main] WARN  org.hibernate.orm.deprecation - HHH90000025: PostgreSQLDialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
+2026-03-04 00:05:37 [main] INFO  o.hibernate.orm.connections.pooling - HHH10001005: Database info:
+	Database JDBC URL [jdbc:postgresql://ep-royal-morning-a13nc72w-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require]
+	Database driver: PostgreSQL JDBC Driver
+	Database dialect: PostgreSQLDialect
+	Database version: 17.8
+	Default catalog/schema: neondb/public
+	Autocommit mode: undefined/unknown
+	Isolation level: READ_COMMITTED [default READ_COMMITTED]
+	JDBC fetch size: none
+	Pool: DataSourceConnectionProvider
+	Minimum pool size: undefined/unknown
+	Maximum pool size: undefined/unknown
+2026-03-04 00:05:38 [main] INFO  org.hibernate.orm.core - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-03-04 00:05:38 [main] INFO  org.hibernate.orm.jdbc.batch - HHH100501: Automatic JDBC statement batching enabled (maximum batch size 20)
+2026-03-04 00:05:39 [main] INFO  o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-03-04 00:05:39 [main] INFO  o.s.d.j.r.q.QueryEnhancerFactories - Hibernate is in classpath; If applicable, HQL parser will be used.
+2026-03-04 00:05:39 [main] INFO  c.e.s.i.security.JwtTokenProvider - JWT Token Provider initialized with secret length: 87
+2026-03-04 00:05:39 [main] DEBUG c.e.s.i.s.AuthenticationFilter - Filter 'authenticationFilter' configured for use
+2026-03-04 00:05:40 [main] INFO  c.e.s.i.mail.config.MailConfig - Initializing JavaMailSender...
+2026-03-04 00:05:40 [main] INFO  c.e.s.i.mail.config.MailProperties - Mail Configuration:
+2026-03-04 00:05:40 [main] INFO  c.e.s.i.mail.config.MailProperties -   Host: smtp.gmail.com
+2026-03-04 00:05:40 [main] INFO  c.e.s.i.mail.config.MailProperties -   Port: 587
+2026-03-04 00:05:40 [main] INFO  c.e.s.i.mail.config.MailProperties -   Username: nhbang22@clc.fitus.edu.vn
+2026-03-04 00:05:40 [main] INFO  c.e.s.i.mail.config.MailProperties -   Protocol: smtp
+2026-03-04 00:05:40 [main] INFO  c.e.s.i.mail.config.MailProperties -   SMTP Auth: true
+2026-03-04 00:05:40 [main] INFO  c.e.s.i.mail.config.MailProperties -   STARTTLS Enabled: true
+2026-03-04 00:05:40 [main] INFO  c.e.s.i.mail.config.MailProperties -   STARTTLS Required: false
+2026-03-04 00:05:40 [main] INFO  c.e.s.i.mail.config.MailConfig - JavaMailSender initialized successfully
+2026-03-04 00:05:40 [main] WARN  o.s.b.w.s.s.c.AnnotationConfigServletWebServerApplicationContext - Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'acceptProjectInviteUseCase' defined in file [D:\HCMUS\DATN\Source\Smart-Expense-Management-System-API\target\classes\com\example\smartmoney\application\usecases\project\AcceptProjectInviteUseCase.class]: Unsatisfied dependency expressed through constructor parameter 0: No qualifying bean of type 'com.example.smartmoney.domain.repositories.ProjectRepository' available: expected at least 1 bean which qualifies as autowire candidate. Dependency annotations: {}
+2026-03-04 00:05:40 [main] INFO  o.s.o.j.LocalContainerEntityManagerFactoryBean - Closing JPA EntityManagerFactory for persistence unit 'default'
+2026-03-04 00:05:40 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown initiated...
+2026-03-04 00:05:40 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown completed.
+2026-03-04 00:05:40 [main] INFO  o.a.catalina.core.StandardService - Stopping service [Tomcat]
+2026-03-04 00:05:40 [main] INFO  o.s.b.a.l.ConditionEvaluationReportLogger - 
+
+Error starting ApplicationContext. To display the condition evaluation report re-run your application with 'debug' enabled.
+2026-03-04 00:05:40 [main] ERROR o.s.b.d.LoggingFailureAnalysisReporter - 
+
+***************************
+APPLICATION FAILED TO START
+***************************
+
+Description:
+
+Parameter 0 of constructor in com.example.smartmoney.application.usecases.project.AcceptProjectInviteUseCase required a bean of type 'com.example.smartmoney.domain.repositories.ProjectRepository' that could not be found.
+
+
+Action:
+
+Consider defining a bean of type 'com.example.smartmoney.domain.repositories.ProjectRepository' in your configuration.
+
+2026-03-04 00:08:04 [main] INFO  c.e.smartmoney.SmartmoneyApplication - Starting SmartmoneyApplication using Java 21.0.6 with PID 9816 (D:\HCMUS\DATN\Source\Smart-Expense-Management-System-API\target\classes started by NamTran in D:\HCMUS\DATN\Source\Smart-Expense-Management-System-API)
+2026-03-04 00:08:04 [main] DEBUG c.e.smartmoney.SmartmoneyApplication - Running with Spring Boot v4.0.1, Spring v7.0.2
+2026-03-04 00:08:04 [main] INFO  c.e.smartmoney.SmartmoneyApplication - No active profile set, falling back to 1 default profile: "default"
+2026-03-04 00:08:05 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-03-04 00:08:05 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 63 ms. Found 6 JPA repository interfaces.
+2026-03-04 00:08:05 [main] INFO  o.s.boot.tomcat.TomcatWebServer - Tomcat initialized with port 8080 (http)
+2026-03-04 00:08:05 [main] INFO  o.a.catalina.core.StandardService - Starting service [Tomcat]
+2026-03-04 00:08:05 [main] INFO  o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/11.0.15]
+2026-03-04 00:08:06 [main] INFO  o.s.b.w.c.s.WebApplicationContextInitializer - Root WebApplicationContext: initialization completed in 1517 ms
+2026-03-04 00:08:06 [main] INFO  org.hibernate.orm.jpa - HHH008540: Processing PersistenceUnitInfo [name: default]
+2026-03-04 00:08:06 [main] INFO  org.hibernate.orm.core - HHH000001: Hibernate ORM core version 7.2.0.Final
+2026-03-04 00:08:06 [main] INFO  o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-03-04 00:08:06 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
+2026-03-04 00:08:07 [main] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@75adb1c0
+2026-03-04 00:08:07 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
+2026-03-04 00:08:07 [main] WARN  org.hibernate.orm.deprecation - HHH90000025: PostgreSQLDialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
+2026-03-04 00:08:07 [main] INFO  o.hibernate.orm.connections.pooling - HHH10001005: Database info:
+	Database JDBC URL [jdbc:postgresql://ep-royal-morning-a13nc72w-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require]
+	Database driver: PostgreSQL JDBC Driver
+	Database dialect: PostgreSQLDialect
+	Database version: 17.8
+	Default catalog/schema: neondb/public
+	Autocommit mode: undefined/unknown
+	Isolation level: READ_COMMITTED [default READ_COMMITTED]
+	JDBC fetch size: none
+	Pool: DataSourceConnectionProvider
+	Minimum pool size: undefined/unknown
+	Maximum pool size: undefined/unknown
+2026-03-04 00:08:08 [main] INFO  org.hibernate.orm.core - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-03-04 00:08:08 [main] INFO  org.hibernate.orm.jdbc.batch - HHH100501: Automatic JDBC statement batching enabled (maximum batch size 20)
+2026-03-04 00:08:09 [main] INFO  o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-03-04 00:08:09 [main] INFO  o.s.d.j.r.q.QueryEnhancerFactories - Hibernate is in classpath; If applicable, HQL parser will be used.
+2026-03-04 00:08:09 [main] INFO  c.e.s.i.security.JwtTokenProvider - JWT Token Provider initialized with secret length: 87
+2026-03-04 00:08:09 [main] DEBUG c.e.s.i.s.AuthenticationFilter - Filter 'authenticationFilter' configured for use
+2026-03-04 00:08:09 [main] INFO  c.e.s.i.mail.config.MailConfig - Initializing JavaMailSender...
+2026-03-04 00:08:09 [main] INFO  c.e.s.i.mail.config.MailProperties - Mail Configuration:
+2026-03-04 00:08:09 [main] INFO  c.e.s.i.mail.config.MailProperties -   Host: smtp.gmail.com
+2026-03-04 00:08:09 [main] INFO  c.e.s.i.mail.config.MailProperties -   Port: 587
+2026-03-04 00:08:09 [main] INFO  c.e.s.i.mail.config.MailProperties -   Username: nhbang22@clc.fitus.edu.vn
+2026-03-04 00:08:09 [main] INFO  c.e.s.i.mail.config.MailProperties -   Protocol: smtp
+2026-03-04 00:08:09 [main] INFO  c.e.s.i.mail.config.MailProperties -   SMTP Auth: true
+2026-03-04 00:08:09 [main] INFO  c.e.s.i.mail.config.MailProperties -   STARTTLS Enabled: true
+2026-03-04 00:08:09 [main] INFO  c.e.s.i.mail.config.MailProperties -   STARTTLS Required: false
+2026-03-04 00:08:09 [main] INFO  c.e.s.i.mail.config.MailConfig - JavaMailSender initialized successfully
+2026-03-04 00:08:10 [main] INFO  c.e.s.i.a.c.SupabaseJwtProperties - ✅ Supabase anonKey is configured for frontend authentication
+2026-03-04 00:08:10 [main] INFO  c.e.s.i.a.c.SupabaseJwtProperties - ✅ Supabase JWT_JWK is configured for ES256 token validation
+2026-03-04 00:08:10 [main] INFO  c.e.s.i.common.DotenvConfig - Environment variables loaded successfully
+2026-03-04 00:08:10 [main] INFO  c.e.s.a.u.auth.FacebookLoginUseCase - ✅ FacebookLoginUseCase initialized - Ready to validate external JWT tokens
+2026-03-04 00:08:10 [main] WARN  o.s.b.j.a.JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-03-04 00:08:10 [main] INFO  o.s.s.c.a.a.c.InitializeUserDetailsBeanManagerConfigurer$InitializeUserDetailsManagerConfigurer - Global AuthenticationManager configured with UserDetailsService bean with name jwtTokenProvider
+2026-03-04 00:08:11 [main] INFO  o.s.boot.tomcat.TomcatWebServer - Tomcat started on port 8080 (http) with context path '/'
+2026-03-04 00:08:11 [main] INFO  c.e.smartmoney.SmartmoneyApplication - Started SmartmoneyApplication in 7.132 seconds (process running for 7.601)
+2026-03-04 00:08:30 [http-nio-8080-exec-1] INFO  o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-03-04 00:08:30 [http-nio-8080-exec-1] INFO  o.s.web.servlet.DispatcherServlet - Initializing Servlet 'dispatcherServlet'
+2026-03-04 00:08:30 [http-nio-8080-exec-1] INFO  o.s.web.servlet.DispatcherServlet - Completed initialization in 2 ms
+2026-03-04 00:08:30 [http-nio-8080-exec-1] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.full_name,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-03-04 00:08:30 [http-nio-8080-exec-1] DEBUG c.e.s.i.s.AuthenticationFilter - Authenticated user ID: d75d03d0-dff6-4d1d-9c5d-1aa01acdd845
+2026-03-04 00:08:30 [http-nio-8080-exec-1] DEBUG org.hibernate.SQL - 
+    select
+        pe1_0.id,
+        pe1_0.created_at,
+        pe1_0.currency,
+        pe1_0.deadline,
+        pe1_0.description,
+        pe1_0.name,
+        pe1_0.owner_id,
+        pe1_0.target_amount,
+        pe1_0.type,
+        pe1_0.updated_at 
+    from
+        projects pe1_0 
+    where
+        pe1_0.id=?
+2026-03-04 00:08:30 [http-nio-8080-exec-1] DEBUG org.hibernate.SQL - 
+    select
+        pme1_0.id,
+        pme1_0.is_admin,
+        pme1_0.created_at,
+        pme1_0.join_status,
+        pme1_0.project_id,
+        pme1_0.updated_at,
+        pme1_0.user_id 
+    from
+        project_members pme1_0 
+    where
+        pme1_0.project_id=?
+2026-03-04 00:08:30 [http-nio-8080-exec-1] DEBUG org.hibernate.SQL - 
+    select
+        pce1_0.id,
+        pce1_0.amount,
+        pce1_0.created_at,
+        pce1_0.currency,
+        pce1_0.note,
+        pce1_0.project_id,
+        pce1_0.user_id 
+    from
+        project_contributions pce1_0 
+    where
+        pce1_0.project_id=? 
+    order by
+        pce1_0.created_at desc
+2026-03-04 00:08:30 [http-nio-8080-exec-1] DEBUG org.hibernate.SQL - 
+    select
+        pme1_0.id,
+        pme1_0.is_admin,
+        pme1_0.created_at,
+        pme1_0.join_status,
+        pme1_0.project_id,
+        pme1_0.updated_at,
+        pme1_0.user_id 
+    from
+        project_members pme1_0 
+    where
+        pme1_0.project_id=?
+2026-03-04 00:08:30 [http-nio-8080-exec-1] DEBUG org.hibernate.SQL - 
+    select
+        pce1_0.id,
+        pce1_0.amount,
+        pce1_0.created_at,
+        pce1_0.currency,
+        pce1_0.note,
+        pce1_0.project_id,
+        pce1_0.user_id 
+    from
+        project_contributions pce1_0 
+    where
+        pce1_0.project_id=? 
+    order by
+        pce1_0.created_at desc
+2026-03-04 00:08:31 [http-nio-8080-exec-1] DEBUG org.hibernate.SQL - 
+    select
+        pce1_0.id,
+        pce1_0.amount,
+        pce1_0.created_at,
+        pce1_0.currency,
+        pce1_0.note,
+        pce1_0.project_id,
+        pce1_0.user_id 
+    from
+        project_contributions pce1_0 
+    where
+        pce1_0.id=?
+2026-03-04 00:08:31 [http-nio-8080-exec-1] DEBUG org.hibernate.SQL - 
+    insert 
+    into
+        project_contributions
+        (amount, created_at, currency, note, project_id, user_id, id) 
+    values
+        (?, ?, ?, ?, ?, ?, ?)
+2026-03-04 00:08:31 [http-nio-8080-exec-1] DEBUG org.hibernate.SQL - 
+    update
+        projects 
+    set
+        created_at=?,
+        currency=?,
+        deadline=?,
+        description=?,
+        name=?,
+        owner_id=?,
+        target_amount=?,
+        type=?,
+        updated_at=? 
+    where
+        id=?
+2026-03-04 00:08:31 [http-nio-8080-exec-1] DEBUG org.hibernate.SQL - 
+    update
+        project_members 
+    set
+        is_admin=?,
+        created_at=?,
+        join_status=?,
+        project_id=?,
+        updated_at=?,
+        user_id=? 
+    where
+        id=?
+2026-03-04 00:08:31 [http-nio-8080-exec-1] DEBUG org.hibernate.SQL - 
+    select
+        pme1_0.id,
+        pme1_0.is_admin,
+        pme1_0.created_at,
+        pme1_0.join_status,
+        pme1_0.project_id,
+        pme1_0.updated_at,
+        pme1_0.user_id 
+    from
+        project_members pme1_0 
+    where
+        pme1_0.project_id=?
+2026-03-04 00:08:31 [http-nio-8080-exec-1] DEBUG org.hibernate.SQL - 
+    select
+        pce1_0.id,
+        pce1_0.amount,
+        pce1_0.created_at,
+        pce1_0.currency,
+        pce1_0.note,
+        pce1_0.project_id,
+        pce1_0.user_id 
+    from
+        project_contributions pce1_0 
+    where
+        pce1_0.project_id=? 
+    order by
+        pce1_0.created_at desc
+2026-03-04 00:08:46 [http-nio-8080-exec-4] INFO  c.e.s.p.controllers.AuthController - Login attempt for email: nguyenhanamtran1205@gmail.com
+2026-03-04 00:08:46 [http-nio-8080-exec-4] DEBUG org.hibernate.SQL - 
     select
         ue1_0.id,
         ue1_0.is_active,
@@ -191,33 +1129,11 @@
         users ue1_0 
     where
         ue1_0.email=?
-2026-03-03 09:22:32 [http-nio-8080-exec-1] DEBUG c.e.s.i.security.JwtTokenProvider - Generated refresh token for user ID: 51c068f0-9834-4102-8ba6-b52a2528dbef
-2026-03-03 09:22:32 [http-nio-8080-exec-1] DEBUG org.hibernate.SQL - 
-    update
-        users 
-    set
-        is_active=?,
-        avatar=?,
-        coin=?,
-        created_at=?,
-        date_of_birth=?,
-        email=?,
-        is_email_verified=?,
-        full_name=?,
-        password_hash=?,
-        phone=?,
-        rate=?,
-        refresh_token=?,
-        refresh_token_expiry=?,
-        role=?,
-        updated_at=?,
-        username=? 
-    where
-        id=?
-2026-03-03 09:22:32 [http-nio-8080-exec-1] INFO  c.e.s.p.controllers.AuthController - Google login successful for user
-2026-03-03 09:29:05 [http-nio-8080-exec-3] INFO  c.e.s.p.controllers.AuthController - User logged out successfully
-2026-03-03 09:35:35 [http-nio-8080-exec-4] INFO  c.e.s.p.controllers.AuthController - Google login attempt
-2026-03-03 09:35:35 [http-nio-8080-exec-4] DEBUG org.hibernate.SQL - 
+2026-03-04 00:08:46 [http-nio-8080-exec-4] DEBUG c.e.s.i.security.JwtTokenProvider - Generated refresh token for user ID: dbf48427-e4b2-4cd9-b0ce-d63caa62e742
+2026-03-04 00:08:46 [http-nio-8080-exec-4] INFO  c.e.s.p.controllers.AuthController - Login successful for email: nguyenhanamtran1205@gmail.com
+2026-03-04 00:09:07 [http-nio-8080-exec-3] DEBUG c.e.s.i.security.JwtTokenProvider - Invalid token: JWT strings must contain exactly 2 period characters. Found: 4
+2026-03-04 00:09:21 [http-nio-8080-exec-2] INFO  c.e.s.p.controllers.AuthController - Login attempt for email: nguyenhanamtran1205@gmail.com
+2026-03-04 00:09:21 [http-nio-8080-exec-2] DEBUG org.hibernate.SQL - 
     select
         ue1_0.id,
         ue1_0.is_active,
@@ -240,33 +1156,9 @@
         users ue1_0 
     where
         ue1_0.email=?
-2026-03-03 09:35:35 [http-nio-8080-exec-4] DEBUG c.e.s.i.security.JwtTokenProvider - Generated refresh token for user ID: 51c068f0-9834-4102-8ba6-b52a2528dbef
-2026-03-03 09:35:35 [http-nio-8080-exec-4] DEBUG org.hibernate.SQL - 
-    update
-        users 
-    set
-        is_active=?,
-        avatar=?,
-        coin=?,
-        created_at=?,
-        date_of_birth=?,
-        email=?,
-        is_email_verified=?,
-        full_name=?,
-        password_hash=?,
-        phone=?,
-        rate=?,
-        refresh_token=?,
-        refresh_token_expiry=?,
-        role=?,
-        updated_at=?,
-        username=? 
-    where
-        id=?
-2026-03-03 09:35:36 [http-nio-8080-exec-4] INFO  c.e.s.p.controllers.AuthController - Google login successful for user
-2026-03-03 09:35:56 [http-nio-8080-exec-6] INFO  c.e.s.p.controllers.AuthController - User logged out successfully
-2026-03-03 09:45:55 [http-nio-8080-exec-8] INFO  c.e.s.p.controllers.AuthController - Google login attempt
-2026-03-03 09:45:55 [http-nio-8080-exec-8] DEBUG org.hibernate.SQL - 
+2026-03-04 00:09:21 [http-nio-8080-exec-2] DEBUG c.e.s.i.security.JwtTokenProvider - Generated refresh token for user ID: dbf48427-e4b2-4cd9-b0ce-d63caa62e742
+2026-03-04 00:09:21 [http-nio-8080-exec-2] INFO  c.e.s.p.controllers.AuthController - Login successful for email: nguyenhanamtran1205@gmail.com
+2026-03-04 00:09:37 [http-nio-8080-exec-6] DEBUG org.hibernate.SQL - 
     select
         ue1_0.id,
         ue1_0.is_active,
@@ -288,34 +1180,53 @@
     from
         users ue1_0 
     where
-        ue1_0.email=?
-2026-03-03 09:45:55 [http-nio-8080-exec-8] DEBUG c.e.s.i.security.JwtTokenProvider - Generated refresh token for user ID: 51c068f0-9834-4102-8ba6-b52a2528dbef
-2026-03-03 09:45:55 [http-nio-8080-exec-8] DEBUG org.hibernate.SQL - 
-    update
-        users 
-    set
-        is_active=?,
-        avatar=?,
-        coin=?,
-        created_at=?,
-        date_of_birth=?,
-        email=?,
-        is_email_verified=?,
-        full_name=?,
-        password_hash=?,
-        phone=?,
-        rate=?,
-        refresh_token=?,
-        refresh_token_expiry=?,
-        role=?,
-        updated_at=?,
-        username=? 
+        ue1_0.id=?
+2026-03-04 00:09:37 [http-nio-8080-exec-6] DEBUG c.e.s.i.s.AuthenticationFilter - Authenticated user ID: dbf48427-e4b2-4cd9-b0ce-d63caa62e742
+2026-03-04 00:09:37 [http-nio-8080-exec-6] DEBUG org.hibernate.SQL - 
+    select
+        pe1_0.id,
+        pe1_0.created_at,
+        pe1_0.currency,
+        pe1_0.deadline,
+        pe1_0.description,
+        pe1_0.name,
+        pe1_0.owner_id,
+        pe1_0.target_amount,
+        pe1_0.type,
+        pe1_0.updated_at 
+    from
+        projects pe1_0 
     where
-        id=?
-2026-03-03 09:45:55 [http-nio-8080-exec-8] INFO  c.e.s.p.controllers.AuthController - Google login successful for user
-2026-03-03 09:46:04 [http-nio-8080-exec-7] INFO  c.e.s.p.controllers.AuthController - User logged out successfully
-2026-03-03 10:00:48 [http-nio-8080-exec-1] INFO  c.e.s.p.controllers.AuthController - Google login attempt
-2026-03-03 10:00:48 [http-nio-8080-exec-1] DEBUG org.hibernate.SQL - 
+        pe1_0.id=?
+2026-03-04 00:09:37 [http-nio-8080-exec-6] DEBUG org.hibernate.SQL - 
+    select
+        pme1_0.id,
+        pme1_0.is_admin,
+        pme1_0.created_at,
+        pme1_0.join_status,
+        pme1_0.project_id,
+        pme1_0.updated_at,
+        pme1_0.user_id 
+    from
+        project_members pme1_0 
+    where
+        pme1_0.project_id=?
+2026-03-04 00:09:37 [http-nio-8080-exec-6] DEBUG org.hibernate.SQL - 
+    select
+        pce1_0.id,
+        pce1_0.amount,
+        pce1_0.created_at,
+        pce1_0.currency,
+        pce1_0.note,
+        pce1_0.project_id,
+        pce1_0.user_id 
+    from
+        project_contributions pce1_0 
+    where
+        pce1_0.project_id=? 
+    order by
+        pce1_0.created_at desc
+2026-03-04 00:09:47 [http-nio-8080-exec-8] DEBUG org.hibernate.SQL - 
     select
         ue1_0.id,
         ue1_0.is_active,
@@ -337,34 +1248,53 @@
     from
         users ue1_0 
     where
-        ue1_0.email=?
-2026-03-03 10:00:49 [http-nio-8080-exec-1] DEBUG c.e.s.i.security.JwtTokenProvider - Generated refresh token for user ID: 51c068f0-9834-4102-8ba6-b52a2528dbef
-2026-03-03 10:00:49 [http-nio-8080-exec-1] DEBUG org.hibernate.SQL - 
-    update
-        users 
-    set
-        is_active=?,
-        avatar=?,
-        coin=?,
-        created_at=?,
-        date_of_birth=?,
-        email=?,
-        is_email_verified=?,
-        full_name=?,
-        password_hash=?,
-        phone=?,
-        rate=?,
-        refresh_token=?,
-        refresh_token_expiry=?,
-        role=?,
-        updated_at=?,
-        username=? 
+        ue1_0.id=?
+2026-03-04 00:09:47 [http-nio-8080-exec-8] DEBUG c.e.s.i.s.AuthenticationFilter - Authenticated user ID: dbf48427-e4b2-4cd9-b0ce-d63caa62e742
+2026-03-04 00:09:47 [http-nio-8080-exec-8] DEBUG org.hibernate.SQL - 
+    select
+        pe1_0.id,
+        pe1_0.created_at,
+        pe1_0.currency,
+        pe1_0.deadline,
+        pe1_0.description,
+        pe1_0.name,
+        pe1_0.owner_id,
+        pe1_0.target_amount,
+        pe1_0.type,
+        pe1_0.updated_at 
+    from
+        projects pe1_0 
     where
-        id=?
-2026-03-03 10:00:49 [http-nio-8080-exec-1] INFO  c.e.s.p.controllers.AuthController - Google login successful for user
-2026-03-03 10:01:00 [http-nio-8080-exec-2] INFO  c.e.s.p.controllers.AuthController - User logged out successfully
-2026-03-03 10:09:13 [http-nio-8080-exec-5] INFO  c.e.s.p.controllers.AuthController - Google login attempt
-2026-03-03 10:09:13 [http-nio-8080-exec-5] DEBUG org.hibernate.SQL - 
+        pe1_0.id=?
+2026-03-04 00:09:47 [http-nio-8080-exec-8] DEBUG org.hibernate.SQL - 
+    select
+        pme1_0.id,
+        pme1_0.is_admin,
+        pme1_0.created_at,
+        pme1_0.join_status,
+        pme1_0.project_id,
+        pme1_0.updated_at,
+        pme1_0.user_id 
+    from
+        project_members pme1_0 
+    where
+        pme1_0.project_id=?
+2026-03-04 00:09:47 [http-nio-8080-exec-8] DEBUG org.hibernate.SQL - 
+    select
+        pce1_0.id,
+        pce1_0.amount,
+        pce1_0.created_at,
+        pce1_0.currency,
+        pce1_0.note,
+        pce1_0.project_id,
+        pce1_0.user_id 
+    from
+        project_contributions pce1_0 
+    where
+        pce1_0.project_id=? 
+    order by
+        pce1_0.created_at desc
+2026-03-04 00:09:57 [http-nio-8080-exec-9] DEBUG org.hibernate.SQL - 
     select
         ue1_0.id,
         ue1_0.is_active,
@@ -386,34 +1316,156 @@
     from
         users ue1_0 
     where
-        ue1_0.email=?
-2026-03-03 10:09:13 [http-nio-8080-exec-5] DEBUG c.e.s.i.security.JwtTokenProvider - Generated refresh token for user ID: 51c068f0-9834-4102-8ba6-b52a2528dbef
-2026-03-03 10:09:13 [http-nio-8080-exec-5] DEBUG org.hibernate.SQL - 
+        ue1_0.id=?
+2026-03-04 00:09:57 [http-nio-8080-exec-9] DEBUG c.e.s.i.s.AuthenticationFilter - Authenticated user ID: dbf48427-e4b2-4cd9-b0ce-d63caa62e742
+2026-03-04 00:09:57 [http-nio-8080-exec-9] DEBUG org.hibernate.SQL - 
+    select
+        pe1_0.id,
+        pe1_0.created_at,
+        pe1_0.currency,
+        pe1_0.deadline,
+        pe1_0.description,
+        pe1_0.name,
+        pe1_0.owner_id,
+        pe1_0.target_amount,
+        pe1_0.type,
+        pe1_0.updated_at 
+    from
+        projects pe1_0 
+    where
+        pe1_0.id=?
+2026-03-04 00:09:57 [http-nio-8080-exec-9] DEBUG org.hibernate.SQL - 
+    select
+        pme1_0.id,
+        pme1_0.is_admin,
+        pme1_0.created_at,
+        pme1_0.join_status,
+        pme1_0.project_id,
+        pme1_0.updated_at,
+        pme1_0.user_id 
+    from
+        project_members pme1_0 
+    where
+        pme1_0.project_id=?
+2026-03-04 00:09:57 [http-nio-8080-exec-9] DEBUG org.hibernate.SQL - 
+    select
+        pce1_0.id,
+        pce1_0.amount,
+        pce1_0.created_at,
+        pce1_0.currency,
+        pce1_0.note,
+        pce1_0.project_id,
+        pce1_0.user_id 
+    from
+        project_contributions pce1_0 
+    where
+        pce1_0.project_id=? 
+    order by
+        pce1_0.created_at desc
+2026-03-04 00:09:57 [http-nio-8080-exec-9] DEBUG org.hibernate.SQL - 
+    select
+        pme1_0.id,
+        pme1_0.is_admin,
+        pme1_0.created_at,
+        pme1_0.join_status,
+        pme1_0.project_id,
+        pme1_0.updated_at,
+        pme1_0.user_id 
+    from
+        project_members pme1_0 
+    where
+        pme1_0.project_id=?
+2026-03-04 00:09:57 [http-nio-8080-exec-9] DEBUG org.hibernate.SQL - 
+    select
+        pce1_0.id,
+        pce1_0.amount,
+        pce1_0.created_at,
+        pce1_0.currency,
+        pce1_0.note,
+        pce1_0.project_id,
+        pce1_0.user_id 
+    from
+        project_contributions pce1_0 
+    where
+        pce1_0.project_id=? 
+    order by
+        pce1_0.created_at desc
+2026-03-04 00:09:57 [http-nio-8080-exec-9] DEBUG org.hibernate.SQL - 
+    select
+        pce1_0.id,
+        pce1_0.amount,
+        pce1_0.created_at,
+        pce1_0.currency,
+        pce1_0.note,
+        pce1_0.project_id,
+        pce1_0.user_id 
+    from
+        project_contributions pce1_0 
+    where
+        pce1_0.id=?
+2026-03-04 00:09:57 [http-nio-8080-exec-9] DEBUG org.hibernate.SQL - 
+    insert 
+    into
+        project_contributions
+        (amount, created_at, currency, note, project_id, user_id, id) 
+    values
+        (?, ?, ?, ?, ?, ?, ?)
+2026-03-04 00:09:57 [http-nio-8080-exec-9] DEBUG org.hibernate.SQL - 
     update
-        users 
+        projects 
     set
-        is_active=?,
-        avatar=?,
-        coin=?,
         created_at=?,
-        date_of_birth=?,
-        email=?,
-        is_email_verified=?,
-        full_name=?,
-        password_hash=?,
-        phone=?,
-        rate=?,
-        refresh_token=?,
-        refresh_token_expiry=?,
-        role=?,
-        updated_at=?,
-        username=? 
+        currency=?,
+        deadline=?,
+        description=?,
+        name=?,
+        owner_id=?,
+        target_amount=?,
+        type=?,
+        updated_at=? 
     where
         id=?
-2026-03-03 10:09:14 [http-nio-8080-exec-5] INFO  c.e.s.p.controllers.AuthController - Google login successful for user
-2026-03-03 10:09:45 [http-nio-8080-exec-4] INFO  c.e.s.p.controllers.AuthController - User logged out successfully
-2026-03-03 10:11:31 [http-nio-8080-exec-9] INFO  c.e.s.p.controllers.AuthController - Google login attempt
-2026-03-03 10:11:32 [http-nio-8080-exec-9] DEBUG org.hibernate.SQL - 
+2026-03-04 00:09:57 [http-nio-8080-exec-9] DEBUG org.hibernate.SQL - 
+    update
+        project_members 
+    set
+        is_admin=?,
+        created_at=?,
+        join_status=?,
+        project_id=?,
+        updated_at=?,
+        user_id=? 
+    where
+        id=?
+2026-03-04 00:09:57 [http-nio-8080-exec-9] DEBUG org.hibernate.SQL - 
+    select
+        pme1_0.id,
+        pme1_0.is_admin,
+        pme1_0.created_at,
+        pme1_0.join_status,
+        pme1_0.project_id,
+        pme1_0.updated_at,
+        pme1_0.user_id 
+    from
+        project_members pme1_0 
+    where
+        pme1_0.project_id=?
+2026-03-04 00:09:58 [http-nio-8080-exec-9] DEBUG org.hibernate.SQL - 
+    select
+        pce1_0.id,
+        pce1_0.amount,
+        pce1_0.created_at,
+        pce1_0.currency,
+        pce1_0.note,
+        pce1_0.project_id,
+        pce1_0.user_id 
+    from
+        project_contributions pce1_0 
+    where
+        pce1_0.project_id=? 
+    order by
+        pce1_0.created_at desc
+2026-03-04 00:10:25 [http-nio-8080-exec-5] DEBUG org.hibernate.SQL - 
     select
         ue1_0.id,
         ue1_0.is_active,
@@ -435,523 +1487,49 @@
     from
         users ue1_0 
     where
-        ue1_0.email=?
-2026-03-03 10:11:32 [http-nio-8080-exec-9] DEBUG c.e.s.i.security.JwtTokenProvider - Generated refresh token for user ID: 51c068f0-9834-4102-8ba6-b52a2528dbef
-2026-03-03 10:11:32 [http-nio-8080-exec-9] DEBUG org.hibernate.SQL - 
-    update
-        users 
-    set
-        is_active=?,
-        avatar=?,
-        coin=?,
-        created_at=?,
-        date_of_birth=?,
-        email=?,
-        is_email_verified=?,
-        full_name=?,
-        password_hash=?,
-        phone=?,
-        rate=?,
-        refresh_token=?,
-        refresh_token_expiry=?,
-        role=?,
-        updated_at=?,
-        username=? 
-    where
-        id=?
-2026-03-03 10:11:32 [http-nio-8080-exec-9] INFO  c.e.s.p.controllers.AuthController - Google login successful for user
-2026-03-03 10:11:53 [http-nio-8080-exec-7] INFO  c.e.s.p.controllers.AuthController - User logged out successfully
-2026-03-03 10:12:00 [http-nio-8080-exec-10] INFO  c.e.s.p.controllers.AuthController - Google login attempt
-2026-03-03 10:12:00 [http-nio-8080-exec-10] DEBUG org.hibernate.SQL - 
+        ue1_0.id=?
+2026-03-04 00:10:25 [http-nio-8080-exec-5] DEBUG c.e.s.i.s.AuthenticationFilter - Authenticated user ID: d75d03d0-dff6-4d1d-9c5d-1aa01acdd845
+2026-03-04 00:10:25 [http-nio-8080-exec-5] DEBUG org.hibernate.SQL - 
     select
-        ue1_0.id,
-        ue1_0.is_active,
-        ue1_0.avatar,
-        ue1_0.coin,
-        ue1_0.created_at,
-        ue1_0.date_of_birth,
-        ue1_0.email,
-        ue1_0.is_email_verified,
-        ue1_0.full_name,
-        ue1_0.password_hash,
-        ue1_0.phone,
-        ue1_0.rate,
-        ue1_0.refresh_token,
-        ue1_0.refresh_token_expiry,
-        ue1_0.role,
-        ue1_0.updated_at,
-        ue1_0.username 
+        pe1_0.id,
+        pe1_0.created_at,
+        pe1_0.currency,
+        pe1_0.deadline,
+        pe1_0.description,
+        pe1_0.name,
+        pe1_0.owner_id,
+        pe1_0.target_amount,
+        pe1_0.type,
+        pe1_0.updated_at 
     from
-        users ue1_0 
+        projects pe1_0 
     where
-        ue1_0.email=?
-2026-03-03 10:12:00 [http-nio-8080-exec-10] DEBUG c.e.s.i.security.JwtTokenProvider - Generated refresh token for user ID: 51c068f0-9834-4102-8ba6-b52a2528dbef
-2026-03-03 10:12:00 [http-nio-8080-exec-10] DEBUG org.hibernate.SQL - 
-    update
-        users 
-    set
-        is_active=?,
-        avatar=?,
-        coin=?,
-        created_at=?,
-        date_of_birth=?,
-        email=?,
-        is_email_verified=?,
-        full_name=?,
-        password_hash=?,
-        phone=?,
-        rate=?,
-        refresh_token=?,
-        refresh_token_expiry=?,
-        role=?,
-        updated_at=?,
-        username=? 
-    where
-        id=?
-2026-03-03 10:12:01 [http-nio-8080-exec-10] INFO  c.e.s.p.controllers.AuthController - Google login successful for user
-2026-03-03 10:16:51 [http-nio-8080-exec-2] INFO  c.e.s.p.controllers.AuthController - User logged out successfully
-2026-03-03 10:23:44 [http-nio-8080-exec-5] INFO  c.e.s.p.controllers.AuthController - Google login attempt
-2026-03-03 10:23:45 [http-nio-8080-exec-5] DEBUG org.hibernate.SQL - 
+        pe1_0.id=?
+2026-03-04 00:10:25 [http-nio-8080-exec-5] DEBUG org.hibernate.SQL - 
     select
-        ue1_0.id,
-        ue1_0.is_active,
-        ue1_0.avatar,
-        ue1_0.coin,
-        ue1_0.created_at,
-        ue1_0.date_of_birth,
-        ue1_0.email,
-        ue1_0.is_email_verified,
-        ue1_0.full_name,
-        ue1_0.password_hash,
-        ue1_0.phone,
-        ue1_0.rate,
-        ue1_0.refresh_token,
-        ue1_0.refresh_token_expiry,
-        ue1_0.role,
-        ue1_0.updated_at,
-        ue1_0.username 
+        pme1_0.id,
+        pme1_0.is_admin,
+        pme1_0.created_at,
+        pme1_0.join_status,
+        pme1_0.project_id,
+        pme1_0.updated_at,
+        pme1_0.user_id 
     from
-        users ue1_0 
+        project_members pme1_0 
     where
-        ue1_0.email=?
-2026-03-03 10:23:45 [http-nio-8080-exec-5] DEBUG c.e.s.i.security.JwtTokenProvider - Generated refresh token for user ID: 51c068f0-9834-4102-8ba6-b52a2528dbef
-2026-03-03 10:23:45 [http-nio-8080-exec-5] DEBUG org.hibernate.SQL - 
-    update
-        users 
-    set
-        is_active=?,
-        avatar=?,
-        coin=?,
-        created_at=?,
-        date_of_birth=?,
-        email=?,
-        is_email_verified=?,
-        full_name=?,
-        password_hash=?,
-        phone=?,
-        rate=?,
-        refresh_token=?,
-        refresh_token_expiry=?,
-        role=?,
-        updated_at=?,
-        username=? 
-    where
-        id=?
-2026-03-03 10:23:45 [http-nio-8080-exec-5] INFO  c.e.s.p.controllers.AuthController - Google login successful for user
-2026-03-03 10:26:13 [http-nio-8080-exec-6] INFO  c.e.s.p.controllers.AuthController - User logged out successfully
-2026-03-03 10:27:01 [http-nio-8080-exec-9] INFO  c.e.s.p.controllers.AuthController - Google login attempt
-2026-03-03 10:27:02 [http-nio-8080-exec-9] DEBUG org.hibernate.SQL - 
+        pme1_0.project_id=?
+2026-03-04 00:10:25 [http-nio-8080-exec-5] DEBUG org.hibernate.SQL - 
     select
-        ue1_0.id,
-        ue1_0.is_active,
-        ue1_0.avatar,
-        ue1_0.coin,
-        ue1_0.created_at,
-        ue1_0.date_of_birth,
-        ue1_0.email,
-        ue1_0.is_email_verified,
-        ue1_0.full_name,
-        ue1_0.password_hash,
-        ue1_0.phone,
-        ue1_0.rate,
-        ue1_0.refresh_token,
-        ue1_0.refresh_token_expiry,
-        ue1_0.role,
-        ue1_0.updated_at,
-        ue1_0.username 
+        pce1_0.id,
+        pce1_0.amount,
+        pce1_0.created_at,
+        pce1_0.currency,
+        pce1_0.note,
+        pce1_0.project_id,
+        pce1_0.user_id 
     from
-        users ue1_0 
+        project_contributions pce1_0 
     where
-        ue1_0.email=?
-2026-03-03 10:27:02 [http-nio-8080-exec-9] DEBUG c.e.s.i.security.JwtTokenProvider - Generated refresh token for user ID: 51c068f0-9834-4102-8ba6-b52a2528dbef
-2026-03-03 10:27:02 [http-nio-8080-exec-9] DEBUG org.hibernate.SQL - 
-    update
-        users 
-    set
-        is_active=?,
-        avatar=?,
-        coin=?,
-        created_at=?,
-        date_of_birth=?,
-        email=?,
-        is_email_verified=?,
-        full_name=?,
-        password_hash=?,
-        phone=?,
-        rate=?,
-        refresh_token=?,
-        refresh_token_expiry=?,
-        role=?,
-        updated_at=?,
-        username=? 
-    where
-        id=?
-2026-03-03 10:27:02 [http-nio-8080-exec-9] INFO  c.e.s.p.controllers.AuthController - Google login successful for user
-2026-03-03 10:33:11 [http-nio-8080-exec-7] INFO  c.e.s.p.controllers.AuthController - Google login attempt
-2026-03-03 10:33:11 [http-nio-8080-exec-7] DEBUG org.hibernate.SQL - 
-    select
-        ue1_0.id,
-        ue1_0.is_active,
-        ue1_0.avatar,
-        ue1_0.coin,
-        ue1_0.created_at,
-        ue1_0.date_of_birth,
-        ue1_0.email,
-        ue1_0.is_email_verified,
-        ue1_0.full_name,
-        ue1_0.password_hash,
-        ue1_0.phone,
-        ue1_0.rate,
-        ue1_0.refresh_token,
-        ue1_0.refresh_token_expiry,
-        ue1_0.role,
-        ue1_0.updated_at,
-        ue1_0.username 
-    from
-        users ue1_0 
-    where
-        ue1_0.email=?
-2026-03-03 10:33:11 [http-nio-8080-exec-7] DEBUG c.e.s.i.security.JwtTokenProvider - Generated refresh token for user ID: 51c068f0-9834-4102-8ba6-b52a2528dbef
-2026-03-03 10:33:11 [http-nio-8080-exec-7] DEBUG org.hibernate.SQL - 
-    update
-        users 
-    set
-        is_active=?,
-        avatar=?,
-        coin=?,
-        created_at=?,
-        date_of_birth=?,
-        email=?,
-        is_email_verified=?,
-        full_name=?,
-        password_hash=?,
-        phone=?,
-        rate=?,
-        refresh_token=?,
-        refresh_token_expiry=?,
-        role=?,
-        updated_at=?,
-        username=? 
-    where
-        id=?
-2026-03-03 10:33:12 [http-nio-8080-exec-7] INFO  c.e.s.p.controllers.AuthController - Google login successful for user
-2026-03-03 10:33:45 [http-nio-8080-exec-10] INFO  c.e.s.p.controllers.AuthController - User logged out successfully
-2026-03-03 10:38:00 [http-nio-8080-exec-2] INFO  c.e.s.p.controllers.AuthController - Google login attempt
-2026-03-03 10:38:00 [http-nio-8080-exec-2] DEBUG org.hibernate.SQL - 
-    select
-        ue1_0.id,
-        ue1_0.is_active,
-        ue1_0.avatar,
-        ue1_0.coin,
-        ue1_0.created_at,
-        ue1_0.date_of_birth,
-        ue1_0.email,
-        ue1_0.is_email_verified,
-        ue1_0.full_name,
-        ue1_0.password_hash,
-        ue1_0.phone,
-        ue1_0.rate,
-        ue1_0.refresh_token,
-        ue1_0.refresh_token_expiry,
-        ue1_0.role,
-        ue1_0.updated_at,
-        ue1_0.username 
-    from
-        users ue1_0 
-    where
-        ue1_0.email=?
-2026-03-03 10:38:00 [http-nio-8080-exec-2] DEBUG c.e.s.i.security.JwtTokenProvider - Generated refresh token for user ID: 51c068f0-9834-4102-8ba6-b52a2528dbef
-2026-03-03 10:38:00 [http-nio-8080-exec-2] DEBUG org.hibernate.SQL - 
-    update
-        users 
-    set
-        is_active=?,
-        avatar=?,
-        coin=?,
-        created_at=?,
-        date_of_birth=?,
-        email=?,
-        is_email_verified=?,
-        full_name=?,
-        password_hash=?,
-        phone=?,
-        rate=?,
-        refresh_token=?,
-        refresh_token_expiry=?,
-        role=?,
-        updated_at=?,
-        username=? 
-    where
-        id=?
-2026-03-03 10:38:00 [http-nio-8080-exec-2] INFO  c.e.s.p.controllers.AuthController - Google login successful for user
-2026-03-03 10:38:08 [http-nio-8080-exec-3] INFO  c.e.s.p.controllers.AuthController - User logged out successfully
-2026-03-03 10:40:21 [http-nio-8080-exec-4] INFO  c.e.s.p.controllers.AuthController - Google login attempt
-2026-03-03 10:40:21 [http-nio-8080-exec-4] DEBUG org.hibernate.SQL - 
-    select
-        ue1_0.id,
-        ue1_0.is_active,
-        ue1_0.avatar,
-        ue1_0.coin,
-        ue1_0.created_at,
-        ue1_0.date_of_birth,
-        ue1_0.email,
-        ue1_0.is_email_verified,
-        ue1_0.full_name,
-        ue1_0.password_hash,
-        ue1_0.phone,
-        ue1_0.rate,
-        ue1_0.refresh_token,
-        ue1_0.refresh_token_expiry,
-        ue1_0.role,
-        ue1_0.updated_at,
-        ue1_0.username 
-    from
-        users ue1_0 
-    where
-        ue1_0.email=?
-2026-03-03 10:40:21 [http-nio-8080-exec-4] DEBUG c.e.s.i.security.JwtTokenProvider - Generated refresh token for user ID: 51c068f0-9834-4102-8ba6-b52a2528dbef
-2026-03-03 10:40:21 [http-nio-8080-exec-4] DEBUG org.hibernate.SQL - 
-    update
-        users 
-    set
-        is_active=?,
-        avatar=?,
-        coin=?,
-        created_at=?,
-        date_of_birth=?,
-        email=?,
-        is_email_verified=?,
-        full_name=?,
-        password_hash=?,
-        phone=?,
-        rate=?,
-        refresh_token=?,
-        refresh_token_expiry=?,
-        role=?,
-        updated_at=?,
-        username=? 
-    where
-        id=?
-2026-03-03 10:40:21 [http-nio-8080-exec-4] INFO  c.e.s.p.controllers.AuthController - Google login successful for user
-2026-03-03 10:40:30 [http-nio-8080-exec-6] INFO  c.e.s.p.controllers.AuthController - User logged out successfully
-2026-03-03 10:47:02 [http-nio-8080-exec-8] INFO  c.e.s.p.controllers.AuthController - Google login attempt
-2026-03-03 10:47:02 [http-nio-8080-exec-8] DEBUG org.hibernate.SQL - 
-    select
-        ue1_0.id,
-        ue1_0.is_active,
-        ue1_0.avatar,
-        ue1_0.coin,
-        ue1_0.created_at,
-        ue1_0.date_of_birth,
-        ue1_0.email,
-        ue1_0.is_email_verified,
-        ue1_0.full_name,
-        ue1_0.password_hash,
-        ue1_0.phone,
-        ue1_0.rate,
-        ue1_0.refresh_token,
-        ue1_0.refresh_token_expiry,
-        ue1_0.role,
-        ue1_0.updated_at,
-        ue1_0.username 
-    from
-        users ue1_0 
-    where
-        ue1_0.email=?
-2026-03-03 10:47:02 [http-nio-8080-exec-8] DEBUG c.e.s.i.security.JwtTokenProvider - Generated refresh token for user ID: 51c068f0-9834-4102-8ba6-b52a2528dbef
-2026-03-03 10:47:02 [http-nio-8080-exec-8] DEBUG org.hibernate.SQL - 
-    update
-        users 
-    set
-        is_active=?,
-        avatar=?,
-        coin=?,
-        created_at=?,
-        date_of_birth=?,
-        email=?,
-        is_email_verified=?,
-        full_name=?,
-        password_hash=?,
-        phone=?,
-        rate=?,
-        refresh_token=?,
-        refresh_token_expiry=?,
-        role=?,
-        updated_at=?,
-        username=? 
-    where
-        id=?
-2026-03-03 10:47:02 [http-nio-8080-exec-8] INFO  c.e.s.p.controllers.AuthController - Google login successful for user
-2026-03-03 10:47:11 [http-nio-8080-exec-7] INFO  c.e.s.p.controllers.AuthController - User logged out successfully
-2026-03-03 10:50:52 [http-nio-8080-exec-1] INFO  c.e.s.p.controllers.AuthController - Google login attempt
-2026-03-03 10:50:52 [http-nio-8080-exec-1] DEBUG org.hibernate.SQL - 
-    select
-        ue1_0.id,
-        ue1_0.is_active,
-        ue1_0.avatar,
-        ue1_0.coin,
-        ue1_0.created_at,
-        ue1_0.date_of_birth,
-        ue1_0.email,
-        ue1_0.is_email_verified,
-        ue1_0.full_name,
-        ue1_0.password_hash,
-        ue1_0.phone,
-        ue1_0.rate,
-        ue1_0.refresh_token,
-        ue1_0.refresh_token_expiry,
-        ue1_0.role,
-        ue1_0.updated_at,
-        ue1_0.username 
-    from
-        users ue1_0 
-    where
-        ue1_0.email=?
-2026-03-03 10:50:52 [http-nio-8080-exec-1] DEBUG c.e.s.i.security.JwtTokenProvider - Generated refresh token for user ID: 51c068f0-9834-4102-8ba6-b52a2528dbef
-2026-03-03 10:50:52 [http-nio-8080-exec-1] DEBUG org.hibernate.SQL - 
-    update
-        users 
-    set
-        is_active=?,
-        avatar=?,
-        coin=?,
-        created_at=?,
-        date_of_birth=?,
-        email=?,
-        is_email_verified=?,
-        full_name=?,
-        password_hash=?,
-        phone=?,
-        rate=?,
-        refresh_token=?,
-        refresh_token_expiry=?,
-        role=?,
-        updated_at=?,
-        username=? 
-    where
-        id=?
-2026-03-03 10:50:52 [http-nio-8080-exec-1] INFO  c.e.s.p.controllers.AuthController - Google login successful for user
-2026-03-03 10:50:59 [http-nio-8080-exec-2] INFO  c.e.s.p.controllers.AuthController - User logged out successfully
-2026-03-03 10:52:20 [http-nio-8080-exec-5] INFO  c.e.s.p.controllers.AuthController - Google login attempt
-2026-03-03 10:52:20 [http-nio-8080-exec-5] DEBUG org.hibernate.SQL - 
-    select
-        ue1_0.id,
-        ue1_0.is_active,
-        ue1_0.avatar,
-        ue1_0.coin,
-        ue1_0.created_at,
-        ue1_0.date_of_birth,
-        ue1_0.email,
-        ue1_0.is_email_verified,
-        ue1_0.full_name,
-        ue1_0.password_hash,
-        ue1_0.phone,
-        ue1_0.rate,
-        ue1_0.refresh_token,
-        ue1_0.refresh_token_expiry,
-        ue1_0.role,
-        ue1_0.updated_at,
-        ue1_0.username 
-    from
-        users ue1_0 
-    where
-        ue1_0.email=?
-2026-03-03 10:52:20 [http-nio-8080-exec-5] DEBUG c.e.s.i.security.JwtTokenProvider - Generated refresh token for user ID: 51c068f0-9834-4102-8ba6-b52a2528dbef
-2026-03-03 10:52:20 [http-nio-8080-exec-5] DEBUG org.hibernate.SQL - 
-    update
-        users 
-    set
-        is_active=?,
-        avatar=?,
-        coin=?,
-        created_at=?,
-        date_of_birth=?,
-        email=?,
-        is_email_verified=?,
-        full_name=?,
-        password_hash=?,
-        phone=?,
-        rate=?,
-        refresh_token=?,
-        refresh_token_expiry=?,
-        role=?,
-        updated_at=?,
-        username=? 
-    where
-        id=?
-2026-03-03 10:52:20 [http-nio-8080-exec-5] INFO  c.e.s.p.controllers.AuthController - Google login successful for user
-2026-03-03 10:52:26 [http-nio-8080-exec-4] INFO  c.e.s.p.controllers.AuthController - User logged out successfully
-2026-03-03 10:54:46 [http-nio-8080-exec-9] INFO  c.e.s.p.controllers.AuthController - Google login attempt
-2026-03-03 10:54:47 [http-nio-8080-exec-9] DEBUG org.hibernate.SQL - 
-    select
-        ue1_0.id,
-        ue1_0.is_active,
-        ue1_0.avatar,
-        ue1_0.coin,
-        ue1_0.created_at,
-        ue1_0.date_of_birth,
-        ue1_0.email,
-        ue1_0.is_email_verified,
-        ue1_0.full_name,
-        ue1_0.password_hash,
-        ue1_0.phone,
-        ue1_0.rate,
-        ue1_0.refresh_token,
-        ue1_0.refresh_token_expiry,
-        ue1_0.role,
-        ue1_0.updated_at,
-        ue1_0.username 
-    from
-        users ue1_0 
-    where
-        ue1_0.email=?
-2026-03-03 10:54:47 [http-nio-8080-exec-9] DEBUG c.e.s.i.security.JwtTokenProvider - Generated refresh token for user ID: 51c068f0-9834-4102-8ba6-b52a2528dbef
-2026-03-03 10:54:47 [http-nio-8080-exec-9] DEBUG org.hibernate.SQL - 
-    update
-        users 
-    set
-        is_active=?,
-        avatar=?,
-        coin=?,
-        created_at=?,
-        date_of_birth=?,
-        email=?,
-        is_email_verified=?,
-        full_name=?,
-        password_hash=?,
-        phone=?,
-        rate=?,
-        refresh_token=?,
-        refresh_token_expiry=?,
-        role=?,
-        updated_at=?,
-        username=? 
-    where
-        id=?
-2026-03-03 10:54:47 [http-nio-8080-exec-9] INFO  c.e.s.p.controllers.AuthController - Google login successful for user
-2026-03-03 10:54:57 [http-nio-8080-exec-8] INFO  c.e.s.p.controllers.AuthController - User logged out successfully
-2026-03-03 10:56:29 [SpringApplicationShutdownHook] INFO  o.s.boot.tomcat.GracefulShutdown - Commencing graceful shutdown. Waiting for active requests to complete
-2026-03-03 10:56:29 [tomcat-shutdown] INFO  o.s.boot.tomcat.GracefulShutdown - Graceful shutdown complete
-2026-03-03 10:56:29 [SpringApplicationShutdownHook] INFO  o.s.o.j.LocalContainerEntityManagerFactoryBean - Closing JPA EntityManagerFactory for persistence unit 'default'
-2026-03-03 10:56:29 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown initiated...
-2026-03-03 10:56:30 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown completed.
+        pce1_0.project_id=? 
+    order by
+        pce1_0.created_at desc

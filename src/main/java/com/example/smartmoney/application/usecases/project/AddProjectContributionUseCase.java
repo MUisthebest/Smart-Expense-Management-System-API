@@ -6,6 +6,7 @@ import com.example.smartmoney.domain.exceptions.ProjectErrorCode;
 import com.example.smartmoney.domain.exceptions.ProjectException;
 import com.example.smartmoney.domain.models.project.Project;
 import com.example.smartmoney.domain.models.project.ProjectContribution;
+import com.example.smartmoney.domain.models.project.valueobjects.Money;
 import com.example.smartmoney.domain.models.project.valueobjects.ProjectId;
 import com.example.smartmoney.domain.models.project.valueobjects.UserId;
 import com.example.smartmoney.domain.repositories.ProjectRepository;
@@ -25,10 +26,9 @@ public class AddProjectContributionUseCase {
                 .orElseThrow(() -> new ProjectException("Project not found", ProjectErrorCode.PROJECT_NOT_FOUND));
 
         ProjectContribution c = p.addContribution(
-                UserId.of(actorId),
-                req.getAmount(),
-                req.getContributionDate(),
-                req.getNote()
+            UserId.of(actorId),
+            req.getAmount(),
+            req.getNote()
         );
 
         projectRepository.save(p);

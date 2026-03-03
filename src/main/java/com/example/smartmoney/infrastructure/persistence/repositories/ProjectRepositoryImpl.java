@@ -20,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Repository
 @RequiredArgsConstructor
@@ -43,7 +44,7 @@ public class ProjectRepositoryImpl implements ProjectRepository {
         UUID projectId = id.value();
         List<ProjectMemberEntity> members = jpaProjectMemberRepository.findByProjectId(projectId);
         List<ProjectContributionEntity> contributions =
-                jpaProjectContributionRepository.findByProjectIdOrderByContributionDateDescCreatedAtDesc(projectId);
+                jpaProjectContributionRepository.findByProjectIdOrderByCreatedAtDesc(projectId);
 
         return Optional.of(projectPersistenceMapper.toDomain(peOpt.get(), members, contributions));
     }
@@ -71,7 +72,7 @@ public class ProjectRepositoryImpl implements ProjectRepository {
             UUID pid = p.getId();
             List<ProjectMemberEntity> members = jpaProjectMemberRepository.findByProjectId(pid);
             List<ProjectContributionEntity> contributions =
-                    jpaProjectContributionRepository.findByProjectIdOrderByContributionDateDescCreatedAtDesc(pid);
+                    jpaProjectContributionRepository.findByProjectIdOrderByCreatedAtDesc(pid);
 
             result.add(projectPersistenceMapper.toDomain(p, members, contributions));
         }
@@ -100,23 +101,8 @@ public class ProjectRepositoryImpl implements ProjectRepository {
 
         ProjectEntity saved = jpaProjectRepository.save(entity);
 
-        // MVP: replace-all collections (members/contributions)
-        jpaProjectMemberRepository.deleteByProjectId(saved.getId());
-        jpaProjectContributionRepository.deleteByProjectId(saved.getId());
-
-        if (!project.getMembers().isEmpty()) {
-            List<ProjectMemberEntity> memberEntities = project.getMembers().stream()
-                    .map(m -> projectMemberMapper.toEntity(m, saved.getId(), now))
-                    .toList();
-            jpaProjectMemberRepository.saveAll(memberEntities);
-        }
-
-        if (!project.getContributions().isEmpty()) {
-            List<ProjectContributionEntity> contributionEntities = project.getContributions().stream()
-                    .map(c -> projectContributionMapper.toEntity(c, saved.getId()))
-                    .toList();
-            jpaProjectContributionRepository.saveAll(contributionEntities);
-        }
+        syncMembers(project, saved.getId(), now);
+        syncContributions(project, saved.getId());
 
         return findById(new ProjectId(saved.getId()))
                 .orElseThrow(() -> new ProjectException("Project not found after save", ProjectErrorCode.PROJECT_NOT_FOUND));
@@ -129,6 +115,62 @@ public class ProjectRepositoryImpl implements ProjectRepository {
         jpaProjectContributionRepository.deleteByProjectId(projectId);
         jpaProjectMemberRepository.deleteByProjectId(projectId);
         jpaProjectRepository.deleteById(projectId);
+    }
+
+    private void syncMembers(Project project, UUID projectId, Instant now) {
+        List<ProjectMemberEntity> existing = jpaProjectMemberRepository.findByProjectId(projectId);
+        Map<UUID, ProjectMemberEntity> existingByUserId = existing.stream()
+            .collect(Collectors.toMap(ProjectMemberEntity::getUserId, member -> member));
+
+        Map<UUID, ProjectMemberEntity> incomingByUserId = new LinkedHashMap<>();
+        for (var member : project.getMembers()) {
+            ProjectMemberEntity mapped = projectMemberMapper.toEntity(member, projectId, now);
+            UUID userId = mapped.getUserId();
+
+            ProjectMemberEntity old = existingByUserId.get(userId);
+            if (old != null) {
+            mapped.setId(old.getId());
+            mapped.setCreatedAt(old.getCreatedAt());
+            }
+
+            incomingByUserId.put(userId, mapped);
+        }
+
+        Set<UUID> incomingUserIds = incomingByUserId.keySet();
+        List<UUID> toDelete = existing.stream()
+            .filter(existingMember -> !incomingUserIds.contains(existingMember.getUserId()))
+            .map(ProjectMemberEntity::getId)
+                .toList();
+
+        if (!toDelete.isEmpty()) {
+            jpaProjectMemberRepository.deleteAllById(toDelete);
+        }
+        if (!incomingByUserId.isEmpty()) {
+            jpaProjectMemberRepository.saveAll(incomingByUserId.values());
+        }
+    }
+
+    private void syncContributions(Project project, UUID projectId) {
+        List<ProjectContributionEntity> incoming = project.getContributions().stream()
+                .map(contribution -> projectContributionMapper.toEntity(contribution, projectId))
+                .toList();
+
+        Set<UUID> incomingIds = incoming.stream()
+                .map(ProjectContributionEntity::getId)
+                .collect(Collectors.toSet());
+
+        List<ProjectContributionEntity> existing = jpaProjectContributionRepository.findByProjectIdOrderByCreatedAtDesc(projectId);
+        List<UUID> toDelete = existing.stream()
+                .map(ProjectContributionEntity::getId)
+                .filter(existingId -> !incomingIds.contains(existingId))
+                .toList();
+
+        if (!toDelete.isEmpty()) {
+            jpaProjectContributionRepository.deleteAllById(toDelete);
+        }
+        if (!incoming.isEmpty()) {
+            jpaProjectContributionRepository.saveAll(incoming);
+        }
     }
 
 }
