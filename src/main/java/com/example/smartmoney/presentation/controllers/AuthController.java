@@ -84,10 +84,10 @@ public class AuthController {
             description = "Internal server error"
         )
     })
-    @PostMapping("/register")
+    @PostMapping(value = "/register", consumes = "multipart/form-data")
     public ResponseEntity<CheckResponse<Void>> register(
             @Parameter(description = "User registration data", required = true)
-            @Valid @RequestBody RegisterRequest request) {
+            @Valid @ModelAttribute  RegisterRequest request) {
         
         log.info("Register request for email: {}", request.getEmail());
         try {
@@ -480,11 +480,11 @@ public class AuthController {
         )
     })
 
-    @PutMapping("/me")
+    @PutMapping(value = "/me", consumes = "multipart/form-data")
     public ResponseEntity<CheckResponse<UserResponse>> updateUser(
             @Parameter(hidden = true) @CurrentUser UUID userId,
             @Parameter(description = "User update data", required = true)
-            @Valid @RequestBody UpdateUserRequest request) {
+            @Valid @ModelAttribute  UpdateUserRequest request) {
         
         log.info("Update user request for userId: {}", userId);
         

@@ -1,14 +1,15 @@
 package com.example.smartmoney.application.usecases.auth;
 
 import com.example.smartmoney.application.dtos.requests.auth.RegisterRequest;
+import com.example.smartmoney.application.ports.cloudinary.CloudinaryPort;
 import com.example.smartmoney.application.dtos.responses.UserResponse;
 import com.example.smartmoney.application.utils.OtpGenerator;
 import com.example.smartmoney.application.ports.mail.MailPort;
+import com.example.smartmoney.application.ports.otp.OtpCachePort;
 import com.example.smartmoney.domain.models.otp.OTP;
 import com.example.smartmoney.domain.models.otp.enums.Type;
 import com.example.smartmoney.domain.models.user.User;
 import com.example.smartmoney.domain.models.user.valueobjects.*;
-import com.example.smartmoney.domain.repositories.OTPRepository;
 import com.example.smartmoney.domain.repositories.UserRepository;
 import com.example.smartmoney.domain.exceptions.DomainException;
 import lombok.RequiredArgsConstructor;
@@ -16,6 +17,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.example.smartmoney.application.ports.auth.AuthPort;
+import java.util.Optional;
 
 @Slf4j
 @Service
@@ -23,7 +25,8 @@ import com.example.smartmoney.application.ports.auth.AuthPort;
 @Transactional
 public class RegisterUseCase {
     
-    private final OTPRepository otpRepository;
+    private final OtpCachePort otpCachePort;  
+    private final CloudinaryPort cloudinaryPort;
     private final UserRepository userRepository;
     private final MailPort mailPort;
     private final AuthPort authPort;
@@ -32,21 +35,41 @@ public class RegisterUseCase {
         // 1. Validate request
         validateRequest(request);
         
-        // 2. Check duplicates
-        checkDuplicates(request);
-        
-        // 3. Send Email verification (nếu có)
+        // 2. Xử lý email
         Email email = new Email(request.getEmail());
 
-                // check duplicate lần cuối (important)
-        if (userRepository.existsByEmail(email)) {
-            throw new DomainException("Email already registered");
+        // 3. Kiểm tra email duplicate
+        Optional<User> existingUserByEmail = userRepository.findByEmail(email);
+        if (existingUserByEmail.isPresent()) {
+            handleDuplicateUser(existingUserByEmail.get(), "Email");
         }
 
+        // 4. Kiểm tra username duplicate
+        Optional<User> existingUserByUsername = userRepository.findByUsername(request.getUsername());
+        if (existingUserByUsername.isPresent()) {
+            handleDuplicateUser(existingUserByUsername.get(), "Username");
+        }
+
+        // 5. Kiểm tra phone duplicate nếu có
+        if (request.getPhone() != null) {
+            Phone phone = new Phone(request.getPhone());
+            Optional<User> existingUserByPhone = userRepository.findByPhone(phone);
+            if (existingUserByPhone.isPresent()) {
+                handleDuplicateUser(existingUserByPhone.get(), "Phone number");
+            }
+        }
+
+        String avatarUrl = null;
+
+        if (request.getAvatar() != null && !request.getAvatar().isEmpty()) {
+            avatarUrl = cloudinaryPort.uploadAvatar(request.getAvatar());
+        }
+
+        // 6. Tạo user mới
         User user = User.create(
             request.getUsername(),
             request.getFullName(),
-            new Avatar(request.getAvatar()),
+            new Avatar(avatarUrl),
             new Password(authPort.encodePassword(request.getPassword())),
             request.getDateOfBirth() != null ? new DateOfBirth(request.getDateOfBirth()) : null,
             request.getPhone() != null ? new Phone(request.getPhone()) : null,
@@ -55,19 +78,25 @@ public class RegisterUseCase {
 
         User savedUser = userRepository.save(user);
 
-        String otp = OtpGenerator.generate(); // 6 số
-        OTP otpModel = OTP.builder()
-            .email(email)
-            .otp(otp)
-            .expiredAt(java.time.LocalDateTime.now().plusMinutes(10))
-            .verified(false)
-            .type(Type.VERIFY)
-            .build();
-        otpRepository.save(otpModel);
-        String subject = "SmartMoney - Email Verification";
-        String body = mailPort.generateVerificationEmail(email.getValue(), otp);
-        mailPort.sendHtmlMail(email.getValue(), subject, body);
-
+        // 7. Tạo và gửi OTP
+        try {
+            String otp = OtpGenerator.generate();
+            OTP otpModel = OTP.builder()
+                .email(email)
+                .otp(otp)
+                .expiredAt(java.time.LocalDateTime.now().plusMinutes(10))
+                .verified(false)
+                .type(Type.VERIFY)
+                .build();
+            otpCachePort.save(otpModel);
+            
+            String subject = "SmartMoney - Email Verification";
+            String body = mailPort.generateVerificationEmail(email.getValue(), otp);
+            mailPort.sendHtmlMail(email.getValue(), subject, body);
+        } catch (Exception e) {
+            log.error("Failed to save OTP to Redis for email: {}", email.getValue(), e);
+            throw new DomainException("Unable to generate verification code. Please try again later.");
+        }
         return mapToUserResponse(savedUser);
     }
     
@@ -75,44 +104,41 @@ public class RegisterUseCase {
         if (request == null) {
             throw new DomainException("Register request cannot be null");
         }
-        
-        // Các validation cơ bản
         if (request.getEmail() == null || request.getEmail().isBlank()) {
             throw new DomainException("Email is required");
         }
-        
         if (request.getPassword() == null || request.getPassword().isBlank()) {
             throw new DomainException("Password is required");
         }
-        
         if (request.getUsername() == null || request.getUsername().isBlank()) {
             throw new DomainException("Username is required");
         }
-        
-        // Password validation (có thể để trong Password value object)
         if (request.getPassword().length() < 6) {
             throw new DomainException("Password must be at least 6 characters");
         }
-
         if (request.getPassword().length() > 20) {
             throw new DomainException("Password must not exceed 20 characters");
         }
     }
     
-    private void checkDuplicates(RegisterRequest request) {
-        Email email = new Email(request.getEmail());
-        if (userRepository.existsByEmail(email)) {
-            throw new DomainException("Email already registered");
+    private void handleDuplicateUser(User existingUser, String fieldName) {
+        if (existingUser.isEmailVerified()) {
+            throw new DomainException(fieldName + " already registered");
+        }
+        userRepository.deleteByEmail(existingUser.getEmail());
+        
+        try {
+            otpCachePort.deleteByEmail(existingUser.getEmail());
+            if (existingUser.getAvatar() != null && existingUser.getAvatar().getUrl() != null) {
+                cloudinaryPort.deleteImage(existingUser.getAvatar().getUrl());
+            }
+            log.info("Deleted OTP for unverified user: {}", existingUser.getEmail().getValue());
+        } catch (Exception e) {
+            log.error("Failed to delete OTP for email {}: {}", existingUser.getEmail().getValue(), e.getMessage());
         }
         
-        if (userRepository.existsByUsername(request.getUsername())) {
-            throw new DomainException("Username already taken");
-        }
-        
-        Phone phone = new Phone(request.getPhone());
-        if (userRepository.existsByPhone(phone)) {
-            throw new DomainException("Phone number already registered");
-        }
+        log.info("Deleted unverified user with {}: {} due to duplicate registration", 
+                fieldName, existingUser.getEmail().getValue());
     }
 
     private UserResponse mapToUserResponse(User user) {
@@ -131,5 +157,4 @@ public class RegisterUseCase {
         response.setActive(user.isActive());
         return response;
     }
-    
 }
