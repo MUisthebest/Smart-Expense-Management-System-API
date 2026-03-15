@@ -1,7 +1,7 @@
 package com.example.smartmoney.application.ports.event;
+import com.example.smartmoney.application.dtos.requests.job.JobEvent;
+
 
 public interface EventPublisherPort {
-    void publishJobCreated(String jobId, String tokenId, Object payload);
-    void publishJobFailed(String jobId, String tokenId, Object payload);
-    void publishJobSuccess (String jobId, String tokenId, Object payload);
+    void publishJob(String jobId, JobEvent jobEvent);
 }

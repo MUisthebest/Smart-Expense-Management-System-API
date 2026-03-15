@@ -1,10 +1,11 @@
 package com.example.smartmoney.domain.repositories;
 
-import com.example.smartmoney.domain.models.queue.MessageRecord;
 import java.util.Optional;
 
+import com.example.smartmoney.domain.models.message.MessageRecord;
+
 public interface MessageRepository {
-    Optional<MessageRecord> findByPayloadHash(String payloadHash);
+    Optional<MessageRecord> findByTokenId(String tokenId);
 
     Optional<MessageRecord> findByJobId(String jobId);
 

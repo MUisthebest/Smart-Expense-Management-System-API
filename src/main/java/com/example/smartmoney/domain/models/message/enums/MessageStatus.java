@@ -1,4 +1,4 @@
-package com.example.smartmoney.domain.models.queue.enums;
+package com.example.smartmoney.domain.models.message.enums;
 
 public enum  MessageStatus {
     PENDING,

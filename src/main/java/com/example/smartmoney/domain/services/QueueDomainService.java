@@ -1,10 +1,10 @@
 package com.example.smartmoney.domain.services;
 
-import com.example.smartmoney.domain.models.queue.MessageRecord;
-import com.example.smartmoney.domain.models.queue.enums.MessageStatus;
-
 import java.time.Duration;
 import java.time.LocalDateTime;
+
+import com.example.smartmoney.domain.models.message.MessageRecord;
+import com.example.smartmoney.domain.models.message.enums.MessageStatus;
 
 public class QueueDomainService {
 
