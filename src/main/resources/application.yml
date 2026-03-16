@@ -129,6 +129,15 @@ app:
       - "DELETE"
       - "OPTIONS"
 
+  #kafka configuration
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+
+  data:
+    redis:
+        host: ${REDIS_HOST:localhost}
+        port: ${REDIS_PORT:6379}
+
 # Logging Configuration
 logging:
   level:
