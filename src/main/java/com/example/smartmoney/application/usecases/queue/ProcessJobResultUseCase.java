@@ -7,7 +7,7 @@ import com.example.smartmoney.domain.models.message.MessageRecord;
 import com.example.smartmoney.domain.models.message.enums.MessageStatus;
 import com.example.smartmoney.domain.repositories.MessageRepository;
 import com.example.smartmoney.application.dtos.responses.JobResponse;
-import com.example.smartmoney.domain.models.message.enums;
+import com.example.smartmoney.domain.models.message.enums.MessageStatus;
 
 
 
