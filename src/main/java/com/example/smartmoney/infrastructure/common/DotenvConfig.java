@@ -21,16 +21,7 @@ public class DotenvConfig {
             dotenv.entries().forEach(entry -> {
                 System.setProperty(entry.getKey(), entry.getValue());
             });
-            
-            // Log specific Facebook config for debugging
-            String fbSecret = System.getProperty("APP_FACEBOOK_APP_SECRET");
-            String fbId = System.getProperty("APP_FACEBOOK_APP_ID");
-            if (fbSecret != null && !fbSecret.isEmpty()) {
-                System.out.println("APP_FACEBOOK_APP_SECRET loaded from .env: " + fbSecret.substring(0, Math.min(10, fbSecret.length())) + "***");
-            }
-            if (fbId != null && !fbId.isEmpty()) {
-                System.out.println("APP_FACEBOOK_APP_ID loaded from .env: " + fbId);
-            }
+        
         } catch (Exception e) {
             System.err.println("Warning: Could not load .env file: " + e.getMessage());
         }
