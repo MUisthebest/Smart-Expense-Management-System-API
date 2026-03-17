@@ -1,16 +1,17 @@
 package com.example.smartmoney.domain.repositories;
 
-import com.example.smartmoney.domain.models.queue.MessageRecord;
 import java.util.Optional;
 
+import com.example.smartmoney.domain.models.message.MessageRecord;
+
 public interface MessageRepository {
-    Optional<MessageRecord> findByPayloadHash(String payloadHash);
+    Optional<MessageRecord<?>> findByTokenId(String tokenId);
 
-    Optional<MessageRecord> findByJobId(String jobId);
+    Optional<MessageRecord<?>> findByJobId(String jobId);
 
-    void save(MessageRecord record);
+    void save(MessageRecord<?> record);
 
-    void delete(MessageRecord record);
+    void delete(MessageRecord<?> record);
 
-    void update(MessageRecord record);
+    void update(MessageRecord<?> record);
 }

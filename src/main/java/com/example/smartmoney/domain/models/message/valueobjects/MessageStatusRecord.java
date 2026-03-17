@@ -1,5 +1,5 @@
-package com.example.smartmoney.domain.models.queue.valueobjects;
-import com.example.smartmoney.domain.models.queue.enums.MessageStatus;  
+package com.example.smartmoney.domain.models.message.valueobjects;
+import com.example.smartmoney.domain.models.message.enums.MessageStatus;
 
 /**
  * Initialize the essential fields for the MessageRecord class,
