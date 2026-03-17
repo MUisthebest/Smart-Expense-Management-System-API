@@ -27,7 +27,7 @@ public class SendResetPasswordOtpUseCase {
 
     public void execute(SendResetPasswordOtpRequest request) {
         Email email = new Email(request.getEmail());
-        
+
         // Check if user exists with this email
         if (!userRepository.existsByEmail(email)) {
             // For security reasons, don't reveal if email exists or not
@@ -41,12 +41,12 @@ public class SendResetPasswordOtpUseCase {
         // Generate new OTP
         String otp = OtpGenerator.generate(); // 6 số
         OTP otpModel = OTP.builder()
-            .email(email)
-            .otp(otp)
-            .expiredAt(java.time.LocalDateTime.now().plusMinutes(10))
-            .verified(false)
-            .type(Type.UPDATE)
-            .build();
+                .email(email)
+                .otp(otp)
+                .expiredAt(java.time.LocalDateTime.now().plusMinutes(10))
+                .verified(false)
+                .type(Type.UPDATE)
+                .build();
         otpRepository.save(otpModel);
         String subject = "SmartMoney - Email Verification";
         String body = mailPort.generateVerificationEmail(email.getValue(), otp);

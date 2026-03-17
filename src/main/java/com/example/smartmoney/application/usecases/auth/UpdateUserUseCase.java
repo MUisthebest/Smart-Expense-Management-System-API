@@ -12,6 +12,7 @@ import com.example.smartmoney.domain.exceptions.DomainException;
 import com.example.smartmoney.domain.repositories.UserRepository;
 import com.example.smartmoney.domain.models.user.User;
 import com.example.smartmoney.domain.models.user.valueobjects.*;
+import com.example.smartmoney.infrastructure.integration.cloudinary.CloudinaryService;
 
 @Slf4j
 @Service
@@ -20,12 +21,13 @@ import com.example.smartmoney.domain.models.user.valueobjects.*;
 public class UpdateUserUseCase {
 
     private final UserRepository userRepository;
+    private final CloudinaryService cloudinaryService;
 
     public UserResponse execute(UUID userId, UpdateUserRequest request) {
         log.info("Updating user with id: {}", userId);
 
         User user = userRepository.findById(userId)
-            .orElseThrow(() -> new DomainException("User not found"));
+                .orElseThrow(() -> new DomainException("User not found"));
 
         // Update user information
         if (request.getFullName() != null) {
@@ -33,8 +35,9 @@ public class UpdateUserUseCase {
         }
 
 
-        if (request.getAvatar() != null) {
-            user.setAvatar(new Avatar(request.getAvatar()));
+        if (request.getAvatar() != null && !request.getAvatar().isEmpty()) {
+            String avatarUrl = cloudinaryService.uploadAvatar(request.getAvatar());
+            user.setAvatar(new Avatar(avatarUrl));
         }
 
         if (request.getDateOfBirth() != null) {
@@ -65,8 +68,8 @@ public class UpdateUserUseCase {
         response.setUsername(user.getUsername());
         response.setFullName(user.getFullName());
         response.setAvatar(user.getAvatar() != null ? user.getAvatar().getUrl() : null);
-        response.setDateOfBirth(user.getDateOfBirth() != null ? 
-            user.getDateOfBirth().getFormattedValue() : null);
+        response.setDateOfBirth(user.getDateOfBirth() != null ?
+                user.getDateOfBirth().getFormattedValue() : null);
         response.setPhone(user.getPhone() != null ? user.getPhone().getValue() : null);
         response.setEmail(user.getEmail().getValue());
         response.setCoin(user.getCoin());

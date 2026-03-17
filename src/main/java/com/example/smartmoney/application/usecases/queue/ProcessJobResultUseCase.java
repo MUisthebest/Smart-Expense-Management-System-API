@@ -1,26 +1,22 @@
 package com.example.smartmoney.application.usecases.queue;
 
-import com.example.smartmoney.application.ports.event.EventPublisherPort;
 import com.example.smartmoney.application.ports.event.RedisJobCachePort;
 import com.example.smartmoney.application.ports.event.EventConsumerPort;
 import com.example.smartmoney.domain.models.message.MessageRecord;
 import com.example.smartmoney.domain.models.message.enums.MessageStatus;
 import com.example.smartmoney.domain.repositories.MessageRepository;
 import com.example.smartmoney.application.dtos.responses.JobResponse;
-import com.example.smartmoney.domain.models.message.enums;
 
 
 
 public class ProcessJobResultUseCase {
     private final MessageRepository messageRepository;
     private final RedisJobCachePort redisJobCachePort;
-    private final EventPublisherPort eventPublisherPort;
     private  final EventConsumerPort eventConsumerPort;
 
-    public ProcessJobResultUseCase(MessageRepository messageRepository, RedisJobCachePort redisJobCachePort, EventPublisherPort eventPublisherPort, EventConsumerPort eventConsumerPort) {
+    public ProcessJobResultUseCase(MessageRepository messageRepository, RedisJobCachePort redisJobCachePort,  EventConsumerPort eventConsumerPort) {
         this.messageRepository = messageRepository;
         this.redisJobCachePort = redisJobCachePort;
-        this.eventPublisherPort = eventPublisherPort;
         this.eventConsumerPort = eventConsumerPort;
     }
 

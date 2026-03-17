@@ -14,5 +14,5 @@ public interface RedisJobCachePort {
 
     Optional<JobResponse<?>> findResult(String jobId);
 
-    void deleteResult(String jobId);
+    void delete(String jobId);
 }

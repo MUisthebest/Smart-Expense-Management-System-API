@@ -55,7 +55,13 @@ spring:
     date-format: dd/MM/yyyy
     time-zone: Asia/Ho_Chi_Minh
     serialization-inclusion: NON_NULL
-  
+
+  # Redis Configuration
+  data:
+    redis:
+      url: ${REDIS_URI:redis://localhost:6379}
+      timeout: 10000ms
+        
   # Servlet Configuration
   servlet:
     multipart:
