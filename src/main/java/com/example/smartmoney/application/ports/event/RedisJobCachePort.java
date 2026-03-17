@@ -2,7 +2,7 @@ package com.example.smartmoney.application.ports.event;
 
 import java.util.List;
 import java.util.Optional;
-import com.example.smartmoney.application.dtos.responses.JobResponse;
+import com.example.smartmoney.application.dtos.responses.JobResponse;;
 
 public interface RedisJobCachePort {
 
@@ -10,9 +10,9 @@ public interface RedisJobCachePort {
 
     List<String> findJobsByUser(String tokenId);
 
-    void storeResult(String jobId, JobResponse<?> response);
+    void store(String jobId, JobResponse<?> jobEvent);
 
-    Optional<JobResponse<?>> findResult(String jobId);
+    Optional<JobResponse<?>> find(String jobId);
 
-    void deleteResult(String jobId);
+    void delete(String jobId);
 }

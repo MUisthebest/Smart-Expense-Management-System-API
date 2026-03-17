@@ -29,11 +29,14 @@ public class ProcessQueueRequestUseCase {
 
     public MessageRecord execute(Object payload, String tokenId) {
 
+        // ========================
+        // CHECK EXISTING JOB
+        // ========================
         List<String> jobIds = redisJobCachePort.findJobsByUser(tokenId);
 
         for (String jobId : jobIds) {
 
-            Optional<JobResponse<?>> responseOpt = redisJobCachePort.findResult(jobId);
+            Optional<JobResponse<?>> responseOpt = redisJobCachePort.find(jobId);
 
             if (responseOpt.isPresent()) {
 
@@ -45,19 +48,41 @@ public class ProcessQueueRequestUseCase {
             }
         }
 
+        // ========================
+        // CREATE RECORD
+        // ========================
         MessageRecord newRecord = new MessageRecord(payload, tokenId);
-
         messageRepository.save(newRecord);
 
-        redisJobCachePort.addJobForUser(tokenId, newRecord.getJobId());
+        String jobId = newRecord.getJobId();
 
+        // ========================
+        // STORE JOB IN REDIS (PROCESSING)
+        // ========================
+        JobResponse<Object> jobResponse = new JobResponse<>(
+                jobId,
+                tokenId,
+                null,
+                MessageStatus.PROCESSING
+        );
+
+        redisJobCachePort.store(jobId, jobResponse);
+
+        // ========================
+        // ADD JOB TO USER
+        // ========================
+        redisJobCachePort.addJobForUser(tokenId, jobId);
+
+        // ========================
+        // PUBLISH EVENT (KAFKA)
+        // ========================
         JobEvent event = new JobEvent(
-                newRecord.getJobId(),
+                jobId,
                 tokenId,
                 payload
         );
 
-        eventPublisherPort.publishJob(newRecord.getJobId(), event);
+        eventPublisherPort.publishJob(jobId, event);
 
         return newRecord;
     }

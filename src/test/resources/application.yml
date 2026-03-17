@@ -60,6 +60,18 @@ spring:
           starttls:
             enable: true
 
+
+  kafka:
+    bootstrap-servers: fake:1234
+    listener:
+      auto-startup: false
+
+  redis:
+    cache:
+      host: localhost
+      port: 6379
+
+
 # Application Configuration for Tests
 app:
   # JWT Configuration

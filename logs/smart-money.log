@@ -244,3 +244,485 @@ Caused by: java.net.UnknownHostException: ep-royal-morning-a13nc72w-pooler.ap-so
 2026-03-08 09:11:56 [SpringApplicationShutdownHook] INFO  o.s.o.j.LocalContainerEntityManagerFactoryBean - Closing JPA EntityManagerFactory for persistence unit 'default'
 2026-03-08 09:11:56 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown initiated...
 2026-03-08 09:11:56 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown completed.
+2026-03-17 22:38:51 [main] INFO  c.e.smartmoney.SmartmoneyApplication - Starting SmartmoneyApplication using Java 17.0.17 with PID 27972 (C:\Users\ASUS\Documents\GitHub\Smart-Expense-Management-System-API\target\classes started by ASUS in C:\Users\ASUS\Documents\GitHub\Smart-Expense-Management-System-API)
+2026-03-17 22:38:51 [main] DEBUG c.e.smartmoney.SmartmoneyApplication - Running with Spring Boot v4.0.1, Spring v7.0.2
+2026-03-17 22:38:51 [main] INFO  c.e.smartmoney.SmartmoneyApplication - No active profile set, falling back to 1 default profile: "default"
+2026-03-17 22:38:53 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Multiple Spring Data modules found, entering strict repository configuration mode
+2026-03-17 22:38:53 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-03-17 22:38:53 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 269 ms. Found 3 JPA repository interfaces.
+2026-03-17 22:38:54 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Multiple Spring Data modules found, entering strict repository configuration mode
+2026-03-17 22:38:54 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data Redis repositories in DEFAULT mode.
+2026-03-17 22:38:54 [main] INFO  o.s.d.r.c.RepositoryConfigurationExtensionSupport - Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.example.smartmoney.infrastructure.persistence.repositories.JpaOTPRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-03-17 22:38:54 [main] INFO  o.s.d.r.c.RepositoryConfigurationExtensionSupport - Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.example.smartmoney.infrastructure.persistence.repositories.JpaTransactionRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-03-17 22:38:54 [main] INFO  o.s.d.r.c.RepositoryConfigurationExtensionSupport - Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.example.smartmoney.infrastructure.persistence.repositories.JpaUserRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-03-17 22:38:54 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 42 ms. Found 0 Redis repository interfaces.
+2026-03-17 22:38:56 [main] INFO  o.s.boot.tomcat.TomcatWebServer - Tomcat initialized with port 8080 (http)
+2026-03-17 22:38:56 [main] INFO  o.a.catalina.core.StandardService - Starting service [Tomcat]
+2026-03-17 22:38:56 [main] INFO  o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/11.0.15]
+2026-03-17 22:38:56 [main] INFO  o.s.b.w.c.s.WebApplicationContextInitializer - Root WebApplicationContext: initialization completed in 4229 ms
+2026-03-17 22:38:56 [main] INFO  org.hibernate.orm.jpa - HHH008540: Processing PersistenceUnitInfo [name: default]
+2026-03-17 22:38:56 [main] INFO  org.hibernate.orm.core - HHH000001: Hibernate ORM core version 7.2.0.Final
+2026-03-17 22:38:57 [main] INFO  o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-03-17 22:38:57 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
+2026-03-17 22:38:58 [main] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@4511146f
+2026-03-17 22:38:58 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
+2026-03-17 22:38:59 [main] WARN  org.hibernate.orm.deprecation - HHH90000025: PostgreSQLDialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
+2026-03-17 22:38:59 [main] INFO  o.hibernate.orm.connections.pooling - HHH10001005: Database info:
+	Database JDBC URL [jdbc:postgresql://ep-royal-morning-a13nc72w-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require]
+	Database driver: PostgreSQL JDBC Driver
+	Database dialect: PostgreSQLDialect
+	Database version: 17.8
+	Default catalog/schema: neondb/public
+	Autocommit mode: undefined/unknown
+	Isolation level: READ_COMMITTED [default READ_COMMITTED]
+	JDBC fetch size: none
+	Pool: DataSourceConnectionProvider
+	Minimum pool size: undefined/unknown
+	Maximum pool size: undefined/unknown
+2026-03-17 22:39:00 [main] INFO  org.hibernate.orm.core - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-03-17 22:39:00 [main] INFO  org.hibernate.orm.jdbc.batch - HHH100501: Automatic JDBC statement batching enabled (maximum batch size 20)
+2026-03-17 22:39:01 [main] INFO  o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-03-17 22:39:01 [main] INFO  o.s.d.j.r.q.QueryEnhancerFactories - Hibernate is in classpath; If applicable, HQL parser will be used.
+2026-03-17 22:39:02 [main] INFO  c.e.s.i.security.JwtTokenProvider - JWT Token Provider initialized with secret length: 87
+2026-03-17 22:39:02 [main] DEBUG c.e.s.i.s.AuthenticationFilter - Filter 'authenticationFilter' configured for use
+2026-03-17 22:39:03 [main] INFO  c.e.s.i.mail.config.MailConfig - Initializing JavaMailSender...
+2026-03-17 22:39:03 [main] INFO  c.e.s.i.mail.config.MailProperties - Mail Configuration:
+2026-03-17 22:39:03 [main] INFO  c.e.s.i.mail.config.MailProperties -   Host: smtp.gmail.com
+2026-03-17 22:39:03 [main] INFO  c.e.s.i.mail.config.MailProperties -   Port: 587
+2026-03-17 22:39:03 [main] INFO  c.e.s.i.mail.config.MailProperties -   Username: nhbang22@clc.fitus.edu.vn
+2026-03-17 22:39:03 [main] INFO  c.e.s.i.mail.config.MailProperties -   Protocol: smtp
+2026-03-17 22:39:03 [main] INFO  c.e.s.i.mail.config.MailProperties -   SMTP Auth: true
+2026-03-17 22:39:03 [main] INFO  c.e.s.i.mail.config.MailProperties -   STARTTLS Enabled: true
+2026-03-17 22:39:03 [main] INFO  c.e.s.i.mail.config.MailProperties -   STARTTLS Required: false
+2026-03-17 22:39:03 [main] INFO  c.e.s.i.mail.config.MailConfig - JavaMailSender initialized successfully
+2026-03-17 22:39:03 [main] INFO  c.e.s.i.a.c.SupabaseJwtProperties - ✅ Supabase anonKey is configured for frontend authentication
+2026-03-17 22:39:03 [main] INFO  c.e.s.i.a.c.SupabaseJwtProperties - ✅ Supabase JWT_JWK is configured for ES256 token validation
+2026-03-17 22:39:03 [main] INFO  c.e.s.i.common.DotenvConfig - Environment variables loaded successfully
+2026-03-17 22:39:04 [main] INFO  c.e.s.a.u.auth.FacebookLoginUseCase - ✅ FacebookLoginUseCase initialized - Ready to validate external JWT tokens
+2026-03-17 22:39:04 [main] WARN  o.s.b.j.a.JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-03-17 22:39:05 [main] INFO  o.s.s.c.a.a.c.InitializeUserDetailsBeanManagerConfigurer$InitializeUserDetailsManagerConfigurer - Global AuthenticationManager configured with UserDetailsService bean with name jwtTokenProvider
+2026-03-17 22:39:06 [main] WARN  o.s.b.w.s.s.c.AnnotationConfigServletWebServerApplicationContext - Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.NoSuchBeanDefinitionException: No bean named 'kafkaListenerContainerFactory' available
+2026-03-17 22:39:07 [main] INFO  o.s.o.j.LocalContainerEntityManagerFactoryBean - Closing JPA EntityManagerFactory for persistence unit 'default'
+2026-03-17 22:39:07 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown initiated...
+2026-03-17 22:39:07 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown completed.
+2026-03-17 22:39:07 [main] INFO  o.a.catalina.core.StandardService - Stopping service [Tomcat]
+2026-03-17 22:39:07 [main] INFO  o.s.b.a.l.ConditionEvaluationReportLogger - 
+
+Error starting ApplicationContext. To display the condition evaluation report re-run your application with 'debug' enabled.
+2026-03-17 22:39:07 [main] ERROR o.s.b.d.LoggingFailureAnalysisReporter - 
+
+***************************
+APPLICATION FAILED TO START
+***************************
+
+Description:
+
+A component required a bean named 'kafkaListenerContainerFactory' that could not be found.
+
+
+Action:
+
+Consider defining a bean named 'kafkaListenerContainerFactory' in your configuration.
+
+2026-03-17 22:44:18 [main] INFO  c.e.smartmoney.SmartmoneyApplication - Starting SmartmoneyApplication using Java 17.0.17 with PID 24920 (C:\Users\ASUS\Documents\GitHub\Smart-Expense-Management-System-API\target\classes started by ASUS in C:\Users\ASUS\Documents\GitHub\Smart-Expense-Management-System-API)
+2026-03-17 22:44:18 [main] DEBUG c.e.smartmoney.SmartmoneyApplication - Running with Spring Boot v4.0.1, Spring v7.0.2
+2026-03-17 22:44:18 [main] INFO  c.e.smartmoney.SmartmoneyApplication - No active profile set, falling back to 1 default profile: "default"
+2026-03-17 22:44:19 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Multiple Spring Data modules found, entering strict repository configuration mode
+2026-03-17 22:44:19 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-03-17 22:44:20 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 275 ms. Found 3 JPA repository interfaces.
+2026-03-17 22:44:20 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Multiple Spring Data modules found, entering strict repository configuration mode
+2026-03-17 22:44:20 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data Redis repositories in DEFAULT mode.
+2026-03-17 22:44:20 [main] INFO  o.s.d.r.c.RepositoryConfigurationExtensionSupport - Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.example.smartmoney.infrastructure.persistence.repositories.JpaOTPRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-03-17 22:44:20 [main] INFO  o.s.d.r.c.RepositoryConfigurationExtensionSupport - Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.example.smartmoney.infrastructure.persistence.repositories.JpaTransactionRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-03-17 22:44:20 [main] INFO  o.s.d.r.c.RepositoryConfigurationExtensionSupport - Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.example.smartmoney.infrastructure.persistence.repositories.JpaUserRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-03-17 22:44:20 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 43 ms. Found 0 Redis repository interfaces.
+2026-03-17 22:44:22 [main] INFO  o.s.boot.tomcat.TomcatWebServer - Tomcat initialized with port 8080 (http)
+2026-03-17 22:44:22 [main] INFO  o.a.catalina.core.StandardService - Starting service [Tomcat]
+2026-03-17 22:44:22 [main] INFO  o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/11.0.15]
+2026-03-17 22:44:22 [main] INFO  o.s.b.w.c.s.WebApplicationContextInitializer - Root WebApplicationContext: initialization completed in 4154 ms
+2026-03-17 22:44:22 [main] INFO  org.hibernate.orm.jpa - HHH008540: Processing PersistenceUnitInfo [name: default]
+2026-03-17 22:44:23 [main] INFO  org.hibernate.orm.core - HHH000001: Hibernate ORM core version 7.2.0.Final
+2026-03-17 22:44:24 [main] INFO  o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-03-17 22:44:24 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
+2026-03-17 22:44:25 [main] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@452e2210
+2026-03-17 22:44:25 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
+2026-03-17 22:44:25 [main] WARN  org.hibernate.orm.deprecation - HHH90000025: PostgreSQLDialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
+2026-03-17 22:44:25 [main] INFO  o.hibernate.orm.connections.pooling - HHH10001005: Database info:
+	Database JDBC URL [jdbc:postgresql://ep-royal-morning-a13nc72w-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require]
+	Database driver: PostgreSQL JDBC Driver
+	Database dialect: PostgreSQLDialect
+	Database version: 17.8
+	Default catalog/schema: neondb/public
+	Autocommit mode: undefined/unknown
+	Isolation level: READ_COMMITTED [default READ_COMMITTED]
+	JDBC fetch size: none
+	Pool: DataSourceConnectionProvider
+	Minimum pool size: undefined/unknown
+	Maximum pool size: undefined/unknown
+2026-03-17 22:44:26 [main] INFO  org.hibernate.orm.core - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-03-17 22:44:26 [main] INFO  org.hibernate.orm.jdbc.batch - HHH100501: Automatic JDBC statement batching enabled (maximum batch size 20)
+2026-03-17 22:44:27 [main] INFO  o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-03-17 22:44:27 [main] INFO  o.s.d.j.r.q.QueryEnhancerFactories - Hibernate is in classpath; If applicable, HQL parser will be used.
+2026-03-17 22:44:28 [main] INFO  c.e.s.i.security.JwtTokenProvider - JWT Token Provider initialized with secret length: 87
+2026-03-17 22:44:28 [main] DEBUG c.e.s.i.s.AuthenticationFilter - Filter 'authenticationFilter' configured for use
+2026-03-17 22:44:29 [main] INFO  c.e.s.i.mail.config.MailConfig - Initializing JavaMailSender...
+2026-03-17 22:44:29 [main] INFO  c.e.s.i.mail.config.MailProperties - Mail Configuration:
+2026-03-17 22:44:29 [main] INFO  c.e.s.i.mail.config.MailProperties -   Host: smtp.gmail.com
+2026-03-17 22:44:29 [main] INFO  c.e.s.i.mail.config.MailProperties -   Port: 587
+2026-03-17 22:44:29 [main] INFO  c.e.s.i.mail.config.MailProperties -   Username: nhbang22@clc.fitus.edu.vn
+2026-03-17 22:44:29 [main] INFO  c.e.s.i.mail.config.MailProperties -   Protocol: smtp
+2026-03-17 22:44:29 [main] INFO  c.e.s.i.mail.config.MailProperties -   SMTP Auth: true
+2026-03-17 22:44:29 [main] INFO  c.e.s.i.mail.config.MailProperties -   STARTTLS Enabled: true
+2026-03-17 22:44:29 [main] INFO  c.e.s.i.mail.config.MailProperties -   STARTTLS Required: false
+2026-03-17 22:44:29 [main] INFO  c.e.s.i.mail.config.MailConfig - JavaMailSender initialized successfully
+2026-03-17 22:44:29 [main] INFO  c.e.s.i.a.c.SupabaseJwtProperties - ✅ Supabase anonKey is configured for frontend authentication
+2026-03-17 22:44:29 [main] INFO  c.e.s.i.a.c.SupabaseJwtProperties - ✅ Supabase JWT_JWK is configured for ES256 token validation
+2026-03-17 22:44:29 [main] INFO  c.e.s.i.common.DotenvConfig - Environment variables loaded successfully
+2026-03-17 22:44:30 [main] INFO  c.e.s.a.u.auth.FacebookLoginUseCase - ✅ FacebookLoginUseCase initialized - Ready to validate external JWT tokens
+2026-03-17 22:44:31 [main] WARN  o.s.b.j.a.JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-03-17 22:44:31 [main] INFO  o.s.s.c.a.a.c.InitializeUserDetailsBeanManagerConfigurer$InitializeUserDetailsManagerConfigurer - Global AuthenticationManager configured with UserDetailsService bean with name jwtTokenProvider
+2026-03-17 22:44:33 [main] INFO  o.s.boot.tomcat.TomcatWebServer - Tomcat started on port 8080 (http) with context path '/'
+2026-03-17 22:44:33 [main] INFO  o.a.k.common.config.AbstractConfig - ConsumerConfig values: 
+	allow.auto.create.topics = true
+	auto.commit.interval.ms = 5000
+	auto.offset.reset = latest
+	bootstrap.servers = [localhost:9092]
+	check.crcs = true
+	client.dns.lookup = use_all_dns_ips
+	client.id = consumer-smartmoney-groupid-1
+	client.rack = 
+	connections.max.idle.ms = 540000
+	default.api.timeout.ms = 60000
+	enable.auto.commit = false
+	enable.metrics.push = true
+	exclude.internal.topics = true
+	fetch.max.bytes = 52428800
+	fetch.max.wait.ms = 500
+	fetch.min.bytes = 1
+	group.id = smartmoney-groupid
+	group.instance.id = null
+	group.protocol = classic
+	group.remote.assignor = null
+	heartbeat.interval.ms = 3000
+	interceptor.classes = []
+	internal.leave.group.on.close = true
+	internal.throw.on.fetch.stable.offset.unsupported = false
+	isolation.level = read_uncommitted
+	key.deserializer = class org.apache.kafka.common.serialization.StringDeserializer
+	max.partition.fetch.bytes = 1048576
+	max.poll.interval.ms = 300000
+	max.poll.records = 500
+	metadata.max.age.ms = 300000
+	metadata.recovery.rebootstrap.trigger.ms = 300000
+	metadata.recovery.strategy = rebootstrap
+	metric.reporters = [org.apache.kafka.common.metrics.JmxReporter]
+	metrics.num.samples = 2
+	metrics.recording.level = INFO
+	metrics.sample.window.ms = 30000
+	partition.assignment.strategy = [class org.apache.kafka.clients.consumer.RangeAssignor, class org.apache.kafka.clients.consumer.CooperativeStickyAssignor]
+	receive.buffer.bytes = 65536
+	reconnect.backoff.max.ms = 1000
+	reconnect.backoff.ms = 50
+	request.timeout.ms = 30000
+	retry.backoff.max.ms = 1000
+	retry.backoff.ms = 100
+	sasl.client.callback.handler.class = null
+	sasl.jaas.config = null
+	sasl.kerberos.kinit.cmd = /usr/bin/kinit
+	sasl.kerberos.min.time.before.relogin = 60000
+	sasl.kerberos.service.name = null
+	sasl.kerberos.ticket.renew.jitter = 0.05
+	sasl.kerberos.ticket.renew.window.factor = 0.8
+	sasl.login.callback.handler.class = null
+	sasl.login.class = null
+	sasl.login.connect.timeout.ms = null
+	sasl.login.read.timeout.ms = null
+	sasl.login.refresh.buffer.seconds = 300
+	sasl.login.refresh.min.period.seconds = 60
+	sasl.login.refresh.window.factor = 0.8
+	sasl.login.refresh.window.jitter = 0.05
+	sasl.login.retry.backoff.max.ms = 10000
+	sasl.login.retry.backoff.ms = 100
+	sasl.mechanism = GSSAPI
+	sasl.oauthbearer.assertion.algorithm = RS256
+	sasl.oauthbearer.assertion.claim.aud = null
+	sasl.oauthbearer.assertion.claim.exp.seconds = 300
+	sasl.oauthbearer.assertion.claim.iss = null
+	sasl.oauthbearer.assertion.claim.jti.include = false
+	sasl.oauthbearer.assertion.claim.nbf.seconds = 60
+	sasl.oauthbearer.assertion.claim.sub = null
+	sasl.oauthbearer.assertion.file = null
+	sasl.oauthbearer.assertion.private.key.file = null
+	sasl.oauthbearer.assertion.private.key.passphrase = null
+	sasl.oauthbearer.assertion.template.file = null
+	sasl.oauthbearer.client.credentials.client.id = null
+	sasl.oauthbearer.client.credentials.client.secret = null
+	sasl.oauthbearer.clock.skew.seconds = 30
+	sasl.oauthbearer.expected.audience = null
+	sasl.oauthbearer.expected.issuer = null
+	sasl.oauthbearer.header.urlencode = false
+	sasl.oauthbearer.jwks.endpoint.refresh.ms = 3600000
+	sasl.oauthbearer.jwks.endpoint.retry.backoff.max.ms = 10000
+	sasl.oauthbearer.jwks.endpoint.retry.backoff.ms = 100
+	sasl.oauthbearer.jwks.endpoint.url = null
+	sasl.oauthbearer.jwt.retriever.class = class org.apache.kafka.common.security.oauthbearer.DefaultJwtRetriever
+	sasl.oauthbearer.jwt.validator.class = class org.apache.kafka.common.security.oauthbearer.DefaultJwtValidator
+	sasl.oauthbearer.scope = null
+	sasl.oauthbearer.scope.claim.name = scope
+	sasl.oauthbearer.sub.claim.name = sub
+	sasl.oauthbearer.token.endpoint.url = null
+	security.protocol = PLAINTEXT
+	security.providers = null
+	send.buffer.bytes = 131072
+	session.timeout.ms = 45000
+	share.acknowledgement.mode = implicit
+	socket.connection.setup.timeout.max.ms = 30000
+	socket.connection.setup.timeout.ms = 10000
+	ssl.cipher.suites = null
+	ssl.enabled.protocols = [TLSv1.2, TLSv1.3]
+	ssl.endpoint.identification.algorithm = https
+	ssl.engine.factory.class = null
+	ssl.key.password = null
+	ssl.keymanager.algorithm = SunX509
+	ssl.keystore.certificate.chain = null
+	ssl.keystore.key = null
+	ssl.keystore.location = null
+	ssl.keystore.password = null
+	ssl.keystore.type = JKS
+	ssl.protocol = TLSv1.3
+	ssl.provider = null
+	ssl.secure.random.implementation = null
+	ssl.trustmanager.algorithm = PKIX
+	ssl.truststore.certificates = null
+	ssl.truststore.location = null
+	ssl.truststore.password = null
+	ssl.truststore.type = JKS
+	value.deserializer = class org.springframework.kafka.support.serializer.JsonDeserializer
+
+2026-03-17 22:44:33 [main] INFO  o.a.k.c.t.i.KafkaMetricsCollector - initializing Kafka metrics collector
+2026-03-17 22:44:33 [main] INFO  o.a.kafka.common.utils.AppInfoParser - Kafka version: 4.1.1
+2026-03-17 22:44:33 [main] INFO  o.a.kafka.common.utils.AppInfoParser - Kafka commitId: be816b82d25370ce
+2026-03-17 22:44:33 [main] INFO  o.a.kafka.common.utils.AppInfoParser - Kafka startTimeMs: 1773762273561
+2026-03-17 22:44:33 [main] INFO  o.a.k.c.c.i.ClassicKafkaConsumer - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Subscribed to topic(s): ai-jobs-results
+2026-03-17 22:44:33 [main] INFO  c.e.smartmoney.SmartmoneyApplication - Started SmartmoneyApplication in 16.24 seconds (process running for 17.0)
+2026-03-17 22:44:34 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Node -1 disconnected.
+2026-03-17 22:44:34 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-03-17 22:44:34 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Bootstrap broker localhost:9092 (id: -1 rack: null isFenced: false) disconnected
+2026-03-17 22:44:34 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Node -1 disconnected.
+2026-03-17 22:44:34 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-03-17 22:44:34 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Bootstrap broker localhost:9092 (id: -1 rack: null isFenced: false) disconnected
+2026-03-17 22:44:34 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Node -1 disconnected.
+2026-03-17 22:44:34 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-03-17 22:44:34 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Bootstrap broker localhost:9092 (id: -1 rack: null isFenced: false) disconnected
+2026-03-17 22:44:34 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  org.apache.kafka.clients.Metadata - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Rebootstrapping with [localhost/127.0.0.1:9092]
+2026-03-17 22:44:34 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  org.apache.kafka.clients.Metadata - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Rebootstrapping with [localhost/127.0.0.1:9092]
+2026-03-17 22:44:34 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Node -1 disconnected.
+2026-03-17 22:44:34 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-03-17 22:44:34 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Bootstrap broker localhost:9092 (id: -1 rack: null isFenced: false) disconnected
+2026-03-17 22:44:35 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Node -1 disconnected.
+2026-03-17 22:44:35 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-03-17 22:44:35 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Bootstrap broker localhost:9092 (id: -1 rack: null isFenced: false) disconnected
+2026-03-17 22:44:35 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Node -1 disconnected.
+2026-03-17 22:44:35 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-03-17 22:44:35 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Bootstrap broker localhost:9092 (id: -1 rack: null isFenced: false) disconnected
+2026-03-17 22:44:36 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Node -1 disconnected.
+2026-03-17 22:44:36 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-03-17 22:44:36 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Bootstrap broker localhost:9092 (id: -1 rack: null isFenced: false) disconnected
+2026-03-17 22:44:37 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Node -1 disconnected.
+2026-03-17 22:44:37 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-03-17 22:44:37 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Bootstrap broker localhost:9092 (id: -1 rack: null isFenced: false) disconnected
+2026-03-17 22:44:38 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Node -1 disconnected.
+2026-03-17 22:44:38 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-03-17 22:44:38 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Bootstrap broker localhost:9092 (id: -1 rack: null isFenced: false) disconnected
+2026-03-17 22:44:39 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Node -1 disconnected.
+2026-03-17 22:44:39 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-03-17 22:44:39 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Bootstrap broker localhost:9092 (id: -1 rack: null isFenced: false) disconnected
+2026-03-17 22:44:39 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  org.apache.kafka.clients.Metadata - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Rebootstrapping with [localhost/127.0.0.1:9092]
+2026-03-17 22:44:39 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  org.apache.kafka.clients.Metadata - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Rebootstrapping with [localhost/127.0.0.1:9092]
+2026-03-17 22:44:40 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  org.apache.kafka.clients.Metadata - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Rebootstrapping with [localhost/127.0.0.1:9092]
+2026-03-17 22:44:40 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  org.apache.kafka.clients.Metadata - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Rebootstrapping with [localhost/127.0.0.1:9092]
+2026-03-17 22:44:40 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  org.apache.kafka.clients.Metadata - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Rebootstrapping with [localhost/127.0.0.1:9092]
+2026-03-17 22:44:40 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  org.apache.kafka.clients.Metadata - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Rebootstrapping with [localhost/127.0.0.1:9092]
+2026-03-17 22:44:41 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Node -1 disconnected.
+2026-03-17 22:44:41 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-03-17 22:44:41 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Bootstrap broker localhost:9092 (id: -1 rack: null isFenced: false) disconnected
+2026-03-17 22:44:42 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  org.apache.kafka.clients.Metadata - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Rebootstrapping with [localhost/127.0.0.1:9092]
+2026-03-17 22:44:43 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Node -1 disconnected.
+2026-03-17 22:44:43 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-03-17 22:44:43 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Bootstrap broker localhost:9092 (id: -1 rack: null isFenced: false) disconnected
+2026-03-17 22:44:44 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  org.apache.kafka.clients.Metadata - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Rebootstrapping with [localhost/127.0.0.1:9092]
+2026-03-17 22:44:44 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Node -1 disconnected.
+2026-03-17 22:44:44 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-03-17 22:44:44 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Bootstrap broker localhost:9092 (id: -1 rack: null isFenced: false) disconnected
+2026-03-17 22:44:45 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Node -1 disconnected.
+2026-03-17 22:44:45 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-03-17 22:44:45 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Bootstrap broker localhost:9092 (id: -1 rack: null isFenced: false) disconnected
+2026-03-17 22:44:45 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  org.apache.kafka.clients.Metadata - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Rebootstrapping with [localhost/127.0.0.1:9092]
+2026-03-17 22:44:45 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  org.apache.kafka.clients.Metadata - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Rebootstrapping with [localhost/127.0.0.1:9092]
+2026-03-17 22:44:45 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  org.apache.kafka.clients.Metadata - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Rebootstrapping with [localhost/127.0.0.1:9092]
+2026-03-17 22:44:46 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  org.apache.kafka.clients.Metadata - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Rebootstrapping with [localhost/127.0.0.1:9092]
+2026-03-17 22:44:46 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Node -1 disconnected.
+2026-03-17 22:44:46 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-03-17 22:44:46 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Bootstrap broker localhost:9092 (id: -1 rack: null isFenced: false) disconnected
+2026-03-17 22:44:47 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  org.apache.kafka.clients.Metadata - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Rebootstrapping with [localhost/127.0.0.1:9092]
+2026-03-17 22:44:47 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  org.apache.kafka.clients.Metadata - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Rebootstrapping with [localhost/127.0.0.1:9092]
+2026-03-17 22:44:48 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Node -1 disconnected.
+2026-03-17 22:44:48 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-03-17 22:44:48 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Bootstrap broker localhost:9092 (id: -1 rack: null isFenced: false) disconnected
+2026-03-17 22:44:49 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Node -1 disconnected.
+2026-03-17 22:44:49 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-03-17 22:44:49 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Bootstrap broker localhost:9092 (id: -1 rack: null isFenced: false) disconnected
+2026-03-17 22:44:50 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Node -1 disconnected.
+2026-03-17 22:44:50 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-03-17 22:44:50 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Bootstrap broker localhost:9092 (id: -1 rack: null isFenced: false) disconnected
+2026-03-17 22:44:51 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Node -1 disconnected.
+2026-03-17 22:44:51 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-03-17 22:44:51 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Bootstrap broker localhost:9092 (id: -1 rack: null isFenced: false) disconnected
+2026-03-17 22:44:51 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  org.apache.kafka.clients.Metadata - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Rebootstrapping with [localhost/127.0.0.1:9092]
+2026-03-17 22:44:51 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  org.apache.kafka.clients.Metadata - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Rebootstrapping with [localhost/127.0.0.1:9092]
+2026-03-17 22:44:51 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  org.apache.kafka.clients.Metadata - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Rebootstrapping with [localhost/127.0.0.1:9092]
+2026-03-17 22:44:51 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  org.apache.kafka.clients.Metadata - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Rebootstrapping with [localhost/127.0.0.1:9092]
+2026-03-17 22:44:52 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  org.apache.kafka.clients.Metadata - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Rebootstrapping with [localhost/127.0.0.1:9092]
+2026-03-17 22:44:52 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  org.apache.kafka.clients.Metadata - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Rebootstrapping with [localhost/127.0.0.1:9092]
+2026-03-17 22:44:53 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Node -1 disconnected.
+2026-03-17 22:44:53 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-03-17 22:44:53 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Bootstrap broker localhost:9092 (id: -1 rack: null isFenced: false) disconnected
+2026-03-17 22:44:54 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  org.apache.kafka.clients.Metadata - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Rebootstrapping with [localhost/127.0.0.1:9092]
+2026-03-17 22:44:54 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Node -1 disconnected.
+2026-03-17 22:44:54 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-03-17 22:44:54 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Bootstrap broker localhost:9092 (id: -1 rack: null isFenced: false) disconnected
+2026-03-17 22:44:55 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  org.apache.kafka.clients.Metadata - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Rebootstrapping with [localhost/127.0.0.1:9092]
+2026-03-17 22:44:55 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Node -1 disconnected.
+2026-03-17 22:44:55 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-03-17 22:44:55 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Bootstrap broker localhost:9092 (id: -1 rack: null isFenced: false) disconnected
+2026-03-17 22:44:55 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  org.apache.kafka.clients.Metadata - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Rebootstrapping with [localhost/127.0.0.1:9092]
+2026-03-17 22:44:55 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  org.apache.kafka.clients.Metadata - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Rebootstrapping with [localhost/127.0.0.1:9092]
+2026-03-17 22:44:56 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Node -1 disconnected.
+2026-03-17 22:44:56 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-03-17 22:44:56 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Bootstrap broker localhost:9092 (id: -1 rack: null isFenced: false) disconnected
+2026-03-17 22:44:57 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  org.apache.kafka.clients.Metadata - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Rebootstrapping with [localhost/127.0.0.1:9092]
+2026-03-17 22:44:58 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Node -1 disconnected.
+2026-03-17 22:44:58 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-03-17 22:44:58 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Bootstrap broker localhost:9092 (id: -1 rack: null isFenced: false) disconnected
+2026-03-17 22:44:59 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Node -1 disconnected.
+2026-03-17 22:44:59 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-03-17 22:44:59 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Bootstrap broker localhost:9092 (id: -1 rack: null isFenced: false) disconnected
+2026-03-17 22:44:59 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  org.apache.kafka.clients.Metadata - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Rebootstrapping with [localhost/127.0.0.1:9092]
+2026-03-17 22:44:59 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  org.apache.kafka.clients.Metadata - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Rebootstrapping with [localhost/127.0.0.1:9092]
+2026-03-17 22:44:59 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  org.apache.kafka.clients.Metadata - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Rebootstrapping with [localhost/127.0.0.1:9092]
+2026-03-17 22:44:59 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  org.apache.kafka.clients.Metadata - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Rebootstrapping with [localhost/127.0.0.1:9092]
+2026-03-17 22:44:59 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  org.apache.kafka.clients.Metadata - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Rebootstrapping with [localhost/127.0.0.1:9092]
+2026-03-17 22:44:59 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  org.apache.kafka.clients.Metadata - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Rebootstrapping with [localhost/127.0.0.1:9092]
+2026-03-17 22:45:00 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Node -1 disconnected.
+2026-03-17 22:45:00 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-03-17 22:45:00 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Bootstrap broker localhost:9092 (id: -1 rack: null isFenced: false) disconnected
+2026-03-17 22:45:01 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Node -1 disconnected.
+2026-03-17 22:45:01 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-03-17 22:45:01 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Bootstrap broker localhost:9092 (id: -1 rack: null isFenced: false) disconnected
+2026-03-17 22:45:01 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  org.apache.kafka.clients.Metadata - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Rebootstrapping with [localhost/127.0.0.1:9092]
+2026-03-17 22:45:01 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  org.apache.kafka.clients.Metadata - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Rebootstrapping with [localhost/127.0.0.1:9092]
+2026-03-17 22:45:02 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  org.apache.kafka.clients.Metadata - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Rebootstrapping with [localhost/127.0.0.1:9092]
+2026-03-17 22:45:02 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  org.apache.kafka.clients.Metadata - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Rebootstrapping with [localhost/127.0.0.1:9092]
+2026-03-17 22:45:03 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Node -1 disconnected.
+2026-03-17 22:45:03 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-03-17 22:45:03 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Bootstrap broker localhost:9092 (id: -1 rack: null isFenced: false) disconnected
+2026-03-17 22:45:04 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Node -1 disconnected.
+2026-03-17 22:45:04 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-03-17 22:45:04 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Bootstrap broker localhost:9092 (id: -1 rack: null isFenced: false) disconnected
+2026-03-17 22:45:04 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  org.apache.kafka.clients.Metadata - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Rebootstrapping with [localhost/127.0.0.1:9092]
+2026-03-17 22:45:04 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  org.apache.kafka.clients.Metadata - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Rebootstrapping with [localhost/127.0.0.1:9092]
+2026-03-17 22:45:04 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  org.apache.kafka.clients.Metadata - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Rebootstrapping with [localhost/127.0.0.1:9092]
+2026-03-17 22:45:04 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  org.apache.kafka.clients.Metadata - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Rebootstrapping with [localhost/127.0.0.1:9092]
+2026-03-17 22:45:05 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  org.apache.kafka.clients.Metadata - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Rebootstrapping with [localhost/127.0.0.1:9092]
+2026-03-17 22:45:05 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Node -1 disconnected.
+2026-03-17 22:45:05 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-03-17 22:45:05 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Bootstrap broker localhost:9092 (id: -1 rack: null isFenced: false) disconnected
+2026-03-17 22:45:06 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Node -1 disconnected.
+2026-03-17 22:45:06 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-03-17 22:45:06 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Bootstrap broker localhost:9092 (id: -1 rack: null isFenced: false) disconnected
+2026-03-17 22:45:06 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Node -1 disconnected.
+2026-03-17 22:45:06 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-03-17 22:45:06 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Bootstrap broker localhost:9092 (id: -1 rack: null isFenced: false) disconnected
+2026-03-17 22:45:07 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Node -1 disconnected.
+2026-03-17 22:45:07 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-03-17 22:45:07 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Bootstrap broker localhost:9092 (id: -1 rack: null isFenced: false) disconnected
+2026-03-17 22:45:08 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Node -1 disconnected.
+2026-03-17 22:45:08 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-03-17 22:45:08 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Bootstrap broker localhost:9092 (id: -1 rack: null isFenced: false) disconnected
+2026-03-17 22:45:08 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  org.apache.kafka.clients.Metadata - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Rebootstrapping with [localhost/127.0.0.1:9092]
+2026-03-17 22:45:09 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  org.apache.kafka.clients.Metadata - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Rebootstrapping with [localhost/127.0.0.1:9092]
+2026-03-17 22:45:09 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  org.apache.kafka.clients.Metadata - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Rebootstrapping with [localhost/127.0.0.1:9092]
+2026-03-17 22:45:09 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  org.apache.kafka.clients.Metadata - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Rebootstrapping with [localhost/127.0.0.1:9092]
+2026-03-17 22:45:09 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  org.apache.kafka.clients.Metadata - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Rebootstrapping with [localhost/127.0.0.1:9092]
+2026-03-17 22:45:10 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Node -1 disconnected.
+2026-03-17 22:45:10 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-03-17 22:45:10 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Bootstrap broker localhost:9092 (id: -1 rack: null isFenced: false) disconnected
+2026-03-17 22:45:11 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Node -1 disconnected.
+2026-03-17 22:45:11 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-03-17 22:45:11 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Bootstrap broker localhost:9092 (id: -1 rack: null isFenced: false) disconnected
+2026-03-17 22:45:11 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  org.apache.kafka.clients.Metadata - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Rebootstrapping with [localhost/127.0.0.1:9092]
+2026-03-17 22:45:11 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  org.apache.kafka.clients.Metadata - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Rebootstrapping with [localhost/127.0.0.1:9092]
+2026-03-17 22:45:12 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Node -1 disconnected.
+2026-03-17 22:45:12 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-03-17 22:45:12 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Bootstrap broker localhost:9092 (id: -1 rack: null isFenced: false) disconnected
+2026-03-17 22:45:13 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  org.apache.kafka.clients.Metadata - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Rebootstrapping with [localhost/127.0.0.1:9092]
+2026-03-17 22:45:13 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Node -1 disconnected.
+2026-03-17 22:45:13 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-03-17 22:45:13 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Bootstrap broker localhost:9092 (id: -1 rack: null isFenced: false) disconnected
+2026-03-17 22:45:14 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Node -1 disconnected.
+2026-03-17 22:45:14 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-03-17 22:45:14 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Bootstrap broker localhost:9092 (id: -1 rack: null isFenced: false) disconnected
+2026-03-17 22:45:15 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  org.apache.kafka.clients.Metadata - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Rebootstrapping with [localhost/127.0.0.1:9092]
+2026-03-17 22:45:15 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  org.apache.kafka.clients.Metadata - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Rebootstrapping with [localhost/127.0.0.1:9092]
+2026-03-17 22:45:15 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Node -1 disconnected.
+2026-03-17 22:45:15 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-03-17 22:45:15 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Bootstrap broker localhost:9092 (id: -1 rack: null isFenced: false) disconnected
+2026-03-17 22:45:16 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Node -1 disconnected.
+2026-03-17 22:45:16 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-03-17 22:45:16 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Bootstrap broker localhost:9092 (id: -1 rack: null isFenced: false) disconnected
+2026-03-17 22:45:17 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Node -1 disconnected.
+2026-03-17 22:45:17 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-03-17 22:45:17 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Bootstrap broker localhost:9092 (id: -1 rack: null isFenced: false) disconnected
+2026-03-17 22:45:18 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Node -1 disconnected.
+2026-03-17 22:45:18 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-03-17 22:45:18 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Bootstrap broker localhost:9092 (id: -1 rack: null isFenced: false) disconnected
+2026-03-17 22:45:19 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Node -1 disconnected.
+2026-03-17 22:45:19 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-03-17 22:45:19 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Bootstrap broker localhost:9092 (id: -1 rack: null isFenced: false) disconnected
+2026-03-17 22:45:20 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Node -1 disconnected.
+2026-03-17 22:45:20 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-03-17 22:45:20 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Bootstrap broker localhost:9092 (id: -1 rack: null isFenced: false) disconnected
+2026-03-17 22:45:21 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Node -1 disconnected.
+2026-03-17 22:45:21 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-03-17 22:45:21 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Bootstrap broker localhost:9092 (id: -1 rack: null isFenced: false) disconnected
+2026-03-17 22:45:22 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Node -1 disconnected.
+2026-03-17 22:45:22 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-03-17 22:45:22 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Bootstrap broker localhost:9092 (id: -1 rack: null isFenced: false) disconnected
+2026-03-17 22:45:22 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  org.apache.kafka.clients.Metadata - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Rebootstrapping with [localhost/127.0.0.1:9092]
+2026-03-17 22:45:22 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  org.apache.kafka.clients.Metadata - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Rebootstrapping with [localhost/127.0.0.1:9092]
+2026-03-17 22:45:22 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  org.apache.kafka.clients.Metadata - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Rebootstrapping with [localhost/127.0.0.1:9092]
+2026-03-17 22:45:23 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  org.apache.kafka.clients.Metadata - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Rebootstrapping with [localhost/127.0.0.1:9092]
+2026-03-17 22:45:23 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  org.apache.kafka.clients.Metadata - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Rebootstrapping with [localhost/127.0.0.1:9092]
+2026-03-17 22:45:23 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  org.apache.kafka.clients.Metadata - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Rebootstrapping with [localhost/127.0.0.1:9092]
+2026-03-17 22:45:23 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Node -1 disconnected.
+2026-03-17 22:45:23 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-03-17 22:45:23 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Bootstrap broker localhost:9092 (id: -1 rack: null isFenced: false) disconnected
+2026-03-17 22:45:24 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  org.apache.kafka.clients.Metadata - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Rebootstrapping with [localhost/127.0.0.1:9092]
+2026-03-17 22:45:24 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Node -1 disconnected.
+2026-03-17 22:45:24 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-03-17 22:45:24 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Bootstrap broker localhost:9092 (id: -1 rack: null isFenced: false) disconnected
+2026-03-17 22:45:25 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  org.apache.kafka.clients.Metadata - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Rebootstrapping with [localhost/127.0.0.1:9092]
+2026-03-17 22:45:26 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Node -1 disconnected.
+2026-03-17 22:45:26 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-03-17 22:45:26 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Bootstrap broker localhost:9092 (id: -1 rack: null isFenced: false) disconnected
+2026-03-17 22:45:26 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  org.apache.kafka.clients.Metadata - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Rebootstrapping with [localhost/127.0.0.1:9092]
+2026-03-17 22:45:27 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Node -1 disconnected.
+2026-03-17 22:45:27 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-03-17 22:45:27 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Bootstrap broker localhost:9092 (id: -1 rack: null isFenced: false) disconnected
+2026-03-17 22:45:28 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Node -1 disconnected.
+2026-03-17 22:45:28 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-03-17 22:45:28 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Bootstrap broker localhost:9092 (id: -1 rack: null isFenced: false) disconnected
+2026-03-17 22:45:28 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  org.apache.kafka.clients.Metadata - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Rebootstrapping with [localhost/127.0.0.1:9092]
+2026-03-17 22:45:28 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  org.apache.kafka.clients.Metadata - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Rebootstrapping with [localhost/127.0.0.1:9092]
+2026-03-17 22:45:29 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  org.apache.kafka.clients.Metadata - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Rebootstrapping with [localhost/127.0.0.1:9092]
+2026-03-17 22:45:29 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] INFO  org.apache.kafka.clients.Metadata - [Consumer clientId=consumer-smartmoney-groupid-1, groupId=smartmoney-groupid] Rebootstrapping with [localhost/127.0.0.1:9092]
