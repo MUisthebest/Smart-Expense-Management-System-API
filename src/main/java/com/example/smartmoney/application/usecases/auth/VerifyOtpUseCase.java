@@ -30,11 +30,11 @@ public class VerifyOtpUseCase {
 
         // Kiểm tra user tồn tại
         User user = userRepository.findByEmail(email)
-            .orElseThrow(() -> new DomainException("User not found"));
+                .orElseThrow(() -> new DomainException("User not found"));
 
         // Tìm và validate OTP
         OTP otp = otpRepository.findValidByEmail(email)
-            .orElseThrow(() -> new DomainException("Invalid or expired OTP"));
+                .orElseThrow(() -> new DomainException("Invalid or expired OTP"));
 
         // Verify OTP
         otp.verify(request.getOtp());
@@ -48,8 +48,8 @@ public class VerifyOtpUseCase {
         log.info("OTP verified successfully for email: {}", email.getValue());
 
         return VerifyOtpResponse.builder()
-            .resetToken(resetToken)
-            .email(email.getValue())
-            .build();
+                .resetToken(resetToken)
+                .email(email.getValue())
+                .build();
     }
 }

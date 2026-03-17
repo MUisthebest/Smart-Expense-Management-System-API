@@ -1,5 +1,5 @@
 package com.example.smartmoney.application.dtos.responses;
-import com.example.smartmoney.domain.models.message.enums;
+import com.example.smartmoney.domain.models.message.enums.MessageStatus;
 
 public class JobResponse<T> {
 

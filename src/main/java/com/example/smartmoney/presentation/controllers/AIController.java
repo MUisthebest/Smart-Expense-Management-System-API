@@ -39,7 +39,7 @@ public class AIController {
         // gửi job xuống backend
         MessageRecord record = processQueueRequestUseCase.execute(payload, tokenId);
 
-        String jobId = record.getId();
+        String jobId = record.getJobId();
 
         DeferredResult<ResponseEntity<?>> deferredResult = new DeferredResult<>(TIMEOUT);
 
