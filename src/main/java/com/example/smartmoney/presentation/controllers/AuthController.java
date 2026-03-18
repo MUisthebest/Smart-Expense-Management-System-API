@@ -691,23 +691,48 @@ public class AuthController {
 
     // Handle Notification
     @PatchMapping("/notification/enable")
-    public ResponseEntity<?> enable(@RequestHeader("Authorization") String auth) {
+    public ResponseEntity<CheckResponse<Boolean>>  enable(
+        @RequestHeader("Authorization") String auth) {
         UUID userId = extractUserIdFromToken(auth);
         notificationUseCase.enable(userId);
-        return ResponseEntity.ok("Enabled");
+        CheckResponse<Boolean> response = CheckResponse.<Boolean>builder()
+        .success(true)
+        .message("Enabled")
+        .build();
+        return ResponseEntity.ok(response);
     }
 
     @PatchMapping("/notification/disable")
-    public ResponseEntity<?> disable(@RequestHeader("Authorization") String auth) {
+    public ResponseEntity<CheckResponse<Boolean>> disable(
+            @RequestHeader("Authorization") String auth
+    ) {
         UUID userId = extractUserIdFromToken(auth);
         notificationUseCase.disable(userId);
-        return ResponseEntity.ok("Disabled");
+
+        
+        CheckResponse<Boolean> response = CheckResponse.<Boolean>builder()
+                .success(true)
+                .message("Disabled")
+                .build();
+
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/notification")
-    public ResponseEntity<?> getStatus(@RequestHeader("Authorization") String auth) {
+    public ResponseEntity<CheckResponse<Boolean>> getStatus(
+            @RequestHeader("Authorization") String auth
+    ) {
         UUID userId = extractUserIdFromToken(auth);
-        return ResponseEntity.ok(notificationUseCase.getStatus(userId));
+
+        Boolean status = notificationUseCase.getStatus(userId);
+
+        CheckResponse<Boolean> response = CheckResponse.<Boolean>builder()
+                .success(true)
+                .data(status)
+                .message("Status Notificattion")
+                .build();
+
+        return ResponseEntity.ok(response);
     }
 
     private String extractTokenFromHeader(String authHeader) {

@@ -11826,3 +11826,1520 @@ org.springframework.web.bind.MissingRequestHeaderException: Required request hea
 2026-03-18 14:56:06 [SpringApplicationShutdownHook] INFO  o.s.o.j.LocalContainerEntityManagerFactoryBean - Closing JPA EntityManagerFactory for persistence unit 'default'
 2026-03-18 14:56:06 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown initiated...
 2026-03-18 14:56:06 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown completed.
+2026-03-18 15:39:04 [main] INFO  c.e.smartmoney.SmartmoneyApplication - Starting SmartmoneyApplication using Java 17.0.17 with PID 15052 (C:\Users\ASUS\Documents\GitHub\Smart-Expense-Management-System-API\target\classes started by ASUS in C:\Users\ASUS\Documents\GitHub\Smart-Expense-Management-System-API)
+2026-03-18 15:39:04 [main] DEBUG c.e.smartmoney.SmartmoneyApplication - Running with Spring Boot v4.0.1, Spring v7.0.2
+2026-03-18 15:39:04 [main] INFO  c.e.smartmoney.SmartmoneyApplication - No active profile set, falling back to 1 default profile: "default"
+2026-03-18 15:39:05 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Multiple Spring Data modules found, entering strict repository configuration mode
+2026-03-18 15:39:05 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-03-18 15:39:06 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 362 ms. Found 6 JPA repository interfaces.
+2026-03-18 15:39:06 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Multiple Spring Data modules found, entering strict repository configuration mode
+2026-03-18 15:39:06 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data Redis repositories in DEFAULT mode.
+2026-03-18 15:39:06 [main] INFO  o.s.d.r.c.RepositoryConfigurationExtensionSupport - Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.example.smartmoney.infrastructure.persistence.repositories.JpaNotificationRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-03-18 15:39:06 [main] INFO  o.s.d.r.c.RepositoryConfigurationExtensionSupport - Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.example.smartmoney.infrastructure.persistence.repositories.JpaProjectContributionRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-03-18 15:39:06 [main] INFO  o.s.d.r.c.RepositoryConfigurationExtensionSupport - Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.example.smartmoney.infrastructure.persistence.repositories.JpaProjectMemberRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-03-18 15:39:06 [main] INFO  o.s.d.r.c.RepositoryConfigurationExtensionSupport - Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.example.smartmoney.infrastructure.persistence.repositories.JpaProjectRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-03-18 15:39:06 [main] INFO  o.s.d.r.c.RepositoryConfigurationExtensionSupport - Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.example.smartmoney.infrastructure.persistence.repositories.JpaTransactionRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-03-18 15:39:06 [main] INFO  o.s.d.r.c.RepositoryConfigurationExtensionSupport - Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.example.smartmoney.infrastructure.persistence.repositories.JpaUserRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-03-18 15:39:06 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 52 ms. Found 0 Redis repository interfaces.
+2026-03-18 15:39:08 [main] INFO  o.s.boot.tomcat.TomcatWebServer - Tomcat initialized with port 8080 (http)
+2026-03-18 15:39:08 [main] INFO  o.a.catalina.core.StandardService - Starting service [Tomcat]
+2026-03-18 15:39:08 [main] INFO  o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/11.0.15]
+2026-03-18 15:39:08 [main] INFO  o.s.b.w.c.s.WebApplicationContextInitializer - Root WebApplicationContext: initialization completed in 3772 ms
+2026-03-18 15:39:08 [main] INFO  org.hibernate.orm.jpa - HHH008540: Processing PersistenceUnitInfo [name: default]
+2026-03-18 15:39:08 [main] INFO  org.hibernate.orm.core - HHH000001: Hibernate ORM core version 7.2.0.Final
+2026-03-18 15:39:09 [main] INFO  o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-03-18 15:39:09 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
+2026-03-18 15:39:11 [main] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@3462e99a
+2026-03-18 15:39:11 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
+2026-03-18 15:39:11 [main] WARN  org.hibernate.orm.deprecation - HHH90000025: PostgreSQLDialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
+2026-03-18 15:39:12 [main] INFO  o.hibernate.orm.connections.pooling - HHH10001005: Database info:
+	Database JDBC URL [jdbc:postgresql://ep-royal-morning-a13nc72w-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require]
+	Database driver: PostgreSQL JDBC Driver
+	Database dialect: PostgreSQLDialect
+	Database version: 17.8
+	Default catalog/schema: neondb/public
+	Autocommit mode: undefined/unknown
+	Isolation level: READ_COMMITTED [default READ_COMMITTED]
+	JDBC fetch size: none
+	Pool: DataSourceConnectionProvider
+	Minimum pool size: undefined/unknown
+	Maximum pool size: undefined/unknown
+2026-03-18 15:39:14 [main] INFO  org.hibernate.orm.core - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-03-18 15:39:14 [main] INFO  org.hibernate.orm.jdbc.batch - HHH100501: Automatic JDBC statement batching enabled (maximum batch size 20)
+2026-03-18 15:39:15 [main] INFO  o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-03-18 15:39:15 [main] INFO  o.s.d.j.r.q.QueryEnhancerFactories - Hibernate is in classpath; If applicable, HQL parser will be used.
+2026-03-18 15:39:16 [main] INFO  c.e.s.i.security.JwtTokenProvider - JWT Token Provider initialized with secret length: 87
+2026-03-18 15:39:16 [main] DEBUG c.e.s.i.s.AuthenticationFilter - Filter 'authenticationFilter' configured for use
+2026-03-18 15:39:17 [main] INFO  c.e.s.i.mail.config.MailConfig - Initializing JavaMailSender...
+2026-03-18 15:39:17 [main] INFO  c.e.s.i.mail.config.MailProperties - Mail Configuration:
+2026-03-18 15:39:17 [main] INFO  c.e.s.i.mail.config.MailProperties -   Host: smtp.gmail.com
+2026-03-18 15:39:17 [main] INFO  c.e.s.i.mail.config.MailProperties -   Port: 587
+2026-03-18 15:39:17 [main] INFO  c.e.s.i.mail.config.MailProperties -   Username: nhbang22@clc.fitus.edu.vn
+2026-03-18 15:39:17 [main] INFO  c.e.s.i.mail.config.MailProperties -   Protocol: smtp
+2026-03-18 15:39:17 [main] INFO  c.e.s.i.mail.config.MailProperties -   SMTP Auth: true
+2026-03-18 15:39:17 [main] INFO  c.e.s.i.mail.config.MailProperties -   STARTTLS Enabled: true
+2026-03-18 15:39:17 [main] INFO  c.e.s.i.mail.config.MailProperties -   STARTTLS Required: false
+2026-03-18 15:39:17 [main] INFO  c.e.s.i.mail.config.MailConfig - JavaMailSender initialized successfully
+2026-03-18 15:39:18 [main] INFO  c.e.s.i.a.c.SupabaseJwtProperties - ✅ Supabase anonKey is configured for frontend authentication
+2026-03-18 15:39:18 [main] INFO  c.e.s.i.a.c.SupabaseJwtProperties - ✅ Supabase JWT_JWK is configured for ES256 token validation
+2026-03-18 15:39:18 [main] INFO  c.e.s.i.common.DotenvConfig - Environment variables loaded successfully
+2026-03-18 15:39:18 [main] INFO  c.e.s.a.u.auth.FacebookLoginUseCase - ✅ FacebookLoginUseCase initialized - Ready to validate external JWT tokens
+2026-03-18 15:39:18 [main] WARN  o.s.b.j.a.JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-03-18 15:39:18 [main] INFO  o.s.s.c.a.a.c.InitializeUserDetailsBeanManagerConfigurer$InitializeUserDetailsManagerConfigurer - Global AuthenticationManager configured with UserDetailsService bean with name jwtTokenProvider
+2026-03-18 15:39:19 [main] INFO  o.s.boot.tomcat.TomcatWebServer - Tomcat started on port 8080 (http) with context path '/'
+2026-03-18 15:39:19 [main] INFO  c.e.smartmoney.SmartmoneyApplication - Started SmartmoneyApplication in 16.266 seconds (process running for 17.068)
+2026-03-18 15:43:31 [HikariPool-1:housekeeper] WARN  com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Thread starvation or clock leap detected (housekeeper delta=49s812ms667µs500ns).
+2026-03-18 15:44:27 [HikariPool-1:housekeeper] WARN  com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Thread starvation or clock leap detected (housekeeper delta=56s93ms210µs300ns).
+2026-03-18 15:44:27 [HikariPool-1:housekeeper] WARN  com.zaxxer.hikari.pool.PoolBase - HikariPool-1 - Failed to validate connection org.postgresql.jdbc.PgConnection@194ac7e (This connection has been closed.). Possibly consider using a shorter maxLifetime value.
+2026-03-18 15:44:27 [HikariPool-1:housekeeper] WARN  com.zaxxer.hikari.pool.PoolBase - HikariPool-1 - Failed to validate connection org.postgresql.jdbc.PgConnection@5f8e9b48 (This connection has been closed.). Possibly consider using a shorter maxLifetime value.
+2026-03-18 15:44:27 [HikariPool-1:housekeeper] WARN  com.zaxxer.hikari.pool.PoolBase - HikariPool-1 - Failed to validate connection org.postgresql.jdbc.PgConnection@3462e99a (This connection has been closed.). Possibly consider using a shorter maxLifetime value.
+2026-03-18 15:44:34 [HikariPool-1:housekeeper] WARN  com.zaxxer.hikari.pool.PoolBase - HikariPool-1 - Failed to validate connection org.postgresql.jdbc.PgConnection@7b5d2b9b (This connection has been closed.). Possibly consider using a shorter maxLifetime value.
+2026-03-18 15:44:39 [HikariPool-1:housekeeper] WARN  com.zaxxer.hikari.pool.PoolBase - HikariPool-1 - Failed to validate connection org.postgresql.jdbc.PgConnection@370ce9f3 (This connection has been closed.). Possibly consider using a shorter maxLifetime value.
+2026-03-18 15:45:00 [HikariPool-1:housekeeper] WARN  com.zaxxer.hikari.pool.PoolBase - HikariPool-1 - Failed to validate connection org.postgresql.jdbc.PgConnection@1cf36081 (This connection has been closed.). Possibly consider using a shorter maxLifetime value.
+2026-03-18 15:52:04 [http-nio-8080-exec-1] INFO  o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-03-18 15:52:04 [http-nio-8080-exec-1] INFO  o.s.web.servlet.DispatcherServlet - Initializing Servlet 'dispatcherServlet'
+2026-03-18 15:52:04 [http-nio-8080-exec-1] INFO  o.s.web.servlet.DispatcherServlet - Completed initialization in 2 ms
+2026-03-18 15:52:04 [http-nio-8080-exec-1] INFO  c.e.s.p.controllers.AuthController - Google login attempt
+2026-03-18 15:52:05 [http-nio-8080-exec-1] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.full_name,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.email=?
+2026-03-18 15:52:06 [http-nio-8080-exec-1] DEBUG c.e.s.i.security.JwtTokenProvider - Generated refresh token for user ID: 41db72ea-bc32-4a63-a6b1-262b3cbf14ed
+2026-03-18 15:52:06 [http-nio-8080-exec-1] DEBUG org.hibernate.SQL - 
+    update
+        users 
+    set
+        is_active=?,
+        avatar=?,
+        coin=?,
+        created_at=?,
+        date_of_birth=?,
+        email=?,
+        is_email_verified=?,
+        full_name=?,
+        notification_enabled=?,
+        password_hash=?,
+        phone=?,
+        rate=?,
+        refresh_token=?,
+        refresh_token_expiry=?,
+        role=?,
+        updated_at=?,
+        username=? 
+    where
+        id=?
+2026-03-18 15:52:06 [http-nio-8080-exec-1] INFO  c.e.s.p.controllers.AuthController - Google login successful for user
+2026-03-18 16:26:55 [http-nio-8080-exec-4] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.full_name,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-03-18 16:26:55 [http-nio-8080-exec-4] DEBUG c.e.s.i.s.AuthenticationFilter - Authenticated user ID: 41db72ea-bc32-4a63-a6b1-262b3cbf14ed
+2026-03-18 16:26:55 [http-nio-8080-exec-4] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.full_name,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-03-18 16:28:20 [http-nio-8080-exec-5] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.full_name,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-03-18 16:28:20 [http-nio-8080-exec-5] DEBUG c.e.s.i.s.AuthenticationFilter - Authenticated user ID: 41db72ea-bc32-4a63-a6b1-262b3cbf14ed
+2026-03-18 16:28:20 [http-nio-8080-exec-5] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.full_name,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-03-18 16:28:22 [http-nio-8080-exec-6] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.full_name,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-03-18 16:28:22 [http-nio-8080-exec-6] DEBUG c.e.s.i.s.AuthenticationFilter - Authenticated user ID: 41db72ea-bc32-4a63-a6b1-262b3cbf14ed
+2026-03-18 16:28:22 [http-nio-8080-exec-6] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.full_name,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-03-18 16:28:26 [http-nio-8080-exec-7] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.full_name,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-03-18 16:28:27 [http-nio-8080-exec-7] DEBUG c.e.s.i.s.AuthenticationFilter - Authenticated user ID: 41db72ea-bc32-4a63-a6b1-262b3cbf14ed
+2026-03-18 16:28:27 [http-nio-8080-exec-7] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.full_name,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-03-18 16:28:35 [http-nio-8080-exec-8] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.full_name,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-03-18 16:28:35 [http-nio-8080-exec-8] DEBUG c.e.s.i.s.AuthenticationFilter - Authenticated user ID: 41db72ea-bc32-4a63-a6b1-262b3cbf14ed
+2026-03-18 16:28:35 [http-nio-8080-exec-8] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.full_name,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-03-18 16:28:39 [http-nio-8080-exec-9] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.full_name,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-03-18 16:28:39 [http-nio-8080-exec-9] DEBUG c.e.s.i.s.AuthenticationFilter - Authenticated user ID: 41db72ea-bc32-4a63-a6b1-262b3cbf14ed
+2026-03-18 16:28:39 [http-nio-8080-exec-9] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.full_name,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-03-18 16:28:46 [http-nio-8080-exec-10] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.full_name,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-03-18 16:28:46 [http-nio-8080-exec-10] DEBUG c.e.s.i.s.AuthenticationFilter - Authenticated user ID: 41db72ea-bc32-4a63-a6b1-262b3cbf14ed
+2026-03-18 16:28:46 [http-nio-8080-exec-10] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.full_name,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-03-18 16:29:51 [http-nio-8080-exec-3] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.full_name,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-03-18 16:29:51 [http-nio-8080-exec-3] DEBUG c.e.s.i.s.AuthenticationFilter - Authenticated user ID: 41db72ea-bc32-4a63-a6b1-262b3cbf14ed
+2026-03-18 16:29:51 [http-nio-8080-exec-3] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.full_name,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-03-18 16:29:53 [http-nio-8080-exec-4] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.full_name,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-03-18 16:29:53 [http-nio-8080-exec-4] DEBUG c.e.s.i.s.AuthenticationFilter - Authenticated user ID: 41db72ea-bc32-4a63-a6b1-262b3cbf14ed
+2026-03-18 16:29:53 [http-nio-8080-exec-4] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.full_name,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-03-18 16:37:59 [SpringApplicationShutdownHook] INFO  o.s.boot.tomcat.GracefulShutdown - Commencing graceful shutdown. Waiting for active requests to complete
+2026-03-18 16:37:59 [tomcat-shutdown] INFO  o.s.boot.tomcat.GracefulShutdown - Graceful shutdown complete
+2026-03-18 16:37:59 [SpringApplicationShutdownHook] INFO  o.s.o.j.LocalContainerEntityManagerFactoryBean - Closing JPA EntityManagerFactory for persistence unit 'default'
+2026-03-18 16:37:59 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown initiated...
+2026-03-18 16:38:00 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown completed.
+2026-03-18 16:38:13 [main] INFO  c.e.smartmoney.SmartmoneyApplication - Starting SmartmoneyApplication using Java 17.0.17 with PID 11260 (C:\Users\ASUS\Documents\GitHub\Smart-Expense-Management-System-API\target\classes started by ASUS in C:\Users\ASUS\Documents\GitHub\Smart-Expense-Management-System-API)
+2026-03-18 16:38:13 [main] DEBUG c.e.smartmoney.SmartmoneyApplication - Running with Spring Boot v4.0.1, Spring v7.0.2
+2026-03-18 16:38:13 [main] INFO  c.e.smartmoney.SmartmoneyApplication - No active profile set, falling back to 1 default profile: "default"
+2026-03-18 16:38:15 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Multiple Spring Data modules found, entering strict repository configuration mode
+2026-03-18 16:38:15 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-03-18 16:38:15 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 384 ms. Found 6 JPA repository interfaces.
+2026-03-18 16:38:16 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Multiple Spring Data modules found, entering strict repository configuration mode
+2026-03-18 16:38:16 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data Redis repositories in DEFAULT mode.
+2026-03-18 16:38:16 [main] INFO  o.s.d.r.c.RepositoryConfigurationExtensionSupport - Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.example.smartmoney.infrastructure.persistence.repositories.JpaNotificationRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-03-18 16:38:16 [main] INFO  o.s.d.r.c.RepositoryConfigurationExtensionSupport - Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.example.smartmoney.infrastructure.persistence.repositories.JpaProjectContributionRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-03-18 16:38:16 [main] INFO  o.s.d.r.c.RepositoryConfigurationExtensionSupport - Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.example.smartmoney.infrastructure.persistence.repositories.JpaProjectMemberRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-03-18 16:38:16 [main] INFO  o.s.d.r.c.RepositoryConfigurationExtensionSupport - Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.example.smartmoney.infrastructure.persistence.repositories.JpaProjectRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-03-18 16:38:16 [main] INFO  o.s.d.r.c.RepositoryConfigurationExtensionSupport - Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.example.smartmoney.infrastructure.persistence.repositories.JpaTransactionRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-03-18 16:38:16 [main] INFO  o.s.d.r.c.RepositoryConfigurationExtensionSupport - Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.example.smartmoney.infrastructure.persistence.repositories.JpaUserRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-03-18 16:38:16 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 53 ms. Found 0 Redis repository interfaces.
+2026-03-18 16:38:17 [main] INFO  o.s.boot.tomcat.TomcatWebServer - Tomcat initialized with port 8080 (http)
+2026-03-18 16:38:17 [main] INFO  o.a.catalina.core.StandardService - Starting service [Tomcat]
+2026-03-18 16:38:17 [main] INFO  o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/11.0.15]
+2026-03-18 16:38:17 [main] INFO  o.s.b.w.c.s.WebApplicationContextInitializer - Root WebApplicationContext: initialization completed in 3834 ms
+2026-03-18 16:38:17 [main] INFO  org.hibernate.orm.jpa - HHH008540: Processing PersistenceUnitInfo [name: default]
+2026-03-18 16:38:18 [main] INFO  org.hibernate.orm.core - HHH000001: Hibernate ORM core version 7.2.0.Final
+2026-03-18 16:38:18 [main] INFO  o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-03-18 16:38:18 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
+2026-03-18 16:38:20 [main] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@9f52eb7
+2026-03-18 16:38:20 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
+2026-03-18 16:38:20 [main] WARN  org.hibernate.orm.deprecation - HHH90000025: PostgreSQLDialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
+2026-03-18 16:38:21 [main] INFO  o.hibernate.orm.connections.pooling - HHH10001005: Database info:
+	Database JDBC URL [jdbc:postgresql://ep-royal-morning-a13nc72w-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require]
+	Database driver: PostgreSQL JDBC Driver
+	Database dialect: PostgreSQLDialect
+	Database version: 17.8
+	Default catalog/schema: neondb/public
+	Autocommit mode: undefined/unknown
+	Isolation level: READ_COMMITTED [default READ_COMMITTED]
+	JDBC fetch size: none
+	Pool: DataSourceConnectionProvider
+	Minimum pool size: undefined/unknown
+	Maximum pool size: undefined/unknown
+2026-03-18 16:38:22 [main] INFO  org.hibernate.orm.core - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-03-18 16:38:22 [main] INFO  org.hibernate.orm.jdbc.batch - HHH100501: Automatic JDBC statement batching enabled (maximum batch size 20)
+2026-03-18 16:38:23 [main] INFO  o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-03-18 16:38:23 [main] INFO  o.s.d.j.r.q.QueryEnhancerFactories - Hibernate is in classpath; If applicable, HQL parser will be used.
+2026-03-18 16:38:25 [main] INFO  c.e.s.i.security.JwtTokenProvider - JWT Token Provider initialized with secret length: 87
+2026-03-18 16:38:25 [main] DEBUG c.e.s.i.s.AuthenticationFilter - Filter 'authenticationFilter' configured for use
+2026-03-18 16:38:26 [main] INFO  c.e.s.i.mail.config.MailConfig - Initializing JavaMailSender...
+2026-03-18 16:38:26 [main] INFO  c.e.s.i.mail.config.MailProperties - Mail Configuration:
+2026-03-18 16:38:26 [main] INFO  c.e.s.i.mail.config.MailProperties -   Host: smtp.gmail.com
+2026-03-18 16:38:26 [main] INFO  c.e.s.i.mail.config.MailProperties -   Port: 587
+2026-03-18 16:38:26 [main] INFO  c.e.s.i.mail.config.MailProperties -   Username: nhbang22@clc.fitus.edu.vn
+2026-03-18 16:38:26 [main] INFO  c.e.s.i.mail.config.MailProperties -   Protocol: smtp
+2026-03-18 16:38:26 [main] INFO  c.e.s.i.mail.config.MailProperties -   SMTP Auth: true
+2026-03-18 16:38:26 [main] INFO  c.e.s.i.mail.config.MailProperties -   STARTTLS Enabled: true
+2026-03-18 16:38:26 [main] INFO  c.e.s.i.mail.config.MailProperties -   STARTTLS Required: false
+2026-03-18 16:38:26 [main] INFO  c.e.s.i.mail.config.MailConfig - JavaMailSender initialized successfully
+2026-03-18 16:38:26 [main] INFO  c.e.s.i.a.c.SupabaseJwtProperties - ✅ Supabase anonKey is configured for frontend authentication
+2026-03-18 16:38:26 [main] INFO  c.e.s.i.a.c.SupabaseJwtProperties - ✅ Supabase JWT_JWK is configured for ES256 token validation
+2026-03-18 16:38:26 [main] INFO  c.e.s.i.common.DotenvConfig - Environment variables loaded successfully
+2026-03-18 16:38:26 [main] INFO  c.e.s.a.u.auth.FacebookLoginUseCase - ✅ FacebookLoginUseCase initialized - Ready to validate external JWT tokens
+2026-03-18 16:38:26 [main] WARN  o.s.b.j.a.JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-03-18 16:38:27 [main] INFO  o.s.s.c.a.a.c.InitializeUserDetailsBeanManagerConfigurer$InitializeUserDetailsManagerConfigurer - Global AuthenticationManager configured with UserDetailsService bean with name jwtTokenProvider
+2026-03-18 16:38:28 [main] INFO  o.s.boot.tomcat.TomcatWebServer - Tomcat started on port 8080 (http) with context path '/'
+2026-03-18 16:38:28 [main] INFO  c.e.smartmoney.SmartmoneyApplication - Started SmartmoneyApplication in 15.66 seconds (process running for 16.47)
+2026-03-18 16:40:12 [http-nio-8080-exec-1] INFO  o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-03-18 16:40:12 [http-nio-8080-exec-1] INFO  o.s.web.servlet.DispatcherServlet - Initializing Servlet 'dispatcherServlet'
+2026-03-18 16:40:12 [http-nio-8080-exec-1] INFO  o.s.web.servlet.DispatcherServlet - Completed initialization in 2 ms
+2026-03-18 16:40:13 [http-nio-8080-exec-1] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.full_name,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-03-18 16:40:13 [http-nio-8080-exec-1] DEBUG c.e.s.i.s.AuthenticationFilter - Authenticated user ID: 41db72ea-bc32-4a63-a6b1-262b3cbf14ed
+2026-03-18 16:40:13 [http-nio-8080-exec-1] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.full_name,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-03-18 16:41:11 [http-nio-8080-exec-2] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.full_name,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-03-18 16:41:11 [http-nio-8080-exec-2] DEBUG c.e.s.i.s.AuthenticationFilter - Authenticated user ID: 41db72ea-bc32-4a63-a6b1-262b3cbf14ed
+2026-03-18 16:41:11 [http-nio-8080-exec-2] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.full_name,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-03-18 16:41:17 [http-nio-8080-exec-6] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.full_name,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-03-18 16:41:17 [http-nio-8080-exec-6] DEBUG c.e.s.i.s.AuthenticationFilter - Authenticated user ID: 41db72ea-bc32-4a63-a6b1-262b3cbf14ed
+2026-03-18 16:41:17 [http-nio-8080-exec-6] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.full_name,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-03-18 16:41:21 [http-nio-8080-exec-7] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.full_name,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-03-18 16:41:21 [http-nio-8080-exec-7] DEBUG c.e.s.i.s.AuthenticationFilter - Authenticated user ID: 41db72ea-bc32-4a63-a6b1-262b3cbf14ed
+2026-03-18 16:41:22 [http-nio-8080-exec-7] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.full_name,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-03-18 16:41:28 [http-nio-8080-exec-5] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.full_name,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-03-18 16:41:29 [http-nio-8080-exec-5] DEBUG c.e.s.i.s.AuthenticationFilter - Authenticated user ID: 41db72ea-bc32-4a63-a6b1-262b3cbf14ed
+2026-03-18 16:41:29 [http-nio-8080-exec-5] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.full_name,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-03-18 16:41:31 [http-nio-8080-exec-3] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.full_name,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-03-18 16:41:31 [http-nio-8080-exec-3] DEBUG c.e.s.i.s.AuthenticationFilter - Authenticated user ID: 41db72ea-bc32-4a63-a6b1-262b3cbf14ed
+2026-03-18 16:41:31 [http-nio-8080-exec-3] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.full_name,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-03-18 16:41:31 [http-nio-8080-exec-3] DEBUG org.hibernate.SQL - 
+    update
+        users 
+    set
+        is_active=?,
+        avatar=?,
+        coin=?,
+        created_at=?,
+        date_of_birth=?,
+        email=?,
+        is_email_verified=?,
+        full_name=?,
+        notification_enabled=?,
+        password_hash=?,
+        phone=?,
+        rate=?,
+        refresh_token=?,
+        refresh_token_expiry=?,
+        role=?,
+        updated_at=?,
+        username=? 
+    where
+        id=?
+2026-03-18 16:42:31 [http-nio-8080-exec-4] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.full_name,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-03-18 16:42:32 [http-nio-8080-exec-4] DEBUG c.e.s.i.s.AuthenticationFilter - Authenticated user ID: 41db72ea-bc32-4a63-a6b1-262b3cbf14ed
+2026-03-18 16:42:32 [http-nio-8080-exec-4] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.full_name,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-03-18 16:48:39 [http-nio-8080-exec-9] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.full_name,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-03-18 16:48:39 [http-nio-8080-exec-9] DEBUG c.e.s.i.s.AuthenticationFilter - Authenticated user ID: 41db72ea-bc32-4a63-a6b1-262b3cbf14ed
+2026-03-18 16:48:39 [http-nio-8080-exec-9] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.full_name,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-03-18 16:48:41 [http-nio-8080-exec-10] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.full_name,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-03-18 16:48:41 [http-nio-8080-exec-10] DEBUG c.e.s.i.s.AuthenticationFilter - Authenticated user ID: 41db72ea-bc32-4a63-a6b1-262b3cbf14ed
+2026-03-18 16:48:41 [http-nio-8080-exec-10] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.full_name,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-03-18 16:48:41 [http-nio-8080-exec-10] DEBUG org.hibernate.SQL - 
+    update
+        users 
+    set
+        is_active=?,
+        avatar=?,
+        coin=?,
+        created_at=?,
+        date_of_birth=?,
+        email=?,
+        is_email_verified=?,
+        full_name=?,
+        notification_enabled=?,
+        password_hash=?,
+        phone=?,
+        rate=?,
+        refresh_token=?,
+        refresh_token_expiry=?,
+        role=?,
+        updated_at=?,
+        username=? 
+    where
+        id=?
+2026-03-18 16:52:58 [SpringApplicationShutdownHook] INFO  o.s.boot.tomcat.GracefulShutdown - Commencing graceful shutdown. Waiting for active requests to complete
+2026-03-18 16:52:59 [tomcat-shutdown] INFO  o.s.boot.tomcat.GracefulShutdown - Graceful shutdown complete
+2026-03-18 16:52:59 [SpringApplicationShutdownHook] INFO  o.s.o.j.LocalContainerEntityManagerFactoryBean - Closing JPA EntityManagerFactory for persistence unit 'default'
+2026-03-18 16:52:59 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown initiated...
+2026-03-18 16:52:59 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown completed.
+2026-03-18 16:53:12 [main] INFO  c.e.smartmoney.SmartmoneyApplication - Starting SmartmoneyApplication using Java 17.0.17 with PID 13236 (C:\Users\ASUS\Documents\GitHub\Smart-Expense-Management-System-API\target\classes started by ASUS in C:\Users\ASUS\Documents\GitHub\Smart-Expense-Management-System-API)
+2026-03-18 16:53:12 [main] DEBUG c.e.smartmoney.SmartmoneyApplication - Running with Spring Boot v4.0.1, Spring v7.0.2
+2026-03-18 16:53:12 [main] INFO  c.e.smartmoney.SmartmoneyApplication - No active profile set, falling back to 1 default profile: "default"
+2026-03-18 16:53:13 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Multiple Spring Data modules found, entering strict repository configuration mode
+2026-03-18 16:53:13 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-03-18 16:53:14 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 369 ms. Found 6 JPA repository interfaces.
+2026-03-18 16:53:14 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Multiple Spring Data modules found, entering strict repository configuration mode
+2026-03-18 16:53:14 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data Redis repositories in DEFAULT mode.
+2026-03-18 16:53:14 [main] INFO  o.s.d.r.c.RepositoryConfigurationExtensionSupport - Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.example.smartmoney.infrastructure.persistence.repositories.JpaNotificationRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-03-18 16:53:14 [main] INFO  o.s.d.r.c.RepositoryConfigurationExtensionSupport - Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.example.smartmoney.infrastructure.persistence.repositories.JpaProjectContributionRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-03-18 16:53:14 [main] INFO  o.s.d.r.c.RepositoryConfigurationExtensionSupport - Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.example.smartmoney.infrastructure.persistence.repositories.JpaProjectMemberRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-03-18 16:53:14 [main] INFO  o.s.d.r.c.RepositoryConfigurationExtensionSupport - Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.example.smartmoney.infrastructure.persistence.repositories.JpaProjectRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-03-18 16:53:14 [main] INFO  o.s.d.r.c.RepositoryConfigurationExtensionSupport - Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.example.smartmoney.infrastructure.persistence.repositories.JpaTransactionRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-03-18 16:53:14 [main] INFO  o.s.d.r.c.RepositoryConfigurationExtensionSupport - Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.example.smartmoney.infrastructure.persistence.repositories.JpaUserRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-03-18 16:53:14 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 49 ms. Found 0 Redis repository interfaces.
+2026-03-18 16:53:16 [main] INFO  o.s.boot.tomcat.TomcatWebServer - Tomcat initialized with port 8080 (http)
+2026-03-18 16:53:16 [main] INFO  o.a.catalina.core.StandardService - Starting service [Tomcat]
+2026-03-18 16:53:16 [main] INFO  o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/11.0.15]
+2026-03-18 16:53:16 [main] INFO  o.s.b.w.c.s.WebApplicationContextInitializer - Root WebApplicationContext: initialization completed in 3758 ms
+2026-03-18 16:53:16 [main] INFO  org.hibernate.orm.jpa - HHH008540: Processing PersistenceUnitInfo [name: default]
+2026-03-18 16:53:16 [main] INFO  org.hibernate.orm.core - HHH000001: Hibernate ORM core version 7.2.0.Final
+2026-03-18 16:53:17 [main] INFO  o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-03-18 16:53:17 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
+2026-03-18 16:53:19 [main] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@76673ed
+2026-03-18 16:53:19 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
+2026-03-18 16:53:19 [main] WARN  org.hibernate.orm.deprecation - HHH90000025: PostgreSQLDialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
+2026-03-18 16:53:20 [main] INFO  o.hibernate.orm.connections.pooling - HHH10001005: Database info:
+	Database JDBC URL [jdbc:postgresql://ep-royal-morning-a13nc72w-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require]
+	Database driver: PostgreSQL JDBC Driver
+	Database dialect: PostgreSQLDialect
+	Database version: 17.8
+	Default catalog/schema: neondb/public
+	Autocommit mode: undefined/unknown
+	Isolation level: READ_COMMITTED [default READ_COMMITTED]
+	JDBC fetch size: none
+	Pool: DataSourceConnectionProvider
+	Minimum pool size: undefined/unknown
+	Maximum pool size: undefined/unknown
+2026-03-18 16:53:22 [main] INFO  org.hibernate.orm.core - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-03-18 16:53:22 [main] INFO  org.hibernate.orm.jdbc.batch - HHH100501: Automatic JDBC statement batching enabled (maximum batch size 20)
+2026-03-18 16:53:23 [main] INFO  o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-03-18 16:53:23 [main] INFO  o.s.d.j.r.q.QueryEnhancerFactories - Hibernate is in classpath; If applicable, HQL parser will be used.
+2026-03-18 16:53:24 [main] INFO  c.e.s.i.security.JwtTokenProvider - JWT Token Provider initialized with secret length: 87
+2026-03-18 16:53:24 [main] DEBUG c.e.s.i.s.AuthenticationFilter - Filter 'authenticationFilter' configured for use
+2026-03-18 16:53:25 [main] INFO  c.e.s.i.mail.config.MailConfig - Initializing JavaMailSender...
+2026-03-18 16:53:25 [main] INFO  c.e.s.i.mail.config.MailProperties - Mail Configuration:
+2026-03-18 16:53:25 [main] INFO  c.e.s.i.mail.config.MailProperties -   Host: smtp.gmail.com
+2026-03-18 16:53:25 [main] INFO  c.e.s.i.mail.config.MailProperties -   Port: 587
+2026-03-18 16:53:25 [main] INFO  c.e.s.i.mail.config.MailProperties -   Username: nhbang22@clc.fitus.edu.vn
+2026-03-18 16:53:25 [main] INFO  c.e.s.i.mail.config.MailProperties -   Protocol: smtp
+2026-03-18 16:53:25 [main] INFO  c.e.s.i.mail.config.MailProperties -   SMTP Auth: true
+2026-03-18 16:53:25 [main] INFO  c.e.s.i.mail.config.MailProperties -   STARTTLS Enabled: true
+2026-03-18 16:53:25 [main] INFO  c.e.s.i.mail.config.MailProperties -   STARTTLS Required: false
+2026-03-18 16:53:25 [main] INFO  c.e.s.i.mail.config.MailConfig - JavaMailSender initialized successfully
+2026-03-18 16:53:25 [main] INFO  c.e.s.i.a.c.SupabaseJwtProperties - ✅ Supabase anonKey is configured for frontend authentication
+2026-03-18 16:53:25 [main] INFO  c.e.s.i.a.c.SupabaseJwtProperties - ✅ Supabase JWT_JWK is configured for ES256 token validation
+2026-03-18 16:53:25 [main] INFO  c.e.s.i.common.DotenvConfig - Environment variables loaded successfully
+2026-03-18 16:53:25 [main] INFO  c.e.s.a.u.auth.FacebookLoginUseCase - ✅ FacebookLoginUseCase initialized - Ready to validate external JWT tokens
+2026-03-18 16:53:25 [main] WARN  o.s.b.j.a.JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-03-18 16:53:26 [main] INFO  o.s.s.c.a.a.c.InitializeUserDetailsBeanManagerConfigurer$InitializeUserDetailsManagerConfigurer - Global AuthenticationManager configured with UserDetailsService bean with name jwtTokenProvider
+2026-03-18 16:53:27 [main] INFO  o.s.boot.tomcat.TomcatWebServer - Tomcat started on port 8080 (http) with context path '/'
+2026-03-18 16:53:27 [main] INFO  c.e.smartmoney.SmartmoneyApplication - Started SmartmoneyApplication in 15.685 seconds (process running for 16.497)
+2026-03-18 16:54:16 [http-nio-8080-exec-1] INFO  o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-03-18 16:54:16 [http-nio-8080-exec-1] INFO  o.s.web.servlet.DispatcherServlet - Initializing Servlet 'dispatcherServlet'
+2026-03-18 16:54:16 [http-nio-8080-exec-1] INFO  o.s.web.servlet.DispatcherServlet - Completed initialization in 2 ms
+2026-03-18 16:54:16 [http-nio-8080-exec-1] DEBUG c.e.s.i.security.JwtTokenProvider - Token expired: JWT expired at 2026-03-18T09:52:05Z. Current time: 2026-03-18T09:54:16Z, a difference of 131784 milliseconds.  Allowed clock skew: 0 milliseconds.
+2026-03-18 16:54:17 [http-nio-8080-exec-1] DEBUG c.e.s.p.controllers.AuthController - Refresh token request
+2026-03-18 16:54:17 [http-nio-8080-exec-1] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.full_name,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-03-18 16:54:17 [http-nio-8080-exec-1] DEBUG c.e.s.i.security.JwtTokenProvider - Generated refresh token for user ID: 41db72ea-bc32-4a63-a6b1-262b3cbf14ed
+2026-03-18 16:54:17 [http-nio-8080-exec-1] DEBUG org.hibernate.SQL - 
+    update
+        users 
+    set
+        is_active=?,
+        avatar=?,
+        coin=?,
+        created_at=?,
+        date_of_birth=?,
+        email=?,
+        is_email_verified=?,
+        full_name=?,
+        notification_enabled=?,
+        password_hash=?,
+        phone=?,
+        rate=?,
+        refresh_token=?,
+        refresh_token_expiry=?,
+        role=?,
+        updated_at=?,
+        username=? 
+    where
+        id=?
+2026-03-18 16:54:28 [http-nio-8080-exec-4] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.full_name,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-03-18 16:54:28 [http-nio-8080-exec-4] DEBUG c.e.s.i.s.AuthenticationFilter - Authenticated user ID: 41db72ea-bc32-4a63-a6b1-262b3cbf14ed
+2026-03-18 16:54:28 [http-nio-8080-exec-4] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.full_name,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-03-18 16:54:31 [http-nio-8080-exec-6] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.full_name,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-03-18 16:54:31 [http-nio-8080-exec-6] DEBUG c.e.s.i.s.AuthenticationFilter - Authenticated user ID: 41db72ea-bc32-4a63-a6b1-262b3cbf14ed
+2026-03-18 16:54:31 [http-nio-8080-exec-6] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.full_name,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-03-18 16:54:31 [http-nio-8080-exec-6] DEBUG org.hibernate.SQL - 
+    update
+        users 
+    set
+        is_active=?,
+        avatar=?,
+        coin=?,
+        created_at=?,
+        date_of_birth=?,
+        email=?,
+        is_email_verified=?,
+        full_name=?,
+        notification_enabled=?,
+        password_hash=?,
+        phone=?,
+        rate=?,
+        refresh_token=?,
+        refresh_token_expiry=?,
+        role=?,
+        updated_at=?,
+        username=? 
+    where
+        id=?
+2026-03-18 16:54:52 [http-nio-8080-exec-2] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.full_name,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-03-18 16:54:53 [http-nio-8080-exec-2] DEBUG c.e.s.i.s.AuthenticationFilter - Authenticated user ID: 41db72ea-bc32-4a63-a6b1-262b3cbf14ed
+2026-03-18 16:54:53 [http-nio-8080-exec-2] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.full_name,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-03-18 16:54:53 [http-nio-8080-exec-2] DEBUG org.hibernate.SQL - 
+    update
+        users 
+    set
+        is_active=?,
+        avatar=?,
+        coin=?,
+        created_at=?,
+        date_of_birth=?,
+        email=?,
+        is_email_verified=?,
+        full_name=?,
+        notification_enabled=?,
+        password_hash=?,
+        phone=?,
+        rate=?,
+        refresh_token=?,
+        refresh_token_expiry=?,
+        role=?,
+        updated_at=?,
+        username=? 
+    where
+        id=?
+2026-03-18 16:54:59 [http-nio-8080-exec-10] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.full_name,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-03-18 16:54:59 [http-nio-8080-exec-10] DEBUG c.e.s.i.s.AuthenticationFilter - Authenticated user ID: 41db72ea-bc32-4a63-a6b1-262b3cbf14ed
+2026-03-18 16:54:59 [http-nio-8080-exec-10] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.full_name,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-03-18 16:54:59 [http-nio-8080-exec-10] DEBUG org.hibernate.SQL - 
+    update
+        users 
+    set
+        is_active=?,
+        avatar=?,
+        coin=?,
+        created_at=?,
+        date_of_birth=?,
+        email=?,
+        is_email_verified=?,
+        full_name=?,
+        notification_enabled=?,
+        password_hash=?,
+        phone=?,
+        rate=?,
+        refresh_token=?,
+        refresh_token_expiry=?,
+        role=?,
+        updated_at=?,
+        username=? 
+    where
+        id=?
+2026-03-18 17:50:45 [HikariPool-1:housekeeper] WARN  com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Thread starvation or clock leap detected (housekeeper delta=54m25s930ms98µs500ns).
+2026-03-18 17:50:45 [HikariPool-1:housekeeper] WARN  com.zaxxer.hikari.pool.PoolBase - HikariPool-1 - Failed to validate connection org.postgresql.jdbc.PgConnection@cabbe2f (This connection has been closed.). Possibly consider using a shorter maxLifetime value.
+2026-03-18 17:50:45 [HikariPool-1:housekeeper] WARN  com.zaxxer.hikari.pool.PoolBase - HikariPool-1 - Failed to validate connection org.postgresql.jdbc.PgConnection@23a7576a (This connection has been closed.). Possibly consider using a shorter maxLifetime value.
+2026-03-18 17:50:45 [HikariPool-1:housekeeper] WARN  com.zaxxer.hikari.pool.PoolBase - HikariPool-1 - Failed to validate connection org.postgresql.jdbc.PgConnection@76673ed (This connection has been closed.). Possibly consider using a shorter maxLifetime value.
+2026-03-18 17:50:45 [HikariPool-1:housekeeper] WARN  com.zaxxer.hikari.pool.PoolBase - HikariPool-1 - Failed to validate connection org.postgresql.jdbc.PgConnection@2173d586 (This connection has been closed.). Possibly consider using a shorter maxLifetime value.
+2026-03-18 17:50:45 [HikariPool-1:housekeeper] WARN  com.zaxxer.hikari.pool.PoolBase - HikariPool-1 - Failed to validate connection org.postgresql.jdbc.PgConnection@1807778 (This connection has been closed.). Possibly consider using a shorter maxLifetime value.
+2026-03-18 17:51:08 [SpringApplicationShutdownHook] INFO  o.s.boot.tomcat.GracefulShutdown - Commencing graceful shutdown. Waiting for active requests to complete
+2026-03-18 17:51:08 [tomcat-shutdown] INFO  o.s.boot.tomcat.GracefulShutdown - Graceful shutdown complete
+2026-03-18 17:51:08 [SpringApplicationShutdownHook] INFO  o.s.o.j.LocalContainerEntityManagerFactoryBean - Closing JPA EntityManagerFactory for persistence unit 'default'
+2026-03-18 17:51:08 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown initiated...
+2026-03-18 17:51:09 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown completed.
