@@ -3,19 +3,21 @@ package com.example.smartmoney.infrastructure.persistence.repositories;
 import com.example.smartmoney.domain.models.notification.Notification;
 import com.example.smartmoney.infrastructure.persistence.entities.NotificationEntity;
 import com.example.smartmoney.infrastructure.persistence.mappers.NotificationMapper;
-import com.example.smartmoney.infrastructure.persistence.repositories.NotificationJpaRepository;
+import com.example.smartmoney.infrastructure.persistence.repositories.JpaNotificationRepository;
 import com.example.smartmoney.domain.repositories.NotificationRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
+import java.util.List;
+import java.util.UUID;
 
 @Repository
 @RequiredArgsConstructor
 public class NotificationRepositoryImpl implements NotificationRepository {
 
-    private final NotificationJpaRepository jpaRepository;
+    private final JpaNotificationRepository jpaRepository;
     private final NotificationMapper mapper;
 
     @Override
@@ -24,7 +26,15 @@ public class NotificationRepositoryImpl implements NotificationRepository {
         NotificationEntity saved = jpaRepository.save(entity);
         return mapper.toDomain(saved);
     }
-
+    
+    @Override
+    public List<Notification> findByUserIdOrderByCreatedAtDesc(UUID userId) {
+        return jpaRepository.findByUserIdOrderByCreatedAtDesc(userId)
+                .stream()
+                .map(NotificationMapper::toDomain)
+                .toList();
+    }
+    
     @Override
     public long count() {
         return jpaRepository.count();

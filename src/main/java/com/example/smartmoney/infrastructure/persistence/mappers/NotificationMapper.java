@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class NotificationMapper {
 
-    public NotificationEntity toEntity(Notification domain) {
+    public static NotificationEntity toEntity(Notification domain) {
         if (domain == null) return null;
         return NotificationEntity.builder()
                 .id(domain.getId())
@@ -17,7 +17,7 @@ public class NotificationMapper {
                 .build();
     }
 
-    public Notification toDomain(NotificationEntity entity) {
+    public static Notification toDomain(NotificationEntity entity) {
         if (entity == null) return null;
         Notification notification = new Notification();
         notification.setId(entity.getId());
