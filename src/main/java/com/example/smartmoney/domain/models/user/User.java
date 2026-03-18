@@ -33,7 +33,7 @@ public class User {
     private LocalDateTime updatedAt;
     private boolean active = true;
     private boolean emailVerified = false;  // Trạng thái xác minh email
-    
+    private boolean notificationEnabled = true;
     
     // Factory method for registration
     public static User create(
@@ -267,4 +267,14 @@ public class User {
     
     public boolean isEmailVerified() { return emailVerified; }
     public void setEmailVerified(boolean emailVerified) { this.emailVerified = emailVerified; }
+
+    public void enableNotification() {
+    this.notificationEnabled = true;
+    this.updatedAt = LocalDateTime.now();
+    }   
+
+    public void disableNotification() {
+        this.notificationEnabled = false;
+        this.updatedAt = LocalDateTime.now();
+    }
 }

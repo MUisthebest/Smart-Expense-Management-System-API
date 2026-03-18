@@ -1,6 +1,7 @@
 package com.example.smartmoney.presentation.controllers;
 
 import com.example.smartmoney.application.usecases.notification.CreateNotificationUseCase;
+import com.example.smartmoney.application.usecases.notification.GetNotificationUseCase;
 import com.example.smartmoney.domain.models.notification.Notification;
 import com.example.smartmoney.application.dtos.requests.notification.CreateNotificationRequest;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +19,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.Parameter;
 
 import java.util.UUID;
+import java.util.List;
 
 @Tag(
     name = "Notifications",
@@ -29,6 +31,7 @@ import java.util.UUID;
 public class NotificationController {
 
     private final CreateNotificationUseCase createNotificationUseCase;
+    private final GetNotificationUseCase getNotificationUseCase;
     private final JwtTokenProvider jwtTokenProvider;
 
     @Operation(
@@ -63,6 +66,44 @@ public class NotificationController {
             .message("Notification created successfully")
             .data(notification)
             .build();
+        return ResponseEntity.ok(response);
+    }
+
+    @Operation(
+    summary = "Get user notifications",
+    description = "Retrieve all notifications of current user (sorted by newest first)"
+)
+@ApiResponses({
+    @ApiResponse(
+        responseCode = "200",
+        description = "Notifications retrieved successfully",
+        content = @Content(schema = @Schema(implementation = CheckResponse.class))
+    ),
+    @ApiResponse(
+        responseCode = "401",
+        description = "Unauthorized"
+    ),
+    @ApiResponse(
+        responseCode = "500",
+        description = "Internal server error"
+    )
+})
+
+    @GetMapping
+    public ResponseEntity<CheckResponse<List<Notification>>> getNotifications(
+            @Parameter(description = "Bearer token", required = true, hidden = true)
+            @RequestHeader("Authorization") String authHeader
+    ) {
+        UUID userId = extractUserIdFromToken(authHeader);
+
+        List<Notification> notifications = getNotificationUseCase.getByUserId(userId);
+
+        CheckResponse<List<Notification>> response = CheckResponse.<List<Notification>>builder()
+                .success(true)
+                .message("Notifications retrieved successfully")
+                .data(notifications)
+                .build();
+
         return ResponseEntity.ok(response);
     }
 

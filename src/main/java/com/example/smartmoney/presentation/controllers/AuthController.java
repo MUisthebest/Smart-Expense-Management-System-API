@@ -23,9 +23,11 @@ import com.example.smartmoney.application.usecases.auth.VerifyEmailUseCase;
 import com.example.smartmoney.application.usecases.auth.VerifyOtpUseCase;
 import com.example.smartmoney.domain.exceptions.DomainException;
 import com.example.smartmoney.application.usecases.auth.SendResetPasswordOtpUseCase;
+import com.example.smartmoney.application.usecases.auth.UserNotificationUseCase;
 import com.example.smartmoney.application.usecases.auth.ResetPasswordUseCase;
 import com.example.smartmoney.application.usecases.auth.UpdateUserUseCase;
 import com.example.smartmoney.infrastructure.security.CurrentUser;
+import com.example.smartmoney.infrastructure.security.JwtTokenProvider;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -62,6 +64,8 @@ public class AuthController {
     private final SendResetPasswordOtpUseCase sendResetPasswordOtpUseCase;
     private final ResetPasswordUseCase resetPasswordUseCase;
     private final VerifyOtpUseCase verifyOtpUseCase;
+    private final UserNotificationUseCase notificationUseCase;
+    private final JwtTokenProvider jwtTokenProvider;
 
     
     @Operation(
@@ -685,9 +689,41 @@ public class AuthController {
         }
     }
 
+    // Handle Notification
+    @PatchMapping("/notification/enable")
+    public ResponseEntity<?> enable(@RequestHeader("Authorization") String auth) {
+        UUID userId = extractUserIdFromToken(auth);
+        notificationUseCase.enable(userId);
+        return ResponseEntity.ok("Enabled");
+    }
+
+    @PatchMapping("/notification/disable")
+    public ResponseEntity<?> disable(@RequestHeader("Authorization") String auth) {
+        UUID userId = extractUserIdFromToken(auth);
+        notificationUseCase.disable(userId);
+        return ResponseEntity.ok("Disabled");
+    }
+
+    @GetMapping("/notification")
+    public ResponseEntity<?> getStatus(@RequestHeader("Authorization") String auth) {
+        UUID userId = extractUserIdFromToken(auth);
+        return ResponseEntity.ok(notificationUseCase.getStatus(userId));
+    }
+
     private String extractTokenFromHeader(String authHeader) {
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             return authHeader.substring(7);
+        }
+        throw new IllegalArgumentException("Invalid Authorization header");
+    }
+
+        /**
+     * Extract user ID from JWT token in Authorization header
+     */
+    private UUID extractUserIdFromToken(String authHeader) {
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            String token = authHeader.substring(7);
+            return jwtTokenProvider.getUserIdFromToken(token);
         }
         throw new IllegalArgumentException("Invalid Authorization header");
     }
