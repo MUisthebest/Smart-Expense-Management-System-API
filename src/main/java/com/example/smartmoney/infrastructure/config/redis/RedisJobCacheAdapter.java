@@ -2,84 +2,93 @@ package com.example.smartmoney.infrastructure.config.redis;
 
 import com.example.smartmoney.application.dtos.responses.JobResponse;
 import com.example.smartmoney.application.ports.event.RedisJobCachePort;
-
+import com.example.smartmoney.domain.models.message.enums.MessageStatus;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 @Component
 public class RedisJobCacheAdapter implements RedisJobCachePort {
 
     private final RedisTemplate<String, Object> template;
 
-    private static final long TTL = 90;
+    private static final long TTL = 300;
 
     public RedisJobCacheAdapter(RedisTemplate<String, Object> template) {
         this.template = template;
     }
 
-    private String jobKey(String jobId) {
-        return "job:" + jobId;
-    }
-
-    private String userJobsKey(String tokenId) {
-        return "user:" + tokenId + ":jobs";
-    }
-
     @Override
-    public void addJobForUser(String tokenId, String jobId) {
+    public void addJobForUser(String tokenId, String jobId, String payload) {
 
-        template.opsForList().rightPush(
-                userJobsKey(tokenId),
-                jobId
+        JobResponse job = new JobResponse(
+                jobId,
+                tokenId,
+                payload,
+                MessageStatus.PENDING
         );
 
-        template.expire(userJobsKey(tokenId), TTL, TimeUnit.SECONDS);
+        template.opsForValue().set(jobId, job, TTL, TimeUnit.SECONDS);
+
+        template.opsForSet().add(tokenId, jobId);
+
+        template.expire(tokenId, TTL, TimeUnit.SECONDS);
     }
 
-    @Override
-    public List<String> findJobsByUser(String tokenId) {
+    public List<JobResponse> findJobsByUser(String tokenId) {
 
-        List<Object> jobs = template.opsForList().range(
-                userJobsKey(tokenId),
-                0,
-                -1
-        );
+        Set<Object> jobIds = template.opsForSet().members(tokenId);
 
-        return jobs.stream()
-                .map(Object::toString)
-                .toList();
-    }
-
-    @Override
-    public void storeResult(String jobId, JobResponse<?> response) {
-
-        template.opsForValue().set(
-                jobKey(jobId),
-                response,
-                TTL,
-                TimeUnit.SECONDS
-        );
-    }
-
-    @Override
-    public Optional<JobResponse<?>> findResult(String jobId) {
-
-        Object result = template.opsForValue().get(jobKey(jobId));
-
-        if (result instanceof JobResponse<?> jobResponse) {
-            return Optional.of(jobResponse);
+        if (jobIds == null || jobIds.isEmpty()) {
+            return Collections.emptyList();
         }
 
-        return Optional.empty();
+        return jobIds.stream()
+                .map(id -> template.opsForValue().get((id.toString())))
+                .filter(Objects::nonNull)
+                .map(obj -> (JobResponse) obj)
+                .collect(Collectors.toList());
+    }
+
+    public Optional<JobResponse> findResult(String jobId) {
+
+        Object result = template.opsForValue().get(jobId);
+
+        if (result == null) {
+            return Optional.empty();
+        }
+
+        return Optional.of((JobResponse) result);
     }
 
     @Override
-    public void delete(String jobId) {
+    public void delete(String tokenId, String jobId) {
 
-        template.delete(jobKey(jobId));
+        template.delete((jobId));
+
+        template.opsForSet().remove(tokenId, jobId);
+    }
+
+    public void storeResult(String jobId, JobResponse response) {
+
+        template.opsForValue().set((jobId), response, TTL, TimeUnit.SECONDS);
+    }
+
+    @Override
+    public Optional<String> getDedup(String key) {
+
+        Object value = template.opsForValue().get(key);
+
+        return value == null ? Optional.empty() : Optional.of(value.toString());
+    }
+
+    @Override
+    public void setDedup(String key, String jobId) {
+
+        template.opsForValue().set(key, jobId, TTL, TimeUnit.SECONDS);
     }
 }

@@ -8,9 +8,9 @@ import com.example.smartmoney.domain.models.message.enums.MessageStatus;
 public class MessageRecord<T> {
 
     private final String jobId;
-    private final T payload;
+    private final String  fileURL;
     private final String tokenId;
-
+    private final String inputType;
     private MessageStatus status;
 
     private final LocalDateTime createdAt;
@@ -22,9 +22,10 @@ public class MessageRecord<T> {
 
     private static final int MAX_RETRY = 3;
 
-    public MessageRecord(T payload, String tokenId) {
+    public MessageRecord(String fileURL, String tokenId, String inputType) {
         this.jobId = UUID.randomUUID().toString();
-        this.payload = payload;
+        this.fileURL = fileURL;
+        this.inputType = inputType;
         this.tokenId = tokenId;
 
         this.status = MessageStatus.PENDING;
@@ -71,10 +72,6 @@ public class MessageRecord<T> {
         return jobId;
     }
 
-    public T getPayload() {
-        return payload;
-    }
-
     public String getTokenId() {
         return tokenId;
     }
@@ -101,5 +98,13 @@ public class MessageRecord<T> {
 
     public String getErrorMessage() {
         return errorMessage;
+    }
+
+    public  String getFileURL() {
+        return fileURL;
+    }
+
+    public  String getInputType() {
+        return inputType;
     }
 }

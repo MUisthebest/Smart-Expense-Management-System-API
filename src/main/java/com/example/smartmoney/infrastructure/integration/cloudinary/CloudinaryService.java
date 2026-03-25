@@ -164,4 +164,29 @@ public class CloudinaryService {
             throw new DomainException("Failed to upload file: " + e.getMessage());
         }
     }
+
+    public Map<String, String> uploadVideoImage(MultipartFile file, String folder) {
+        try {
+            String publicId = folder + "/" + UUID.randomUUID();
+
+            Map uploadResult = cloudinary.uploader().upload(
+                    file.getInputStream(), //
+                    ObjectUtils.asMap(
+                            "folder", folder,
+                            "public_id", publicId,
+                            "resource_type", "auto"
+                    )
+            );
+
+            return Map.of(
+                    "url", uploadResult.get("secure_url").toString(),
+                    "publicId", uploadResult.get("public_id").toString()
+            );
+
+        } catch (IOException e) {
+            throw new DomainException("Failed to upload file: " + e.getMessage());
+        }
+    }
+
+
 }

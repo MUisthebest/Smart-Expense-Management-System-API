@@ -1,5 +1,6 @@
 package com.example.smartmoney.infrastructure.security;
 
+import jakarta.servlet.DispatcherType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -62,6 +63,10 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/users/**").authenticated()
                 .requestMatchers("/api/v1/transactions/**").authenticated()
                 .requestMatchers("/api/v1/wallet/**").authenticated()
+
+                    //Allow async dispatch authentication
+                    .requestMatchers("/ai/**").authenticated()
+                    .dispatcherTypeMatchers(DispatcherType.ASYNC).permitAll()
                 
                 // Any other request requires authentication
                 .anyRequest().authenticated()
