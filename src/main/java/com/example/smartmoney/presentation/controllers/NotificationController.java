@@ -7,7 +7,7 @@ import com.example.smartmoney.application.dtos.requests.notification.CreateNotif
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 import com.example.smartmoney.application.dtos.responses.CheckResponse;
-import com.example.smartmoney.application.dtos.responses.UserResponse;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import com.example.smartmoney.infrastructure.security.JwtTokenProvider;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -55,24 +55,28 @@ public class NotificationController {
         )
     })
     @PostMapping
-    public ResponseEntity<CheckResponse<Notification>> createNotification(@RequestBody CreateNotificationRequest request,
-            @Parameter(description = "Bearer token", required = true, hidden = true)
+    public ResponseEntity<CheckResponse<Notification>> createNotification(
+            @RequestBody CreateNotificationRequest request,
             @RequestHeader("Authorization") String authHeader
     ) {
         UUID userId = extractUserIdFromToken(authHeader);
-        Notification notification = createNotificationUseCase.createNotification(userId, request.getContent());
-        CheckResponse<Notification> response = CheckResponse.<Notification>builder()
-            .success(true)
-            .message("Notification created successfully")
-            .data(notification)
-            .build();
-        return ResponseEntity.ok(response);
+
+        Notification notification =
+            createNotificationUseCase.createNotification(userId, request.getContent());
+
+        return ResponseEntity.ok(
+            CheckResponse.<Notification>builder()
+                .success(true)
+                .message("Notification created successfully")
+                .data(notification)
+                .build()
+        );
     }
 
     @Operation(
     summary = "Get user notifications",
     description = "Retrieve all notifications of current user (sorted by newest first)"
-)
+    )
 @ApiResponses({
     @ApiResponse(
         responseCode = "200",
