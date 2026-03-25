@@ -384,7 +384,7 @@ public class TransactionController {
     /**
      * Extract user ID from JWT token in Authorization header
      */
-    private UUID extractUserIdFromToken(String authHeader) {
+    public UUID extractUserIdFromToken(String authHeader) {
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             String token = authHeader.substring(7);
             return jwtTokenProvider.getUserIdFromToken(token);

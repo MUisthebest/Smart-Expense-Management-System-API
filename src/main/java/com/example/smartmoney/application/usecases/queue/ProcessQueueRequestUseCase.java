@@ -1,67 +1,60 @@
 package com.example.smartmoney.application.usecases.queue;
 
-import com.example.smartmoney.application.dtos.responses.JobResponse;
-import com.example.smartmoney.domain.models.message.enums.MessageStatus;
-import com.example.smartmoney.domain.models.message.MessageRecord;
-import com.example.smartmoney.domain.repositories.MessageRepository;
-import com.example.smartmoney.application.ports.event.RedisJobCachePort;
-import com.example.smartmoney.application.ports.event.EventPublisherPort;
-import com.example.smartmoney.application.dtos.requests.JobEvent;
 
+import com.example.smartmoney.application.dtos.responses.JobResponse;
+import com.example.smartmoney.application.helper.hashFile;
+import com.example.smartmoney.application.ports.event.RedisJobCachePort;
+import com.example.smartmoney.application.usecases.queue.JobAsyncService;
+
+import com.example.smartmoney.domain.models.message.MessageRecord;
+import com.example.smartmoney.domain.models.message.enums.MessageStatus;
+import com.example.smartmoney.infrastructure.integration.cloudinary.CloudinaryService;
+import jakarta.mail.Multipart;
+import org.apache.commons.codec.cli.Digest;
 import org.springframework.stereotype.Service;
+import org.springframework.util.DigestUtils;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
 @Service
 public class ProcessQueueRequestUseCase<T> {
 
-    private final MessageRepository messageRepository;
     private final RedisJobCachePort redisJobCachePort;
-    private final EventPublisherPort eventPublisherPort;
+    private final JobAsyncService jobAsyncService;
+    private final CloudinaryService cloudinaryService;
 
     public ProcessQueueRequestUseCase(
-            MessageRepository messageRepository,
             RedisJobCachePort redisJobCachePort,
-            EventPublisherPort eventPublisherPort) {
+            JobAsyncService jobAsyncService, CloudinaryService cloudinaryService) {
 
-        this.messageRepository = messageRepository;
         this.redisJobCachePort = redisJobCachePort;
-        this.eventPublisherPort = eventPublisherPort;
+        this.jobAsyncService = jobAsyncService;
+        this.cloudinaryService = cloudinaryService;
     }
 
-    public MessageRecord<T> execute(T payload, String tokenId) {
+    public MessageRecord<T> execute(MultipartFile file, String InputType, String userId) {
+        // Generate keyString from the payload file by reading bytes
+        String hashKey = hashFile.hashFileMD5(file);
+        String dedupKey = "dedup:" + userId + ":" + hashKey;
 
-        List<String> jobIds = redisJobCachePort.findJobsByUser(tokenId);
-
-        for (String jobId : jobIds) {
-
-            Optional<JobResponse<?>> responseOpt = redisJobCachePort.findResult(jobId);
-
-            if (responseOpt.isPresent()) {
-
-                JobResponse<?> response = responseOpt.get();
-
-                if (response.getStatus() == MessageStatus.PROCESSING) {
-                    throw new RuntimeException("A job with this user is already processing");
-                }
-            }
+        // Check if the keyString exists in Redis
+        Optional<String> existingKey = redisJobCachePort.getDedup(dedupKey);
+        if (existingKey.isPresent()) {
+            throw new RuntimeException("Duplicate request detected. A similar file has already been processed.");
         }
 
-        MessageRecord<T> newRecord = new MessageRecord<>(payload, tokenId);
+        // Save the image/video to cloudinary
+        Map<String, String> fileUpload = cloudinaryService.uploadVideoImage(file, "AI-Input");
+        String publicId = fileUpload.get("publicId");
+        String url = fileUpload.get("url");
 
-        messageRepository.save(newRecord);
 
-        redisJobCachePort.addJobForUser(tokenId, newRecord.getJobId());
-
-        JobEvent event = new JobEvent(
-                newRecord.getJobId(),
-                tokenId,
-                payload
-        );
-
-        eventPublisherPort.publishJob(newRecord.getJobId(), event);
-
+        MessageRecord<T> newRecord = new MessageRecord<>(url, userId, InputType);
+        jobAsyncService.process(url, dedupKey, userId, newRecord.getJobId());
         return newRecord;
     }
 }

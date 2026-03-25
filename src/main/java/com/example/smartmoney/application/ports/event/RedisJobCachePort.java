@@ -6,13 +6,12 @@ import com.example.smartmoney.application.dtos.responses.JobResponse;
 
 public interface RedisJobCachePort {
 
-    void addJobForUser(String tokenId, String jobId);
+    void addJobForUser(String tokenId, String jobId, String payload);
 
-    List<String> findJobsByUser(String tokenId);
 
-    void storeResult(String jobId, JobResponse<?> response);
+    void delete(String tokenId, String jobId);
 
-    Optional<JobResponse<?>> findResult(String jobId);
+    Optional<String> getDedup(String key);
 
-    void delete(String jobId);
+    void setDedup(String key, String jobId);
 }
