@@ -11,11 +11,21 @@ public class Notification {
 
     public Notification() {}
 
+    // dùng khi tạo mới (chưa có id)
     public Notification(UUID userId, String content, LocalDateTime createdAt) {
         this.userId = userId;
         this.content = content;
         this.createdAt = createdAt;
     }
+
+    // dùng khi load từ DB
+    public Notification(UUID id, UUID userId, String content, LocalDateTime createdAt) {
+        this.id = id;
+        this.userId = userId;
+        this.content = content;
+        this.createdAt = createdAt;
+    }
+
 
     // Getters & Setters
     public UUID getId() { return id; }

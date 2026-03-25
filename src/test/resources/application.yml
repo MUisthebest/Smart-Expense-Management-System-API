@@ -41,6 +41,12 @@ spring:
   # Disable Flyway for tests (Hibernate will manage schema)
   flyway:
     enabled: false
+
+  # Redis Configuration
+  data:
+    redis:
+      url: ${REDIS_URI:redis://localhost:6379}
+      timeout: 10000ms
   
   # Jackson Configuration
   jackson:

@@ -3,6 +3,7 @@ package com.example.smartmoney.infrastructure.persistence.repositories;
 import com.example.smartmoney.infrastructure.persistence.entities.NotificationEntity;
 import com.example.smartmoney.domain.models.notification.Notification;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -17,7 +18,7 @@ public interface JpaNotificationRepository extends JpaRepository<NotificationEnt
     Notification save(Notification notification);
 
     // Đếm tổng số notification
-    long count();
+    long countByUserId(UUID userId);
 
     List<NotificationEntity> findByUserIdOrderByCreatedAtDesc(UUID userId);
     
@@ -25,6 +26,17 @@ public interface JpaNotificationRepository extends JpaRepository<NotificationEnt
     @Query(value = "SELECT MIN(created_at) FROM (SELECT created_at FROM notifications ORDER BY created_at DESC LIMIT :limit) AS top", nativeQuery = true)
     Optional<LocalDateTime> findMinCreatedAtInLatestNotifications(@Param("limit") int limit);
 
-    // Xóa các bản ghi có created_at trước threshold
-    void deleteByCreatedAtBefore(LocalDateTime threshold);
+    @Modifying
+    @Query(value = """
+    DELETE FROM notifications
+    WHERE id IN (
+        SELECT id FROM notifications
+        WHERE user_id = :userId
+        ORDER BY created_at ASC
+        LIMIT (
+            SELECT COUNT(*) - 40 FROM notifications WHERE user_id = :userId
+        )
+    )
+    """, nativeQuery = true)
+    void deleteOldestByUserId(UUID userId);
 }

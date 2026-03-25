@@ -1,5 +1,6 @@
 package com.example.smartmoney.application.usecases.notification;
 
+import com.example.smartmoney.application.ports.notification.NotificationQueuePort;
 import com.example.smartmoney.domain.models.notification.Notification;
 import com.example.smartmoney.domain.repositories.NotificationRepository;
 import lombok.RequiredArgsConstructor;
@@ -14,28 +15,19 @@ import java.util.UUID;
 public class CreateNotificationUseCase {
 
     private final NotificationRepository notificationRepository;
-    private static final int MAX_NOTIFICATIONS = 40;
+    private final NotificationQueuePort queuePort;
 
     @Transactional
     public Notification createNotification(UUID userId, String content) {
 
-        Notification notification = new Notification(userId, content, LocalDateTime.now());
+        Notification notification =
+            new Notification(userId, content, LocalDateTime.now());
 
         Notification saved = notificationRepository.save(notification);
 
-        enforceMaxNotifications();
+        // ✅ đẩy sang queue (qua port)
+        queuePort.enqueue(saved);
 
         return saved;
-    }
-
-    private void enforceMaxNotifications() {
-        long total = notificationRepository.count();
-
-        if (total > MAX_NOTIFICATIONS) {
-            notificationRepository
-                    .findMinCreatedAtInLatestNotifications(MAX_NOTIFICATIONS)
-                    .ifPresent(threshold ->
-                            notificationRepository.deleteOlderThan(threshold));
-        }
     }
 }

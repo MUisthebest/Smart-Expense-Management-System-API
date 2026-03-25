@@ -61,7 +61,8 @@ public class SecurityConfig implements WebMvcConfigurer {
                     "/swagger-resources/**",
                     "/configuration/**",
                     "/actuator/health",
-                    "/error"
+                    "/error",
+                    "/ws/**" 
                 ).permitAll()
                 
                 // Admin only endpoints

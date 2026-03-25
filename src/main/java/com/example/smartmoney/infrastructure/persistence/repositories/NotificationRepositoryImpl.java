@@ -1,15 +1,17 @@
 package com.example.smartmoney.infrastructure.persistence.repositories;
 
 import com.example.smartmoney.domain.models.notification.Notification;
+import com.example.smartmoney.domain.repositories.NotificationRepository;
 import com.example.smartmoney.infrastructure.persistence.entities.NotificationEntity;
 import com.example.smartmoney.infrastructure.persistence.mappers.NotificationMapper;
-import com.example.smartmoney.infrastructure.persistence.repositories.JpaNotificationRepository;
-import com.example.smartmoney.domain.repositories.NotificationRepository;
+
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
-import java.util.Optional;
 import java.util.List;
 import java.util.UUID;
 
@@ -20,34 +22,38 @@ public class NotificationRepositoryImpl implements NotificationRepository {
     private final JpaNotificationRepository jpaRepository;
     private final NotificationMapper mapper;
 
+    @PersistenceContext
+    private EntityManager entityManager;
+
     @Override
     public Notification save(Notification notification) {
         NotificationEntity entity = mapper.toEntity(notification);
-        NotificationEntity saved = jpaRepository.save(entity);
-        return mapper.toDomain(saved);
+        return mapper.toDomain(jpaRepository.save(entity));
     }
-    
+
     @Override
     public List<Notification> findByUserIdOrderByCreatedAtDesc(UUID userId) {
+        // ❗ tránh findAll + filter (rất tệ performance)
         return jpaRepository.findByUserIdOrderByCreatedAtDesc(userId)
                 .stream()
-                .map(NotificationMapper::toDomain)
+                .map(mapper::toDomain)
                 .toList();
     }
-    
-    @Override
-    public long count() {
-        return jpaRepository.count();
-    }
 
     @Override
-    public Optional<LocalDateTime> findMinCreatedAtInLatestNotifications(int limit) {
-        return jpaRepository.findMinCreatedAtInLatestNotifications(limit);
-    }
-
-    @Override
-    public void deleteOlderThan(LocalDateTime threshold) {
-        jpaRepository.deleteByCreatedAtBefore(threshold);
+    @Transactional
+    public void deleteExceedingByUserId(UUID userId, int max) {
+        entityManager.createNativeQuery("""
+            DELETE FROM notifications
+            WHERE id IN (
+                SELECT id FROM notifications
+                WHERE user_id = :userId
+                ORDER BY created_at DESC
+                OFFSET :max
+            )
+        """)
+        .setParameter("userId", userId)
+        .setParameter("max", max)
+        .executeUpdate();
     }
 }
-
