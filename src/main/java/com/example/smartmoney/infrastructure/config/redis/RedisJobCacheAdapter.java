@@ -40,6 +40,7 @@ public class RedisJobCacheAdapter implements RedisJobCachePort {
     }
 
 
+
     @Override
     public Optional<String> getDedup(String key) {
 
@@ -53,7 +54,4 @@ public class RedisJobCacheAdapter implements RedisJobCachePort {
 
         template.opsForValue().set(key, jobId, TTL, TimeUnit.SECONDS);
     }
-
-
-
 }

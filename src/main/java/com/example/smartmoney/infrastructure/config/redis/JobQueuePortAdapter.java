@@ -63,9 +63,5 @@ public class JobQueuePortAdapter implements JobQueuePort {
         String recordId = streamCommands.xadd(streamKey, args, body);
         System.out.println("xadd success, recordId: " + recordId);
 
-        long minTimestamp = System.currentTimeMillis() - (ttlSeconds * 1000);
-        XTrimArgs trimArgs = XTrimArgs.Builder.minId(minTimestamp + "-0");
-        streamCommands.xtrim(streamKey, trimArgs);
-        System.out.println("xtrim success, minTimestamp: " + minTimestamp);
     }
 }
