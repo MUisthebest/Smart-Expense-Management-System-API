@@ -1,18 +1,15 @@
 package com.example.smartmoney.application.ports.event;
 
-import java.util.List;
 import java.util.Optional;
-import com.example.smartmoney.application.dtos.responses.JobResponse;
 
 public interface RedisJobCachePort {
 
-    void addJobForUser(String tokenId, String jobId);
+    void addJobForUser(String tokenId, String jobId, String payload);
 
-    List<String> findJobsByUser(String tokenId);
+    void delete(String tokenId, String jobId);
 
-    void storeResult(String jobId, JobResponse<?> response);
+    Optional<String> getDedup(String key);
 
-    Optional<JobResponse<?>> findResult(String jobId);
+    void setDedup(String key, String jobId);
 
-    void delete(String jobId);
 }

@@ -5,12 +5,12 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 import com.example.smartmoney.domain.models.message.enums.MessageStatus;
 
-public class MessageRecord<T> {
+public class MessageRecord {
 
     private final String jobId;
-    private final T payload;
+    private final String  fileURL;
     private final String tokenId;
-
+    private final String inputType;
     private MessageStatus status;
 
     private final LocalDateTime createdAt;
@@ -22,9 +22,10 @@ public class MessageRecord<T> {
 
     private static final int MAX_RETRY = 3;
 
-    public MessageRecord(T payload, String tokenId) {
+    public MessageRecord(String fileURL, String tokenId, String inputType) {
         this.jobId = UUID.randomUUID().toString();
-        this.payload = payload;
+        this.fileURL = fileURL;
+        this.inputType = inputType;
         this.tokenId = tokenId;
 
         this.status = MessageStatus.PENDING;
@@ -35,44 +36,12 @@ public class MessageRecord<T> {
         this.retryCount = 0;
     }
 
-    public void startProcessing() {
-        updateStatus(MessageStatus.PROCESSING);
-    }
 
-    public void completeProcessing(String result) {
-        this.result = result;
-        updateStatus(MessageStatus.COMPLETED);
-    }
-
-    public void failProcessing(String error) {
-        this.errorMessage = error;
-        this.retryCount++;
-        updateStatus(MessageStatus.FAILED);
-    }
-
-    public boolean canRetry() {
-        return retryCount < MAX_RETRY;
-    }
-
-    private void updateStatus(MessageStatus newStatus) {
-        this.status = newStatus;
-        this.updatedAt = LocalDateTime.now();
-    }
-
-    public boolean isTimeout(Duration timeout) {
-        return Duration
-                .between(updatedAt, LocalDateTime.now())
-                .compareTo(timeout) > 0;
-    }
 
     // -------- GETTERS --------
 
     public String getJobId() {
         return jobId;
-    }
-
-    public T getPayload() {
-        return payload;
     }
 
     public String getTokenId() {
@@ -101,5 +70,13 @@ public class MessageRecord<T> {
 
     public String getErrorMessage() {
         return errorMessage;
+    }
+
+    public  String getFileURL() {
+        return fileURL;
+    }
+
+    public  String getInputType() {
+        return inputType;
     }
 }
