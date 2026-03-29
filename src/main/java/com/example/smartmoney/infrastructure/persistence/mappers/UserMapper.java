@@ -117,6 +117,7 @@ public abstract class UserMapper {
             user.setCreatedAt(entity.getCreatedAt());
             user.setUpdatedAt(entity.getUpdatedAt());
             user.setActive(entity.isActive());
+            user.setNotificationEnabled(entity.isNotificationEnabled());
         }
     }
     
@@ -131,6 +132,7 @@ public abstract class UserMapper {
             entity.setCreatedAt(domain.getCreatedAt());
             entity.setUpdatedAt(domain.getUpdatedAt());
             entity.setActive(domain.isActive());
+            entity.setNotificationEnabled(domain.isNotificationEnabled());
         }
     }
 }

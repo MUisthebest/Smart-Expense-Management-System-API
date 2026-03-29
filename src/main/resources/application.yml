@@ -6,6 +6,7 @@ server:
   error:
     include-message: always
     include-binding-errors: always
+  address: 0.0.0.0
 
 # Spring Configuration
 spring:
@@ -72,7 +73,7 @@ spring:
 app:
   # JWT Configuration
   jwt:
-    secret: "MySuperSecretKeyForJWTWithAtLeast256BitsLength1234567890ExtraSecureKeyForSmartMoney2024"
+    secret: ${SECRET_KEY:MySuperSecretKeyForJWTWithAtLeast256BitsLength1234567890ExtraSecureKeyForSmartMoney2024"}
     access-token-expiration: 3600000    # 1 hour in milliseconds
     refresh-token-expiration: 604800000 # 7 days in milliseconds
     issuer: "smart-money-app"

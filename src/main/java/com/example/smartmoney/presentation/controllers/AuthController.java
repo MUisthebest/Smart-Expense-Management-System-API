@@ -23,9 +23,11 @@ import com.example.smartmoney.application.usecases.auth.VerifyEmailUseCase;
 import com.example.smartmoney.application.usecases.auth.VerifyOtpUseCase;
 import com.example.smartmoney.domain.exceptions.DomainException;
 import com.example.smartmoney.application.usecases.auth.SendResetPasswordOtpUseCase;
+import com.example.smartmoney.application.usecases.auth.UserNotificationUseCase;
 import com.example.smartmoney.application.usecases.auth.ResetPasswordUseCase;
 import com.example.smartmoney.application.usecases.auth.UpdateUserUseCase;
 import com.example.smartmoney.infrastructure.security.CurrentUser;
+import com.example.smartmoney.infrastructure.security.JwtTokenProvider;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -62,6 +64,8 @@ public class AuthController {
     private final SendResetPasswordOtpUseCase sendResetPasswordOtpUseCase;
     private final ResetPasswordUseCase resetPasswordUseCase;
     private final VerifyOtpUseCase verifyOtpUseCase;
+    private final UserNotificationUseCase notificationUseCase;
+    private final JwtTokenProvider jwtTokenProvider;
 
     
     @Operation(
@@ -685,9 +689,66 @@ public class AuthController {
         }
     }
 
+    // Handle Notification
+    @PatchMapping("/notification/enable")
+    public ResponseEntity<CheckResponse<Boolean>>  enable(
+        @RequestHeader("Authorization") String auth) {
+        UUID userId = extractUserIdFromToken(auth);
+        notificationUseCase.enable(userId);
+        CheckResponse<Boolean> response = CheckResponse.<Boolean>builder()
+        .success(true)
+        .message("Enabled")
+        .build();
+        return ResponseEntity.ok(response);
+    }
+
+    @PatchMapping("/notification/disable")
+    public ResponseEntity<CheckResponse<Boolean>> disable(
+            @RequestHeader("Authorization") String auth
+    ) {
+        UUID userId = extractUserIdFromToken(auth);
+        notificationUseCase.disable(userId);
+
+        
+        CheckResponse<Boolean> response = CheckResponse.<Boolean>builder()
+                .success(true)
+                .message("Disabled")
+                .build();
+
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/notification")
+    public ResponseEntity<CheckResponse<Boolean>> getStatus(
+            @RequestHeader("Authorization") String auth
+    ) {
+        UUID userId = extractUserIdFromToken(auth);
+
+        Boolean status = notificationUseCase.getStatus(userId);
+
+        CheckResponse<Boolean> response = CheckResponse.<Boolean>builder()
+                .success(true)
+                .data(status)
+                .message("Status Notificattion")
+                .build();
+
+        return ResponseEntity.ok(response);
+    }
+
     private String extractTokenFromHeader(String authHeader) {
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             return authHeader.substring(7);
+        }
+        throw new IllegalArgumentException("Invalid Authorization header");
+    }
+
+        /**
+     * Extract user ID from JWT token in Authorization header
+     */
+    private UUID extractUserIdFromToken(String authHeader) {
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            String token = authHeader.substring(7);
+            return jwtTokenProvider.getUserIdFromToken(token);
         }
         throw new IllegalArgumentException("Invalid Authorization header");
     }
