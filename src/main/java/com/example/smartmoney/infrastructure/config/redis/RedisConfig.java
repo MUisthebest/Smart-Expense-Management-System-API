@@ -6,8 +6,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceClientConfiguration;
-import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.serializer.RedisSerializer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
@@ -48,8 +48,10 @@ public class RedisConfig {
 
         template.setKeySerializer(keySerializer);
         template.setValueSerializer(jsonSerializer);
+
         template.setHashKeySerializer(keySerializer);
         template.setHashValueSerializer(jsonSerializer);
+
         template.afterPropertiesSet();
 
         return template;

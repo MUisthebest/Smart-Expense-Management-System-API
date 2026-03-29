@@ -10,7 +10,6 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.scheduling.annotation.EnableScheduling;
-import org.springframework.security.core.context.SecurityContextHolder;
 
 @SpringBootApplication
 @EnableJpaRepositories
@@ -43,12 +42,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 @ConfigurationPropertiesScan
 @EnableScheduling
 public class SmartmoneyApplication {
-    
     public static void main(String[] args) {
-        SecurityContextHolder.setStrategyName(
-                SecurityContextHolder.MODE_INHERITABLETHREADLOCAL
-        );
-
         SpringApplication.run(SmartmoneyApplication.class, args);
     }
 }

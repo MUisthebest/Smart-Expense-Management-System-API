@@ -1,5 +1,4 @@
 package com.example.smartmoney.application.usecases.queue;
-
 import com.example.smartmoney.application.dtos.requests.JobEvent;
 import com.example.smartmoney.application.ports.event.JobQueuePort;
 import com.example.smartmoney.infrastructure.config.redis.JobQueuePortAdapter;
