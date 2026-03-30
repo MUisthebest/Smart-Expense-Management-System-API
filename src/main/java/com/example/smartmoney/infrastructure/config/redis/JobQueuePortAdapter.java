@@ -56,7 +56,7 @@ public class JobQueuePortAdapter implements JobQueuePort {
         Map<String, String> body = new LinkedHashMap<>();
         body.put("jobId",     jobEvent.getJobId());
         body.put("userId",    jobEvent.getUserId());
-        body.put("fileUrl",   jobEvent.getPayload());
+        body.put("data",   jobEvent.getPayload());
         body.put("duty",      jobEvent.getDuty());
         body.put("createdAt", String.valueOf(System.currentTimeMillis()));
 

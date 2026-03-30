@@ -10,7 +10,7 @@ import java.util.Map;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/ai")
+@RequestMapping("/ai/v1")
 public class AIController {
     private final TransactionController transactionController;
     private final ProcessQueueRequestUseCase processQueueRequestUseCase;
@@ -26,7 +26,7 @@ public class AIController {
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> submitAIJob(
-            @RequestPart("fileUrl") String fileURL,
+            @RequestPart("data") String data,
             @RequestPart("type") String duty,
             @RequestHeader("Authorization") String authHeader) {
 
@@ -37,7 +37,7 @@ public class AIController {
             System.out.println("User ID: " + userId);
 
             MessageRecord requested = processQueueRequestUseCase.execute(
-                    fileURL,
+                    data,
                     duty,
                     userId.toString()
             );

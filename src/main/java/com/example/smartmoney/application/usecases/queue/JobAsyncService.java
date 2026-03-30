@@ -15,8 +15,8 @@ public class JobAsyncService {
     }
 
     @Async
-    public void process(String url, String tokenId, String jobId, String duty) {
-        JobEvent jobEvent = new JobEvent(jobId, tokenId, url, duty);
+    public void process(String data, String tokenId, String jobId, String duty) {
+        JobEvent jobEvent = new JobEvent(jobId, tokenId, data, duty);
         jobQueuePort.PublishJob(jobId, jobEvent);
     }
 }
