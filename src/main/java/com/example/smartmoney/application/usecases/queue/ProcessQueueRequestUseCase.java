@@ -22,7 +22,7 @@ public class ProcessQueueRequestUseCase {
         this.cloudinaryService = cloudinaryService;
     }
 
-    public MessageRecord execute(String fileCloudUrl, String duty, String userId) {
+    public MessageRecord execute(String data, String duty, String userId) {
         /*
         String hashKey = hashFile.hashFileMD5();
         String dedupKey = "dedup:" + userId + ":" + hashKey;
@@ -33,8 +33,8 @@ public class ProcessQueueRequestUseCase {
             throw new RuntimeException("Duplicate request detected. A similar file has already been processed.");
         }
          */
-        MessageRecord newRecord = new MessageRecord(fileCloudUrl, userId, duty);
-        jobAsyncService.process(fileCloudUrl, userId, newRecord.getJobId(), duty);
+        MessageRecord newRecord = new MessageRecord(data, userId, duty);
+        jobAsyncService.process(data, userId, newRecord.getJobId(), duty);
         return newRecord;
     }
 }
