@@ -1,4 +1,4 @@
-package com.example.smartmoney.infrastructure.config.redis;
+package com.example.smartmoney.infrastructure.publisher;
 
 import com.example.smartmoney.application.dtos.requests.JobEvent;
 import com.example.smartmoney.application.ports.event.JobQueuePort;
@@ -17,7 +17,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 @Component
-public class JobQueuePortAdapter implements JobQueuePort {
+public class JobQueuePublisher implements JobQueuePort {
 
     private final StatefulRedisConnection<String, String> connection;
     private final RedisStreamCommands<String, String> streamCommands;
@@ -25,7 +25,7 @@ public class JobQueuePortAdapter implements JobQueuePort {
     private final long maxJobsPerStream;
     private final long ttlSeconds;
 
-    public JobQueuePortAdapter(RedisConnectionFactory connectionFactory,
+    public JobQueuePublisher(RedisConnectionFactory connectionFactory,
                                @Value("${REDIS_STREAMGROUP_COUNT}") int streamGroupCount,
                                @Value("${REDIS_MAX_STREAMGROUP_SIZE}") long maxJobsPerStream,
                                @Value("${REDIS_STREAM_TTL_SECONDS}") long ttlSeconds) {

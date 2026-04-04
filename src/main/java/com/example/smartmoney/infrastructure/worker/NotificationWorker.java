@@ -5,6 +5,7 @@ import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.beans.factory.annotation.Qualifier;
 
 import com.example.smartmoney.application.services.NotificationService;
 import com.example.smartmoney.domain.models.notification.Notification;
@@ -23,6 +24,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 @RequiredArgsConstructor
 public class NotificationWorker {
 
+    @Qualifier("coreRedisTemplate")
     private final RedisTemplate<String, Object> redisTemplate;
     private final NotificationService notificationService;
     private final ExecutorService executor;
