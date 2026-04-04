@@ -3,6 +3,7 @@ package com.example.smartmoney.infrastructure.worker.NotificationJob;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.scheduling.annotation.Scheduled;
 import java.time.Duration;
 import java.util.Map;
@@ -13,6 +14,7 @@ import org.springframework.data.redis.connection.RedisStreamCommands.XClaimOptio
 @RequiredArgsConstructor
 public class StreamReclaimJob {
 
+    @Qualifier("coreRedisTemplate")
     private final RedisTemplate<String, Object> redisTemplate;
 
     private static final String STREAM = "notification_stream";
