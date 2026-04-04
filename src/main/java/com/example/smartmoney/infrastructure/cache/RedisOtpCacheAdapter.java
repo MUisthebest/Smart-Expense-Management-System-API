@@ -7,6 +7,7 @@ import com.example.smartmoney.infrastructure.security.OtpHasher;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
@@ -15,6 +16,7 @@ import java.time.Duration;
 @RequiredArgsConstructor
 public class RedisOtpCacheAdapter implements OtpCachePort {
 
+    @Qualifier("stringRedisTemplate")
     private final RedisTemplate<String, String> redisTemplate;
 
     private static final String KEY_PREFIX = "otp:";

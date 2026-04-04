@@ -1,3 +1,4 @@
+
 package com.example.smartmoney.domain.exceptions;
 
 public class AuthorizationException extends DomainException {

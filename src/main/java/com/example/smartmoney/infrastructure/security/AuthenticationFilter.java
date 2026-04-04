@@ -26,6 +26,15 @@ public class AuthenticationFilter extends OncePerRequestFilter {
     private final JwtTokenProvider jwtTokenProvider;
     private final UserDetailsService userDetailsService;
     private final JwtConfig jwtConfig;
+
+    @Override
+    protected  boolean shouldNotFilterAsyncDispatch() {
+        return true;
+    }
+    @Override
+    protected boolean shouldNotFilterErrorDispatch() {
+        return true;
+    }
     
     @Override
     protected void doFilterInternal(
