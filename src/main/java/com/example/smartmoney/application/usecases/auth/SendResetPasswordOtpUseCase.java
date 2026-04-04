@@ -8,7 +8,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.example.smartmoney.application.dtos.requests.auth.SendResetPasswordOtpRequest;
 import com.example.smartmoney.domain.exceptions.DomainException;
 import com.example.smartmoney.domain.repositories.UserRepository;
-import com.example.smartmoney.domain.repositories.OTPRepository;
+import com.example.smartmoney.application.ports.otp.OtpCachePort;
 import com.example.smartmoney.domain.models.otp.OTP;
 import com.example.smartmoney.domain.models.otp.enums.Type;
 import com.example.smartmoney.domain.models.user.valueobjects.Email;
@@ -22,7 +22,7 @@ import com.example.smartmoney.application.utils.OtpGenerator;
 public class SendResetPasswordOtpUseCase {
 
     private final UserRepository userRepository;
-    private final OTPRepository otpRepository;
+    private final OtpCachePort otpCachePort;
     private final MailPort mailPort;
 
     public void execute(SendResetPasswordOtpRequest request) {
@@ -36,7 +36,7 @@ public class SendResetPasswordOtpUseCase {
         }
 
         // Delete any existing OTP for this email
-        otpRepository.deleteByEmail(email);
+        otpCachePort.deleteByEmail(email);
 
         // Generate new OTP
         String otp = OtpGenerator.generate(); // 6 số
@@ -47,7 +47,7 @@ public class SendResetPasswordOtpUseCase {
             .verified(false)
             .type(Type.UPDATE)
             .build();
-        otpRepository.save(otpModel);
+        otpCachePort.save(otpModel);
         String subject = "SmartMoney - Email Verification";
         String body = mailPort.generateVerificationEmail(email.getValue(), otp);
         mailPort.sendHtmlMail(email.getValue(), subject, body);
