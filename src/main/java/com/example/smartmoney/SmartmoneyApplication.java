@@ -14,7 +14,6 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
 @EnableJpaRepositories
-@EnableScheduling 
 @OpenAPIDefinition(
     info = @Info(
         title = "Smart Money API",

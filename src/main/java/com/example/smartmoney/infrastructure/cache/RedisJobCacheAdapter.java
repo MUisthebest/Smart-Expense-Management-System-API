@@ -1,4 +1,4 @@
-package com.example.smartmoney.infrastructure.config.redis;
+package com.example.smartmoney.infrastructure.cache;
 
 import com.example.smartmoney.application.dtos.requests.JobEvent;
 import com.example.smartmoney.application.ports.event.RedisJobCachePort;

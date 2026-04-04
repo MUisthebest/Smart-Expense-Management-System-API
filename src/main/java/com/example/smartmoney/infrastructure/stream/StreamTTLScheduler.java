@@ -1,4 +1,4 @@
-package com.example.smartmoney.infrastructure.config.redis;
+package com.example.smartmoney.infrastructure.stream;
 
 import io.lettuce.core.RedisClient;
 import io.lettuce.core.XTrimArgs;

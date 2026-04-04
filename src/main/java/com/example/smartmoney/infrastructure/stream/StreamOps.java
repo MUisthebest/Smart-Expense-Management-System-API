@@ -1,4 +1,4 @@
-package com.example.smartmoney.infrastructure.config.redis;
+package com.example.smartmoney.infrastructure.stream;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;

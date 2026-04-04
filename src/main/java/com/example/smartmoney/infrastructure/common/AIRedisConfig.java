@@ -1,5 +1,6 @@
-package com.example.smartmoney.infrastructure.config.redis;
+package com.example.smartmoney.infrastructure.common;
 
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -11,8 +12,12 @@ import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactor
 import org.springframework.data.redis.serializer.RedisSerializer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
+/**
+ * AI-specific Redis Configuration for AI/ML features
+ * This config creates a separate Redis instance for AI-related caching and data storage
+ */
 @Configuration
-public class RedisConfig {
+public class AIRedisConfig {
 
     @Value("${REDIS_HOST}")
     private String redisHost;
@@ -26,8 +31,13 @@ public class RedisConfig {
     @Value("${REDIS_PASSWORD}")
     private String redisPassword;
 
+    /**
+     * AI Redis Connection Factory
+     * Creates a separate connection factory for AI Redis instance
+     */
     @Bean
-    public RedisConnectionFactory redisConnectionFactory() {
+    @Qualifier("aiConnectionFactory")
+    public RedisConnectionFactory aiRedisConnectionFactory() {
         RedisStandaloneConfiguration config = new RedisStandaloneConfiguration();
         config.setHostName(redisHost);
         config.setPort(redisPort);
@@ -38,8 +48,14 @@ public class RedisConfig {
         return new LettuceConnectionFactory(config, clientConfig);
     }
 
-    @Bean
-    public RedisTemplate<String, Object> redisTemplate(RedisConnectionFactory connectionFactory) {
+    /**
+     * AI-specific RedisTemplate
+     * Dedicated template for AI/ML features with separate connection
+     * Qualifier: "aiRedisTemplate"
+     */
+    @Bean(name = "aiRedisTemplate")
+    public RedisTemplate<String, Object> aiRedisTemplate(
+            @Qualifier("aiRedisConnectionFactory") RedisConnectionFactory connectionFactory) {
         RedisTemplate<String, Object> template = new RedisTemplate<>();
         template.setConnectionFactory(connectionFactory);
 
