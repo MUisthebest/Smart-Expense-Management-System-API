@@ -79,6 +79,10 @@ public class FacebookLoginUseCase {
             // Step 3: Find or create user
             User user = userRepository.findByEmail(emailVO)
                     .orElseGet(() -> createUserFromSupabase(email, name, supabaseUserId));
+
+            if (!user.isEmailVerified()) {
+                user.setEmailVerified(true);
+            }
             
             // Step 4: Ensure user is active
             if (!user.isActive()) {
