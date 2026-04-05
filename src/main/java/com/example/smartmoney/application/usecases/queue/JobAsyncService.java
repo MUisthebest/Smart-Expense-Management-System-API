@@ -7,14 +7,13 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class JobAsyncService {
-    private JobQueuePort jobQueuePort;
+    private final JobQueuePort jobQueuePort;
 
     public JobAsyncService( JobQueuePort jobQueuePort) {
         this.jobQueuePort = jobQueuePort;
 
     }
 
-    @Async
     public void process(String data, String tokenId, String jobId, String duty) {
         JobEvent jobEvent = new JobEvent(jobId, tokenId, data, duty);
         jobQueuePort.PublishJob(jobId, jobEvent);
