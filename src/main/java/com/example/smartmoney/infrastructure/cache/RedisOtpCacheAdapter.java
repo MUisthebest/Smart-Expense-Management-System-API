@@ -13,11 +13,15 @@ import org.springframework.stereotype.Component;
 import java.time.Duration;
 
 @Component
-@RequiredArgsConstructor
 public class RedisOtpCacheAdapter implements OtpCachePort {
 
-    @Qualifier("stringRedisTemplate")
     private final RedisTemplate<String, String> redisTemplate;
+
+    public RedisOtpCacheAdapter(
+            @Qualifier("coreStringRedisTemplate") RedisTemplate<String, String> redisTemplate
+    ) {
+        this.redisTemplate = redisTemplate;
+    }
 
     private static final String KEY_PREFIX = "otp:";
 

@@ -1,5 +1,6 @@
 package com.example.smartmoney.infrastructure.stream;
 
+import org.springframework.beans.factory.annotation.Qualifier; 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
@@ -16,7 +17,9 @@ public class StreamOps {
     private static final String GROUP_NAME = "workers";
 
     @Bean(name = "initStreamOpsRunner")
-    public CommandLineRunner initStreamOps(RedisTemplate<String, Object> redisTemplate) {
+    public CommandLineRunner initStreamOps(
+            @Qualifier("aiRedisTemplate") RedisTemplate<String, Object> redisTemplate
+    ) {
         return args -> {
             for (int i = 0; i < streamGroupCount; i++) {
                 String streamKey = STREAM_PREFIX + i;

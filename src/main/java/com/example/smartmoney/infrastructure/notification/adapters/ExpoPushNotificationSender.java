@@ -4,6 +4,7 @@ import com.example.smartmoney.application.ports.notification.PushNotificationSen
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.beans.factory.annotation.Qualifier;
 
 import java.util.Map;
 
@@ -11,6 +12,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class ExpoPushNotificationSender implements PushNotificationSenderPort {
 
+    @Qualifier("coreRedisTemplate")
     private final RestTemplate restTemplate;
 
     private static final String EXPO_URL = "https://exp.host/--/api/v2/push/send";
