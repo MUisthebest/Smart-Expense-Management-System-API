@@ -8,6 +8,7 @@ import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceClientConfiguration;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.serializer.RedisSerializer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
@@ -35,8 +36,7 @@ public class AIRedisConfig {
      * AI Redis Connection Factory
      * Creates a separate connection factory for AI Redis instance
      */
-    @Bean
-    @Qualifier("aiConnectionFactory")
+    @Bean(name = "aiRedisConnectionFactory")
     public RedisConnectionFactory aiRedisConnectionFactory() {
         RedisStandaloneConfiguration config = new RedisStandaloneConfiguration();
         config.setHostName(redisHost);
@@ -71,5 +71,12 @@ public class AIRedisConfig {
         template.afterPropertiesSet();
 
         return template;
+    }
+
+    @Bean(name = "aiStringRedisTemplate")
+    public StringRedisTemplate aiStringRedisTemplate(
+            @Qualifier("aiRedisConnectionFactory") RedisConnectionFactory connectionFactory
+    ) {
+        return new StringRedisTemplate(connectionFactory);
     }
 }
