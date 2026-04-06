@@ -4,11 +4,18 @@ import com.example.smartmoney.domain.models.otp.OTP;
 import com.example.smartmoney.domain.models.notification.Notification;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+
+import java.net.URI;
+
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
+import org.springframework.data.redis.connection.lettuce.LettuceClientConfiguration;
+import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.serializer.Jackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
@@ -24,10 +31,42 @@ public class CoreRedisConfig {
      * Primary generic RedisTemplate for main Redis instance (default)
      * Used for: notifications, sessions, and general caching
      */
+    @Value("${spring.data.redis.url}")
+    private String redisUri; // Lấy từ application.yml
+
+    /**
+     * Core Redis Connection Factory
+     */
+    @Bean(name = "coreRedisConnectionFactory")
+    public RedisConnectionFactory coreRedisConnectionFactory() {
+        URI uri = URI.create(redisUri);
+
+        RedisStandaloneConfiguration config = new RedisStandaloneConfiguration();
+        config.setHostName(uri.getHost());
+        config.setPort(uri.getPort());
+
+        // parse username/password
+        if (uri.getUserInfo() != null) {
+            String[] parts = uri.getUserInfo().split(":", 2);
+            if (parts.length == 2) {
+                config.setUsername(parts[0]);
+                config.setPassword(parts[1]);
+            } else {
+                config.setPassword(parts[0]);
+            }
+        }
+
+        // 🔥 QUAN TRỌNG: bật SSL nếu là rediss
+        LettuceClientConfiguration clientConfig = LettuceClientConfiguration.builder()
+                .useSsl()
+                .build();
+
+        return new LettuceConnectionFactory(config, clientConfig);
+    }
     @Bean
     @Primary
     public RedisTemplate<String, Object> coreRedisTemplate(
-            RedisConnectionFactory connectionFactory) {
+           @Qualifier("coreRedisConnectionFactory") RedisConnectionFactory connectionFactory) {
         RedisTemplate<String, Object> template = new RedisTemplate<>();
         template.setConnectionFactory(connectionFactory);
         template.setKeySerializer(new StringRedisSerializer());
@@ -57,7 +96,7 @@ public class CoreRedisConfig {
      */
     @Bean
     public RedisTemplate<String, OTP> otpRedisTemplate(
-            RedisConnectionFactory connectionFactory) {
+           @Qualifier("coreRedisConnectionFactory") RedisConnectionFactory connectionFactory) {
         RedisTemplate<String, OTP> template = new RedisTemplate<>();
         template.setConnectionFactory(connectionFactory);
         template.setKeySerializer(new StringRedisSerializer());
@@ -77,7 +116,7 @@ public class CoreRedisConfig {
      */
     @Bean
     public RedisTemplate<String, Notification> notificationRedisTemplate(
-        RedisConnectionFactory connectionFactory) {
+        @Qualifier("coreRedisConnectionFactory") RedisConnectionFactory connectionFactory) {
         RedisTemplate<String, Notification> template = new RedisTemplate<>();
         template.setConnectionFactory(connectionFactory);
         template.setKeySerializer(new StringRedisSerializer());
@@ -89,6 +128,20 @@ public class CoreRedisConfig {
 
         template.setValueSerializer(serializer);
         template.setHashValueSerializer(serializer);
+        template.afterPropertiesSet();
+        return template;
+    }
+
+    @Bean
+    @Qualifier("coreStringRedisTemplate")
+    public RedisTemplate<String, String> stringRedisTemplate(
+            @Qualifier("coreRedisConnectionFactory") RedisConnectionFactory connectionFactory) {
+        RedisTemplate<String, String> template = new RedisTemplate<>();
+        template.setConnectionFactory(connectionFactory);
+        template.setKeySerializer(new StringRedisSerializer());
+        template.setValueSerializer(new StringRedisSerializer());
+        template.setHashKeySerializer(new StringRedisSerializer());
+        template.setHashValueSerializer(new StringRedisSerializer());
         template.afterPropertiesSet();
         return template;
     }
