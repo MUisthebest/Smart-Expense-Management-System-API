@@ -2,8 +2,10 @@ package com.example.smartmoney.presentation.controllers;
 
 import com.example.smartmoney.application.dtos.responses.CheckResponse;
 import com.example.smartmoney.application.dtos.responses.ImageResponse;
+import com.example.smartmoney.application.dtos.responses.SignatureResponse;
 import com.example.smartmoney.application.usecases.cloudinary.GetImageUseCase;
 import com.example.smartmoney.application.usecases.cloudinary.DeleteImageUseCase;
+import com.example.smartmoney.application.usecases.cloudinary.GenerateSignatureUseCase;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -30,6 +32,47 @@ public class CloudinaryController {
 
     private final GetImageUseCase getImageUseCase;
     private final DeleteImageUseCase deleteImageUseCase;
+    private final GenerateSignatureUseCase generateSignatureUseCase;
+
+    @Operation(
+        summary = "Generate Cloudinary signature",
+        description = "Generate a signature for secure client-side uploads to Cloudinary"
+    )
+    @ApiResponses({
+        @ApiResponse(
+            responseCode = "200",
+            description = "Signature generated successfully",
+            content = @Content(schema = @Schema(implementation = CheckResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "500",
+            description = "Server error while generating signature"
+        )
+    })
+    @GetMapping("/signature")
+    public ResponseEntity<CheckResponse<SignatureResponse>> getSignature(
+            @RequestParam(defaultValue = "smartmoney/images") String folder) {
+
+        try {
+            SignatureResponse result = generateSignatureUseCase.execute(folder);
+
+            return ResponseEntity.ok(
+                CheckResponse.<SignatureResponse>builder()
+                    .success(true)
+                    .message("Signature generated successfully")
+                    .data(result)
+                    .build()
+            );
+
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+                CheckResponse.<SignatureResponse>builder()
+                    .success(false)
+                    .message("Failed to generate signature: " + e.getMessage())
+                    .build()
+            );
+        }
+    }
 
     @Operation(
         summary = "Get image URL by public ID",
@@ -102,6 +145,7 @@ public class CloudinaryController {
     public ResponseEntity<CheckResponse<Void>> deleteImage(@RequestBody Map<String, String> body) {
 
         String publicId = body.get("publicId");
+        String type = body.get("type");
 
         try {
             if (publicId == null || publicId.trim().isEmpty()) {
@@ -115,7 +159,7 @@ public class CloudinaryController {
 
             log.info("Deleting image with publicId: {}", publicId);
 
-            deleteImageUseCase.execute(publicId); // 👈 gọi usecase
+            deleteImageUseCase.execute(publicId, type); // 👈 gọi usecase
 
             return ResponseEntity.ok(
                 CheckResponse.<Void>builder()

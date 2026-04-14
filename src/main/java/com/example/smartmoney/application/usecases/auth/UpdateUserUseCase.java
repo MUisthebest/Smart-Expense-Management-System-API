@@ -39,7 +39,7 @@ public class UpdateUserUseCase {
         if (request.getAvatar() != null) {
             String avatarUrl = cloudinaryPort.uploadAvatar(request.getAvatar());
             if (user.getAvatar() != null && user.getAvatar().getUrl() != null) {
-                cloudinaryPort.deleteImage(user.getAvatar().getUrl());
+                cloudinaryPort.deleteImage(user.getAvatar().getUrl(), "image");
             }
             user.setAvatar(new Avatar(avatarUrl));
         }
