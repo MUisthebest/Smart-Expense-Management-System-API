@@ -130,7 +130,7 @@ public class RegisterUseCase {
         try {
             otpCachePort.deleteByEmail(existingUser.getEmail());
             if (existingUser.getAvatar() != null && existingUser.getAvatar().getUrl() != null) {
-                cloudinaryPort.deleteImage(existingUser.getAvatar().getUrl());
+                cloudinaryPort.deleteImage(existingUser.getAvatar().getUrl(), "image");
             }
             log.info("Deleted OTP for unverified user: {}", existingUser.getEmail().getValue());
         } catch (Exception e) {
