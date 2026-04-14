@@ -3,6 +3,7 @@ package com.example.smartmoney.infrastructure.integration.cloudinary;
 import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
 import com.example.smartmoney.domain.exceptions.DomainException;
+import com.example.smartmoney.application.dtos.responses.SignatureResponse;
 import com.example.smartmoney.application.ports.cloudinary.CloudinaryPort;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,6 +18,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.security.MessageDigest;
 
 @Service
 @RequiredArgsConstructor
@@ -30,6 +32,37 @@ public class CloudinaryService implements CloudinaryPort {
 
     private final Cloudinary cloudinary;
     private final CloudinaryConfig cloudinaryConfig;
+
+    @Override
+    public SignatureResponse sign(String folder) {
+        try {
+            long timestamp = System.currentTimeMillis() / 1000;
+
+            String dataToSign =
+                "folder=" + folder +
+                "&timestamp=" + timestamp +
+                cloudinaryConfig.getApiSecret(); 
+
+            MessageDigest md = MessageDigest.getInstance("SHA-1");
+            byte[] digest = md.digest(dataToSign.getBytes());
+
+            StringBuilder signature = new StringBuilder();
+            for (byte b : digest) {
+                signature.append(String.format("%02x", b));
+            }
+
+            return SignatureResponse.builder()
+                .timestamp(timestamp)
+                .signature(signature.toString())
+                .apiKey(cloudinaryConfig.getApiKey())      // 👈 thêm getter
+                .cloudName(cloudinaryConfig.getCloudName())
+                .build();
+
+        } catch (Exception e) {
+            throw new RuntimeException("Cloudinary sign failed", e);
+        }
+    }
+
 
     @Override
     public String uploadAvatar(MultipartFile file) {
@@ -49,24 +82,28 @@ public class CloudinaryService implements CloudinaryPort {
     }
 
     @Override
-    public void deleteImage(String imageUrl) {
-        if (imageUrl == null || imageUrl.isBlank()) {
-            return;
+    public void deleteImage(String publicId, String type) {
+        if (publicId == null || publicId.isBlank()) return;
+
+        String resourceType = "image";
+
+        if ("voice".equals(type)) {
+            resourceType = "video"; // 👈 audio = video
         }
 
-        extractPublicIdFromUrl(imageUrl).ifPresentOrElse(
-            publicId -> {
-                try {
-                    cloudinary.uploader().destroy(publicId, ObjectUtils.emptyMap());
-                    log.info("Deleted image from Cloudinary, publicId: {}", publicId);
-                } catch (Exception e) {
-                    log.warn("Failed to delete image from Cloudinary, publicId: {}, error: {}", publicId, e.getMessage());
-                }
-            },
-            () -> log.warn("Could not extract publicId from URL: {}", imageUrl)
-        );
-    }
+        try {
+            Map result = cloudinary.uploader().destroy(
+                publicId,
+                ObjectUtils.asMap("resource_type", resourceType)
+            );
 
+            log.info("🔥 Delete result: {}", result);
+
+        } catch (Exception e) {
+            log.warn("Delete failed: {}", e.getMessage());
+        }
+    }
+    
     /**
      * Returns the default avatar URL using configured cloud name and folder.
      */

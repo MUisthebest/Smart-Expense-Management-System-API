@@ -53,10 +53,9 @@ public class CreateTransactionUseCase {
         return TransactionResponse.fromDomain(savedTransaction);
     }
     private String buildNotificationContent(CreateTransactionRequest request) {
-        String typeText = request.getType().equals("EXPENSE") ? "transaction.expense" : "transaction.income";
-    return String.format(
-    
-        "transaction.notification_done",
+        String typeText = request.getType().equals("EXPENSE") ? "notification.expense" : "notification.income";
+        return String.format(
+            "notification.notification_done|%s|%s|%s",
             typeText,
             request.getAmount(),
             request.getCategory()
