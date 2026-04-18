@@ -3,6 +3,7 @@ CREATE TABLE budgets (
     user_id UUID NOT NULL,
     category VARCHAR(50) NOT NULL,
     amount_limit NUMERIC(19, 2) NOT NULL,
+    spent NUMERIC(19, 2) NOT NULL DEFAULT 0,
     month INT NOT NULL,
     year INT NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -12,6 +13,7 @@ CREATE TABLE budgets (
     CONSTRAINT ck_month_valid CHECK (month >= 1 AND month <= 12),
     CONSTRAINT ck_year_valid CHECK (year > 1900),
     CONSTRAINT ck_amount_limit_positive CHECK (amount_limit > 0),
+    CONSTRAINT ck_spent_positive CHECK (spent >= 0),
     CONSTRAINT uk_budget_unique UNIQUE (user_id, category, month, year)
 );
 
