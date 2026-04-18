@@ -34,17 +34,35 @@ public class UpdateBudgetUseCase {
             throw new DomainException("Budget does not belong to the authenticated user");
         }
 
-        // Update amount limit
-        budget.updateAmountLimit(request.getAmountLimit());
+        // Update amount limit if provided
+        if (request.getAmountLimit() != null) {
+            budget.updateAmountLimit(request.getAmountLimit());
+        }
+        
+        // Update spent amount if provided
+        if (request.getSpent() != null) {
+            if (request.getSpent().compareTo(BigDecimal.ZERO) < 0) {
+                throw new DomainException("Spent amount cannot be negative");
+            }
+            BigDecimal limit = request.getAmountLimit() != null ? request.getAmountLimit() : budget.getAmountLimit();
+            if (request.getSpent().compareTo(limit) > 0) {
+                throw new DomainException("Spent amount cannot exceed the amount limit");
+            }
+            budget.setSpent(request.getSpent());
+        } else {
+            // If spent is not provided, keep the current spent value
+            if (budget.getSpent() == null) {
+                budget.setSpent(BigDecimal.ZERO);
+            }
+        }
+        
         Budget updatedBudget = budgetRepository.save(budget);
 
-        log.info("Budget updated: id={}, userId={}, newAmountLimit={}", 
-                budgetId, userId, request.getAmountLimit());
+        log.info("Budget updated: id={}, userId={}, newAmountLimit={}, newSpent={}", 
+                budgetId, userId, updatedBudget.getAmountLimit(), updatedBudget.getSpent());
 
-        // Get spent amount: use provided value or calculate from transactions
-        BigDecimal spent = request.getSpent() != null ? request.getSpent() : BigDecimal.ZERO;
-        // TODO: If spent is null, calculate from transactions for this budget's category and month/year
-        
+        // Calculate remaining amount and other metrics
+        BigDecimal spent = updatedBudget.getSpent() != null ? updatedBudget.getSpent() : BigDecimal.ZERO;
         BigDecimal remaining = updatedBudget.calculateRemaining(spent);
         Double progressPercent = updatedBudget.calculateProgressPercent(spent);
         Budget.AlertLevel alertLevel = updatedBudget.getAlertLevel(spent);

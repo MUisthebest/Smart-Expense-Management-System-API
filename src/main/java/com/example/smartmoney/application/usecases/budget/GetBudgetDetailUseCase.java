@@ -35,8 +35,8 @@ public class GetBudgetDetailUseCase {
 
         log.info("Retrieved budget: id={}, userId={}", budgetId, userId);
 
-        // TODO: Calculate spent amount from transactions for this budget's category and month/year
-        BigDecimal spent = BigDecimal.ZERO;
+        // Get spent amount from budget entity
+        BigDecimal spent = budget.getSpent() != null ? budget.getSpent() : BigDecimal.ZERO;
         BigDecimal remaining = budget.calculateRemaining(spent);
         Double progressPercent = budget.calculateProgressPercent(spent);
         Budget.AlertLevel alertLevel = budget.getAlertLevel(spent);

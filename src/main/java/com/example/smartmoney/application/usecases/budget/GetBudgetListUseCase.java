@@ -39,8 +39,8 @@ public class GetBudgetListUseCase {
 
         List<BudgetItemResponse> items = budgets.stream()
             .map(budget -> {
-                // TODO: Calculate spent amount from transactions for this budget's category and month/year
-                BigDecimal spent = BigDecimal.ZERO;
+                // Get spent amount from budget entity
+                BigDecimal spent = budget.getSpent() != null ? budget.getSpent() : BigDecimal.ZERO;
                 BigDecimal remaining = budget.calculateRemaining(spent);
                 Double progressPercent = budget.calculateProgressPercent(spent);
                 Budget.AlertLevel alertLevel = budget.getAlertLevel(spent);
