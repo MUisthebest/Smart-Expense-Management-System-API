@@ -8,7 +8,6 @@ import java.math.BigDecimal;
 
 @Data
 public class UpdateBudgetRequest {
-    @NotNull(message = "Amount limit is required")
     @DecimalMin(value = "0.01", message = "Amount limit must be greater than 0")
     private BigDecimal amountLimit;
     

@@ -18,6 +18,7 @@ public class Budget {
     private UUID userId;
     private Category category;
     private BigDecimal amountLimit;
+    private BigDecimal spent;
     private Integer month;
     private Integer year;
     private LocalDateTime createdAt;
@@ -51,6 +52,7 @@ public class Budget {
         budget.setUserId(userId);
         budget.setCategory(category);
         budget.setAmountLimit(amountLimit);
+        budget.setSpent(BigDecimal.ZERO);
         budget.setMonth(month);
         budget.setYear(year);
         budget.setCreatedAt(LocalDateTime.now());

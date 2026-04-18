@@ -23,6 +23,7 @@ public abstract class BudgetMapper {
             entity.setUserId(domain.getUserId());
             entity.setCategory(domain.getCategory());
             entity.setAmountLimit(domain.getAmountLimit());
+            entity.setSpent(domain.getSpent());
             entity.setMonth(domain.getMonth());
             entity.setYear(domain.getYear());
             entity.setCreatedAt(domain.getCreatedAt());
@@ -37,6 +38,7 @@ public abstract class BudgetMapper {
             domain.setUserId(entity.getUserId());
             domain.setCategory(entity.getCategory());
             domain.setAmountLimit(entity.getAmountLimit());
+            domain.setSpent(entity.getSpent());
             domain.setMonth(entity.getMonth());
             domain.setYear(entity.getYear());
             domain.setCreatedAt(entity.getCreatedAt());

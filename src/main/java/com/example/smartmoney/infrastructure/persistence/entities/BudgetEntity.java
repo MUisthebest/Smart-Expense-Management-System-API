@@ -29,6 +29,9 @@ public class BudgetEntity {
     @Column(name = "amount_limit", nullable = false)
     private BigDecimal amountLimit;
 
+    @Column(name = "spent", nullable = false)
+    private BigDecimal spent;
+
     @Column(name = "month", nullable = false)
     private Integer month;
 
