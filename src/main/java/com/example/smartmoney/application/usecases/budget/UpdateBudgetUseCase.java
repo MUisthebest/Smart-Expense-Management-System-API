@@ -39,16 +39,9 @@ public class UpdateBudgetUseCase {
             budget.updateAmountLimit(request.getAmountLimit());
         }
         
-        // Update spent amount if provided
+        // Update spent amount if provided - can exceed amount_limit
         if (request.getSpent() != null) {
-            if (request.getSpent().compareTo(BigDecimal.ZERO) < 0) {
-                throw new DomainException("Spent amount cannot be negative");
-            }
-            BigDecimal limit = request.getAmountLimit() != null ? request.getAmountLimit() : budget.getAmountLimit();
-            if (request.getSpent().compareTo(limit) > 0) {
-                throw new DomainException("Spent amount cannot exceed the amount limit");
-            }
-            budget.setSpent(request.getSpent());
+            budget.updateSpent(request.getSpent());
         } else {
             // If spent is not provided, keep the current spent value
             if (budget.getSpent() == null) {

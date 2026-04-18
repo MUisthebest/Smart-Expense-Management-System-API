@@ -70,6 +70,18 @@ public class Budget {
         this.updatedAt = LocalDateTime.now();
     }
     
+    // Update spent amount - can exceed amount_limit
+    public void updateSpent(BigDecimal newSpent) {
+        if (newSpent == null) {
+            throw new DomainException("Spent amount cannot be null");
+        }
+        if (newSpent.compareTo(BigDecimal.ZERO) < 0) {
+            throw new DomainException("Spent amount cannot be negative");
+        }
+        this.spent = newSpent;
+        this.updatedAt = LocalDateTime.now();
+    }
+    
     // Calculate remaining amount
     public BigDecimal calculateRemaining(BigDecimal spent) {
         return this.amountLimit.subtract(spent);
