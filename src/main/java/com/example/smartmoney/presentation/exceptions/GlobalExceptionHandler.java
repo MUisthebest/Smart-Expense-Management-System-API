@@ -223,6 +223,7 @@ public class GlobalExceptionHandler {
 
     private HttpStatus mapProjectStatus(String errorCode) {
         if (ProjectErrorCode.PROJECT_NOT_FOUND.name().equals(errorCode)) return HttpStatus.NOT_FOUND;
+        if (ProjectErrorCode.PROJECT_TRACKING_NOT_FOUND.name().equals(errorCode)) return HttpStatus.NOT_FOUND;
         if (ProjectErrorCode.PROJECT_PERMISSION_DENIED.name().equals(errorCode)) return HttpStatus.FORBIDDEN;
         return HttpStatus.BAD_REQUEST;
     }

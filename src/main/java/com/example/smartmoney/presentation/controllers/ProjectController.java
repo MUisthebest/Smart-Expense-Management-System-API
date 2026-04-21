@@ -43,6 +43,10 @@ public class ProjectController {
     private final ListProjectContributionsUseCase listProjectContributionsUseCase;
     private final GetProjectContributionSummaryUseCase getProjectContributionSummaryUseCase;
     private final DeleteProjectUseCase deleteProjectUseCase;
+        private final CreateProjectTrackingUseCase createProjectTrackingUseCase;
+        private final GetProjectTrackingUseCase getProjectTrackingUseCase;
+        private final UpdateProjectTrackingUseCase updateProjectTrackingUseCase;
+        private final DeleteProjectTrackingUseCase deleteProjectTrackingUseCase;
 
     private String actorId(Authentication auth) {
         
@@ -226,6 +230,65 @@ public class ProjectController {
     ) {
         deleteProjectUseCase.execute(actorId(auth), projectId);
 
+        return CheckResponse.<Void>builder()
+                .success(true)
+                .message("Deleted")
+                .build();
+    }
+
+    // ===== Tracking =====
+
+    @Operation(summary = "Create project tracking")
+    @PostMapping("/{projectId}/tracking")
+    public CheckResponse<ProjectTrackingResponse> createTracking(
+            Authentication auth,
+            @PathVariable String projectId,
+            @Valid @RequestBody CreateProjectTrackingRequest req
+    ) {
+        ProjectTrackingResponse data = createProjectTrackingUseCase.execute(actorId(auth), projectId, req);
+        return CheckResponse.<ProjectTrackingResponse>builder()
+                .success(true)
+                .message("Created")
+                .data(data)
+                .build();
+    }
+
+    @Operation(summary = "Get project tracking")
+    @GetMapping("/{projectId}/tracking")
+    public CheckResponse<ProjectTrackingResponse> getTracking(
+            Authentication auth,
+            @PathVariable String projectId
+    ) {
+        ProjectTrackingResponse data = getProjectTrackingUseCase.execute(actorId(auth), projectId);
+        return CheckResponse.<ProjectTrackingResponse>builder()
+                .success(true)
+                .message("OK")
+                .data(data)
+                .build();
+    }
+
+    @Operation(summary = "Update project tracking")
+    @PutMapping("/{projectId}/tracking")
+    public CheckResponse<ProjectTrackingResponse> updateTracking(
+            Authentication auth,
+            @PathVariable String projectId,
+            @Valid @RequestBody UpdateProjectTrackingRequest req
+    ) {
+        ProjectTrackingResponse data = updateProjectTrackingUseCase.execute(actorId(auth), projectId, req);
+        return CheckResponse.<ProjectTrackingResponse>builder()
+                .success(true)
+                .message("Updated")
+                .data(data)
+                .build();
+    }
+
+    @Operation(summary = "Delete project tracking")
+    @DeleteMapping("/{projectId}/tracking")
+    public CheckResponse<Void> deleteTracking(
+            Authentication auth,
+            @PathVariable String projectId
+    ) {
+        deleteProjectTrackingUseCase.execute(actorId(auth), projectId);
         return CheckResponse.<Void>builder()
                 .success(true)
                 .message("Deleted")

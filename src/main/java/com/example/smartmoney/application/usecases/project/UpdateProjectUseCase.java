@@ -31,6 +31,9 @@ public class UpdateProjectUseCase {
         }
 
         p.updateInfo(UserId.of(actorId), req.getName(), req.getDescription(), target, req.getDeadline());
+        if (req.getStatus() != null) {
+            p.updateStatus(UserId.of(actorId), req.getStatus());
+        }
 
         Project saved = projectRepository.save(p);
         return ProjectDetailResponse.fromDomain(saved);

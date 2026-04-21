@@ -37,6 +37,7 @@ public class ProjectPersistenceMapper {
                 new ProjectId(p.getId()),
                 new UserId(p.getOwnerId()),
                 p.getType(),
+                p.getStatus(),
                 p.getName(),
                 p.getDescription(),
                 new Money(p.getTargetAmount(), p.getCurrency()),
