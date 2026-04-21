@@ -16,6 +16,7 @@ public class Project {
     private final ProjectId id;
     private final UserId ownerId;
     private final ProjectType type;
+    private ProjectStatus status;
 
     private String name;
     private String description;
@@ -28,6 +29,7 @@ public class Project {
     private Project(ProjectId id,
                     UserId ownerId,
                     ProjectType type,
+                    ProjectStatus status,
                     String name,
                     String description,
                     Money targetAmount,
@@ -35,6 +37,7 @@ public class Project {
         this.id = Objects.requireNonNull(id);
         this.ownerId = Objects.requireNonNull(ownerId);
         this.type = Objects.requireNonNull(type);
+        this.status = status == null ? ProjectStatus.ACTIVE : status;
         this.name = normalizeName(name);
         this.description = normalizeDescription(description);
         this.targetAmount = Objects.requireNonNull(targetAmount);
@@ -49,7 +52,7 @@ public class Project {
                                     String description,
                                     Money targetAmount,
                                     LocalDate deadline) {
-        return new Project(ProjectId.newId(), ownerId, type, name, description, targetAmount, deadline);
+        return new Project(ProjectId.newId(), ownerId, type, ProjectStatus.ACTIVE, name, description, targetAmount, deadline);
     }
 
     private void validateCreate() {
@@ -82,6 +85,10 @@ public class Project {
 
     public ProjectType getType() {
         return type;
+    }
+
+    public ProjectStatus getStatus() {
+        return status;
     }
 
     public String getName() {
@@ -131,6 +138,12 @@ public class Project {
             }
             this.deadline = deadline;
         }
+    }
+
+    public void updateStatus(UserId actorId, ProjectStatus newStatus) {
+        requireCanManage(actorId);
+        if (newStatus == null) return;
+        this.status = newStatus;
     }
 
     public void inviteMember(UserId actorId, UserId invitedUserId, boolean isAdmin) {
@@ -283,6 +296,7 @@ public class Project {
     public static Project rehydrate (ProjectId id,
                                      UserId ownerId,
                                      ProjectType type,
+                                     ProjectStatus status,
                                      String name,
                                      String description,
                                      Money targetAmount,
@@ -290,7 +304,7 @@ public class Project {
                                      List<ProjectMember> members,
                                      List<ProjectContribution> contributions
     ) {
-        Project p = new Project(id, ownerId, type, name, description, targetAmount, deadline);
+        Project p = new Project(id, ownerId, type, status, name, description, targetAmount, deadline);
         p.members.clear();
         if (members != null) {
             for (ProjectMember m : members) {
