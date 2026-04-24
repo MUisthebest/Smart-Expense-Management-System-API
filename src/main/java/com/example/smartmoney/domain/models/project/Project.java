@@ -17,6 +17,7 @@ public class Project {
     private final UserId ownerId;
     private final ProjectType type;
     private ProjectStatus status;
+    private ProjectPriority priority;
 
     private String name;
     private String description;
@@ -30,6 +31,7 @@ public class Project {
                     UserId ownerId,
                     ProjectType type,
                     ProjectStatus status,
+                    ProjectPriority priority,
                     String name,
                     String description,
                     Money targetAmount,
@@ -38,6 +40,7 @@ public class Project {
         this.ownerId = Objects.requireNonNull(ownerId);
         this.type = Objects.requireNonNull(type);
         this.status = status == null ? ProjectStatus.ACTIVE : status;
+        this.priority = priority == null ? ProjectPriority.MEDIUM : priority;
         this.name = normalizeName(name);
         this.description = normalizeDescription(description);
         this.targetAmount = Objects.requireNonNull(targetAmount);
@@ -48,11 +51,12 @@ public class Project {
 
     public static Project createNew(UserId ownerId,
                                     ProjectType type,
+                                    ProjectPriority priority,
                                     String name,
                                     String description,
                                     Money targetAmount,
                                     LocalDate deadline) {
-        return new Project(ProjectId.newId(), ownerId, type, ProjectStatus.ACTIVE, name, description, targetAmount, deadline);
+        return new Project(ProjectId.newId(), ownerId, type, ProjectStatus.ACTIVE, priority, name, description, targetAmount, deadline);
     }
 
     private void validateCreate() {
@@ -89,6 +93,10 @@ public class Project {
 
     public ProjectStatus getStatus() {
         return status;
+    }
+
+    public ProjectPriority getPriority() {
+        return priority;
     }
 
     public String getName() {
@@ -144,6 +152,12 @@ public class Project {
         requireCanManage(actorId);
         if (newStatus == null) return;
         this.status = newStatus;
+    }
+
+    public void updatePriority(UserId actorId, ProjectPriority newPriority) {
+        requireCanManage(actorId);
+        if (newPriority == null) return;
+        this.priority = newPriority;
     }
 
     public void inviteMember(UserId actorId, UserId invitedUserId, boolean isAdmin) {
@@ -297,6 +311,7 @@ public class Project {
                                      UserId ownerId,
                                      ProjectType type,
                                      ProjectStatus status,
+                                     ProjectPriority priority,
                                      String name,
                                      String description,
                                      Money targetAmount,
@@ -304,7 +319,7 @@ public class Project {
                                      List<ProjectMember> members,
                                      List<ProjectContribution> contributions
     ) {
-        Project p = new Project(id, ownerId, type, status, name, description, targetAmount, deadline);
+        Project p = new Project(id, ownerId, type, status, priority, name, description, targetAmount, deadline);
         p.members.clear();
         if (members != null) {
             for (ProjectMember m : members) {

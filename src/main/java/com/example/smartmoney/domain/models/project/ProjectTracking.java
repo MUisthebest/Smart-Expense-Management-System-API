@@ -12,6 +12,7 @@ public class ProjectTracking {
     private final ProjectId projectId;
     private BigDecimal moneySaved;
     private int currentMonth;
+    private BigDecimal monthlySaving;
     private int monthLeft;
     private BigDecimal moneyOwed;
     private final Instant createdAt;
@@ -22,6 +23,7 @@ public class ProjectTracking {
             ProjectId projectId,
             BigDecimal moneySaved,
             int currentMonth,
+            BigDecimal monthlySaving,
             int monthLeft,
             BigDecimal moneyOwed,
             Instant createdAt,
@@ -31,6 +33,7 @@ public class ProjectTracking {
         this.projectId = Objects.requireNonNull(projectId);
         this.moneySaved = normalizeMoney(moneySaved, "moneySaved");
         this.currentMonth = normalizePositiveMonth(currentMonth);
+        this.monthlySaving = normalizeMoney(monthlySaving, "monthlySaving");
         this.monthLeft = normalizeNonNegativeInt(monthLeft, "monthLeft");
         this.moneyOwed = normalizeMoney(moneyOwed, "moneyOwed");
         this.createdAt = Objects.requireNonNull(createdAt);
@@ -41,6 +44,7 @@ public class ProjectTracking {
             ProjectId projectId,
             BigDecimal moneySaved,
             int currentMonth,
+            BigDecimal monthlySaving,
             int monthLeft,
             BigDecimal moneyOwed
     ) {
@@ -50,6 +54,7 @@ public class ProjectTracking {
                 projectId,
                 moneySaved,
                 currentMonth,
+                monthlySaving,
                 monthLeft,
                 moneyOwed,
                 now,
@@ -116,6 +121,10 @@ public class ProjectTracking {
 
     public int getCurrentMonth() {
         return currentMonth;
+    }
+
+    public BigDecimal getMonthlySaving() {
+        return monthlySaving;
     }
 
     public int getMonthLeft() {
