@@ -18,6 +18,7 @@ public class ProjectTrackingMapper {
                 new ProjectId(entity.getProjectId()),
                 entity.getMoneySaved(),
                 entity.getCurrentMonth(),
+                entity.getMonthlySaving(),
                 entity.getMonthLeft(),
                 entity.getMoneyOwed(),
                 entity.getCreatedAt(),
@@ -31,6 +32,7 @@ public class ProjectTrackingMapper {
                 .projectId(domain.getProjectId().value())
                 .moneySaved(domain.getMoneySaved())
                 .currentMonth(domain.getCurrentMonth())
+                .monthlySaving(domain.getMonthlySaving())
                 .monthLeft(domain.getMonthLeft())
                 .moneyOwed(domain.getMoneyOwed())
                 .createdAt(domain.getCreatedAt())

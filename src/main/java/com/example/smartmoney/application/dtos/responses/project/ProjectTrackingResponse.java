@@ -14,6 +14,7 @@ public class ProjectTrackingResponse {
     private String projectId;
     private BigDecimal moneySaved;
     private Integer currentMonth;
+    private BigDecimal monthlySaving;
     private Integer monthLeft;
     private BigDecimal moneyOwed;
     private Instant createdAt;
@@ -25,6 +26,7 @@ public class ProjectTrackingResponse {
                 .projectId(tracking.getProjectId().toString())
                 .moneySaved(tracking.getMoneySaved())
                 .currentMonth(tracking.getCurrentMonth())
+                .monthlySaving(tracking.getMonthlySaving())
                 .monthLeft(tracking.getMonthLeft())
                 .moneyOwed(tracking.getMoneyOwed())
                 .createdAt(tracking.getCreatedAt())

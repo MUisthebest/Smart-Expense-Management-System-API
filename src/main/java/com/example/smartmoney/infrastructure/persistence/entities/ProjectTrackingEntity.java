@@ -31,6 +31,9 @@ public class ProjectTrackingEntity {
     @Column(name = "current_month", nullable = false)
     private Integer currentMonth;
 
+    @Column(name = "monthly_saving", nullable = false, precision = 19, scale = 2)
+    private BigDecimal monthlySaving;
+
     @Column(name = "month_left", nullable = false)
     private Integer monthLeft;
 

@@ -1,6 +1,7 @@
 package com.example.smartmoney.application.dtos.responses.project;
 
 import com.example.smartmoney.domain.models.project.Project;
+import com.example.smartmoney.domain.models.project.enums.ProjectPriority;
 import com.example.smartmoney.domain.models.project.enums.ProjectStatus;
 import com.example.smartmoney.domain.models.project.enums.ProjectType;
 import lombok.AllArgsConstructor;
@@ -20,6 +21,7 @@ public class ProjectListItemResponse {
     private String name;
     private ProjectType type;
     private ProjectStatus status;
+    private ProjectPriority priority;
 
     private BigDecimal targetAmount;
     private String currency;
@@ -34,6 +36,7 @@ public class ProjectListItemResponse {
                 .name(p.getName())
                 .type(p.getType())
                 .status(p.getStatus())
+                .priority(p.getPriority())
                 .targetAmount(p.getTargetAmount().amount())
                 .currency(p.getTargetAmount().currency())
                 .totalContributed(p.totalContributed().amount())

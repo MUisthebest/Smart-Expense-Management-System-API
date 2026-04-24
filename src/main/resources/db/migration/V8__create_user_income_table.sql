@@ -1,9 +1,11 @@
 CREATE TABLE user_income (
     id UUID PRIMARY KEY,
-    net_income INTEGER,
-    usable_income INTEGER,
-    safe_spending INTEGER,
+    net_income NUMERIC(19, 2),
+    usable_income NUMERIC(19, 2),
+    safe_spending NUMERIC(19, 2),
     currency VARCHAR(10) NOT NULL DEFAULT 'VND',
+    -- NEW: Defines if underspending goes to projects or stays in pocket
+    auto_invest_surplus BOOLEAN DEFAULT FALSE, 
     calculation_note VARCHAR(255),
     last_calculated_at TIMESTAMP,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -12,33 +14,7 @@ CREATE TABLE user_income (
     CONSTRAINT fk_user_income_user
         FOREIGN KEY (id)
         REFERENCES users(id)
-        ON DELETE CASCADE,
-
-    CONSTRAINT chk_user_income_net_income_non_negative
-        CHECK (net_income IS NULL OR net_income >= 0),
-
-    CONSTRAINT chk_user_income_usable_income_non_negative
-        CHECK (usable_income IS NULL OR usable_income >= 0),
-
-    CONSTRAINT chk_user_income_usable_less_than_net
-        CHECK (
-            usable_income IS NULL
-            OR net_income IS NULL
-            OR usable_income < net_income
-        ),
-
-    CONSTRAINT chk_user_income_safe_spending_non_negative
-        CHECK (safe_spending IS NULL OR safe_spending >= 0),
-
-    CONSTRAINT chk_user_income_safe_spending_lt_80pct_usable
-        CHECK (
-            safe_spending IS NULL
-            OR usable_income IS NULL
-            OR (safe_spending * 100) < (usable_income * 80)
-        ),
-
-    CONSTRAINT chk_user_income_currency_not_blank
-        CHECK (char_length(trim(currency)) > 0)
+        ON DELETE CASCADE
 );
 
 CREATE INDEX idx_user_income_usable_income ON user_income(usable_income);
@@ -56,12 +32,7 @@ BEGIN
     END IF;
 
     SELECT COALESCE(
-        SUM(
-            CASE
-                WHEN pt.month_left > 0 THEN CEIL(pt.money_owed / pt.month_left)
-                ELSE pt.money_owed
-            END
-        ),
+        SUM(pt.monthly_saving),
         0
     )
     INTO v_monthly_obligation
