@@ -39,7 +39,8 @@ public class CreateUserIncomeUseCase {
                 req.getNetIncome(),
                 req.getUsableIncome(),
                 req.getCurrency() != null ? req.getCurrency().trim() : "VND",
-                req.getCalculationNote()
+                req.getCalculationNote(),
+                req.getAutoInvestSurplus()
         );
 
         return UserIncomeResponse.fromDomain(userIncomeRepository.save(created));

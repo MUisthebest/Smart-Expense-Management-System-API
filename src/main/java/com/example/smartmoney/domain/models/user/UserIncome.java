@@ -11,6 +11,7 @@ public class UserIncome {
     private Integer safeSpending;
     private String currency;
     private String calculationNote;
+    private boolean autoInvestSurplus;
     private Instant lastCalculatedAt;
     private final Instant createdAt;
     private Instant updatedAt;
@@ -22,6 +23,7 @@ public class UserIncome {
             Integer safeSpending,
             String currency,
             String calculationNote,
+            boolean autoInvestSurplus,
             Instant lastCalculatedAt,
             Instant createdAt,
             Instant updatedAt
@@ -32,18 +34,20 @@ public class UserIncome {
         this.safeSpending = safeSpending;
         this.currency = currency;
         this.calculationNote = calculationNote;
+        this.autoInvestSurplus = autoInvestSurplus;
         this.lastCalculatedAt = lastCalculatedAt;
         this.createdAt = Objects.requireNonNull(createdAt);
         this.updatedAt = Objects.requireNonNull(updatedAt);
         validate();
     }
 
-    public static UserIncome createNew(UUID userId, Integer netIncome, Integer usableIncome, String currency, String calculationNote) {
+    public static UserIncome createNew(UUID userId, Integer netIncome, Integer usableIncome, String currency, String calculationNote, Boolean autoInvestSurplus) {
         Instant now = Instant.now();
-        return new UserIncome(userId, netIncome, usableIncome, null, currency, calculationNote, null, now, now);
+        boolean autoInvest = autoInvestSurplus != null ? autoInvestSurplus : false;
+        return new UserIncome(userId, netIncome, usableIncome, null, currency, calculationNote, autoInvest, null, now, now);
     }
 
-    public void update(Integer netIncome, Integer usableIncome, String currency, String calculationNote) {
+    public void update(Integer netIncome, Integer usableIncome, String currency, String calculationNote, Boolean autoInvestSurplus) {
         if (netIncome != null) {
             this.netIncome = netIncome;
         }
@@ -55,6 +59,9 @@ public class UserIncome {
         }
         if (calculationNote != null) {
             this.calculationNote = calculationNote;
+        }
+        if (autoInvestSurplus != null) {
+            this.autoInvestSurplus = autoInvestSurplus;
         }
         this.updatedAt = Instant.now();
         validate();
@@ -89,6 +96,15 @@ public class UserIncome {
 
     public Integer getSafeSpending() {
         return safeSpending;
+    }
+
+    public void setSafeSpending(Integer safeSpending) {
+        this.safeSpending = safeSpending;
+        this.updatedAt = Instant.now();
+    }
+
+    public Boolean getAutoInvestSurplus() {
+        return autoInvestSurplus;
     }
 
     public String getCurrency() {

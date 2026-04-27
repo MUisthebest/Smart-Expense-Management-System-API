@@ -35,6 +35,9 @@ public class UserIncomeEntity {
     @Column(name = "calculation_note", length = 255)
     private String calculationNote;
 
+    @Column(name = "auto_invest_surplus")
+    private Boolean autoInvestSurplus = Boolean.FALSE;
+
     @Column(name = "last_calculated_at")
     private Instant lastCalculatedAt;
 

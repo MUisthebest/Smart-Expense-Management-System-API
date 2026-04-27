@@ -15,6 +15,7 @@ public class UserIncomeResponse {
     private Integer safeSpending;
     private String currency;
     private String calculationNote;
+    private Boolean autoInvestSurplus;
     private Instant lastCalculatedAt;
     private Instant createdAt;
     private Instant updatedAt;
@@ -27,6 +28,7 @@ public class UserIncomeResponse {
                 .safeSpending(income.getSafeSpending())
                 .currency(income.getCurrency())
                 .calculationNote(income.getCalculationNote())
+                .autoInvestSurplus(income.getAutoInvestSurplus())
                 .lastCalculatedAt(income.getLastCalculatedAt())
                 .createdAt(income.getCreatedAt())
                 .updatedAt(income.getUpdatedAt())

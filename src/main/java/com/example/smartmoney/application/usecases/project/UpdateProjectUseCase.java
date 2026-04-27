@@ -5,6 +5,7 @@ import com.example.smartmoney.application.dtos.responses.project.ProjectDetailRe
 import com.example.smartmoney.domain.exceptions.ProjectErrorCode;
 import com.example.smartmoney.domain.exceptions.ProjectException;
 import com.example.smartmoney.domain.models.project.Project;
+import com.example.smartmoney.domain.models.project.ProjectTracking;
 import com.example.smartmoney.domain.models.project.enums.ProjectPriority;
 import com.example.smartmoney.domain.models.project.enums.ProjectStatus;
 import com.example.smartmoney.domain.models.project.valueobjects.Money;
@@ -12,6 +13,7 @@ import com.example.smartmoney.domain.models.project.valueobjects.ProjectId;
 import com.example.smartmoney.domain.models.project.valueobjects.UserId;
 import com.example.smartmoney.domain.models.user.UserIncome;
 import com.example.smartmoney.domain.repositories.ProjectRepository;
+import com.example.smartmoney.domain.repositories.ProjectTrackingRepository;
 import com.example.smartmoney.domain.repositories.UserIncomeRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -22,6 +24,7 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -30,6 +33,7 @@ import java.util.UUID;
 public class UpdateProjectUseCase {
 
     private final ProjectRepository projectRepository;
+    private final ProjectTrackingRepository projectTrackingRepository;
     private final UserIncomeRepository userIncomeRepository;
 
     @Transactional
@@ -54,6 +58,13 @@ public class UpdateProjectUseCase {
         }
 
         Project saved = projectRepository.save(p);
+
+        // If target amount or deadline changed, recalibrate tracking so
+        // monthly_saving and month_left stay accurate for settlement.
+        if (req.getTargetAmount() != null || req.getDeadline() != null) {
+            recalibrateTracking(saved);
+        }
+
         return ProjectDetailResponse.fromDomain(saved);
     }
 
@@ -154,31 +165,12 @@ public class UpdateProjectUseCase {
             );
         }
 
-        // Sum of monthly obligations (target_amount / months_to_deadline) for ACTIVE projects <= 20% usable_income
-        BigDecimal usableIncome = new BigDecimal(income.getUsableIncome());
-        BigDecimal limit = usableIncome.multiply(new BigDecimal("0.20"));
-
-        BigDecimal sumMonthly = BigDecimal.ZERO;
-        for (Project p : activeOwnedOther) {
-            if (income.getCurrency() != null && p.getTargetAmount() != null
-                    && p.getTargetAmount().currency() != null
-                    && !income.getCurrency().equalsIgnoreCase(p.getTargetAmount().currency())) {
-                throw new ProjectException(
-                        "All ACTIVE projects must use the same currency as your user income",
-                        ProjectErrorCode.PROJECT_USER_INCOME_REQUIRED
-                );
-            }
-            sumMonthly = sumMonthly.add(monthlyTarget(p.getTargetAmount().amount(), p.getDeadline()));
-        }
-
-        sumMonthly = sumMonthly.add(monthlyTarget(nextTargetAmount, nextDeadline));
-
-        if (sumMonthly.compareTo(limit) > 0) {
-            throw new ProjectException(
-                    "Total monthly targets of ACTIVE projects must be <= 20% of usable_income",
-                    ProjectErrorCode.PROJECT_USABLE_INCOME_LIMIT_EXCEEDED
-            );
-        }
+        // 20% monthly obligation rule — enforced via MonthlyObligationPolicy
+        MonthlyObligationPolicy.assertWithinLimit(
+                income,
+                activeOwnedOther,
+                MonthlyObligationPolicy.derivedMonthly(nextTargetAmount, nextDeadline)
+        );
     }
 
     private int monthsToDeadline(LocalDate today, LocalDate deadline) {
@@ -197,5 +189,62 @@ public class UpdateProjectUseCase {
         if (targetAmount == null) return BigDecimal.ZERO;
         int months = monthsToDeadline(LocalDate.now(), deadline);
         return targetAmount.divide(new BigDecimal(months), 2, RoundingMode.CEILING);
+    }
+
+    /**
+     * Recalculates monthly_saving and month_left in ProjectTracking whenever
+     * the project's target_amount or deadline is updated.
+     *
+     * Formula:
+     *   newMonthLeft    = months from today to deadline  (authoritative reset)
+     *   newMonthlySaving = (targetAmount - moneySaved) / newMonthLeft
+     *                      [floored to 1 month, rounded CEILING]
+     *
+     * The DB trigger on project_tracking will then automatically
+     * refresh user_income.safe_spending via the existing PL/pgSQL functions.
+     */
+    private void recalibrateTracking(Project project) {
+        Optional<ProjectTracking> opt =
+                projectTrackingRepository.findByProjectId(project.getId());
+
+        if (opt.isEmpty()) {
+            // Tracking not created yet — CreateProjectTrackingUseCase will
+            // compute correct values when it is called.
+            return;
+        }
+
+        ProjectTracking tracking = opt.get();
+
+        LocalDate today    = LocalDate.now();
+        LocalDate deadline = project.getDeadline();
+        int newMonthLeft   = monthsToDeadline(today, deadline);
+
+        BigDecimal remaining = project.getTargetAmount().amount()
+                .subtract(tracking.getMoneySaved());
+
+        BigDecimal newMonthlySaving;
+        if (remaining.compareTo(BigDecimal.ZERO) <= 0) {
+            // Already at or past the target
+            tracking.recalibrate(BigDecimal.ZERO.setScale(2), 0);
+            newMonthlySaving = BigDecimal.ZERO;
+        } else {
+            newMonthlySaving = remaining.divide(
+                    BigDecimal.valueOf(newMonthLeft), 2, RoundingMode.CEILING);
+
+            // 20% guard on the actual value being written to tracking
+            UserId ownerId = project.getOwnerId();
+            List<Project> otherActive = MonthlyObligationPolicy.otherActiveOwned(
+                    projectRepository.findAllByUser(ownerId),
+                    ownerId,
+                    project.getId().value()
+            );
+            userIncomeRepository.findById(ownerId.value()).ifPresent(income ->
+                    MonthlyObligationPolicy.assertWithinLimit(income, otherActive, newMonthlySaving)
+            );
+
+            tracking.recalibrate(newMonthlySaving, newMonthLeft);
+        }
+
+        projectTrackingRepository.save(tracking);
     }
 }

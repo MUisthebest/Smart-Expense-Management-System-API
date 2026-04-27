@@ -83,6 +83,20 @@ public class ProjectTracking {
         this.updatedAt = Instant.now();
     }
 
+    /**
+     * Recalibrates monthly saving and months left when the project's
+     * target amount or deadline is changed by the user.
+     * Does NOT touch moneySaved, currentMonth, or moneyOwed.
+     *
+     * @param newMonthlySaving freshly calculated (remaining / monthsLeft)
+     * @param newMonthLeft     months to deadline from today
+     */
+    public void recalibrate(BigDecimal newMonthlySaving, int newMonthLeft) {
+        this.monthlySaving = normalizeMoney(newMonthlySaving, "monthlySaving");
+        this.monthLeft     = normalizeNonNegativeInt(newMonthLeft, "monthLeft");
+        this.updatedAt     = Instant.now();
+    }
+
     private BigDecimal normalizeMoney(BigDecimal value, String field) {
         if (value == null) {
             throw new IllegalArgumentException(field + " is required");

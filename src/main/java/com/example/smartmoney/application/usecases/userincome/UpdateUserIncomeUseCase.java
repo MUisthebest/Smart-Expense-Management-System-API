@@ -35,7 +35,8 @@ public class UpdateUserIncomeUseCase {
                 req.getNetIncome(),
                 req.getUsableIncome(),
                 req.getCurrency() != null ? req.getCurrency().trim() : null,
-                req.getCalculationNote()
+                req.getCalculationNote(),
+                req.getAutoInvestSurplus()
         );
 
         return UserIncomeResponse.fromDomain(userIncomeRepository.save(current));
