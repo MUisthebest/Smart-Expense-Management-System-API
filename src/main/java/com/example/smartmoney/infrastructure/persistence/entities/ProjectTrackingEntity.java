@@ -40,7 +40,7 @@ public class ProjectTrackingEntity {
     @Column(name = "money_owed", nullable = false, precision = 19, scale = 2)
     private BigDecimal moneyOwed;
 
-    @Column(name = "created_at", nullable = false)
+    @Column(name = "created_at")
     private Instant createdAt;
 
     @Column(name = "updated_at", nullable = false)

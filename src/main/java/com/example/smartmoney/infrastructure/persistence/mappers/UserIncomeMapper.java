@@ -19,6 +19,7 @@ public class UserIncomeMapper {
                 entity.getSafeSpending(),
                 entity.getCurrency(),
                 entity.getCalculationNote(),
+                entity.getAutoInvestSurplus() != null && entity.getAutoInvestSurplus(),
                 entity.getLastCalculatedAt(),
                 entity.getCreatedAt(),
                 entity.getUpdatedAt()
@@ -33,6 +34,7 @@ public class UserIncomeMapper {
         entity.setSafeSpending(domain.getSafeSpending());
         entity.setCurrency(domain.getCurrency());
         entity.setCalculationNote(domain.getCalculationNote());
+        entity.setAutoInvestSurplus(domain.getAutoInvestSurplus());
         entity.setLastCalculatedAt(domain.getLastCalculatedAt());
         entity.setCreatedAt(domain.getCreatedAt());
         entity.setUpdatedAt(domain.getUpdatedAt());

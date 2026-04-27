@@ -47,6 +47,7 @@ public class ProjectController {
         private final GetProjectTrackingUseCase getProjectTrackingUseCase;
         private final UpdateProjectTrackingUseCase updateProjectTrackingUseCase;
         private final DeleteProjectTrackingUseCase deleteProjectTrackingUseCase;
+        private final GetProjectHistoryUseCase getProjectHistoryUseCase;
 
     private String actorId(Authentication auth) {
         
@@ -261,6 +262,20 @@ public class ProjectController {
     ) {
         ProjectTrackingResponse data = getProjectTrackingUseCase.execute(actorId(auth), projectId);
         return CheckResponse.<ProjectTrackingResponse>builder()
+                .success(true)
+                .message("OK")
+                .data(data)
+                .build();
+    }
+
+    @Operation(summary = "Get project settlement history snapshots")
+    @GetMapping("/{projectId}/history")
+    public CheckResponse<List<ProjectHistoryResponse>> getHistory(
+            Authentication auth,
+            @PathVariable String projectId
+    ) {
+        List<ProjectHistoryResponse> data = getProjectHistoryUseCase.execute(actorId(auth), projectId);
+        return CheckResponse.<List<ProjectHistoryResponse>>builder()
                 .success(true)
                 .message("OK")
                 .data(data)

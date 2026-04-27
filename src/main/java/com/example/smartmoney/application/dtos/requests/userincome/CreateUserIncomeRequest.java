@@ -21,4 +21,6 @@ public class CreateUserIncomeRequest {
 
     @Size(max = 255, message = "calculationNote must not exceed 255 characters")
     private String calculationNote;
+
+    private Boolean autoInvestSurplus;
 }

@@ -127,31 +127,14 @@ public class CreateProjectUseCase {
             );
         }
 
-        // Sum of monthly obligations (target_amount / months_to_deadline) for ACTIVE projects <= 20% usable_income
-        BigDecimal usableIncome = new BigDecimal(income.getUsableIncome());
-        BigDecimal limit = usableIncome.multiply(new BigDecimal("0.20"));
-
-        BigDecimal sumMonthly = BigDecimal.ZERO;
-        for (Project p : activeOwned) {
-            if (income.getCurrency() != null && p.getTargetAmount() != null
-                    && p.getTargetAmount().currency() != null
-                    && !income.getCurrency().equalsIgnoreCase(p.getTargetAmount().currency())) {
-                throw new ProjectException(
-                        "All ACTIVE projects must use the same currency as your user income",
-                        ProjectErrorCode.PROJECT_USER_INCOME_REQUIRED
-                );
-            }
-            sumMonthly = sumMonthly.add(monthlyTarget(p.getTargetAmount().amount(), p.getDeadline()));
-        }
-
-        sumMonthly = sumMonthly.add(monthlyTarget(req.getTargetAmount(), req.getDeadline()));
-
-        if (sumMonthly.compareTo(limit) > 0) {
-            throw new ProjectException(
-                    "Total monthly targets of ACTIVE projects must be <= 20% of usable_income",
-                    ProjectErrorCode.PROJECT_USABLE_INCOME_LIMIT_EXCEEDED
-            );
-        }
+        // 20% monthly obligation rule — enforced via MonthlyObligationPolicy
+        List<Project> otherActive = MonthlyObligationPolicy.otherActiveOwned(
+                all, actor, null /* brand-new project: nothing to exclude */);
+        MonthlyObligationPolicy.assertWithinLimit(
+                income,
+                otherActive,
+                MonthlyObligationPolicy.derivedMonthly(req.getTargetAmount(), req.getDeadline())
+        );
     }
 
     private int monthsToDeadline(LocalDate today, LocalDate deadline) {
