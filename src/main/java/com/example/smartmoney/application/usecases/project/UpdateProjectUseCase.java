@@ -15,6 +15,7 @@ import com.example.smartmoney.domain.models.user.UserIncome;
 import com.example.smartmoney.domain.repositories.ProjectRepository;
 import com.example.smartmoney.domain.repositories.ProjectTrackingRepository;
 import com.example.smartmoney.domain.repositories.UserIncomeRepository;
+import com.example.smartmoney.domain.services.SafeSpendingService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,6 +36,7 @@ public class UpdateProjectUseCase {
     private final ProjectRepository projectRepository;
     private final ProjectTrackingRepository projectTrackingRepository;
     private final UserIncomeRepository userIncomeRepository;
+    private final SafeSpendingService safeSpendingService;
 
     @Transactional
     public ProjectDetailResponse execute(String actorId, String projectId, UpdateProjectRequest req) {
@@ -64,6 +66,8 @@ public class UpdateProjectUseCase {
         if (req.getTargetAmount() != null || req.getDeadline() != null) {
             recalibrateTracking(saved);
         }
+
+        safeSpendingService.recalculateAndSaveSafeSpending(UserId.of(actorId));
 
         return ProjectDetailResponse.fromDomain(saved);
     }

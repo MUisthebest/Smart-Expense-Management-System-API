@@ -11,6 +11,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
+import com.example.smartmoney.domain.services.SafeSpendingService;
+import com.example.smartmoney.domain.models.project.valueobjects.UserId;
 
 @Service
 @RequiredArgsConstructor
@@ -18,6 +20,7 @@ public class CreateUserIncomeUseCase {
 
     private final UserIncomeRepository userIncomeRepository;
     private final UserRepository userRepository;
+    private final SafeSpendingService safeSpendingService;
 
     @Transactional
     public UserIncomeResponse execute(String actorId, CreateUserIncomeRequest req) {
@@ -43,6 +46,9 @@ public class CreateUserIncomeUseCase {
                 req.getAutoInvestSurplus()
         );
 
-        return UserIncomeResponse.fromDomain(userIncomeRepository.save(created));
+        UserIncome saved = userIncomeRepository.save(created);
+        safeSpendingService.recalculateAndSaveSafeSpending(UserId.of(actorId));
+
+        return UserIncomeResponse.fromDomain(saved);
     }
 }

@@ -18,7 +18,6 @@ import java.util.UUID;
 public class ProjectTrackingEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
     @Column(name = "id", nullable = false)
     private UUID id;
 

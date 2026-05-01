@@ -12,7 +12,9 @@ import com.example.smartmoney.domain.models.project.valueobjects.ProjectId;
 import com.example.smartmoney.domain.models.project.valueobjects.UserId;
 import com.example.smartmoney.domain.models.user.UserIncome;
 import com.example.smartmoney.domain.repositories.ProjectRepository;
+import com.example.smartmoney.domain.repositories.ProjectTrackingRepository;
 import com.example.smartmoney.domain.repositories.UserIncomeRepository;
+import com.example.smartmoney.domain.services.SafeSpendingService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -44,6 +46,12 @@ class UpdateProjectUseCaseTest {
     @Mock
     private UserIncomeRepository userIncomeRepository;
 
+    @Mock
+    private ProjectTrackingRepository projectTrackingRepository;
+
+    @Mock
+    private SafeSpendingService safeSpendingService;
+
     private UpdateProjectUseCase useCase;
 
     private UUID actorUuid;
@@ -51,7 +59,7 @@ class UpdateProjectUseCaseTest {
 
     @BeforeEach
     void setUp() {
-        useCase = new UpdateProjectUseCase(projectRepository, userIncomeRepository);
+        useCase = new UpdateProjectUseCase(projectRepository, projectTrackingRepository, userIncomeRepository, safeSpendingService);
         actorUuid = UUID.randomUUID();
         actorId = actorUuid.toString();
     }
@@ -156,7 +164,7 @@ class UpdateProjectUseCaseTest {
     }
 
     private UserIncome validIncome(UUID userId) {
-        return UserIncome.createNew(userId, 2000, 1000, "VND", null);
+        return UserIncome.createNew(userId, 2000, 1000, "VND", null, null);
     }
 
     private Project activeProject(ProjectPriority priority, LocalDate deadline) {

@@ -6,10 +6,12 @@ import com.example.smartmoney.domain.exceptions.ProjectErrorCode;
 import com.example.smartmoney.domain.exceptions.ProjectException;
 import com.example.smartmoney.domain.models.project.Project;
 import com.example.smartmoney.domain.models.project.ProjectTracking;
+import com.example.smartmoney.domain.models.user.UserIncome;
 import com.example.smartmoney.domain.models.project.valueobjects.ProjectId;
 import com.example.smartmoney.domain.models.project.valueobjects.UserId;
 import com.example.smartmoney.domain.repositories.ProjectRepository;
 import com.example.smartmoney.domain.repositories.ProjectTrackingRepository;
+import com.example.smartmoney.domain.services.SafeSpendingService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +24,7 @@ public class UpdateProjectTrackingUseCase {
 
     private final ProjectRepository projectRepository;
     private final ProjectTrackingRepository projectTrackingRepository;
+    private final SafeSpendingService safeSpendingService;
 
     @Transactional
     public ProjectTrackingResponse execute(String actorId, String projectId, UpdateProjectTrackingRequest req) {
@@ -37,9 +40,14 @@ public class UpdateProjectTrackingUseCase {
         BigDecimal nextMoneySaved = req.getMoneySaved() != null ? req.getMoneySaved() : tracking.getMoneySaved();
         validateMoneySaved(project, nextMoneySaved);
 
-        tracking.update(req.getMoneySaved(), req.getCurrentMonth(), req.getMonthLeft(), req.getMoneyOwed());
+        BigDecimal oldMoneyOwed = tracking.getMoneyOwed() != null ? tracking.getMoneyOwed() : BigDecimal.ZERO;
 
-        return ProjectTrackingResponse.fromDomain(projectTrackingRepository.save(tracking));
+        tracking.update(req.getMoneySaved(), req.getCurrentMonth(), req.getMonthLeft(), req.getMoneyOwed());
+        ProjectTracking saved = projectTrackingRepository.save(tracking);
+
+        safeSpendingService.recalculateAndSaveSafeSpending(actor);
+
+        return ProjectTrackingResponse.fromDomain(saved);
     }
 
     private void validateMoneySaved(Project project, BigDecimal moneySaved) {
