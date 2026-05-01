@@ -11,7 +11,11 @@ import com.example.smartmoney.domain.models.project.valueobjects.Money;
 import com.example.smartmoney.domain.models.project.valueobjects.UserId;
 import com.example.smartmoney.domain.models.user.UserIncome;
 import com.example.smartmoney.domain.repositories.ProjectRepository;
+import com.example.smartmoney.domain.repositories.ProjectTrackingRepository;
 import com.example.smartmoney.domain.repositories.UserIncomeRepository;
+import com.example.smartmoney.domain.services.SafeSpendingService;
+import com.example.smartmoney.domain.models.project.ProjectTracking;
+import com.example.smartmoney.domain.models.project.valueobjects.ProjectId;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,7 +33,9 @@ import java.util.UUID;
 public class CreateProjectUseCase {
 
     private final ProjectRepository projectRepository;
+    private final ProjectTrackingRepository projectTrackingRepository;
     private final UserIncomeRepository userIncomeRepository;
+    private final SafeSpendingService safeSpendingService;
 
     @Transactional
     public ProjectDetailResponse execute(String actorId, CreateProjectRequest req) {
@@ -45,7 +51,25 @@ public class CreateProjectUseCase {
                 req.getDeadline()
         );
 
-        return ProjectDetailResponse.fromDomain(projectRepository.save(p));
+        Project savedProject = projectRepository.save(p);
+
+        // Automate tracking creation
+        int monthsLeft = monthsToDeadline(LocalDate.now(), req.getDeadline());
+        BigDecimal monthlySaving = monthlyTarget(req.getTargetAmount(), req.getDeadline());
+
+        ProjectTracking tracking = ProjectTracking.createNew(
+                ProjectId.of(savedProject.getId().toString()),
+                BigDecimal.ZERO, // moneySaved
+                1,               // currentMonth
+                monthlySaving,
+                monthsLeft,
+                BigDecimal.ZERO  // moneyOwed
+        );
+        projectTrackingRepository.save(tracking);
+
+        safeSpendingService.recalculateAndSaveSafeSpending(UserId.of(actorId));
+
+        return ProjectDetailResponse.fromDomain(savedProject);
     }
 
     private void validateCreate(String actorId, CreateProjectRequest req) {

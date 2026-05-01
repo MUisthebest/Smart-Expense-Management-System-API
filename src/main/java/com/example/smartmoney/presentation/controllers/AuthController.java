@@ -43,6 +43,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.web.bind.WebDataBinder;
+import java.beans.PropertyEditorSupport;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/v1/auth")
@@ -68,6 +71,20 @@ public class AuthController {
     private final JwtTokenProvider jwtTokenProvider;
 
     
+    @InitBinder
+    public void initBinder(WebDataBinder binder) {
+        binder.registerCustomEditor(MultipartFile.class, new PropertyEditorSupport() {
+            @Override
+            public void setAsText(String text) {
+                if (text == null || text.trim().isEmpty()) {
+                    setValue(null);
+                } else {
+                    throw new IllegalArgumentException("Cannot convert String to MultipartFile");
+                }
+            }
+        });
+    }
+
     @Operation(
         summary = "Register new user",
         description = "Register a new user with required information"
