@@ -130,7 +130,8 @@ public class SecurityConfig implements WebMvcConfigurer {
             "Accept",
             "Origin",
             "Access-Control-Request-Method",
-            "Access-Control-Request-Headers"
+            "Access-Control-Request-Headers",
+            "X-Reset-Token"
         ));
         configuration.setExposedHeaders(Arrays.asList(
             "Authorization",
