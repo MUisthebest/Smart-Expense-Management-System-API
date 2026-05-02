@@ -98,17 +98,29 @@ public class PerformMonthlySettlementUseCase {
                 .reduce(BigDecimal.ZERO, BigDecimal::add)
                 .setScale(2, RoundingMode.HALF_UP);
 
-        BigDecimal safeSpendingBD = userIncome.getSafeSpending() != null
+        // SafeSpending as stored is already penalized. 
+        // We need the "Base Safe Spending" (BSS) = UsableIncome - Sum(Monthly Savings)
+        // ESS (Effective Safe Spending) = BSS - TotalDebt
+        BigDecimal totalDebt = validProjects.stream()
+                .map(p -> {
+                    ProjectTracking t = trackingMap.get(p.getId());
+                    return t.getMoneyOwed() != null ? t.getMoneyOwed() : BigDecimal.ZERO;
+                })
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal currentSafeSpending = userIncome.getSafeSpending() != null
                 ? BigDecimal.valueOf(userIncome.getSafeSpending())
                 : BigDecimal.ZERO;
 
-        BigDecimal penaltyToDistribute = BigDecimal.ZERO;
-        BigDecimal surplusToDistribute = BigDecimal.ZERO;
+        BigDecimal baseSafeSpending = currentSafeSpending.add(totalDebt);
 
-        if (actualExpenses.compareTo(safeSpendingBD) > 0) {
-            penaltyToDistribute = actualExpenses.subtract(safeSpendingBD).setScale(2, RoundingMode.HALF_UP);
-        } else if (Boolean.TRUE.equals(userIncome.getAutoInvestSurplus())) {
-            surplusToDistribute = safeSpendingBD.subtract(actualExpenses).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal netPenalty = BigDecimal.ZERO;
+        BigDecimal netSurplus = BigDecimal.ZERO;
+
+        if (actualExpenses.compareTo(baseSafeSpending) > 0) {
+            netPenalty = actualExpenses.subtract(baseSafeSpending).setScale(2, RoundingMode.HALF_UP);
+        } else {
+            netSurplus = baseSafeSpending.subtract(actualExpenses).setScale(2, RoundingMode.HALF_UP);
         }
 
         Map<ProjectId, BigDecimal> finalMoneySaved = new HashMap<>();
@@ -128,50 +140,68 @@ public class PerformMonthlySettlementUseCase {
             penaltyAppliedMap.put(p.getId(), BigDecimal.ZERO);
         }
 
-        if (surplusToDistribute.compareTo(BigDecimal.ZERO) > 0) {
-            List<Project> surplusOrder = validProjects.stream()
+        if (netSurplus.compareTo(BigDecimal.ZERO) > 0) {
+            // 1. Repay Debt First (Highest to Lowest priority)
+            List<Project> debtOrder = validProjects.stream()
                     .sorted(Comparator.comparingInt(p -> -p.getPriority().ordinal())) // HIGH -> LOW
                     .toList();
 
-            for (Project p : surplusOrder) {
-                if (surplusToDistribute.compareTo(BigDecimal.ZERO) <= 0) break;
-
-                BigDecimal currentSaved = finalMoneySaved.get(p.getId());
-                BigDecimal target = p.getTargetAmount().amount();
-                BigDecimal room = target.subtract(currentSaved);
-
-                if (room.compareTo(BigDecimal.ZERO) > 0) {
-                    BigDecimal toAdd = surplusToDistribute.min(room);
-                    finalMoneySaved.put(p.getId(), currentSaved.add(toAdd));
-                    surplusInvestedMap.put(p.getId(), toAdd);
-                    surplusToDistribute = surplusToDistribute.subtract(toAdd);
+            for (Project p : debtOrder) {
+                if (netSurplus.compareTo(BigDecimal.ZERO) <= 0) break;
+                BigDecimal currentOwed = finalMoneyOwed.get(p.getId());
+                if (currentOwed.compareTo(BigDecimal.ZERO) > 0) {
+                    BigDecimal toPay = netSurplus.min(currentOwed);
+                    finalMoneyOwed.put(p.getId(), currentOwed.subtract(toPay));
+                    netSurplus = netSurplus.subtract(toPay);
+                    log.info("[Settlement] Project {} debt reduced by {}.", p.getId().value(), toPay);
                 }
             }
-        }
 
-        if (penaltyToDistribute.compareTo(BigDecimal.ZERO) > 0) {
+            // 2. Extra Savings (If remaining surplus and AutoInvest is true)
+            if (netSurplus.compareTo(BigDecimal.ZERO) > 0 && Boolean.TRUE.equals(userIncome.getAutoInvestSurplus())) {
+                List<Project> surplusOrder = validProjects.stream()
+                        .sorted(Comparator.comparingInt(p -> -p.getPriority().ordinal())) // HIGH -> LOW
+                        .toList();
+
+                for (Project p : surplusOrder) {
+                    if (netSurplus.compareTo(BigDecimal.ZERO) <= 0) break;
+
+                    BigDecimal currentSaved = finalMoneySaved.get(p.getId());
+                    BigDecimal target = p.getTargetAmount().amount();
+                    BigDecimal room = target.subtract(currentSaved);
+
+                    if (room.compareTo(BigDecimal.ZERO) > 0) {
+                        BigDecimal toAdd = netSurplus.min(room);
+                        finalMoneySaved.put(p.getId(), currentSaved.add(toAdd));
+                        surplusInvestedMap.put(p.getId(), toAdd);
+                        netSurplus = netSurplus.subtract(toAdd);
+                    }
+                }
+            }
+        } else if (netPenalty.compareTo(BigDecimal.ZERO) > 0) {
+            // Distribute Penalty
             List<Project> penaltyOrder = validProjects.stream()
                     .sorted(Comparator.comparingInt(p -> p.getPriority().ordinal())) // LOW -> HIGH
                     .toList();
 
             for (int i = 0; i < penaltyOrder.size(); i++) {
                 Project p = penaltyOrder.get(i);
-                if (penaltyToDistribute.compareTo(BigDecimal.ZERO) <= 0) break;
+                if (netPenalty.compareTo(BigDecimal.ZERO) <= 0) break;
 
                 ProjectTracking t = trackingMap.get(p.getId());
                 BigDecimal monthlySaving = t.getMonthlySaving() != null ? t.getMonthlySaving() : BigDecimal.ZERO;
 
                 BigDecimal toAdd;
                 if (i == penaltyOrder.size() - 1) {
-                    toAdd = penaltyToDistribute;
+                    toAdd = netPenalty;
                 } else {
-                    toAdd = penaltyToDistribute.min(monthlySaving);
+                    toAdd = netPenalty.min(monthlySaving);
                 }
 
                 BigDecimal currentOwed = finalMoneyOwed.get(p.getId());
                 finalMoneyOwed.put(p.getId(), currentOwed.add(toAdd));
                 penaltyAppliedMap.put(p.getId(), toAdd);
-                penaltyToDistribute = penaltyToDistribute.subtract(toAdd);
+                netPenalty = netPenalty.subtract(toAdd);
             }
         }
 
@@ -183,13 +213,16 @@ public class PerformMonthlySettlementUseCase {
             int newMonthLeft = SettlementEngine.recalculateMonthLeft(
                     p.getTargetAmount().amount(), newSaved, t.getMonthlySaving(), t.getMonthLeft());
 
+            BigDecimal moneySavedBefore = t.getMoneySaved();
+            int monthLeftBefore = t.getMonthLeft();
+
             t.update(newSaved, t.getCurrentMonth() + 1, newMonthLeft, newOwed);
             projectTrackingRepository.save(t);
 
             ProjectHistory snapshot = ProjectHistory.createSnapshot(
                     p.getId(), ownerUuid, firstOfPrevMonth.getMonthValue(),
-                    firstOfPrevMonth.getYear(), t.getMoneySaved(), newSaved, t.getMonthlySaving(),
-                    penaltyAppliedMap.get(p.getId()), surplusInvestedMap.get(p.getId()), t.getMonthLeft(), newMonthLeft
+                    firstOfPrevMonth.getYear(), moneySavedBefore, newSaved, t.getMonthlySaving(),
+                    penaltyAppliedMap.get(p.getId()), surplusInvestedMap.get(p.getId()), monthLeftBefore, newMonthLeft
             );
             projectHistoryRepository.save(snapshot);
 
@@ -199,11 +232,11 @@ public class PerformMonthlySettlementUseCase {
                 log.info("[Settlement] Project {} marked COMPLETED.", p.getId().value());
             }
 
-            log.info("[Settlement] Settled project {} | saved: {} → {} | penalty: {} | surplus: {} | monthLeft: {} → {}",
-                    p.getId().value(), t.getMoneySaved(), newSaved, penaltyAppliedMap.get(p.getId()),
-                    surplusInvestedMap.get(p.getId()), t.getMonthLeft(), newMonthLeft);
+            log.info("[Settlement] Settled project {} | saved: {} → {} | owed: {} → {} | monthLeft: {} → {}",
+                    p.getId().value(), t.getMoneySaved(), newSaved, t.getMoneyOwed(), newOwed, t.getMonthLeft(), newMonthLeft);
         }
 
+        // This call will recalculate Safe Spending based on the NEW total debt
         safeSpendingService.recalculateAndSaveSafeSpending(ownerId);
     }
 }
