@@ -10,7 +10,7 @@ public class Avatar {
     }    
     
     public Avatar(String url) {
-        if (url == null || url.isEmpty()) {
+        if (url == null || url.trim().isEmpty()) {
             this.url = null; 
             return;
         }
