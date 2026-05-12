@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.connection.RedisStreamCommands.XAddOptions;
 import org.springframework.data.redis.connection.stream.StreamRecords;
 
 import java.util.LinkedHashMap;
@@ -44,7 +45,10 @@ public class JobQueuePublisher implements JobQueuePort {
         body.put("createdAt", String.valueOf(System.currentTimeMillis()));
 
         redisTemplate.opsForStream().add(
-                StreamRecords.mapBacked(body).withStreamKey(streamKey)
+            StreamRecords.mapBacked(body)
+                .withStreamKey(streamKey),
+            XAddOptions.maxlen(maxJobsPerStream)
+                .approximateTrimming(true)
         );
 
         System.out.println("xadd success");
