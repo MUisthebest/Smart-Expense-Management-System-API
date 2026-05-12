@@ -1,5 +1,7 @@
 package com.example.smartmoney.application.dtos.requests.project;
 
+import com.example.smartmoney.domain.models.project.enums.ProjectStatus;
+import com.example.smartmoney.domain.models.project.enums.ProjectPriority;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
@@ -22,4 +24,8 @@ public class UpdateProjectRequest {
     private String currency;
 
     private LocalDate deadline;
+
+    private ProjectStatus status;
+
+    private ProjectPriority priority;
 }
