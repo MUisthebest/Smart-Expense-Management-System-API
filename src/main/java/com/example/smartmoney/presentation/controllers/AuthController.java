@@ -215,7 +215,7 @@ public class AuthController {
                 .message("Login failed: " + e.getMessage())
                 .build();
             
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
+            return ResponseEntity.badRequest().body(response);
         }
     }
     
@@ -328,8 +328,7 @@ public class AuthController {
     @ApiResponses({
         @ApiResponse(
             responseCode = "200",
-            description = "Token refreshed successfully",
-            content = @Content(schema = @Schema(implementation = AuthResponse.class))
+            description = "Token refreshed successfully"
         ),
         @ApiResponse(
             responseCode = "401",
