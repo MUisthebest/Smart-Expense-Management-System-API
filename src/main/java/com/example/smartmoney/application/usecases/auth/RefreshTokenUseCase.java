@@ -35,7 +35,7 @@ public class RefreshTokenUseCase {
         
         // Generate new tokens
         String newAccessToken = authPort.generateAccessToken(user);
-        String newRefreshToken = authPort.generateRefreshToken(user);
+        String newRefreshToken = request.getRefreshToken(); // Reuse the same refresh token for simplicity
         
         // Convert to response
         UserResponse userResponse = mapToUserResponse(user);

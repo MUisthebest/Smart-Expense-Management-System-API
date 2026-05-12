@@ -5,7 +5,9 @@ import com.example.smartmoney.domain.models.notification.Notification;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
+
 import java.net.URI;
+import java.time.Duration;
 
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
@@ -19,6 +21,7 @@ import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactor
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.serializer.Jackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
+
 
 /**
  * Core Redis Configuration for main application use cases
@@ -45,24 +48,23 @@ public class CoreRedisConfig {
         config.setHostName(uri.getHost());
         config.setPort(uri.getPort());
 
-        // parse username/password
         if (uri.getUserInfo() != null) {
             String[] parts = uri.getUserInfo().split(":", 2);
-            if (parts.length == 2) {
-                config.setUsername(parts[0]);
-                config.setPassword(parts[1]);
-            } else {
-                config.setPassword(parts[0]);
-            }
+            config.setUsername(parts[0]);
+            config.setPassword(parts[1]);
         }
 
-        // 🔥 QUAN TRỌNG: bật SSL nếu là rediss
-        LettuceClientConfiguration clientConfig = LettuceClientConfiguration.builder()
-                .useSsl()
-                .build();
+        LettuceClientConfiguration.LettuceClientConfigurationBuilder builder =
+                LettuceClientConfiguration.builder().commandTimeout(Duration.ofSeconds(30));
 
-        return new LettuceConnectionFactory(config, clientConfig);
+        // ✅ chỉ bật SSL nếu là rediss
+        if (redisUri.startsWith("rediss://")) {
+            builder.useSsl();
+        }
+
+        return new LettuceConnectionFactory(config, builder.build());
     }
+
     @Bean
     @Primary
     public RedisTemplate<String, Object> coreRedisTemplate(
