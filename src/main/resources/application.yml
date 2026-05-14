@@ -114,6 +114,10 @@ app:
           starttls:
             enable: ${MAIL_SMTP_STARTTLS_ENABLE:}
 
+  # Gemini (Google AI) Configuration
+  gemini:
+    api-key: ${GEMINI_API_KEY:}
+
   # Cloudinary Configuration
   cloudinary:
     cloud-name: ${CLOUDINARY_CLOUD_NAME:your_cloud_name}

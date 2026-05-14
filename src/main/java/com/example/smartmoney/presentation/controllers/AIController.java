@@ -3,6 +3,9 @@ package com.example.smartmoney.presentation.controllers;
 import com.example.smartmoney.application.usecases.queue.ProcessQueueRequestUseCase;
 import com.example.smartmoney.domain.exceptions.DuplicateJobException;
 import com.example.smartmoney.domain.models.message.MessageRecord;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -14,36 +17,24 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/ai")
+@RequiredArgsConstructor
+@Tag(name = "AI", description = "AI-powered financial advice endpoints")
+@SecurityRequirement(name = "bearerAuth")
 public class AIController {
+
     private final TransactionController transactionController;
     private final ProcessQueueRequestUseCase processQueueRequestUseCase;
-    public AIController(
-            TransactionController transactionController,
-            ProcessQueueRequestUseCase processQueueRequestUseCase
 
-        )
-    {
-        this.transactionController = transactionController;
-        this.processQueueRequestUseCase = processQueueRequestUseCase;
-    }
+    // ── Legacy queue endpoint ─────────────────────────────────────────────────
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> submitAIJob(
             @RequestPart("data") String data,
             @RequestPart("type") String duty,
             @RequestHeader("Authorization") String authHeader) {
-
-
         try {
             UUID userId = transactionController.extractUserIdFromToken(authHeader);
-
-            System.out.println("User ID: " + userId);
-
-            MessageRecord requested = processQueueRequestUseCase.execute(
-                    data,
-                    duty,
-                    userId.toString()
-            );
+            MessageRecord requested = processQueueRequestUseCase.execute(data, duty, userId.toString());
             return ResponseEntity.status(HttpStatus.ACCEPTED).body(Map.of(
                             "jobId", requested.getJobId(),
                             "status", requested.getStatus(),
