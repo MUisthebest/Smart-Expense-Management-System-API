@@ -119,6 +119,10 @@ app:
     folder: "smart-money/users"
     secure: true
 
+  # Gemini Configuration
+  gemini:
+    api-key: "test-gemini-key"
+
 
 # Logging Configuration
 logging:

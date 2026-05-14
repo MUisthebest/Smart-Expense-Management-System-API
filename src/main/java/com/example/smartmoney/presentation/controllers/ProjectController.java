@@ -47,7 +47,8 @@ public class ProjectController {
         private final GetProjectTrackingUseCase getProjectTrackingUseCase;
         private final UpdateProjectTrackingUseCase updateProjectTrackingUseCase;
         private final DeleteProjectTrackingUseCase deleteProjectTrackingUseCase;
-        private final GetProjectHistoryUseCase getProjectHistoryUseCase;
+    private final GetProjectHistoryUseCase getProjectHistoryUseCase;
+    private final ProjectBudgetAdvisorUseCase projectBudgetAdvisorUseCase;
 
     private String actorId(Authentication auth) {
         
@@ -307,6 +308,24 @@ public class ProjectController {
         return CheckResponse.<Void>builder()
                 .success(true)
                 .message("Deleted")
+                .build();
+    }
+
+    // ===== AI Budget Advisor =====
+
+    @Operation(
+            summary = "AI project budget advisor",
+            description = "Given project parameters and a mode (URGENT / RELAXED), computes the adjusted monthly saving and number of months."
+    )
+    @PostMapping("/project-advisor")
+    public CheckResponse<ProjectBudgetAdvisorResponse> projectAdvisor(
+            Authentication auth,
+            @Valid @RequestBody ProjectBudgetAdvisorRequest req) {
+        ProjectBudgetAdvisorResponse data = projectBudgetAdvisorUseCase.execute(actorId(auth), req);
+        return CheckResponse.<ProjectBudgetAdvisorResponse>builder()
+                .success(true)
+                .message("OK")
+                .data(data)
                 .build();
     }
 }
