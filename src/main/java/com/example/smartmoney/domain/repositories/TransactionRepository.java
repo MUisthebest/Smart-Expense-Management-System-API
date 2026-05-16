@@ -44,4 +44,8 @@ public interface TransactionRepository {
         TransactionType type
     );
     void deleteById(UUID id);
+
+
+    List<Object[]> getTransactionsByMonth(int year, int month );
+    List<Object[]> getTransactionProportionByCategory(int year, int month);
 }
