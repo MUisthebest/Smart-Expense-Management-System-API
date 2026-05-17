@@ -11,7 +11,7 @@ import java.util.Map;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/ai/v1")
+@RequestMapping("/api/v1/ai")
 public class AIController {
     private final TransactionController transactionController;
     private final ProcessQueueRequestUseCase processQueueRequestUseCase;

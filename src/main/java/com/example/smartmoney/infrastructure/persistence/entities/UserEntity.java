@@ -65,6 +65,8 @@ public class UserEntity {
     @Column(name = "is_email_verified", nullable = false)
     private boolean emailVerified = false;
     
+    @Column(name = "notification_enabled", nullable = false)
+    private boolean notificationEnabled = true;
     // Enum phải là public để MapStruct truy cập được
     public enum Role {
         USER,

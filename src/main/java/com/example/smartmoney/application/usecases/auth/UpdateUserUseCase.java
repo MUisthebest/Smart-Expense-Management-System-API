@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 import java.util.UUID;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.example.smartmoney.application.ports.cloudinary.CloudinaryPort;
 import com.example.smartmoney.application.dtos.responses.UserResponse;
 import com.example.smartmoney.application.dtos.requests.auth.UpdateUserRequest;
 import com.example.smartmoney.domain.exceptions.DomainException;
@@ -21,6 +22,8 @@ public class UpdateUserUseCase {
 
     private final UserRepository userRepository;
 
+    private final CloudinaryPort cloudinaryPort;
+
     public UserResponse execute(UUID userId, UpdateUserRequest request) {
         log.info("Updating user with id: {}", userId);
 
@@ -34,7 +37,11 @@ public class UpdateUserUseCase {
 
 
         if (request.getAvatar() != null) {
-            user.setAvatar(new Avatar(request.getAvatar()));
+            String avatarUrl = cloudinaryPort.uploadAvatar(request.getAvatar());
+            if (user.getAvatar() != null && user.getAvatar().getUrl() != null) {
+                cloudinaryPort.deleteImage(user.getAvatar().getUrl(), "image");
+            }
+            user.setAvatar(new Avatar(avatarUrl));
         }
 
         if (request.getDateOfBirth() != null) {

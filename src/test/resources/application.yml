@@ -41,6 +41,12 @@ spring:
   # Disable Flyway for tests (Hibernate will manage schema)
   flyway:
     enabled: false
+
+  # Redis Configuration
+  data:
+    redis:
+      url: ${REDIS_URI:redis://localhost:6379}
+      timeout: 10000ms
   
   # Jackson Configuration
   jackson:
@@ -66,7 +72,7 @@ app:
   jwt:
     secret: "TestSecretKeyForJWTWithAtLeast256BitsLength1234567890TestSecretKeyForTests"
     access-token-expiration: 3600000
-    refresh-token-expiration: 604800000
+    refresh-token-expiration: 86400000  # 24 hours in milliseconds
     issuer: "smart-money-test"
     audience: "smart-money-test-users"
     token-prefix: "Bearer "

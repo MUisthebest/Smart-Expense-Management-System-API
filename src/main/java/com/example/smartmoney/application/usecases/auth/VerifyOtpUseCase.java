@@ -9,7 +9,7 @@ import com.example.smartmoney.application.dtos.requests.auth.VerifyOtpRequest;
 import com.example.smartmoney.application.dtos.responses.VerifyOtpResponse;
 import com.example.smartmoney.application.ports.auth.AuthPort;
 import com.example.smartmoney.domain.exceptions.DomainException;
-import com.example.smartmoney.domain.repositories.OTPRepository;
+import com.example.smartmoney.application.ports.otp.OtpCachePort;
 import com.example.smartmoney.domain.repositories.UserRepository;
 import com.example.smartmoney.domain.models.user.valueobjects.Email;
 import com.example.smartmoney.domain.models.otp.OTP;
@@ -21,7 +21,7 @@ import com.example.smartmoney.domain.models.user.User;
 @Transactional
 public class VerifyOtpUseCase {
 
-    private final OTPRepository otpRepository;
+    private final OtpCachePort otpCachePort;
     private final UserRepository userRepository;
     private final AuthPort authPort;
 
@@ -32,18 +32,17 @@ public class VerifyOtpUseCase {
         User user = userRepository.findByEmail(email)
             .orElseThrow(() -> new DomainException("User not found"));
 
-        // Tìm và validate OTP
-        OTP otp = otpRepository.findValidByEmail(email)
-            .orElseThrow(() -> new DomainException("Invalid or expired OTP"));
-
-        // Verify OTP
-        otp.verify(request.getOtp());
+        // Kiểm tra OTP
+        boolean valid = otpCachePort.verify(email, request.getOtp());
+        if (!valid) {
+            throw new DomainException("Invalid or expired OTP");
+        }
 
         // Tạo reset token sử dụng AuthPort
         String resetToken = authPort.generateResetToken(email.getValue());
 
         // Xóa OTP sau khi verify thành công
-        otpRepository.deleteByEmail(email);
+        otpCachePort.deleteByEmail(email);
 
         log.info("OTP verified successfully for email: {}", email.getValue());
 

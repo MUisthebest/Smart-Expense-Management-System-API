@@ -1,5 +1,6 @@
 package com.example.smartmoney.application.dtos.requests.auth;
 
+import org.springframework.web.multipart.MultipartFile;
 import jakarta.validation.constraints.*;
 import lombok.Data;
 
@@ -13,7 +14,7 @@ public class RegisterRequest {
     @Size(max = 40, message = "Full name must not exceed 40 characters")
     private String fullName;
     
-    private String avatar; // Optional
+    private MultipartFile avatar; // Optional
     
     @NotBlank(message = "Password is required")
     @Size(min = 6, max = 20, message = "Password must be 6-20 characters")
