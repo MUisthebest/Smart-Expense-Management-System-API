@@ -1,6 +1,7 @@
 package com.example.smartmoney.presentation.controllers;
 
 import com.example.smartmoney.application.usecases.queue.ProcessQueueRequestUseCase;
+import com.example.smartmoney.domain.exceptions.DuplicateJobException;
 import com.example.smartmoney.domain.models.message.MessageRecord;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -48,7 +49,15 @@ public class AIController {
                     )
             );
 
-        } catch (Exception e) {
+        }
+        catch (DuplicateJobException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of(
+                            "error", e.getMessage()
+                    )
+            );
+        }
+
+        catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
                             "error", e.getMessage()
                     )

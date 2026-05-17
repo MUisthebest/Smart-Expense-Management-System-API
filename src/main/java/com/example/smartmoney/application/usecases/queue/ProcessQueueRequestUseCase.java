@@ -1,6 +1,7 @@
 package com.example.smartmoney.application.usecases.queue;
 import com.example.smartmoney.application.ports.event.RedisJobCachePort;
 
+import com.example.smartmoney.domain.exceptions.DuplicateJobException;
 import com.example.smartmoney.domain.models.message.MessageRecord;
 import com.example.smartmoney.infrastructure.integration.cloudinary.CloudinaryService;
 import org.springframework.stereotype.Service;
