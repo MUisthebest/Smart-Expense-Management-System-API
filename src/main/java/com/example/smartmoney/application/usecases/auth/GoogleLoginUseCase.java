@@ -44,7 +44,7 @@ public class GoogleLoginUseCase {
         try {
             // Verify Google ID Token
             ExternalOAuthUser oauthUser  = externalOAuthPort.verifyGoogleToken(request.getIdToken());
-            if (oauthUser  == null && oauthUser.getEmail() == null) {
+            if (oauthUser == null || oauthUser.getEmail() == null) {
                 throw new DomainException("Invalid Google token");
             }
             
@@ -52,6 +52,10 @@ public class GoogleLoginUseCase {
             
             User user = userRepository.findByEmail(email)
                     .orElseGet(() -> createUser(oauthUser));
+
+            if (!user.isEmailVerified()) {
+                user.setEmailVerified(true);
+            }
             String accessToken = authPort.generateAccessToken(user);
             String refreshToken = authPort.generateRefreshToken(user);
 

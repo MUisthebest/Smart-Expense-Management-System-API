@@ -23,9 +23,11 @@ import com.example.smartmoney.application.usecases.auth.VerifyEmailUseCase;
 import com.example.smartmoney.application.usecases.auth.VerifyOtpUseCase;
 import com.example.smartmoney.domain.exceptions.DomainException;
 import com.example.smartmoney.application.usecases.auth.SendResetPasswordOtpUseCase;
+import com.example.smartmoney.application.usecases.auth.UserNotificationUseCase;
 import com.example.smartmoney.application.usecases.auth.ResetPasswordUseCase;
 import com.example.smartmoney.application.usecases.auth.UpdateUserUseCase;
 import com.example.smartmoney.infrastructure.security.CurrentUser;
+import com.example.smartmoney.infrastructure.security.JwtTokenProvider;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -41,6 +43,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.web.bind.WebDataBinder;
+import java.beans.PropertyEditorSupport;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/v1/auth")
@@ -62,8 +67,24 @@ public class AuthController {
     private final SendResetPasswordOtpUseCase sendResetPasswordOtpUseCase;
     private final ResetPasswordUseCase resetPasswordUseCase;
     private final VerifyOtpUseCase verifyOtpUseCase;
+    private final UserNotificationUseCase notificationUseCase;
+    private final JwtTokenProvider jwtTokenProvider;
 
     
+    @InitBinder
+    public void initBinder(WebDataBinder binder) {
+        binder.registerCustomEditor(MultipartFile.class, new PropertyEditorSupport() {
+            @Override
+            public void setAsText(String text) {
+                if (text == null || text.trim().isEmpty()) {
+                    setValue(null);
+                } else {
+                    throw new IllegalArgumentException("Cannot convert String to MultipartFile");
+                }
+            }
+        });
+    }
+
     @Operation(
         summary = "Register new user",
         description = "Register a new user with required information"
@@ -84,10 +105,10 @@ public class AuthController {
             description = "Internal server error"
         )
     })
-    @PostMapping("/register")
+    @PostMapping(value = "/register", consumes = "multipart/form-data")
     public ResponseEntity<CheckResponse<Void>> register(
             @Parameter(description = "User registration data", required = true)
-            @Valid @RequestBody RegisterRequest request) {
+            @Valid @ModelAttribute  RegisterRequest request) {
         
         log.info("Register request for email: {}", request.getEmail());
         try {
@@ -211,7 +232,7 @@ public class AuthController {
                 .message("Login failed: " + e.getMessage())
                 .build();
             
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
+            return ResponseEntity.badRequest().body(response);
         }
     }
     
@@ -324,8 +345,7 @@ public class AuthController {
     @ApiResponses({
         @ApiResponse(
             responseCode = "200",
-            description = "Token refreshed successfully",
-            content = @Content(schema = @Schema(implementation = AuthResponse.class))
+            description = "Token refreshed successfully"
         ),
         @ApiResponse(
             responseCode = "401",
@@ -480,11 +500,11 @@ public class AuthController {
         )
     })
 
-    @PutMapping("/me")
+    @PutMapping(value = "/me", consumes = "multipart/form-data")
     public ResponseEntity<CheckResponse<UserResponse>> updateUser(
             @Parameter(hidden = true) @CurrentUser UUID userId,
             @Parameter(description = "User update data", required = true)
-            @Valid @RequestBody UpdateUserRequest request) {
+            @Valid @ModelAttribute  UpdateUserRequest request) {
         
         log.info("Update user request for userId: {}", userId);
         
@@ -685,9 +705,66 @@ public class AuthController {
         }
     }
 
+    // Handle Notification
+    @PatchMapping("/notification/enable")
+    public ResponseEntity<CheckResponse<Boolean>>  enable(
+        @RequestHeader("Authorization") String auth) {
+        UUID userId = extractUserIdFromToken(auth);
+        notificationUseCase.enable(userId);
+        CheckResponse<Boolean> response = CheckResponse.<Boolean>builder()
+        .success(true)
+        .message("Enabled")
+        .build();
+        return ResponseEntity.ok(response);
+    }
+
+    @PatchMapping("/notification/disable")
+    public ResponseEntity<CheckResponse<Boolean>> disable(
+            @RequestHeader("Authorization") String auth
+    ) {
+        UUID userId = extractUserIdFromToken(auth);
+        notificationUseCase.disable(userId);
+
+        
+        CheckResponse<Boolean> response = CheckResponse.<Boolean>builder()
+                .success(true)
+                .message("Disabled")
+                .build();
+
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/notification")
+    public ResponseEntity<CheckResponse<Boolean>> getStatus(
+            @RequestHeader("Authorization") String auth
+    ) {
+        UUID userId = extractUserIdFromToken(auth);
+
+        Boolean status = notificationUseCase.getStatus(userId);
+
+        CheckResponse<Boolean> response = CheckResponse.<Boolean>builder()
+                .success(true)
+                .data(status)
+                .message("Status Notificattion")
+                .build();
+
+        return ResponseEntity.ok(response);
+    }
+
     private String extractTokenFromHeader(String authHeader) {
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             return authHeader.substring(7);
+        }
+        throw new IllegalArgumentException("Invalid Authorization header");
+    }
+
+        /**
+     * Extract user ID from JWT token in Authorization header
+     */
+    private UUID extractUserIdFromToken(String authHeader) {
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            String token = authHeader.substring(7);
+            return jwtTokenProvider.getUserIdFromToken(token);
         }
         throw new IllegalArgumentException("Invalid Authorization header");
     }

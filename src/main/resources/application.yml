@@ -6,6 +6,7 @@ server:
   error:
     include-message: always
     include-binding-errors: always
+  address: 0.0.0.0
 
 # Spring Configuration
 spring:
@@ -55,7 +56,13 @@ spring:
     date-format: dd/MM/yyyy
     time-zone: Asia/Ho_Chi_Minh
     serialization-inclusion: NON_NULL
-  
+
+  # Redis Configuration
+  data:
+    redis:
+      url: ${REDIS_URI:redis://localhost:6379}
+      timeout: 10000ms
+        
   # Servlet Configuration
   servlet:
     multipart:
@@ -66,7 +73,7 @@ spring:
 app:
   # JWT Configuration
   jwt:
-    secret: "MySuperSecretKeyForJWTWithAtLeast256BitsLength1234567890ExtraSecureKeyForSmartMoney2024"
+    secret: ${SECRET_KEY:MySuperSecretKeyForJWTWithAtLeast256BitsLength1234567890ExtraSecureKeyForSmartMoney2024"}
     access-token-expiration: 3600000    # 1 hour in milliseconds
     refresh-token-expiration: 604800000 # 7 days in milliseconds
     issuer: "smart-money-app"
@@ -136,8 +143,8 @@ logging:
     org.springframework.security: INFO
     org.hibernate.SQL: DEBUG
     org.hibernate.type.descriptor.sql.BasicBinder: TRACE
-    io.lettuce.core: DEBUG
-    org.springframework.data.redis: DEBUG
+    io.lettuce.core: WARN
+    org.springframework.data.redis: WARN
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
     file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"

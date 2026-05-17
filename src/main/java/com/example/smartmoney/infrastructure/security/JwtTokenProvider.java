@@ -232,13 +232,14 @@ public class JwtTokenProvider implements AuthPort, UserDetailsService {
                 .build()
                 .parseClaimsJws(token);
             return true;
-        } catch (ExpiredJwtException ex) {
-            log.debug("Token expired: {}", ex.getMessage());
-            return false;
-        } catch (JwtException | IllegalArgumentException ex) {
-            log.debug("Invalid token: {}", ex.getMessage());
-            return false;
-        }
+        } 
+        catch (ExpiredJwtException ex) {
+            throw new AuthenticationException("Token expired");
+        } 
+        catch (JwtException | IllegalArgumentException ex) {
+                log.debug("Invalid token: {}", ex.getMessage());
+                return false;
+            }
     }
     
     public Claims getClaimsFromToken(String token) {

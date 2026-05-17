@@ -3,165 +3,210 @@ package com.example.smartmoney.infrastructure.integration.cloudinary;
 import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
 import com.example.smartmoney.domain.exceptions.DomainException;
-
+import com.example.smartmoney.application.dtos.responses.SignatureResponse;
+import com.example.smartmoney.application.ports.cloudinary.CloudinaryPort;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import com.cloudinary.Transformation;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
-import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.security.MessageDigest;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class CloudinaryService {
-    
+public class CloudinaryService implements CloudinaryPort {
+
+    private static final long MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+    private static final Set<String> ALLOWED_EXTENSIONS = Set.of("jpg", "jpeg", "png", "gif", "webp");
+    private static final String DEFAULT_AVATAR_FILENAME = "default_avatar.png";
+    private static final Pattern PUBLIC_ID_PATTERN = Pattern.compile("/upload/(?:v\\d+/)?(.+?)(?:\\.[a-z]+)?$");
+
     private final Cloudinary cloudinary;
     private final CloudinaryConfig cloudinaryConfig;
-    
-    /**
-     * Upload avatar image to Cloudinary
-     */
+
+    @Override
+    public SignatureResponse sign(String folder) {
+        try {
+            long timestamp = System.currentTimeMillis() / 1000;
+
+            String dataToSign =
+                "folder=" + folder +
+                "&timestamp=" + timestamp +
+                cloudinaryConfig.getApiSecret(); 
+
+            MessageDigest md = MessageDigest.getInstance("SHA-1");
+            byte[] digest = md.digest(dataToSign.getBytes());
+
+            StringBuilder signature = new StringBuilder();
+            for (byte b : digest) {
+                signature.append(String.format("%02x", b));
+            }
+
+            return SignatureResponse.builder()
+                .timestamp(timestamp)
+                .signature(signature.toString())
+                .apiKey(cloudinaryConfig.getApiKey())      // 👈 thêm getter
+                .cloudName(cloudinaryConfig.getCloudName())
+                .build();
+
+        } catch (Exception e) {
+            throw new RuntimeException("Cloudinary sign failed", e);
+        }
+    }
+
+
+    @Override
     public String uploadAvatar(MultipartFile file) {
         if (file == null || file.isEmpty()) {
+            log.debug("Avatar file is empty, returning null");
             return null;
         }
-        
-        validateImageFile(file);
-        
+
+        FileValidator.validate(file);
+
+        String publicId = generatePublicId("avatar");
+        Map<?, ?> uploadResult = uploadToCloudinary(file, publicId, true);
+        String secureUrl = (String) uploadResult.get("secure_url");
+
+        log.info("Avatar uploaded successfully, publicId: {}", publicId);
+        return secureUrl;
+    }
+
+    @Override
+    public void deleteImage(String publicId, String type) {
+        if (publicId == null || publicId.isBlank()) return;
+
+        String resourceType = "image";
+
+        if ("voice".equals(type)) {
+            resourceType = "video"; // 👈 audio = video
+        }
+
         try {
-            // Generate unique filename
-            String filename = "avatar_" + UUID.randomUUID() + "_" + 
-                System.currentTimeMillis();
-            
-            // Upload to Cloudinary
-            Map uploadResult = cloudinary.uploader().upload(
-                file.getBytes(),
-                ObjectUtils.asMap(
-                    "folder", cloudinaryConfig.getFolder(),
-                    "public_id", filename,
-                    "overwrite", true,
-                    "resource_type", "image",
-                    "transformation", new Object[]{
-                        ObjectUtils.asMap("width", 400, "height", 400, "crop", "fill"),
-                        ObjectUtils.asMap("quality", "auto"),
-                        ObjectUtils.asMap("fetch_format", "auto")
-                    }
-                )
+            Map result = cloudinary.uploader().destroy(
+                publicId,
+                ObjectUtils.asMap("resource_type", resourceType)
             );
-            
-            // Return secure URL
-            return (String) uploadResult.get("secure_url");
-            
-        } catch (IOException e) {
-            log.error("Failed to upload image to Cloudinary", e);
-            throw new DomainException("Failed to upload image: " + e.getMessage());
-        }
-    }
-    
-    /**
-     * Delete image from Cloudinary
-     */
-    public void deleteImage(String imageUrl) {
-        if (imageUrl == null || imageUrl.isEmpty()) {
-            return;
-        }
-        
-        try {
-            // Extract public_id from URL
-            String publicId = extractPublicIdFromUrl(imageUrl);
-            
-            if (publicId != null) {
-                cloudinary.uploader().destroy(publicId, ObjectUtils.emptyMap());
-                log.info("Deleted image from Cloudinary: {}", publicId);
-            }
+
+            log.info("🔥 Delete result: {}", result);
+
         } catch (Exception e) {
-            log.warn("Failed to delete image from Cloudinary: {}", e.getMessage());
+            log.warn("Delete failed: {}", e.getMessage());
         }
     }
     
     /**
-     * Validate image file
-     */
-    private void validateImageFile(MultipartFile file) {
-        // Check file size (max 5MB)
-        if (file.getSize() > 5 * 1024 * 1024) {
-            throw new DomainException("File size exceeds 5MB limit");
-        }
-        
-        // Check content type
-        String contentType = file.getContentType();
-        if (contentType == null || !contentType.startsWith("image/")) {
-            throw new DomainException("Only image files are allowed");
-        }
-        
-        // Check file extension
-        String originalFilename = file.getOriginalFilename();
-        if (originalFilename != null) {
-            String extension = originalFilename.substring(
-                originalFilename.lastIndexOf(".") + 1).toLowerCase();
-            if (!List.of("jpg", "jpeg", "png", "gif", "webp").contains(extension)) {
-                throw new DomainException("Unsupported file format. Use JPG, PNG, GIF, or WebP");
-            }
-        }
-    }
-    
-    /**
-     * Extract public_id from Cloudinary URL
-     */
-    private String extractPublicIdFromUrl(String url) {
-        try {
-            // URL format: https://res.cloudinary.com/cloudname/image/upload/v1234567890/folder/filename.jpg
-            String[] parts = url.split("/upload/");
-            if (parts.length < 2) return null;
-            
-            String path = parts[1];
-            // Remove version prefix if exists
-            if (path.startsWith("v")) {
-                path = path.substring(path.indexOf("/") + 1);
-            }
-            
-            // Remove file extension
-            int dotIndex = path.lastIndexOf(".");
-            if (dotIndex != -1) {
-                path = path.substring(0, dotIndex);
-            }
-            
-            return path;
-        } catch (Exception e) {
-            return null;
-        }
-    }
-    
-    /**
-     * Get default avatar URL
+     * Returns the default avatar URL using configured cloud name and folder.
      */
     public String getDefaultAvatar() {
-        return "https://res.cloudinary.com/" + 
-               cloudinaryConfig.getCloudName() + 
-               "/image/upload/" + 
-               cloudinaryConfig.getFolder() + 
-               "/default_avatar.png";
+        return String.format("https://res.cloudinary.com/%s/image/upload/%s/%s",
+                cloudinaryConfig.getCloudName(),
+                cloudinaryConfig.getFolder(),
+                DEFAULT_AVATAR_FILENAME);
     }
-    
+
     /**
-     * Upload any file to Cloudinary
+     * Uploads any file to a specified folder. Minimal validation (only checks emptiness).
      */
     public String uploadFile(MultipartFile file, String folder) {
+        if (file == null || file.isEmpty()) {
+            throw new DomainException("File is empty");
+        }
+
+        String publicId = generatePublicId("file");
+        Map<?, ?> uploadResult = uploadToCloudinary(file, publicId, false);
+        return (String) uploadResult.get("secure_url");
+    }
+
+    // ------------------------------------------------------------------------
+    // Private helpers
+    // ------------------------------------------------------------------------
+
+    private String generatePublicId(String prefix) {
+        return prefix + "_" + UUID.randomUUID() + "_" + System.currentTimeMillis();
+    }
+
+    private Map<?, ?> uploadToCloudinary(MultipartFile file, String publicId, boolean isAvatar) {
         try {
-            Map uploadResult = cloudinary.uploader().upload(
-                file.getBytes(),
-                ObjectUtils.asMap(
-                    "folder", folder,
-                    "resource_type", "auto"
-                )
+            byte[] fileBytes = file.getBytes(); // An toàn với file ≤5MB
+
+            Map<String, Object> options = ObjectUtils.asMap(
+                "folder", cloudinaryConfig.getFolder(),
+                "public_id", publicId,
+                "overwrite", true,
+                "resource_type", "auto"
             );
-            return (String) uploadResult.get("secure_url");
+
+            if (isAvatar) {
+                // Sử dụng Transformation builder để tạo cấu hình chuẩn
+                Transformation transformation = new Transformation()
+                    .width(400)
+                    .height(400)
+                    .crop("fill")
+                    .gravity("face")
+                    .quality("auto")
+                    .fetchFormat("auto");
+                    
+                options.put("transformation", transformation);
+            }
+
+            return cloudinary.uploader().upload(fileBytes, options);
         } catch (IOException e) {
+            log.error("Failed to upload file to Cloudinary, publicId: {}", publicId, e);
             throw new DomainException("Failed to upload file: " + e.getMessage());
+        }
+    }
+    private java.util.Optional<String> extractPublicIdFromUrl(String url) {
+        Matcher matcher = PUBLIC_ID_PATTERN.matcher(url);
+        if (matcher.find()) {
+            return java.util.Optional.of(matcher.group(1));
+        }
+        return java.util.Optional.empty();
+    }
+
+    // ------------------------------------------------------------------------
+    // Inner validator class (could be extracted to a separate file if needed)
+    // ------------------------------------------------------------------------
+    private static final class FileValidator {
+        static void validate(MultipartFile file) {
+            // Size check
+            if (file.getSize() > MAX_FILE_SIZE) {
+                throw new DomainException("File size exceeds 5MB limit");
+            }
+
+            // Content type check
+            String contentType = file.getContentType();
+            if (contentType == null || !contentType.startsWith("image/")) {
+                throw new DomainException("Only image files are allowed");
+            }
+
+            // Extension check
+            String originalFilename = file.getOriginalFilename();
+            if (originalFilename == null || originalFilename.isBlank()) {
+                throw new DomainException("File name is missing");
+            }
+
+            String extension = extractExtension(originalFilename);
+            if (!ALLOWED_EXTENSIONS.contains(extension)) {
+                throw new DomainException("Unsupported file format. Allowed: " + ALLOWED_EXTENSIONS);
+            }
+        }
+
+        private static String extractExtension(String filename) {
+            int dotIndex = filename.lastIndexOf('.');
+            if (dotIndex == -1 || dotIndex == filename.length() - 1) {
+                throw new DomainException("Invalid file name (no extension)");
+            }
+            return filename.substring(dotIndex + 1).toLowerCase();
         }
     }
 }

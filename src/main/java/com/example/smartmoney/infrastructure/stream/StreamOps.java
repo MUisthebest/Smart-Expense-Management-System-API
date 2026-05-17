@@ -1,0 +1,42 @@
+package com.example.smartmoney.infrastructure.stream;
+
+import org.springframework.beans.factory.annotation.Qualifier; 
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.CommandLineRunner;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.data.redis.core.RedisTemplate;
+import java.util.Map;
+
+@Configuration
+public class StreamOps {
+
+    @Value("${REDIS_STREAMGROUP_COUNT}")
+    private int streamGroupCount;
+
+    private static final String STREAM_PREFIX = "stream:jobs:";
+    private static final String GROUP_NAME = "workers";
+
+    @Bean(name = "initStreamOpsRunner")
+    public CommandLineRunner initStreamOps(
+            @Qualifier("aiRedisTemplate") RedisTemplate<String, Object> redisTemplate
+    ) {
+        return args -> {
+            for (int i = 0; i < streamGroupCount; i++) {
+                String streamKey = STREAM_PREFIX + i;
+                try {
+                    redisTemplate.opsForStream().add(
+                        streamKey,
+                        Map.of("init", "true")
+                    );
+
+                    redisTemplate.opsForStream()
+                        .createGroup(streamKey, GROUP_NAME);
+                    System.out.println("Created stream group: " + streamKey);
+                } catch (Exception e) {
+                    System.out.println("Skipping (already exists): " + streamKey);
+                }
+            }
+        };
+    }
+}

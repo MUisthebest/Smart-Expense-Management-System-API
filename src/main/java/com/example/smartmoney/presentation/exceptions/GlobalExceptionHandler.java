@@ -197,4 +197,35 @@ public class GlobalExceptionHandler {
         
         return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
     }
+
+    @ExceptionHandler(ProjectException.class)
+    public ResponseEntity<CheckResponse<ErrorDetails>> handleProjectException(
+            ProjectException ex, WebRequest request) {
+
+        HttpStatus status = mapProjectStatus(ex.getErrorCode());
+
+        ErrorDetails errorDetails = ErrorDetails.builder()
+                .timestamp(LocalDateTime.now())
+                .message(ex.getMessage())
+                .errorCode(ex.getErrorCode())
+                .path(request.getDescription(false).replace("uri=", ""))
+                .build();
+
+        CheckResponse<ErrorDetails> response = CheckResponse.<ErrorDetails>builder()
+                .success(false)
+                .message(ex.getMessage())
+                .data(errorDetails)
+                .errorCode(ex.getErrorCode())
+                .build();
+
+        return new ResponseEntity<>(response, status);
+    }
+
+    private HttpStatus mapProjectStatus(String errorCode) {
+        if (ProjectErrorCode.PROJECT_NOT_FOUND.name().equals(errorCode)) return HttpStatus.NOT_FOUND;
+        if (ProjectErrorCode.PROJECT_TRACKING_NOT_FOUND.name().equals(errorCode)) return HttpStatus.NOT_FOUND;
+        if (ProjectErrorCode.PROJECT_PERMISSION_DENIED.name().equals(errorCode)) return HttpStatus.FORBIDDEN;
+        return HttpStatus.BAD_REQUEST;
+    }
+
 }
