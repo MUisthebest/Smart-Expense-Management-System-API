@@ -5,6 +5,7 @@ import com.example.smartmoney.application.dtos.responses.TransactionResponse;
 import com.example.smartmoney.application.usecases.notification.CreateNotificationUseCase;
 import com.example.smartmoney.domain.exceptions.DomainException;
 import com.example.smartmoney.domain.models.transaction.Transaction;
+import com.example.smartmoney.domain.models.transaction.enums.TransactionType;
 import com.example.smartmoney.domain.models.transaction.valueobjects.Amount;
 import com.example.smartmoney.domain.repositories.TransactionRepository;
 import lombok.RequiredArgsConstructor;
@@ -20,7 +21,7 @@ public class CreateTransactionUseCase {
     private final TransactionRepository transactionRepository;
     private final CreateNotificationUseCase createNotificationUseCase;
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
-    
+
     public TransactionResponse execute(UUID userId, CreateTransactionRequest request) {
         if (userId == null) {
             throw new DomainException("User ID is required");
@@ -36,13 +37,12 @@ public class CreateTransactionUseCase {
         Amount amount = new Amount(request.getAmount());
 
         Transaction transaction = Transaction.create(
-            userId,
-            amount,
-            request.getType(),
-            request.getCategory(),
-            request.getDescription(),
-            transactionDate
-        );
+                userId,
+                amount,
+                request.getType(),
+                request.getCategory(),
+                request.getDescription(),
+                transactionDate);
 
         Transaction savedTransaction = transactionRepository.save(transaction);
 
@@ -52,13 +52,15 @@ public class CreateTransactionUseCase {
 
         return TransactionResponse.fromDomain(savedTransaction);
     }
+
     private String buildNotificationContent(CreateTransactionRequest request) {
-        String typeText = request.getType().equals("EXPENSE") ? "notification.expense" : "notification.income";
+        String typeText = request.getType() == TransactionType.EXPENSE
+                ? "notification.expense"
+                : "notification.income";
         return String.format(
-            "notification.notification_done|%s|%s|%s",
-            typeText,
-            request.getAmount(),
-            request.getCategory()
-        );
+                "notification.notification_done|%s|%s|%s",
+                typeText,
+                request.getAmount(),
+                request.getCategory());
     }
 }

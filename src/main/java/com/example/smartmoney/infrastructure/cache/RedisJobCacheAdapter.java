@@ -3,20 +3,49 @@ package com.example.smartmoney.infrastructure.cache;
 import com.example.smartmoney.application.dtos.requests.JobEvent;
 import com.example.smartmoney.application.ports.event.RedisJobCachePort;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.expression.spel.ast.QualifiedIdentifier;
 import org.springframework.stereotype.Component;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.beans.factory.annotation.Qualifier;
 
 import java.util.*;
+import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 
 @Component
 public class RedisJobCacheAdapter implements RedisJobCachePort {
 
+    @Qualifier("aiRedisTemplate")
     private final RedisTemplate<String, Object> template;
-
     private static final long TTL = 300;
 
-    public RedisJobCacheAdapter(RedisTemplate<String, Object> template) {
+    private final ObjectMapper objectMapper;
+
+    public RedisJobCacheAdapter(@Qualifier("aiRedisTemplate") RedisTemplate<String, Object> template, ObjectMapper objectMapper) {
         this.template = template;
+        this.objectMapper = objectMapper;
+    }
+
+    @Override
+    public Map<String, Object> getJobResult(String jobId) {
+        String key = "job:" + jobId;
+
+        Object value = template.opsForValue().get(key);
+
+        if (value == null) return null;
+
+        return (Map<String, Object>) value;
+    }
+
+    @Override
+    public void saveJobResult(String jobId, Map<String, Object> data) {
+        String key = "job:" + jobId;
+
+        template.opsForValue().set(
+            key,
+            data, // ❌ bỏ objectMapper.writeValueAsString
+            Duration.ofMinutes(10)
+        );
     }
 
     @Override
