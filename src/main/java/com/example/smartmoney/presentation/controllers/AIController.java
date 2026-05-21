@@ -7,6 +7,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
@@ -62,6 +64,48 @@ public class AIController {
                             "error", e.getMessage()
                     )
             );
+        }
+    }
+
+    @GetMapping("/{jobId}")
+    public ResponseEntity<?> getAIResult(
+            @PathVariable String jobId,
+            @RequestHeader("Authorization") String authHeader
+    ) {
+        try {
+            UUID userId = transactionController.extractUserIdFromToken(authHeader);
+
+            Map<String, Object> result = processQueueRequestUseCase.getResult(jobId, userId.toString());
+
+            if (result == null) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
+                        "error", "Job not found"
+                ));
+            }
+
+            Map<String, Object> response = new HashMap<>();
+
+            if (result.get("jobId") != null)
+                response.put("jobId", result.get("jobId"));
+
+            if (result.get("text") != null)
+                response.put("text", result.get("text"));
+
+            if (result.get("expense") != null)
+                response.put("expense", result.get("expense"));
+
+            if (result.get("category") != null)
+                response.put("category", result.get("category"));
+
+            if (result.get("confidence") != null)
+                response.put("confidence", result.get("confidence"));
+
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
+                    "error", e.getMessage()
+            ));
         }
     }
 }
