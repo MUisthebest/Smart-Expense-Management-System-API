@@ -89,22 +89,24 @@ public class ResultAIWorker {
 
                         String jobId = (String) payload.get("jobId");
 
-                        if (jobId == null) {
-                            logger.warn("Missing jobId in message: {}", payload);
-                            continue;
-                        }
+                        // ✅ 1. SAVE RESULT (QUAN TRỌNG)
+                        String key = "ai:job:" + jobId;
+                        redisTemplate.opsForValue().set(
+                                key,
+                                objectMapper.writeValueAsString(payload),
+                                Duration.ofMinutes(10) // TTL
+                        );
 
-                        // 🔥 PUSH WEBSOCKET
+                        // ✅ 2. PUSH WS
                         messagingTemplate.convertAndSend(
                                 "/topic/ai/" + jobId,
                                 payload
                         );
 
-                        // ACK sau khi xử lý thành công
+                        // ✅ 3. ACK + DELETE STREAM
                         redisTemplate.opsForStream()
                                 .acknowledge(STREAM, GROUP, msg.getId());
 
-                        // optional delete
                         redisTemplate.opsForStream()
                                 .delete(STREAM, msg.getId());
 
