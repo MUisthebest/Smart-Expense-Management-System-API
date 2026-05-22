@@ -8,6 +8,7 @@ import org.springframework.mail.javamail.JavaMailSender;
 
 import com.cloudinary.Cloudinary;
 import com.example.smartmoney.application.ports.auth.ExternalOAuthPort;
+import com.example.smartmoney.application.ports.llm.LlmPort;
 import com.example.smartmoney.application.usecases.auth.GoogleLoginUseCase;
 import com.example.smartmoney.infrastructure.auth.external.SupabaseJwtValidator;
 
@@ -32,9 +33,13 @@ class SmartmoneyApplicationTests {
     @MockitoBean
     private JavaMailSender javaMailSender;
 
+    @MockitoBean
+    private LlmPort llmPort;
+
 	@Test
 	@org.junit.jupiter.api.Disabled("Context loading requires all external service configurations - use specific unit tests instead")
 	void contextLoads() {
 	}
 
 }
+
