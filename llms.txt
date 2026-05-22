@@ -1,0 +1,101 @@
+# System Business Logic Reference (llms.txt)
+
+The system orchestrates user authentication (including social OAuth), user management, budgeting and project governance, financial transactions, and real-time notifications. It is built on a layered, boundary-driven architecture with clear domain services, use cases, adapters/ports, and persistence mappings, enabling pluggable external services (OAuth providers, email, media hosting, AI/LLM, push notifications) and robust auditability.
+
+## Main data models and relationships
+- Core entities
+  - User, UserEntity, UserIncome, UserIncomeEntity
+  - Project, ProjectEntity, ProjectHistoryEntity, ProjectMemberEntity, ProjectTrackingEntity
+  - Budget, BudgetEntity, TransactionEntity, TransactionDomainService
+  - ProjectContribution, ProjectContributionEntity, ProjectContributionMapper
+  - Notification, NotificationEntity, NotificationMapper
+  - PushToken, PushTokenEntity, PushTokenMapper
+  - Image/Asset (Cloudinary) via CloudinaryService/CloudinaryConfig
+- Associations
+  - Project has many Budgets, Trackings, Contributions, Members; Members have Roles and admin privileges
+  - User owns or participates in Projects; Users have Incomes and Contributions
+  - Budgets relate to Transactions and Project/Spend Categories; Settlements reconcile Budgets with Transactions
+  - Notifications link to Recipients (Users/Audience) and persist with delivery metadata
+- Persistence & mapping
+  - Domain models map to persistence via Mapper classes (BudgetMapper, NotificationMapper, ProjectEntityMapper, etc.)
+  - Repositories: JpaBudgetRepository, JpaProjectRepository, JpaNotificationRepository, etc., plus generic abstractions (BudgetRepositoryImpl, TransactionRepository)
+- External & infrastructural boundaries
+  - OAuth: ExternalOAuthPort/ExternalOAuthAdapter; providers (Facebook/Google) with dedicated config/props
+  - Media: CloudinaryPort/CloudinaryService
+  - Email: MailPort, SmtpMailAdapter, MailConfig/Properties
+  - Push: ExpoPushNotificationSender, PushTokenAdapter/PushTokenPort
+  - AI/LLM: LlmPort, GeminiLlmAdapter
+  - Redis: CoreRedisConfig, AIRedisConfig, RedisJobCacheAdapter/RedisOtpCacheAdapter
+  - HTTP: RestClientConfig, RestClient usage in external calls
+  - Web: WebSocketConfig for real-time updates
+- Security & verification
+  - OTP/Verify: VerifyOtpRequest/VerifyOtpUseCase, VerifyEmail/OTP flows; Supabase JWT validation
+  - Password flows: LoginRequest, RefreshTokenRequest, ResetPasswordRequest, SendResetPasswordOtpRequest
+
+## Key end-to-end workflows (high level)
+- User onboarding and authentication
+  - RegisterUseCase creates a new User, Provisioning initial credentials; VerifyEmail/OTP steps as needed
+  - LoginUseCase handles credential-based login; AuthResponse carries tokens and session state
+  - Social login flows via Facebook/Google: UseCase orchestrates token validation, user provisioning, and session creation
+  - RefreshTokenUseCase rotates tokens; old tokens revoked; new access/refresh tokens issued
+- Project lifecycle and budgeting
+  - CreateProjectUseCase boots project with metadata, owners, budgets, and tracking scaffold
+  - CreateBudgetUseCase initializes budget with period, amount, and associations; SettlementEngine reconciles monthly
+  - UpdateProjectUseCase and UpdateBudgetUseCase enforce history/auditability and integrity
+  - ProjectTrackingUseCase/initiate tracking data; UpdateProjectTrackingUseCase reflects milestones/status and triggers budgetary alerts
+  - InviteProjectMemberUseCase and SetProjectAdminUseCase manage governance and access
+- Financial operations and settlements
+  - TransactionDomainService/TransactionMapper persist spends; settlements run via SettlementEngine and PerformMonthlySettlementUseCase
+  - SafeSpendingService enforces monthly obligation policies and prevents overspend
+- Notifications and communications
+  - CreateNotificationUseCase generates content; NotificationService orchestrates routing to in-app, push, or email; NotificationPublisherPort distributes
+  - Push and email delivery routed via PushTokenService/PushTokenPort and Mail adapters
+- OTP and verification flows
+  - OTP issuance (OtpCachePort/RedisOtpCacheAdapter) for password resets or login verifications
+  - VerifyOtpUseCase validates codes; VerifyEmailUseCase activates accounts post-verification
+
+## Primary external dependencies and uses
+- OAuth providers: FacebookOAuthProperties, GoogleOAuthConfig/Properties; Social sign-in and user provisioning
+- Media hosting: CloudinaryPort, CloudinaryService; image assets, profile pictures
+- Email delivery: MailPort, SmtpMailAdapter; verifications, OTPs, alerts
+- Push notifications: ExpoPushNotificationSender, PushTokenAdapter/Port; device-targeted alerts
+- AI/LLM: GeminiLlmAdapter, LlmPort; content generation and decision support
+- JWT and auth: SupabaseJwtProperties/Validator; Supabase JWT validation for session management
+- Redis: RedisJobCacheAdapter, RedisOtpCacheAdapter; fast ephemeral storage for OTPs and job state
+- Web/HTTP: RestClientConfig; external service calls with standardized timeouts/retries
+
+## Dominant architectural patterns
+- Clean/Hexagonal architecture: domain models, domain services, use cases, ports/adapters boundaries
+- Layered separation: presentation (controllers) → application/use cases → domain services → persistence (repositories) → external adapters
+- Event-driven/async processing: JobQueuePort, JobAsyncService, Redis adapters for retry semantics
+- Pluggable external services: OAuth providers, email, media hosting, AI/LLM, push services via ports and adapters
+- Auditability and immutability: history entities, auditors, and mapping layers preserve change trails
+
+## Domain modules (high-level guide)
+- Auth & Identity
+  - Entities: ExternalOAuthUser, UserEntity; Use cases: LoginUseCase, RegisterUseCase, RefreshTokenUseCase
+  - Boundaries: AuthPort, ExternalOAuthPort; adapters: FacebookOAuthProperties, GoogleOAuthConfig/Properties, SupabaseJwtValidator
+- User & Income
+  - Entities: UserIncomeEntity, UserIncome; Use cases: UpdateUserUseCase, GetUserDetail; Mappers: UserIncomeMapper
+- Projects & Governance
+  - Entities: ProjectEntity, ProjectHistoryEntity, ProjectMemberEntity, ProjectTrackingEntity
+  - Use cases: CreateProjectUseCase, UpdateProjectUseCase, InviteProjectMemberUseCase, SetProjectAdminUseCase, UpdateProjectTrackingUseCase
+  - Rules: ProjectAccessPolicy, MonthlyObligationPolicy
+- Budgeting & Finance
+  - Entities: BudgetEntity, TransactionEntity, ProjectContributionEntity
+  - Use cases: CreateBudgetUseCase, UpdateBudgetUseCase, DeleteBudgetUseCase, GetBudgetDetailUseCase, GetBudgetListUseCase
+  - Settlement: SettlementEngine, PerformMonthlySettlementUseCase
+- Notifications & Communications
+  - Entities: NotificationEntity; Use cases: CreateNotificationUseCase, GetNotificationUseCase
+  - Delivery: NotificationService, MailPort, PushTokenPort
+- Media & Assets
+  - Services: CloudinaryService; Adapters: CloudinaryAdapter; Config: CloudinaryConfig
+- Persistence & Mapping
+  - Repositories: JpaBudgetRepository, JpaProjectRepository, JpaNotificationRepository, etc.; Mappers: BudgetMapper, ProjectEntityMapper, NotificationMapper
+- Infrastructure & Integrations
+  - Adapters/Ports: ExternalOAuthAdapter, RedisOtpCacheAdapter, RedisJobCacheAdapter, SmtpMailAdapter
+  - Config: JacksonConfig, SwaggerConfig, WebSocketConfig, RestClientConfig, AsyncConfig
+- AI & LLM
+  - Adapter/Port: GeminiLlmAdapter; Boundary: LlmPort
+
+Closing note: The architecture deliberately decouples domain rules (billing, access, verification, and project governance) from infrastructure concerns (OAuth providers, email, media hosting, Redis, AI). This supports rapid evolution of either side while preserving correctness, auditability, and scalable collaboration across authentication, budgeting, and project management capabilities.
