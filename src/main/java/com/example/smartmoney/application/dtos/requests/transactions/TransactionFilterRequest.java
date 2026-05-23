@@ -22,4 +22,6 @@ public class TransactionFilterRequest {
     private TransactionType type;
     private Integer page;     // Page number (0-indexed)
     private Integer size;     // Page size (default: 10)
+    private String sortBy;    // Sort field: date, amount, category, type, description
+    private String sortOrder; // Sort order: ASC, DESC (default: DESC)
 }
