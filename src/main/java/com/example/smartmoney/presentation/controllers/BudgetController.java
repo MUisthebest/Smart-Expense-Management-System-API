@@ -1,11 +1,14 @@
 package com.example.smartmoney.presentation.controllers;
 
 import com.example.smartmoney.application.dtos.requests.budgets.CreateBudgetRequest;
+import com.example.smartmoney.application.dtos.requests.budgets.CreateBulkBudgetsRequest;
 import com.example.smartmoney.application.dtos.requests.budgets.UpdateBudgetRequest;
 import com.example.smartmoney.application.dtos.responses.BudgetItemResponse;
 import com.example.smartmoney.application.dtos.responses.BudgetListResponse;
+import com.example.smartmoney.application.dtos.responses.BulkBudgetsResponse;
 import com.example.smartmoney.application.dtos.responses.CheckResponse;
 import com.example.smartmoney.application.usecases.budget.CreateBudgetUseCase;
+import com.example.smartmoney.application.usecases.budget.CreateBulkBudgetsUseCase;
 import com.example.smartmoney.application.usecases.budget.DeleteBudgetUseCase;
 import com.example.smartmoney.application.usecases.budget.GetBudgetDetailUseCase;
 import com.example.smartmoney.application.usecases.budget.GetBudgetListUseCase;
@@ -40,6 +43,7 @@ import java.util.UUID;
 public class BudgetController {
     
     private final CreateBudgetUseCase createBudgetUseCase;
+    private final CreateBulkBudgetsUseCase createBulkBudgetsUseCase;
     private final GetBudgetListUseCase getBudgetListUseCase;
     private final GetBudgetDetailUseCase getBudgetDetailUseCase;
     private final UpdateBudgetUseCase updateBudgetUseCase;
@@ -94,6 +98,62 @@ public class BudgetController {
             CheckResponse<BudgetItemResponse> response = CheckResponse.<BudgetItemResponse>builder()
                 .success(false)
                 .message("Failed to create budget: " + e.getMessage())
+                .build();
+            
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+        }
+    }
+    
+    @Operation(
+        summary = "Create budgets for multiple categories",
+        description = "Create budgets for multiple categories at once with the same month and year. Each budget item must have a unique category."
+    )
+    @ApiResponses({
+        @ApiResponse(
+            responseCode = "201",
+            description = "Budgets created successfully (some or all)",
+            content = @Content(schema = @Schema(implementation = BulkBudgetsResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "400",
+            description = "Invalid input data"
+        ),
+        @ApiResponse(
+            responseCode = "401",
+            description = "Unauthorized - Invalid or missing token"
+        )
+    })
+    @PostMapping("/bulk")
+    public ResponseEntity<CheckResponse<BulkBudgetsResponse>> createBulkBudgets(
+            @Parameter(description = "Bearer token", required = true, hidden = true)
+            @RequestHeader("Authorization") String authHeader,
+            @Parameter(description = "Bulk budget creation data", required = true)
+            @Valid @RequestBody CreateBulkBudgetsRequest request) {
+        
+        try {
+            UUID userId = extractUserIdFromToken(authHeader);
+            log.info("Creating bulk budgets for user ID: {} with {} items for month: {}, year: {}", 
+                    userId, request.getBudgets().size(), request.getMonth(), request.getYear());
+            
+            BulkBudgetsResponse bulkResponse = createBulkBudgetsUseCase.execute(userId, request);
+            
+            CheckResponse<BulkBudgetsResponse> response = CheckResponse.<BulkBudgetsResponse>builder()
+                .success(true)
+                .message(String.format("Successfully created %d budgets", bulkResponse.getTotalCreated()))
+                .data(bulkResponse)
+                .build();
+            
+            log.info("Bulk budgets created successfully: {} created, {} failed", 
+                    bulkResponse.getTotalCreated(), 
+                    bulkResponse.getFailedItems() != null ? bulkResponse.getFailedItems().size() : 0);
+            return ResponseEntity.status(HttpStatus.CREATED).body(response);
+            
+        } catch (Exception e) {
+            log.error("Failed to create bulk budgets", e);
+            
+            CheckResponse<BulkBudgetsResponse> response = CheckResponse.<BulkBudgetsResponse>builder()
+                .success(false)
+                .message("Failed to create bulk budgets: " + e.getMessage())
                 .build();
             
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
