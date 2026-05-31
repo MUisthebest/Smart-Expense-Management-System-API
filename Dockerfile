@@ -1,5 +1,18 @@
 FROM eclipse-temurin:17-jdk
+
 WORKDIR /app
-COPY target/*.jar app.jar
-EXPOSE 8080
-ENTRYPOINT ["java","-jar","app.jar"]
+
+# copy toàn bộ source code
+COPY . .
+
+# fix lỗi Windows
+RUN sed -i 's/\r$//' mvnw
+
+# cấp quyền
+RUN chmod +x mvnw
+
+# build jar
+RUN ./mvnw clean package -DskipTests
+
+# chạy app
+CMD ["sh", "-c", "java -jar target/*.jar"]

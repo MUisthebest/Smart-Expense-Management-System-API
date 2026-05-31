@@ -4,6 +4,7 @@ import com.example.smartmoney.domain.exceptions.ProjectErrorCode;
 import com.example.smartmoney.domain.exceptions.ProjectException;
 import com.example.smartmoney.domain.models.project.Project;
 import com.example.smartmoney.domain.models.project.enums.JoinStatus;
+import com.example.smartmoney.domain.models.project.enums.ProjectStatus;
 import com.example.smartmoney.domain.models.project.valueobjects.ProjectId;
 import com.example.smartmoney.domain.models.project.valueobjects.UserId;
 import com.example.smartmoney.domain.repositories.ProjectRepository;
@@ -74,6 +75,21 @@ public class ProjectRepositoryImpl implements ProjectRepository {
             List<ProjectContributionEntity> contributions =
                     jpaProjectContributionRepository.findByProjectIdOrderByCreatedAtDesc(pid);
 
+            result.add(projectPersistenceMapper.toDomain(p, members, contributions));
+        }
+        return result;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Project> findAllByStatus(ProjectStatus status) {
+        List<ProjectEntity> entities = jpaProjectRepository.findByStatus(status);
+        List<Project> result = new ArrayList<>();
+        for (ProjectEntity p : entities) {
+            UUID pid = p.getId();
+            List<ProjectMemberEntity> members = jpaProjectMemberRepository.findByProjectId(pid);
+            List<ProjectContributionEntity> contributions =
+                    jpaProjectContributionRepository.findByProjectIdOrderByCreatedAtDesc(pid);
             result.add(projectPersistenceMapper.toDomain(p, members, contributions));
         }
         return result;

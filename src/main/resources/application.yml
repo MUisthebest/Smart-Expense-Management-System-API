@@ -114,6 +114,10 @@ app:
           starttls:
             enable: ${MAIL_SMTP_STARTTLS_ENABLE:}
 
+  # Gemini (Google AI) Configuration
+  gemini:
+    api-key: ${GEMINI_API_KEY:}
+
   # Cloudinary Configuration
   cloudinary:
     cloud-name: ${CLOUDINARY_CLOUD_NAME:your_cloud_name}
@@ -143,8 +147,8 @@ logging:
     org.springframework.security: INFO
     org.hibernate.SQL: DEBUG
     org.hibernate.type.descriptor.sql.BasicBinder: TRACE
-    io.lettuce.core: DEBUG
-    org.springframework.data.redis: DEBUG
+    io.lettuce.core: WARN
+    org.springframework.data.redis: WARN
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
     file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"

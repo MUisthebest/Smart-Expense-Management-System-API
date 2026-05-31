@@ -7,6 +7,7 @@ import com.example.smartmoney.domain.repositories.TransactionRepository;
 import com.example.smartmoney.infrastructure.persistence.entities.TransactionEntity;
 import com.example.smartmoney.infrastructure.persistence.mappers.TransactionMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
@@ -107,4 +108,17 @@ public class TransactionRepositoryImpl implements TransactionRepository {
     public void deleteById(UUID id) {
         jpaTransactionRepository.deleteById(id);
     }
+
+    @Override
+    public List<Object[]> getTransactionProportionByCategory(int year, int month) {
+        return jpaTransactionRepository.getTransactionProportionByCategory(year, month);
+    }
+
+    @Override
+    public List<Object[]> getTransactionsByMonth(int year, int month) {
+        return jpaTransactionRepository.getTransactionProportionByTypeForYear(year, month);
+
+    }
+
+
 }

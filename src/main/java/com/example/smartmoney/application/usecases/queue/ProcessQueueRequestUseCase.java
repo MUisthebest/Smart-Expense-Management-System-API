@@ -1,9 +1,13 @@
 package com.example.smartmoney.application.usecases.queue;
 import com.example.smartmoney.application.ports.event.RedisJobCachePort;
 
+import com.example.smartmoney.domain.exceptions.DuplicateJobException;
 import com.example.smartmoney.domain.models.message.MessageRecord;
 import com.example.smartmoney.infrastructure.integration.cloudinary.CloudinaryService;
 import org.springframework.stereotype.Service;
+
+import java.util.Map;
+import java.util.Optional;
 
 
 @Service
@@ -36,5 +40,14 @@ public class ProcessQueueRequestUseCase {
         MessageRecord newRecord = new MessageRecord(data, userId, duty);
         jobAsyncService.process(data, userId, newRecord.getJobId(), duty);
         return newRecord;
+    }
+
+    public Map<String, Object> getResult(String jobId, String userId) {
+
+        if (userId == null) {
+            throw new RuntimeException("User ID is required to fetch job result.");
+        }   
+
+        return redisJobCachePort.getJobResult(jobId);
     }
 }

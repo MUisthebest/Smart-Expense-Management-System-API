@@ -1,6 +1,8 @@
 package com.example.smartmoney.infrastructure.persistence.entities;
 
+import com.example.smartmoney.domain.models.project.enums.ProjectStatus;
 import com.example.smartmoney.domain.models.project.enums.ProjectType;
+import com.example.smartmoney.domain.models.project.enums.ProjectPriority;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -28,6 +30,16 @@ public class ProjectEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "type", nullable = false, length = 20)
     private ProjectType type;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, length = 20)
+    @Builder.Default
+    private ProjectStatus status = ProjectStatus.ACTIVE;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "priority", nullable = false, length = 20)
+    @Builder.Default
+    private ProjectPriority priority = ProjectPriority.MEDIUM;
 
     @Column(name = "name", nullable = false, length = 120)
     private String name;

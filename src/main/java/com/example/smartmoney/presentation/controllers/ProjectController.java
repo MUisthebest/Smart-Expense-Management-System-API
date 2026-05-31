@@ -43,6 +43,12 @@ public class ProjectController {
     private final ListProjectContributionsUseCase listProjectContributionsUseCase;
     private final GetProjectContributionSummaryUseCase getProjectContributionSummaryUseCase;
     private final DeleteProjectUseCase deleteProjectUseCase;
+        private final CreateProjectTrackingUseCase createProjectTrackingUseCase;
+        private final GetProjectTrackingUseCase getProjectTrackingUseCase;
+        private final UpdateProjectTrackingUseCase updateProjectTrackingUseCase;
+        private final DeleteProjectTrackingUseCase deleteProjectTrackingUseCase;
+    private final GetProjectHistoryUseCase getProjectHistoryUseCase;
+    private final ProjectBudgetAdvisorUseCase projectBudgetAdvisorUseCase;
 
     private String actorId(Authentication auth) {
         
@@ -229,6 +235,97 @@ public class ProjectController {
         return CheckResponse.<Void>builder()
                 .success(true)
                 .message("Deleted")
+                .build();
+    }
+
+    // ===== Tracking =====
+
+    @Operation(summary = "Create project tracking")
+    @PostMapping("/{projectId}/tracking")
+    public CheckResponse<ProjectTrackingResponse> createTracking(
+            Authentication auth,
+            @PathVariable String projectId,
+            @Valid @RequestBody CreateProjectTrackingRequest req
+    ) {
+        ProjectTrackingResponse data = createProjectTrackingUseCase.execute(actorId(auth), projectId, req);
+        return CheckResponse.<ProjectTrackingResponse>builder()
+                .success(true)
+                .message("Created")
+                .data(data)
+                .build();
+    }
+
+    @Operation(summary = "Get project tracking")
+    @GetMapping("/{projectId}/tracking")
+    public CheckResponse<ProjectTrackingResponse> getTracking(
+            Authentication auth,
+            @PathVariable String projectId
+    ) {
+        ProjectTrackingResponse data = getProjectTrackingUseCase.execute(actorId(auth), projectId);
+        return CheckResponse.<ProjectTrackingResponse>builder()
+                .success(true)
+                .message("OK")
+                .data(data)
+                .build();
+    }
+
+    @Operation(summary = "Get project settlement history snapshots")
+    @GetMapping("/{projectId}/history")
+    public CheckResponse<List<ProjectHistoryResponse>> getHistory(
+            Authentication auth,
+            @PathVariable String projectId
+    ) {
+        List<ProjectHistoryResponse> data = getProjectHistoryUseCase.execute(actorId(auth), projectId);
+        return CheckResponse.<List<ProjectHistoryResponse>>builder()
+                .success(true)
+                .message("OK")
+                .data(data)
+                .build();
+    }
+
+    @Operation(summary = "Update project tracking")
+    @PutMapping("/{projectId}/tracking")
+    public CheckResponse<ProjectTrackingResponse> updateTracking(
+            Authentication auth,
+            @PathVariable String projectId,
+            @Valid @RequestBody UpdateProjectTrackingRequest req
+    ) {
+        ProjectTrackingResponse data = updateProjectTrackingUseCase.execute(actorId(auth), projectId, req);
+        return CheckResponse.<ProjectTrackingResponse>builder()
+                .success(true)
+                .message("Updated")
+                .data(data)
+                .build();
+    }
+
+    @Operation(summary = "Delete project tracking")
+    @DeleteMapping("/{projectId}/tracking")
+    public CheckResponse<Void> deleteTracking(
+            Authentication auth,
+            @PathVariable String projectId
+    ) {
+        deleteProjectTrackingUseCase.execute(actorId(auth), projectId);
+        return CheckResponse.<Void>builder()
+                .success(true)
+                .message("Deleted")
+                .build();
+    }
+
+    // ===== AI Budget Advisor =====
+
+    @Operation(
+            summary = "AI project budget advisor",
+            description = "Given project parameters and a mode (URGENT / RELAXED), computes the adjusted monthly saving and number of months."
+    )
+    @PostMapping("/project-advisor")
+    public CheckResponse<ProjectBudgetAdvisorResponse> projectAdvisor(
+            Authentication auth,
+            @Valid @RequestBody ProjectBudgetAdvisorRequest req) {
+        ProjectBudgetAdvisorResponse data = projectBudgetAdvisorUseCase.execute(actorId(auth), req);
+        return CheckResponse.<ProjectBudgetAdvisorResponse>builder()
+                .success(true)
+                .message("OK")
+                .data(data)
                 .build();
     }
 }

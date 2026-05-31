@@ -6,6 +6,7 @@ import com.example.smartmoney.domain.models.project.Project;
 import com.example.smartmoney.domain.models.project.valueobjects.ProjectId;
 import com.example.smartmoney.domain.models.project.valueobjects.UserId;
 import com.example.smartmoney.domain.repositories.ProjectRepository;
+import com.example.smartmoney.domain.services.SafeSpendingService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class DeleteProjectUseCase {
 
     private final ProjectRepository projectRepository;
+    private final SafeSpendingService safeSpendingService;
 
     @Transactional
     public void execute(String actorId, String projectId) {
@@ -35,7 +37,8 @@ public class DeleteProjectUseCase {
                     ProjectErrorCode.FORBIDDEN
             );
         }
-
         projectRepository.deleteById(pid);
+
+        safeSpendingService.recalculateAndSaveSafeSpending(actor);
     }
 }

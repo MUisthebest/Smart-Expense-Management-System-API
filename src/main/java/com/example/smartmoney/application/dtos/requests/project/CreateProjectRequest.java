@@ -1,6 +1,7 @@
 package com.example.smartmoney.application.dtos.requests.project;
 
 import com.example.smartmoney.domain.models.project.enums.ProjectType;
+import com.example.smartmoney.domain.models.project.enums.ProjectPriority;
 import jakarta.validation.constraints.*;
 import lombok.Data;
 
@@ -18,6 +19,8 @@ public class CreateProjectRequest {
 
     @NotNull(message = "Project type is required")
     private ProjectType type;
+
+    private ProjectPriority priority;
 
     @NotNull(message = "Target amount is required")
     @DecimalMin(value = "0.01", message = "Target amount must be > 0")
