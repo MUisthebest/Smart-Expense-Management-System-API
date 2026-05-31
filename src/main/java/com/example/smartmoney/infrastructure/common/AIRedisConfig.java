@@ -8,9 +8,12 @@ import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceClientConfiguration;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
+import org.springframework.data.redis.serializer.Jackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
  * AI-specific Redis Configuration for AI/ML features
@@ -35,8 +38,7 @@ public class AIRedisConfig {
      * AI Redis Connection Factory
      * Creates a separate connection factory for AI Redis instance
      */
-    @Bean
-    @Qualifier("aiConnectionFactory")
+    @Bean(name = "aiRedisConnectionFactory")
     public RedisConnectionFactory aiRedisConnectionFactory() {
         RedisStandaloneConfiguration config = new RedisStandaloneConfiguration();
         config.setHostName(redisHost);
@@ -56,20 +58,33 @@ public class AIRedisConfig {
     @Bean(name = "aiRedisTemplate")
     public RedisTemplate<String, Object> aiRedisTemplate(
             @Qualifier("aiRedisConnectionFactory") RedisConnectionFactory connectionFactory) {
+
         RedisTemplate<String, Object> template = new RedisTemplate<>();
         template.setConnectionFactory(connectionFactory);
 
         StringRedisSerializer keySerializer = new StringRedisSerializer();
-        RedisSerializer<Object> jsonSerializer = RedisSerializer.json();
+
+        Jackson2JsonRedisSerializer<Object> valueSerializer =
+                new Jackson2JsonRedisSerializer<>(Object.class);
+
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.findAndRegisterModules(); // hỗ trợ LocalDateTime nếu có
+        valueSerializer.setObjectMapper(mapper);
 
         template.setKeySerializer(keySerializer);
-        template.setValueSerializer(jsonSerializer);
+        template.setValueSerializer(valueSerializer);
 
         template.setHashKeySerializer(keySerializer);
-        template.setHashValueSerializer(jsonSerializer);
+        template.setHashValueSerializer(valueSerializer);
 
         template.afterPropertiesSet();
-
         return template;
+    }
+
+    @Bean(name = "aiStringRedisTemplate")
+    public StringRedisTemplate aiStringRedisTemplate(
+            @Qualifier("aiRedisConnectionFactory") RedisConnectionFactory connectionFactory
+    ) {
+        return new StringRedisTemplate(connectionFactory);
     }
 }

@@ -1,17 +1,15 @@
 package com.example.smartmoney.presentation.controllers;
 
+import com.example.smartmoney.application.dtos.requests.transactions.AnalyticsRequest;
 import com.example.smartmoney.application.dtos.requests.transactions.CreateTransactionRequest;
 import com.example.smartmoney.application.dtos.requests.transactions.TransactionFilterRequest;
 import com.example.smartmoney.application.dtos.requests.transactions.UpdateTransactionRequest;
 import com.example.smartmoney.application.dtos.responses.CheckResponse;
 import com.example.smartmoney.application.dtos.responses.TransactionListResponse;
 import com.example.smartmoney.application.dtos.responses.TransactionResponse;
-import com.example.smartmoney.application.usecases.transaction.CreateTransactionUseCase;
-import com.example.smartmoney.application.usecases.transaction.DeleteTransactionUseCase;
-import com.example.smartmoney.application.usecases.transaction.GetTransactionUseCase;
-import com.example.smartmoney.application.usecases.transaction.GetUserTransactionsUseCase;
-import com.example.smartmoney.application.usecases.transaction.UpdateTransactionUseCase;
+import com.example.smartmoney.application.usecases.transaction.*;
 import com.example.smartmoney.domain.models.transaction.enums.Category;
+import com.example.smartmoney.application.dtos.responses.TransactionAnalyticsResponse;
 import com.example.smartmoney.domain.models.transaction.enums.TransactionType;
 import com.example.smartmoney.infrastructure.security.JwtTokenProvider;
 import io.swagger.v3.oas.annotations.Operation;
@@ -23,6 +21,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import lombok.AllArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -49,6 +48,7 @@ public class TransactionController {
     private final GetUserTransactionsUseCase getUserTransactionsUseCase;
     private final DeleteTransactionUseCase deleteTransactionUseCase;
     private final JwtTokenProvider jwtTokenProvider;
+    private final GetTransactionAnalyticsUseCase getTransactionAnalyticsUseCase;
     
     @Operation(
         summary = "Create new transaction",
@@ -390,5 +390,62 @@ public class TransactionController {
             return jwtTokenProvider.getUserIdFromToken(token);
         }
         throw new IllegalArgumentException("Invalid Authorization header");
+    }
+
+    /*
+    * Get analytics - amount of expenses and income per year and their proportion, if necessary.
+    * */
+    @Operation(
+            summary = "Get transaction analytics",
+            description = "Retrieve financial analytics including monthly income/expense stats and transaction type proportions for a specific year."
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Analytics retrieved successfully",
+                    content = @Content(schema = @Schema(implementation = TransactionAnalyticsResponse.class))
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Unauthorized - Invalid or missing token"
+            )
+    })
+    @PostMapping("/analytics")
+    public ResponseEntity<CheckResponse<TransactionAnalyticsResponse>> getAnalytics(
+            @Parameter(description = "Bearer token", required = true, hidden = true)
+            @RequestHeader("Authorization") String authHeader,
+            @Parameter(description = "Analytics for specific month, including the latest 3 months.")
+            @RequestBody(required = false)AnalyticsRequest request) {
+
+        try {
+            UUID userId = extractUserIdFromToken(authHeader);
+
+            // If no input month, get the current year by default
+            int targetMonth = (request.getMonth() == null) ? java.time.LocalDateTime.now().getMonthValue() - 1 : request.getMonth();
+
+            log.info("Fetching analytics for user ID: {} and month, year: {}", userId, request.getMonth(), request.getYear());
+
+            // 3. Thực thi UseCase
+            TransactionAnalyticsResponse analyticsResponse = getTransactionAnalyticsUseCase.execute(request.getYear(), targetMonth);
+
+            // 4. Trả về kết quả theo cấu trúc CheckResponse
+            CheckResponse<TransactionAnalyticsResponse> response = CheckResponse.<TransactionAnalyticsResponse>builder()
+                    .success(true)
+                    .message("Analytics retrieved successfully")
+                    .data(analyticsResponse)
+                    .build();
+
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            log.error("Failed to retrieve analytics", e);
+
+            CheckResponse<TransactionAnalyticsResponse> response = CheckResponse.<TransactionAnalyticsResponse>builder()
+                    .success(false)
+                    .message("Failed to retrieve analytics: " + e.getMessage())
+                    .build();
+
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+        }
     }
 }

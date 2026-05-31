@@ -38,4 +38,12 @@ public class CloudinaryConfig {
     public String getFolder() {
         return folder;
     }
+
+    public String getApiKey() {
+        return apiKey;
+    }
+
+    public String getApiSecret() {
+        return apiSecret;
+    }
 }

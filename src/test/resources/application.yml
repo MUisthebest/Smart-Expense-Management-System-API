@@ -72,7 +72,7 @@ app:
   jwt:
     secret: "TestSecretKeyForJWTWithAtLeast256BitsLength1234567890TestSecretKeyForTests"
     access-token-expiration: 3600000
-    refresh-token-expiration: 604800000
+    refresh-token-expiration: 86400000  # 24 hours in milliseconds
     issuer: "smart-money-test"
     audience: "smart-money-test-users"
     token-prefix: "Bearer "
@@ -118,6 +118,10 @@ app:
     api-secret: "test-api-secret"
     folder: "smart-money/users"
     secure: true
+
+  # Gemini Configuration
+  gemini:
+    api-key: "test-gemini-key"
 
 
 # Logging Configuration
