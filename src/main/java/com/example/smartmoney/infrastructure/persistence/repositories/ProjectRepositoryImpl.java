@@ -1,5 +1,6 @@
 package com.example.smartmoney.infrastructure.persistence.repositories;
 
+import com.example.smartmoney.application.dtos.requests.project.ProjectFilterRequest;
 import com.example.smartmoney.domain.exceptions.ProjectErrorCode;
 import com.example.smartmoney.domain.exceptions.ProjectException;
 import com.example.smartmoney.domain.models.project.Project;
@@ -53,30 +54,66 @@ public class ProjectRepositoryImpl implements ProjectRepository {
     @Override
     @Transactional(readOnly = true)
     public List<Project> findAllByUser(UserId userId) {
+        return findAllByUser(
+                userId,
+                new ProjectFilterRequest(null, null, null, null)
+        );
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Project> findAllByUser(UserId userId, ProjectFilterRequest filter) {
         UUID uid = userId.value();
 
         List<ProjectEntity> owned = jpaProjectRepository.findByOwnerId(uid);
 
         List<UUID> memberProjectIds =
-                jpaProjectMemberRepository.findProjectIdsByUserIdAndJoinStatus(uid, JoinStatus.JOINED);
+                jpaProjectMemberRepository.findProjectIdsByUserIdAndJoinStatus(
+                        uid,
+                        JoinStatus.JOINED
+                );
 
         Set<UUID> allIds = new LinkedHashSet<>();
-        for (ProjectEntity e : owned) allIds.add(e.getId());
+        for (ProjectEntity e : owned) {
+            allIds.add(e.getId());
+        }
         allIds.addAll(memberProjectIds);
 
-        if (allIds.isEmpty()) return List.of();
+        if (allIds.isEmpty()) {
+            return List.of();
+        }
 
-        List<ProjectEntity> projects = jpaProjectRepository.findAllById(allIds);
+        String search = filter.search();
+
+        if (search != null && !search.isBlank()) {
+            search = "%" + search.trim().toLowerCase() + "%";
+        } else {
+            search = null;
+        }
+
+        List<ProjectEntity> projects =
+                jpaProjectRepository.searchByIdsAndFilter(
+                        allIds,
+                        search,
+                        filter.type(),
+                        filter.status(),
+                        filter.priority()
+                );
 
         List<Project> result = new ArrayList<>();
+
         for (ProjectEntity p : projects) {
             UUID pid = p.getId();
-            List<ProjectMemberEntity> members = jpaProjectMemberRepository.findByProjectId(pid);
+
+            List<ProjectMemberEntity> members =
+                    jpaProjectMemberRepository.findByProjectId(pid);
+
             List<ProjectContributionEntity> contributions =
                     jpaProjectContributionRepository.findByProjectIdOrderByCreatedAtDesc(pid);
 
             result.add(projectPersistenceMapper.toDomain(p, members, contributions));
         }
+
         return result;
     }
 
