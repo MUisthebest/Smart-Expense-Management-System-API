@@ -4,6 +4,9 @@ import com.example.smartmoney.application.dtos.requests.project.*;
 import com.example.smartmoney.application.dtos.responses.CheckResponse;
 import com.example.smartmoney.application.dtos.responses.project.*;
 import com.example.smartmoney.application.usecases.project.*;
+import com.example.smartmoney.domain.models.project.enums.ProjectPriority;
+import com.example.smartmoney.domain.models.project.enums.ProjectStatus;
+import com.example.smartmoney.domain.models.project.enums.ProjectType;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -86,8 +89,16 @@ public class ProjectController {
     )
 
     @GetMapping
-    public CheckResponse<List<ProjectListItemResponse>> listMine(Authentication auth) {
-        List<ProjectListItemResponse> data = listMyProjectsUseCase.execute(actorId(auth));
+    public CheckResponse<List<ProjectListItemResponse>> listMine(
+            Authentication auth,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) ProjectType type,
+            @RequestParam(required = false) ProjectStatus status,
+            @RequestParam(required = false) ProjectPriority priority
+            ) {
+        ProjectFilterRequest filter = new ProjectFilterRequest(search, type, status, priority);
+
+        List<ProjectListItemResponse> data = listMyProjectsUseCase.execute(actorId(auth), filter);
         return CheckResponse.<List<ProjectListItemResponse>>builder()
                 .success(true)
                 .message("OK")

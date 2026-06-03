@@ -26,6 +26,8 @@ public class Project {
 
     private final Map<UUID, ProjectMember> members = new HashMap<>();
     private final List<ProjectContribution> contributions = new ArrayList<>();
+    private ProjectTracking tracking;
+    private final Instant createdAt;
 
     private Project(ProjectId id,
                     UserId ownerId,
@@ -35,7 +37,8 @@ public class Project {
                     String name,
                     String description,
                     Money targetAmount,
-                    LocalDate deadline) {
+                    LocalDate deadline,
+                    Instant createdAt) {
         this.id = Objects.requireNonNull(id);
         this.ownerId = Objects.requireNonNull(ownerId);
         this.type = Objects.requireNonNull(type);
@@ -45,6 +48,7 @@ public class Project {
         this.description = normalizeDescription(description);
         this.targetAmount = Objects.requireNonNull(targetAmount);
         this.deadline = Objects.requireNonNull(deadline);
+        this.createdAt = createdAt == null ? Instant.now() : createdAt;
 
         validateCreate();
     }
@@ -56,7 +60,7 @@ public class Project {
                                     String description,
                                     Money targetAmount,
                                     LocalDate deadline) {
-        return new Project(ProjectId.newId(), ownerId, type, ProjectStatus.ACTIVE, priority, name, description, targetAmount, deadline);
+        return new Project(ProjectId.newId(), ownerId, type, ProjectStatus.ACTIVE, priority, name, description, targetAmount, deadline, Instant.now());
     }
 
     private void validateCreate() {
@@ -121,6 +125,14 @@ public class Project {
 
     public List<ProjectContribution> getContributions() {
         return new ArrayList<>(contributions);
+    }
+
+    public ProjectTracking getTracking() {
+        return tracking;
+    }
+
+    public void setTracking(ProjectTracking tracking) {
+        this.tracking = tracking;
     }
 
     public void updateInfo(UserId actorId, String name, String description, Money targetAmount, LocalDate deadline) {
@@ -250,6 +262,9 @@ public class Project {
     }
 
     public Money totalContributed() {
+        if (tracking != null) {
+            return new Money(tracking.getMoneySaved(), targetAmount.currency());
+        }
         Money total = Money.zero(targetAmount.currency());
         for (ProjectContribution c : contributions) {
             total = total.plus(c.getMoney());
@@ -307,6 +322,10 @@ public class Project {
         throw new ProjectException("Permission denied", ProjectErrorCode.PROJECT_PERMISSION_DENIED);
     }
 
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
     public static Project rehydrate (ProjectId id,
                                      UserId ownerId,
                                      ProjectType type,
@@ -317,9 +336,11 @@ public class Project {
                                      Money targetAmount,
                                      LocalDate deadline,
                                      List<ProjectMember> members,
-                                     List<ProjectContribution> contributions
+                                     List<ProjectContribution> contributions,
+                                     ProjectTracking tracking,
+                                     Instant createdAt
     ) {
-        Project p = new Project(id, ownerId, type, status, priority, name, description, targetAmount, deadline);
+        Project p = new Project(id, ownerId, type, status, priority, name, description, targetAmount, deadline, createdAt);
         p.members.clear();
         if (members != null) {
             for (ProjectMember m : members) {
@@ -330,6 +351,7 @@ public class Project {
         if (contributions != null) {
             p.contributions.addAll(contributions);
         }
+        p.tracking = tracking;
         return p;
     }
 }
