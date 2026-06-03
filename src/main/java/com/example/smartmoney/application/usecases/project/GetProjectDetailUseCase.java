@@ -1,6 +1,7 @@
 package com.example.smartmoney.application.usecases.project;
 
 import com.example.smartmoney.application.dtos.responses.project.ProjectDetailResponse;
+import com.example.smartmoney.application.dtos.responses.project.ProjectHistoryResponse;
 import com.example.smartmoney.domain.exceptions.ProjectErrorCode;
 import com.example.smartmoney.domain.exceptions.ProjectException;
 import com.example.smartmoney.domain.models.project.Project;
@@ -8,16 +9,20 @@ import com.example.smartmoney.domain.models.project.enums.JoinStatus;
 import com.example.smartmoney.domain.models.project.enums.ProjectType;
 import com.example.smartmoney.domain.models.project.valueobjects.ProjectId;
 import com.example.smartmoney.domain.models.project.valueobjects.UserId;
+import com.example.smartmoney.domain.repositories.ProjectHistoryRepository;
 import com.example.smartmoney.domain.repositories.ProjectRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 public class GetProjectDetailUseCase {
 
     private final ProjectRepository projectRepository;
+    private final ProjectHistoryRepository projectHistoryRepository;
 
     @Transactional(readOnly = true)
     public ProjectDetailResponse execute(String actorId, String projectId) {
@@ -38,6 +43,11 @@ public class GetProjectDetailUseCase {
             }
         }
 
-        return ProjectDetailResponse.fromDomain(p);
+        List<ProjectHistoryResponse> histories = projectHistoryRepository.findAllByProjectId(p.getId())
+                .stream()
+                .map(ProjectHistoryResponse::fromDomain)
+                .toList();
+
+        return ProjectDetailResponse.fromDomain(p, histories);
     }
 }

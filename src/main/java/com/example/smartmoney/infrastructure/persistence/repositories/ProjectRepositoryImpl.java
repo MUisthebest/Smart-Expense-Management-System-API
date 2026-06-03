@@ -12,6 +12,7 @@ import com.example.smartmoney.domain.repositories.ProjectRepository;
 import com.example.smartmoney.infrastructure.persistence.entities.ProjectContributionEntity;
 import com.example.smartmoney.infrastructure.persistence.entities.ProjectEntity;
 import com.example.smartmoney.infrastructure.persistence.entities.ProjectMemberEntity;
+import com.example.smartmoney.infrastructure.persistence.entities.ProjectTrackingEntity;
 import com.example.smartmoney.infrastructure.persistence.mappers.ProjectContributionMapper;
 import com.example.smartmoney.infrastructure.persistence.mappers.ProjectEntityMapper;
 import com.example.smartmoney.infrastructure.persistence.mappers.ProjectMemberMapper;
@@ -31,6 +32,7 @@ public class ProjectRepositoryImpl implements ProjectRepository {
     private final JpaProjectRepository jpaProjectRepository;
     private final JpaProjectMemberRepository jpaProjectMemberRepository;
     private final JpaProjectContributionRepository jpaProjectContributionRepository;
+    private final JpaProjectTrackingRepository jpaProjectTrackingRepository;
 
     private final ProjectPersistenceMapper projectPersistenceMapper;
     private final ProjectMemberMapper projectMemberMapper;
@@ -47,8 +49,10 @@ public class ProjectRepositoryImpl implements ProjectRepository {
         List<ProjectMemberEntity> members = jpaProjectMemberRepository.findByProjectId(projectId);
         List<ProjectContributionEntity> contributions =
                 jpaProjectContributionRepository.findByProjectIdOrderByCreatedAtDesc(projectId);
+        ProjectTrackingEntity tracking =
+                jpaProjectTrackingRepository.findByProjectId(projectId).orElse(null);
 
-        return Optional.of(projectPersistenceMapper.toDomain(peOpt.get(), members, contributions));
+        return Optional.of(projectPersistenceMapper.toDomain(peOpt.get(), members, contributions, tracking));
     }
 
     @Override
@@ -108,10 +112,10 @@ public class ProjectRepositoryImpl implements ProjectRepository {
             List<ProjectMemberEntity> members =
                     jpaProjectMemberRepository.findByProjectId(pid);
 
-            List<ProjectContributionEntity> contributions =
-                    jpaProjectContributionRepository.findByProjectIdOrderByCreatedAtDesc(pid);
+            ProjectTrackingEntity tracking =
+                    jpaProjectTrackingRepository.findByProjectId(pid).orElse(null);
 
-            result.add(projectPersistenceMapper.toDomain(p, members, contributions));
+            result.add(projectPersistenceMapper.toDomain(p, members, null, tracking));
         }
 
         return result;
@@ -125,9 +129,9 @@ public class ProjectRepositoryImpl implements ProjectRepository {
         for (ProjectEntity p : entities) {
             UUID pid = p.getId();
             List<ProjectMemberEntity> members = jpaProjectMemberRepository.findByProjectId(pid);
-            List<ProjectContributionEntity> contributions =
-                    jpaProjectContributionRepository.findByProjectIdOrderByCreatedAtDesc(pid);
-            result.add(projectPersistenceMapper.toDomain(p, members, contributions));
+            ProjectTrackingEntity tracking =
+                    jpaProjectTrackingRepository.findByProjectId(pid).orElse(null);
+            result.add(projectPersistenceMapper.toDomain(p, members, null, tracking));
         }
         return result;
     }
