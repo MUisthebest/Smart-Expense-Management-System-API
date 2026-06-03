@@ -1,5 +1,6 @@
 package com.example.smartmoney.infrastructure.persistence.repositories;
 
+import com.example.smartmoney.application.dtos.requests.project.ProjectFilterRequest;
 import com.example.smartmoney.domain.exceptions.ProjectErrorCode;
 import com.example.smartmoney.domain.exceptions.ProjectException;
 import com.example.smartmoney.domain.models.project.Project;
@@ -11,6 +12,7 @@ import com.example.smartmoney.domain.repositories.ProjectRepository;
 import com.example.smartmoney.infrastructure.persistence.entities.ProjectContributionEntity;
 import com.example.smartmoney.infrastructure.persistence.entities.ProjectEntity;
 import com.example.smartmoney.infrastructure.persistence.entities.ProjectMemberEntity;
+import com.example.smartmoney.infrastructure.persistence.entities.ProjectTrackingEntity;
 import com.example.smartmoney.infrastructure.persistence.mappers.ProjectContributionMapper;
 import com.example.smartmoney.infrastructure.persistence.mappers.ProjectEntityMapper;
 import com.example.smartmoney.infrastructure.persistence.mappers.ProjectMemberMapper;
@@ -30,6 +32,7 @@ public class ProjectRepositoryImpl implements ProjectRepository {
     private final JpaProjectRepository jpaProjectRepository;
     private final JpaProjectMemberRepository jpaProjectMemberRepository;
     private final JpaProjectContributionRepository jpaProjectContributionRepository;
+    private final JpaProjectTrackingRepository jpaProjectTrackingRepository;
 
     private final ProjectPersistenceMapper projectPersistenceMapper;
     private final ProjectMemberMapper projectMemberMapper;
@@ -46,37 +49,75 @@ public class ProjectRepositoryImpl implements ProjectRepository {
         List<ProjectMemberEntity> members = jpaProjectMemberRepository.findByProjectId(projectId);
         List<ProjectContributionEntity> contributions =
                 jpaProjectContributionRepository.findByProjectIdOrderByCreatedAtDesc(projectId);
+        ProjectTrackingEntity tracking =
+                jpaProjectTrackingRepository.findByProjectId(projectId).orElse(null);
 
-        return Optional.of(projectPersistenceMapper.toDomain(peOpt.get(), members, contributions));
+        return Optional.of(projectPersistenceMapper.toDomain(peOpt.get(), members, contributions, tracking));
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<Project> findAllByUser(UserId userId) {
+        return findAllByUser(
+                userId,
+                new ProjectFilterRequest(null, null, null, null)
+        );
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Project> findAllByUser(UserId userId, ProjectFilterRequest filter) {
         UUID uid = userId.value();
 
         List<ProjectEntity> owned = jpaProjectRepository.findByOwnerId(uid);
 
         List<UUID> memberProjectIds =
-                jpaProjectMemberRepository.findProjectIdsByUserIdAndJoinStatus(uid, JoinStatus.JOINED);
+                jpaProjectMemberRepository.findProjectIdsByUserIdAndJoinStatus(
+                        uid,
+                        JoinStatus.JOINED
+                );
 
         Set<UUID> allIds = new LinkedHashSet<>();
-        for (ProjectEntity e : owned) allIds.add(e.getId());
+        for (ProjectEntity e : owned) {
+            allIds.add(e.getId());
+        }
         allIds.addAll(memberProjectIds);
 
-        if (allIds.isEmpty()) return List.of();
+        if (allIds.isEmpty()) {
+            return List.of();
+        }
 
-        List<ProjectEntity> projects = jpaProjectRepository.findAllById(allIds);
+        String search = filter.search();
+
+        if (search != null && !search.isBlank()) {
+            search = "%" + search.trim().toLowerCase() + "%";
+        } else {
+            search = null;
+        }
+
+        List<ProjectEntity> projects =
+                jpaProjectRepository.searchByIdsAndFilter(
+                        allIds,
+                        search,
+                        filter.type(),
+                        filter.status(),
+                        filter.priority()
+                );
 
         List<Project> result = new ArrayList<>();
+
         for (ProjectEntity p : projects) {
             UUID pid = p.getId();
-            List<ProjectMemberEntity> members = jpaProjectMemberRepository.findByProjectId(pid);
-            List<ProjectContributionEntity> contributions =
-                    jpaProjectContributionRepository.findByProjectIdOrderByCreatedAtDesc(pid);
 
-            result.add(projectPersistenceMapper.toDomain(p, members, contributions));
+            List<ProjectMemberEntity> members =
+                    jpaProjectMemberRepository.findByProjectId(pid);
+
+            ProjectTrackingEntity tracking =
+                    jpaProjectTrackingRepository.findByProjectId(pid).orElse(null);
+
+            result.add(projectPersistenceMapper.toDomain(p, members, null, tracking));
         }
+
         return result;
     }
 
@@ -88,9 +129,9 @@ public class ProjectRepositoryImpl implements ProjectRepository {
         for (ProjectEntity p : entities) {
             UUID pid = p.getId();
             List<ProjectMemberEntity> members = jpaProjectMemberRepository.findByProjectId(pid);
-            List<ProjectContributionEntity> contributions =
-                    jpaProjectContributionRepository.findByProjectIdOrderByCreatedAtDesc(pid);
-            result.add(projectPersistenceMapper.toDomain(p, members, contributions));
+            ProjectTrackingEntity tracking =
+                    jpaProjectTrackingRepository.findByProjectId(pid).orElse(null);
+            result.add(projectPersistenceMapper.toDomain(p, members, null, tracking));
         }
         return result;
     }
