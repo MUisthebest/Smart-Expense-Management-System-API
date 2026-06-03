@@ -51,7 +51,8 @@ public class ProjectPersistenceMapper {
                 p.getDeadline(),
                 dm,
                 dc,
-                dt
+                dt,
+                p.getCreatedAt()
         );
     }
 }

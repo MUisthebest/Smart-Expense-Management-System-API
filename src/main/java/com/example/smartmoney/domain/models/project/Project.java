@@ -27,6 +27,7 @@ public class Project {
     private final Map<UUID, ProjectMember> members = new HashMap<>();
     private final List<ProjectContribution> contributions = new ArrayList<>();
     private ProjectTracking tracking;
+    private final Instant createdAt;
 
     private Project(ProjectId id,
                     UserId ownerId,
@@ -36,7 +37,8 @@ public class Project {
                     String name,
                     String description,
                     Money targetAmount,
-                    LocalDate deadline) {
+                    LocalDate deadline,
+                    Instant createdAt) {
         this.id = Objects.requireNonNull(id);
         this.ownerId = Objects.requireNonNull(ownerId);
         this.type = Objects.requireNonNull(type);
@@ -46,6 +48,7 @@ public class Project {
         this.description = normalizeDescription(description);
         this.targetAmount = Objects.requireNonNull(targetAmount);
         this.deadline = Objects.requireNonNull(deadline);
+        this.createdAt = createdAt == null ? Instant.now() : createdAt;
 
         validateCreate();
     }
@@ -57,7 +60,7 @@ public class Project {
                                     String description,
                                     Money targetAmount,
                                     LocalDate deadline) {
-        return new Project(ProjectId.newId(), ownerId, type, ProjectStatus.ACTIVE, priority, name, description, targetAmount, deadline);
+        return new Project(ProjectId.newId(), ownerId, type, ProjectStatus.ACTIVE, priority, name, description, targetAmount, deadline, Instant.now());
     }
 
     private void validateCreate() {
@@ -319,6 +322,10 @@ public class Project {
         throw new ProjectException("Permission denied", ProjectErrorCode.PROJECT_PERMISSION_DENIED);
     }
 
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
     public static Project rehydrate (ProjectId id,
                                      UserId ownerId,
                                      ProjectType type,
@@ -330,9 +337,10 @@ public class Project {
                                      LocalDate deadline,
                                      List<ProjectMember> members,
                                      List<ProjectContribution> contributions,
-                                     ProjectTracking tracking
+                                     ProjectTracking tracking,
+                                     Instant createdAt
     ) {
-        Project p = new Project(id, ownerId, type, status, priority, name, description, targetAmount, deadline);
+        Project p = new Project(id, ownerId, type, status, priority, name, description, targetAmount, deadline, createdAt);
         p.members.clear();
         if (members != null) {
             for (ProjectMember m : members) {

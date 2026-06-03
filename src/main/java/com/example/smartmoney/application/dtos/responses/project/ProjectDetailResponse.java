@@ -8,6 +8,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.Period;
 import java.util.List;
@@ -39,6 +40,12 @@ public class ProjectDetailResponse {
     private String statusLabel;     // "3 months left", "Completed", "Overdue"
 
     private com.example.smartmoney.domain.models.project.enums.ProjectPriority priority;
+
+    private BigDecimal monthlySaving;
+    private Instant createdAt;
+    private Integer durationMonths;
+    private Integer currentMonth;
+    private BigDecimal moneyOwed;
 
     private List<ProjectHistoryResponse> histories;
 
@@ -90,6 +97,23 @@ public class ProjectDetailResponse {
             statusLabel = monthsLeft == 1 ? "1 month left" : monthsLeft + " months left";
         }
 
+        BigDecimal monthlySaving = p.getTracking() != null ? p.getTracking().getMonthlySaving() : BigDecimal.ZERO;
+        Instant createdAt = p.getCreatedAt();
+        int durationMonths = 0;
+        if (p.getCreatedAt() != null && deadline != null) {
+            LocalDate createdDate = p.getCreatedAt().atZone(java.time.ZoneId.systemDefault()).toLocalDate();
+            Period period = Period.between(createdDate, deadline);
+            durationMonths = period.getYears() * 12 + period.getMonths();
+            if (deadline.getDayOfMonth() >= createdDate.getDayOfMonth()) {
+                durationMonths += 1;
+            }
+            if (durationMonths < 1) {
+                durationMonths = 1;
+            }
+        }
+        Integer currentMonth = p.getTracking() != null ? p.getTracking().getCurrentMonth() : null;
+        BigDecimal moneyOwed = p.getTracking() != null ? p.getTracking().getMoneyOwed() : BigDecimal.ZERO;
+
         return ProjectDetailResponse.builder()
                 .projectId(p.getId().toString())
                 .ownerId(p.getOwnerId().toString())
@@ -107,6 +131,11 @@ public class ProjectDetailResponse {
                 .deadlineLabel(deadlineLabel)
                 .statusLabel(statusLabel)
                 .priority(p.getPriority())
+                .monthlySaving(monthlySaving)
+                .createdAt(createdAt)
+                .durationMonths(durationMonths)
+                .currentMonth(currentMonth)
+                .moneyOwed(moneyOwed)
                 .histories(histories)
                 .build();
     }
