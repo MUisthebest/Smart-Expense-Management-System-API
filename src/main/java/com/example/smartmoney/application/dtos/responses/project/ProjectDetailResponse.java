@@ -10,6 +10,7 @@ import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.Period;
+import java.util.List;
 
 @Data
 @Builder
@@ -37,9 +38,17 @@ public class ProjectDetailResponse {
     private String deadlineLabel;   // "6 months", "Completed", "Overdue"
     private String statusLabel;     // "3 months left", "Completed", "Overdue"
 
+    private com.example.smartmoney.domain.models.project.enums.ProjectPriority priority;
+
+    private List<ProjectHistoryResponse> histories;
+
     public static ProjectDetailResponse fromDomain(Project p) {
+        return fromDomain(p, List.of());
+    }
+
+    public static ProjectDetailResponse fromDomain(Project p, List<ProjectHistoryResponse> histories) {
         BigDecimal targetAmount = p.getTargetAmount().amount();
-        BigDecimal totalContributed = p.totalContributed().amount();
+        BigDecimal totalContributed = p.getTracking() != null ? p.getTracking().getMoneySaved() : p.totalContributed().amount();
         BigDecimal progressPercent = p.progressPercent();
         BigDecimal remaining = targetAmount.subtract(totalContributed).max(BigDecimal.ZERO);
 
@@ -62,7 +71,9 @@ public class ProjectDetailResponse {
         } else {
             status = "ONGOING";
 
-            if (deadline != null) {
+            if (p.getTracking() != null) {
+                monthsLeft = p.getTracking().getMonthLeft();
+            } else if (deadline != null) {
                 Period period =  Period.between(today, deadline);
                 monthsLeft = period.getYears() * 12 + period.getMonths();
 
@@ -87,14 +98,16 @@ public class ProjectDetailResponse {
                 .description(p.getDescription())
                 .targetAmount(p.getTargetAmount().amount())
                 .currency(p.getTargetAmount().currency())
-                .totalContributed(p.totalContributed().amount())
-                .remaining(p.remaining().amount())
-                .progressPercent(p.progressPercent())
+                .totalContributed(totalContributed)
+                .remaining(remaining)
+                .progressPercent(progressPercent)
                 .deadline(deadline)
                 .status(status)
                 .monthsLeft(monthsLeft)
                 .deadlineLabel(deadlineLabel)
                 .statusLabel(statusLabel)
+                .priority(p.getPriority())
+                .histories(histories)
                 .build();
     }
 }

@@ -26,6 +26,7 @@ public class Project {
 
     private final Map<UUID, ProjectMember> members = new HashMap<>();
     private final List<ProjectContribution> contributions = new ArrayList<>();
+    private ProjectTracking tracking;
 
     private Project(ProjectId id,
                     UserId ownerId,
@@ -121,6 +122,14 @@ public class Project {
 
     public List<ProjectContribution> getContributions() {
         return new ArrayList<>(contributions);
+    }
+
+    public ProjectTracking getTracking() {
+        return tracking;
+    }
+
+    public void setTracking(ProjectTracking tracking) {
+        this.tracking = tracking;
     }
 
     public void updateInfo(UserId actorId, String name, String description, Money targetAmount, LocalDate deadline) {
@@ -250,6 +259,9 @@ public class Project {
     }
 
     public Money totalContributed() {
+        if (tracking != null) {
+            return new Money(tracking.getMoneySaved(), targetAmount.currency());
+        }
         Money total = Money.zero(targetAmount.currency());
         for (ProjectContribution c : contributions) {
             total = total.plus(c.getMoney());
@@ -317,7 +329,8 @@ public class Project {
                                      Money targetAmount,
                                      LocalDate deadline,
                                      List<ProjectMember> members,
-                                     List<ProjectContribution> contributions
+                                     List<ProjectContribution> contributions,
+                                     ProjectTracking tracking
     ) {
         Project p = new Project(id, ownerId, type, status, priority, name, description, targetAmount, deadline);
         p.members.clear();
@@ -330,6 +343,7 @@ public class Project {
         if (contributions != null) {
             p.contributions.addAll(contributions);
         }
+        p.tracking = tracking;
         return p;
     }
 }
