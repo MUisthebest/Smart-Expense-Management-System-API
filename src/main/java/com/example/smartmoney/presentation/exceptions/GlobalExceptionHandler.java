@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.Hidden;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -228,4 +229,78 @@ public class GlobalExceptionHandler {
         return HttpStatus.BAD_REQUEST;
     }
 
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<CheckResponse<ErrorDetails>> handleTypeMismatch(
+            MethodArgumentTypeMismatchException ex,
+            WebRequest request
+    ) {
+        String message = "Invalid request parameter: " + ex.getName()
+                + " = " + ex.getValue();
+
+        ErrorDetails errorDetails = ErrorDetails.builder()
+                .timestamp(LocalDateTime.now())
+                .message(message)
+                .errorCode("INVALID_REQUEST_PARAM")
+                .path(request.getDescription(false).replace("uri=", ""))
+                .build();
+
+        CheckResponse<ErrorDetails> response = CheckResponse.<ErrorDetails>builder()
+                .success(false)
+                .message(message)
+                .errorCode("INVALID_REQUEST_PARAM")
+                .data(errorDetails)
+                .build();
+
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(response);
+    }
+
+    @ExceptionHandler(BusinessException.class)
+    public ResponseEntity<CheckResponse<ErrorDetails>> handleBusinessException(
+            BusinessException ex,
+            WebRequest request
+    ) {
+        HttpStatus status = mapBusinessStatus(ex.getErrorCode());
+
+        ErrorDetails errorDetails = ErrorDetails.builder()
+                .timestamp(LocalDateTime.now())
+                .message(ex.getMessage())
+                .errorCode(ex.getErrorCode())
+                .path(request.getDescription(false).replace("uri=", ""))
+                .build();
+
+        CheckResponse<ErrorDetails> response = CheckResponse.<ErrorDetails>builder()
+                .success(false)
+                .message(ex.getMessage())
+                .data(errorDetails)
+                .errorCode(ex.getErrorCode())
+                .build();
+
+        return new ResponseEntity<>(response, status);
+    }
+
+    private HttpStatus mapBusinessStatus(String errorCode) {
+        if (CommonErrorCode.RESOURCE_NOT_FOUND.name().equals(errorCode)) {
+            return HttpStatus.NOT_FOUND;
+        }
+
+        if (CommonErrorCode.RESOURCE_ALREADY_EXISTS.name().equals(errorCode)) {
+            return HttpStatus.CONFLICT;
+        }
+
+        if (CommonErrorCode.PERMISSION_DENIED.name().equals(errorCode)) {
+            return HttpStatus.FORBIDDEN;
+        }
+
+        if (CommonErrorCode.INVALID_REQUEST.name().equals(errorCode)) {
+            return HttpStatus.BAD_REQUEST;
+        }
+
+        if (CommonErrorCode.BUSINESS_RULE_VIOLATION.name().equals(errorCode)) {
+            return HttpStatus.BAD_REQUEST;
+        }
+
+        return HttpStatus.BAD_REQUEST;
+    }
 }

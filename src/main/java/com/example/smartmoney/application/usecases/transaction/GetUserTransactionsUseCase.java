@@ -29,11 +29,18 @@ public class GetUserTransactionsUseCase {
         int page = (filter != null && filter.getPage() != null) ? filter.getPage() : 0;
         int size = (filter != null && filter.getSize() != null) ? filter.getSize() : 10;
         
+        // Set default sort values
+        String sortBy = (filter != null && filter.getSortBy() != null) ? filter.getSortBy() : "date";
+        String sortOrder = (filter != null && filter.getSortOrder() != null) ? filter.getSortOrder() : "DESC";
+        
+        // Validate sort parameters
+        validateSortParameters(sortBy, sortOrder);
+        
         List<Transaction> transactions;
         long totalElements = 0;
         
         // Check if any filters are provided
-        if (filter != null && hasAnyFilter(filter)) {
+        if (filter != null && hasAnyFilters(filter)) {
             // Parse dates if provided
             LocalDateTime startDate = parseDate(filter.getStartDate());
             LocalDateTime endDate = parseDate(filter.getEndDate());
@@ -58,23 +65,17 @@ public class GetUserTransactionsUseCase {
                 endDate,
                 filter.getCategory(),
                 filter.getType(),
+                sortBy,
+                sortOrder,
                 page,
                 size
             );
         } else {
-            // Find all transactions for user without filters
+            // Find all transactions for user without filters, with sorting and pagination
             List<Transaction> allTransactions = transactionRepository.findByUserId(userId);
             totalElements = allTransactions.size();
             
-            // Apply pagination manually for non-filtered results
-            int fromIndex = page * size;
-            int toIndex = Math.min(fromIndex + size, allTransactions.size());
-            
-            if (fromIndex < allTransactions.size()) {
-                transactions = allTransactions.subList(fromIndex, toIndex);
-            } else {
-                transactions = List.of();
-            }
+            transactions = transactionRepository.findByUserIdSorted(userId, sortBy, sortOrder, page, size);
         }
         
         // Convert to response DTOs
@@ -85,13 +86,57 @@ public class GetUserTransactionsUseCase {
         return TransactionListResponse.of(transactionResponses, page, size, totalElements);
     }
     
-    private boolean hasAnyFilter(TransactionFilterRequest filter) {
-        return filter.getMinAmount() != null ||
-               filter.getMaxAmount() != null ||
-               filter.getStartDate() != null ||
-               filter.getEndDate() != null ||
-               filter.getCategory() != null ||
-               filter.getType() != null;
+    private void validateSortParameters(String sortBy, String sortOrder) {
+        // Valid sort fields
+        String[] validSortFields = {"date", "amount", "category", "type", "description"};
+        boolean validSortBy = false;
+        for (String field : validSortFields) {
+            if (field.equalsIgnoreCase(sortBy)) {
+                validSortBy = true;
+                break;
+            }
+        }
+        
+        if (!validSortBy) {
+            throw new DomainException("Invalid sort field: " + sortBy + ". Valid fields are: date, amount, category, type, description");
+        }
+        
+        // Valid sort orders
+        if (!sortOrder.equalsIgnoreCase("ASC") && !sortOrder.equalsIgnoreCase("DESC")) {
+            throw new DomainException("Invalid sort order: " + sortOrder + ". Valid orders are: ASC, DESC");
+        }
+    }
+    
+    private List<Transaction> sortTransactions(List<Transaction> transactions, String sortBy, String sortOrder) {
+        boolean ascending = sortOrder.equalsIgnoreCase("ASC");
+        
+        return transactions.stream()
+                .sorted((t1, t2) -> {
+                    int comparison = 0;
+                    
+                    switch (sortBy.toLowerCase()) {
+                        case "amount":
+                            comparison = t1.getAmount().getValue().compareTo(t2.getAmount().getValue());
+                            break;
+                        case "category":
+                            comparison = t1.getCategory().toString().compareTo(t2.getCategory().toString());
+                            break;
+                        case "type":
+                            comparison = t1.getType().toString().compareTo(t2.getType().toString());
+                            break;
+                        case "description":
+                            comparison = (t1.getDescription() != null ? t1.getDescription() : "")
+                                    .compareTo(t2.getDescription() != null ? t2.getDescription() : "");
+                            break;
+                        case "date":
+                        default:
+                            comparison = t1.getDate().compareTo(t2.getDate());
+                            break;
+                    }
+                    
+                    return ascending ? comparison : -comparison;
+                })
+                .collect(Collectors.toList());
     }
     
     private LocalDateTime parseDate(String dateStr) {
@@ -104,5 +149,14 @@ public class GetUserTransactionsUseCase {
         } catch (Exception e) {
             throw new DomainException("Invalid date format. Expected format: dd/MM/yyyy HH:mm");
         }
+    }
+    
+    private boolean hasAnyFilters(TransactionFilterRequest filter) {
+        return filter.getMinAmount() != null ||
+               filter.getMaxAmount() != null ||
+               filter.getStartDate() != null ||
+               filter.getEndDate() != null ||
+               filter.getCategory() != null ||
+               filter.getType() != null;
     }
 }

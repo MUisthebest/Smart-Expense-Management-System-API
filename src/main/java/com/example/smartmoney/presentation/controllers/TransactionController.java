@@ -107,7 +107,8 @@ public class TransactionController {
         summary = "Get all user transactions",
         description = "Retrieve all transactions for the authenticated user with optional filters and pagination. " +
                      "Filters include amount range (minAmount, maxAmount), date range (startDate, endDate in format dd/MM/yyyy HH:mm), " +
-                     "category, and transaction type. Pagination defaults to page=0, size=10."
+                     "category, and transaction type. Sorting supports fields: date, amount, category, type, description (default: date DESC). " +
+                     "Pagination defaults to page=0, size=10."
     )
     @ApiResponses({
         @ApiResponse(
@@ -140,6 +141,10 @@ public class TransactionController {
             @RequestParam(required = false) Category category,
             @Parameter(description = "Transaction type filter (INCOME or EXPENSE)")
             @RequestParam(required = false) TransactionType type,
+            @Parameter(description = "Sort field (date, amount, category, type, description). Default: date")
+            @RequestParam(required = false, defaultValue = "date") String sortBy,
+            @Parameter(description = "Sort order (ASC or DESC). Default: DESC")
+            @RequestParam(required = false, defaultValue = "DESC") String sortOrder,
             @Parameter(description = "Page number (0-indexed, default: 0)")
             @RequestParam(required = false, defaultValue = "0") Integer page,
             @Parameter(description = "Page size (default: 10)")
@@ -147,8 +152,8 @@ public class TransactionController {
         
         try {
             UUID userId = extractUserIdFromToken(authHeader);
-            log.info("Fetching transactions for user ID: {} with filters - minAmount: {}, maxAmount: {}, startDate: {}, endDate: {}, category: {}, type: {}, page: {}, size: {}",
-                    userId, minAmount, maxAmount, startDate, endDate, category, type, page, size);
+            log.info("Fetching transactions for user ID: {} with filters - minAmount: {}, maxAmount: {}, startDate: {}, endDate: {}, category: {}, type: {}, sortBy: {}, sortOrder: {}, page: {}, size: {}",
+                    userId, minAmount, maxAmount, startDate, endDate, category, type, sortBy, sortOrder, page, size);
             
             // Build filter request
             TransactionFilterRequest filter = TransactionFilterRequest.builder()
@@ -158,6 +163,8 @@ public class TransactionController {
                     .endDate(endDate)
                     .category(category)
                     .type(type)
+                    .sortBy(sortBy)
+                    .sortOrder(sortOrder)
                     .page(page)
                     .size(size)
                     .build();
