@@ -52,5 +52,6 @@ public class JobQueuePublisher implements JobQueuePort {
         );
 
         System.out.println("xadd success");
+        System.out.println("Redis publisher received jobId = " + jobId);
     }
 }
