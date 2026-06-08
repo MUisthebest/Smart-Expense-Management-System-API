@@ -19,65 +19,83 @@ public interface JpaTransactionRepository extends JpaRepository<TransactionEntit
 
     // Using nativeQuery with CAST function (Spring Data JPA compatible)
     @Query(value = "SELECT * FROM transactions t WHERE t.user_id = CAST(:userId AS uuid) " +
-           "AND (CAST(:minAmount AS numeric) IS NULL OR t.amount >= CAST(:minAmount AS numeric)) " +
-           "AND (CAST(:maxAmount AS numeric) IS NULL OR t.amount <= CAST(:maxAmount AS numeric)) " +
-           "AND (CAST(:startDate AS timestamp) IS NULL OR t.date >= CAST(:startDate AS timestamp)) " +
-           "AND (CAST(:endDate AS timestamp) IS NULL OR t.date <= CAST(:endDate AS timestamp)) " +
-           "AND (CAST(:category AS varchar) IS NULL OR t.category = CAST(:category AS varchar)) " +
-           "AND (CAST(:type AS varchar) IS NULL OR t.type = CAST(:type AS varchar))",
-           nativeQuery = true)
+            "AND (CAST(:minAmount AS numeric) IS NULL OR t.amount >= CAST(:minAmount AS numeric)) " +
+            "AND (CAST(:maxAmount AS numeric) IS NULL OR t.amount <= CAST(:maxAmount AS numeric)) " +
+            "AND (CAST(:startDate AS timestamp) IS NULL OR t.date >= CAST(:startDate AS timestamp)) " +
+            "AND (CAST(:endDate AS timestamp) IS NULL OR t.date <= CAST(:endDate AS timestamp)) " +
+            "AND (CAST(:category AS varchar) IS NULL OR t.category = CAST(:category AS varchar)) " +
+            "AND (CAST(:type AS varchar) IS NULL OR t.type = CAST(:type AS varchar))",
+            nativeQuery = true)
     List<TransactionEntity> findByUserIdWithFilters(
-        @Param("userId") UUID userId,
-        @Param("minAmount") BigDecimal minAmount,
-        @Param("maxAmount") BigDecimal maxAmount,
-        @Param("startDate") LocalDateTime startDate,
-        @Param("endDate") LocalDateTime endDate,
-        @Param("category") String category,
-        @Param("type") String type
+            @Param("userId") UUID userId,
+            @Param("minAmount") BigDecimal minAmount,
+            @Param("maxAmount") BigDecimal maxAmount,
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate,
+            @Param("category") String category,
+            @Param("type") String type
     );
 
     @Query(value = "SELECT * FROM transactions t WHERE t.user_id = CAST(:userId AS uuid) " +
-           "AND (CAST(:minAmount AS numeric) IS NULL OR t.amount >= CAST(:minAmount AS numeric)) " +
-           "AND (CAST(:maxAmount AS numeric) IS NULL OR t.amount <= CAST(:maxAmount AS numeric)) " +
-           "AND (CAST(:startDate AS timestamp) IS NULL OR t.date >= CAST(:startDate AS timestamp)) " +
-           "AND (CAST(:endDate AS timestamp) IS NULL OR t.date <= CAST(:endDate AS timestamp)) " +
-           "AND (CAST(:category AS varchar) IS NULL OR t.category = CAST(:category AS varchar)) " +
-           "AND (CAST(:type AS varchar) IS NULL OR t.type = CAST(:type AS varchar)) " +
-           "ORDER BY t.date DESC LIMIT :size OFFSET :offset",
-           nativeQuery = true)
-    List<TransactionEntity> findByUserIdWithFiltersPaginated(
-        @Param("userId") UUID userId,
-        @Param("minAmount") BigDecimal minAmount,
-        @Param("maxAmount") BigDecimal maxAmount,
-        @Param("startDate") LocalDateTime startDate,
-        @Param("endDate") LocalDateTime endDate,
-        @Param("category") String category,
-        @Param("type") String type,
-        @Param("size") int size,
-        @Param("offset") int offset
+            "AND (CAST(:minAmount AS numeric) IS NULL OR t.amount >= CAST(:minAmount AS numeric)) " +
+            "AND (CAST(:maxAmount AS numeric) IS NULL OR t.amount <= CAST(:maxAmount AS numeric)) " +
+            "AND (CAST(:startDate AS timestamp) IS NULL OR t.date >= CAST(:startDate AS timestamp)) " +
+            "AND (CAST(:endDate AS timestamp) IS NULL OR t.date <= CAST(:endDate AS timestamp)) " +
+            "AND (CAST(:category AS varchar) IS NULL OR t.category = CAST(:category AS varchar)) " +
+            "AND (CAST(:type AS varchar) IS NULL OR t.type = CAST(:type AS varchar)) " +
+            "LIMIT :size OFFSET :offset",
+            nativeQuery = true)
+    List<TransactionEntity> findByUserIdWithFiltersPaginatedUnsorted(
+            @Param("userId") UUID userId,
+            @Param("minAmount") BigDecimal minAmount,
+            @Param("maxAmount") BigDecimal maxAmount,
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate,
+            @Param("category") String category,
+            @Param("type") String type,
+            @Param("size") int size,
+            @Param("offset") int offset
+    );
+
+    @Query(value = "SELECT * FROM transactions t WHERE t.user_id = CAST(:userId AS uuid) " +
+            "AND (CAST(:minAmount AS numeric) IS NULL OR t.amount >= CAST(:minAmount AS numeric)) " +
+            "AND (CAST(:maxAmount AS numeric) IS NULL OR t.amount <= CAST(:maxAmount AS numeric)) " +
+            "AND (CAST(:startDate AS timestamp) IS NULL OR t.date >= CAST(:startDate AS timestamp)) " +
+            "AND (CAST(:endDate AS timestamp) IS NULL OR t.date <= CAST(:endDate AS timestamp)) " +
+            "AND (CAST(:category AS varchar) IS NULL OR t.category = CAST(:category AS varchar)) " +
+            "AND (CAST(:type AS varchar) IS NULL OR t.type = CAST(:type AS varchar))",
+            nativeQuery = true)
+    List<TransactionEntity> findByUserIdWithFiltersUnsorted(
+            @Param("userId") UUID userId,
+            @Param("minAmount") BigDecimal minAmount,
+            @Param("maxAmount") BigDecimal maxAmount,
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate,
+            @Param("category") String category,
+            @Param("type") String type
     );
 
     @Query(value = "SELECT COUNT(*) FROM transactions t WHERE t.user_id = CAST(:userId AS uuid) " +
-           "AND (CAST(:minAmount AS numeric) IS NULL OR t.amount >= CAST(:minAmount AS numeric)) " +
-           "AND (CAST(:maxAmount AS numeric) IS NULL OR t.amount <= CAST(:maxAmount AS numeric)) " +
-           "AND (CAST(:startDate AS timestamp) IS NULL OR t.date >= CAST(:startDate AS timestamp)) " +
-           "AND (CAST(:endDate AS timestamp) IS NULL OR t.date <= CAST(:endDate AS timestamp)) " +
-           "AND (CAST(:category AS varchar) IS NULL OR t.category = CAST(:category AS varchar)) " +
-           "AND (CAST(:type AS varchar) IS NULL OR t.type = CAST(:type AS varchar))",
-           nativeQuery = true)
+            "AND (CAST(:minAmount AS numeric) IS NULL OR t.amount >= CAST(:minAmount AS numeric)) " +
+            "AND (CAST(:maxAmount AS numeric) IS NULL OR t.amount <= CAST(:maxAmount AS numeric)) " +
+            "AND (CAST(:startDate AS timestamp) IS NULL OR t.date >= CAST(:startDate AS timestamp)) " +
+            "AND (CAST(:endDate AS timestamp) IS NULL OR t.date <= CAST(:endDate AS timestamp)) " +
+            "AND (CAST(:category AS varchar) IS NULL OR t.category = CAST(:category AS varchar)) " +
+            "AND (CAST(:type AS varchar) IS NULL OR t.type = CAST(:type AS varchar))",
+            nativeQuery = true)
     long countByUserIdWithFilters(
-        @Param("userId") UUID userId,
-        @Param("minAmount") BigDecimal minAmount,
-        @Param("maxAmount") BigDecimal maxAmount,
-        @Param("startDate") LocalDateTime startDate,
-        @Param("endDate") LocalDateTime endDate,
-        @Param("category") String category,
-        @Param("type") String type
+            @Param("userId") UUID userId,
+            @Param("minAmount") BigDecimal minAmount,
+            @Param("maxAmount") BigDecimal maxAmount,
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate,
+            @Param("category") String category,
+            @Param("type") String type
     );
 
     void deleteById(UUID id);
 
-    @Query(value = "SELECT t.category, COUNT(*) FROM transactions t WHERE EXTRACT(YEAR FROM t.date) = :year AND EXTRACT(MONTH FROM t.date) =:month AND t.type =  'EXPENSE' GROUP BY t.category", nativeQuery = true)
+    @Query(value = "SELECT t.category, COUNT(*) FROM transactions t WHERE EXTRACT(YEAR FROM t.created_at) = :year AND EXTRACT(MONTH FROM t.created_at) =:month GROUP BY t.category", nativeQuery = true)
     List<Object[]> getTransactionProportionByCategory(int year, int month);
 
     @Query(value = """
@@ -90,11 +108,11 @@ public interface JpaTransactionRepository extends JpaRepository<TransactionEntit
     stats AS (
         SELECT
             t.type,
-            ((EXTRACT(DAY FROM t.date)::int - 1) / 7) + 1 AS week_of_month,
+            ((EXTRACT(DAY FROM t.created_at)::int - 1) / 7) + 1 AS week_of_month,
             COUNT(*) AS total_rows
         FROM transactions t
-        WHERE EXTRACT(MONTH FROM t.date) = :month
-          AND EXTRACT(YEAR FROM t.date) = :year
+        WHERE EXTRACT(MONTH FROM t.created_at) = :month
+          AND EXTRACT(YEAR FROM t.created_at) = :year
         GROUP BY t.type, week_of_month
     )
     SELECT

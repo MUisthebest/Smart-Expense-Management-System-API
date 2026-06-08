@@ -14,6 +14,7 @@ public interface TransactionRepository {
     Transaction save(Transaction transaction);
     Optional<Transaction> findById(UUID id);
     List<Transaction> findByUserId(UUID userId);
+    List<Transaction> findByUserIdSorted(UUID userId, String sortBy, String sortOrder, int page, int size);
     List<Transaction> findByUserIdWithFilters(
         UUID userId,
         BigDecimal minAmount,
@@ -31,6 +32,19 @@ public interface TransactionRepository {
         LocalDateTime endDate,
         Category category,
         TransactionType type,
+        int page,
+        int size
+    );
+    List<Transaction> findByUserIdWithFilters(
+        UUID userId,
+        BigDecimal minAmount,
+        BigDecimal maxAmount,
+        LocalDateTime startDate,
+        LocalDateTime endDate,
+        Category category,
+        TransactionType type,
+        String sortBy,
+        String sortOrder,
         int page,
         int size
     );
