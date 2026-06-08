@@ -7,10 +7,12 @@ import com.example.smartmoney.domain.exceptions.DomainException;
 import com.example.smartmoney.domain.models.transaction.Transaction;
 import com.example.smartmoney.domain.models.transaction.enums.TransactionType;
 import com.example.smartmoney.domain.models.transaction.valueobjects.Amount;
+import com.example.smartmoney.domain.repositories.BudgetRepository;
 import com.example.smartmoney.domain.repositories.TransactionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.UUID;
@@ -20,6 +22,7 @@ import java.util.UUID;
 public class CreateTransactionUseCase {
     private final TransactionRepository transactionRepository;
     private final CreateNotificationUseCase createNotificationUseCase;
+    private final BudgetRepository budgetRepository;
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
 
     public TransactionResponse execute(UUID userId, CreateTransactionRequest request) {
@@ -46,7 +49,19 @@ public class CreateTransactionUseCase {
 
         Transaction savedTransaction = transactionRepository.save(transaction);
 
-        // 🔥 THÊM ĐOẠN NÀY
+        if (request.getType() == TransactionType.EXPENSE) {
+            budgetRepository.findByUserIdCategoryMonthYear(
+                    userId,
+                    request.getCategory(),
+                    transactionDate.getMonthValue(),
+                    transactionDate.getYear()
+            ).ifPresent(budget -> {
+                BigDecimal currentSpent = budget.getSpent() != null ? budget.getSpent() : BigDecimal.ZERO;
+                budget.updateSpent(currentSpent.add(amount.getValue()));
+                budgetRepository.save(budget);
+            });
+        }
+
         String content = buildNotificationContent(request);
         createNotificationUseCase.createNotification(userId, content);
 
