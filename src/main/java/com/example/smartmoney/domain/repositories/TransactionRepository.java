@@ -60,6 +60,7 @@ public interface TransactionRepository {
     void deleteById(UUID id);
 
 
-    List<Object[]> getTransactionsByMonth(int year, int month );
-    List<Object[]> getTransactionProportionByCategory(int year, int month);
+    List<Object[]> getTransactionsByMonth(UUID userId, int year, int month );
+    List<Object[]> getTransactionProportionByCategory(UUID userId, int year, int month);
+    List<Object[]> getMonthlyTotals(UUID userId, int year, int month);
 }

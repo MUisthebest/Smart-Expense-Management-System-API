@@ -14,16 +14,41 @@ public class GetTransactionAnalyticsUseCase {
 
     private final TransactionRepository transactionRepository;
 
-    public TransactionAnalyticsResponse execute(int year, int month) {
+    public TransactionAnalyticsResponse execute(UUID userId, int year, int month) {
         // 1. Get transactions by type and week of months
-        List<Object[]> monthlyRaw = transactionRepository.getTransactionsByMonth(year, month);
+        List<Object[]> monthlyRaw = transactionRepository.getTransactionsByMonth(userId, year, month);
 
         // 2. Proportion of categories by month
-        List<Object[]> proportionRaw = transactionRepository.getTransactionProportionByCategory(year, month);
+        List<Object[]> proportionRaw = transactionRepository.getTransactionProportionByCategory(userId, year, month);
+
+        // 3. Get monthly summary totals
+        List<Object[]> totalsList = transactionRepository.getMonthlyTotals(userId, year, month);
+        java.math.BigDecimal totalIncome = java.math.BigDecimal.ZERO;
+        java.math.BigDecimal totalExpense = java.math.BigDecimal.ZERO;
+        long totalTransactions = 0;
+
+        if (totalsList != null && !totalsList.isEmpty()) {
+            Object[] totalsRaw = totalsList.get(0);
+            if (totalsRaw != null && totalsRaw.length > 0) {
+                // Postgres query returns: [0] total_income, [1] total_expense, [2] total_transactions
+                if (totalsRaw[0] != null) {
+                    totalIncome = (java.math.BigDecimal) totalsRaw[0];
+                }
+                if (totalsRaw[1] != null) {
+                    totalExpense = (java.math.BigDecimal) totalsRaw[1];
+                }
+                if (totalsRaw[2] != null) {
+                    totalTransactions = ((Number) totalsRaw[2]).longValue();
+                }
+            }
+        }
 
         return TransactionAnalyticsResponse.builder()
                 .monthlyStats(mapToMonthlyStats(monthlyRaw))
                 .categoryProportions(mapToProportions(proportionRaw))
+                .monthlyTotalIncome(totalIncome)
+                .monthlyTotalExpense(totalExpense)
+                .monthlyTotalTransactions(totalTransactions)
                 .build();
     }
 
