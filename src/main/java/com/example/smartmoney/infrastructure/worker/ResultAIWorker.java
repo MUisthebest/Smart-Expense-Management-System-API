@@ -89,6 +89,13 @@ public class ResultAIWorker {
 
                         String jobId = (String) payload.get("jobId");
 
+                        String userId = (String) payload.get("userId"); // 👈 thêm
+
+                        if (userId == null) {
+                            logger.warn("Missing userId in payload for job {}", jobId);
+                            continue;
+}
+
                         // ✅ 1. SAVE RESULT (QUAN TRỌNG)
                         String key = "ai:job:" + jobId;
                         redisTemplate.opsForValue().set(
@@ -99,8 +106,8 @@ public class ResultAIWorker {
 
                         // ✅ 2. PUSH WS
                         messagingTemplate.convertAndSend(
-                                "/topic/ai/" + jobId,
-                                payload
+                            "/topic/ai/user/" + userId,
+                            payload
                         );
 
                         // ✅ 3. ACK + DELETE STREAM
