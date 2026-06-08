@@ -77,7 +77,7 @@ public interface JpaTransactionRepository extends JpaRepository<TransactionEntit
 
     void deleteById(UUID id);
 
-    @Query(value = "SELECT t.category, COUNT(*) FROM transactions t WHERE EXTRACT(YEAR FROM t.created_at) = :year AND EXTRACT(MONTH FROM t.created_at) =:month GROUP BY t.category", nativeQuery = true)
+    @Query(value = "SELECT t.category, COUNT(*) FROM transactions t WHERE EXTRACT(YEAR FROM t.date) = :year AND EXTRACT(MONTH FROM t.date) =:month AND t.type =  'EXPENSE' GROUP BY t.category", nativeQuery = true)
     List<Object[]> getTransactionProportionByCategory(int year, int month);
 
     @Query(value = """
@@ -90,11 +90,11 @@ public interface JpaTransactionRepository extends JpaRepository<TransactionEntit
     stats AS (
         SELECT
             t.type,
-            ((EXTRACT(DAY FROM t.created_at)::int - 1) / 7) + 1 AS week_of_month,
+            ((EXTRACT(DAY FROM t.date)::int - 1) / 7) + 1 AS week_of_month,
             COUNT(*) AS total_rows
         FROM transactions t
-        WHERE EXTRACT(MONTH FROM t.created_at) = :month
-          AND EXTRACT(YEAR FROM t.created_at) = :year
+        WHERE EXTRACT(MONTH FROM t.date) = :month
+          AND EXTRACT(YEAR FROM t.date) = :year
         GROUP BY t.type, week_of_month
     )
     SELECT
