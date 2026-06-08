@@ -85,6 +85,9 @@ public class AIController {
             if (result.get("expense") != null)
                 response.put("expense", result.get("expense"));
 
+            if (result.get("type") != null)
+                response.put("type", result.get("type"));
+
             if (result.get("category") != null)
                 response.put("category", result.get("category"));
 
