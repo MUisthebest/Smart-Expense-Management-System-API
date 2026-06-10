@@ -14,6 +14,7 @@ public class UserIncomeMapper {
 
         return new UserIncome(
                 entity.getId(),
+                entity.getUserId(),
                 entity.getNetIncome(),
                 entity.getUsableIncome(),
                 entity.getSafeSpending(),
@@ -29,6 +30,7 @@ public class UserIncomeMapper {
     public UserIncomeEntity toEntity(UserIncome domain) {
         UserIncomeEntity entity = new UserIncomeEntity();
         entity.setId(domain.getId());
+        entity.setUserId(domain.getUserId());
         entity.setNetIncome(domain.getNetIncome());
         entity.setUsableIncome(domain.getUsableIncome());
         entity.setSafeSpending(domain.getSafeSpending());

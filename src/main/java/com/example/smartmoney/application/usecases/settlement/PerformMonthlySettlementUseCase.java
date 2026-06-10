@@ -63,7 +63,7 @@ public class PerformMonthlySettlementUseCase {
     public void settleUserProjects(UserId ownerId, List<Project> projects) {
         UUID ownerUuid = ownerId.value();
 
-        Optional<UserIncome> incomeOpt = userIncomeRepository.findById(ownerUuid);
+        Optional<UserIncome> incomeOpt = userIncomeRepository.findByUserId(ownerUuid);
         if (incomeOpt.isEmpty()) {
             log.warn("[Settlement] No UserIncome found for owner {}. Skipping.", ownerUuid);
             return;

@@ -7,6 +7,6 @@ import java.util.UUID;
 
 public interface UserIncomeRepository {
     UserIncome save(UserIncome userIncome);
-    Optional<UserIncome> findById(UUID userId);
-    void deleteById(UUID userId);
+    Optional<UserIncome> findByUserId(UUID userId);
+    void deleteByUserId(UUID userId);
 }
