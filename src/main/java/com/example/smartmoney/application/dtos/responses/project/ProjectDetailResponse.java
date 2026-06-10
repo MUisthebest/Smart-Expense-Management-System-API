@@ -49,6 +49,9 @@ public class ProjectDetailResponse {
 
     private List<ProjectHistoryResponse> histories;
 
+    /** V13: per-member commitment + arrears for group projects. */
+    private List<ProjectMemberResponse> members;
+
     public static ProjectDetailResponse fromDomain(Project p) {
         return fromDomain(p, List.of());
     }
@@ -114,6 +117,10 @@ public class ProjectDetailResponse {
         Integer currentMonth = p.getTracking() != null ? p.getTracking().getCurrentMonth() : null;
         BigDecimal moneyOwed = p.getTracking() != null ? p.getTracking().getMoneyOwed() : BigDecimal.ZERO;
 
+        List<ProjectMemberResponse> memberDtos = p.getMembers().stream()
+                .map(ProjectMemberResponse::fromDomain)
+                .toList();
+
         return ProjectDetailResponse.builder()
                 .projectId(p.getId().toString())
                 .ownerId(p.getOwnerId().toString())
@@ -137,6 +144,7 @@ public class ProjectDetailResponse {
                 .currentMonth(currentMonth)
                 .moneyOwed(moneyOwed)
                 .histories(histories)
+                .members(memberDtos)
                 .build();
     }
 }

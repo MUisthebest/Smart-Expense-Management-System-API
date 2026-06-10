@@ -13,6 +13,10 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 public class Project {
+
+    /** Hard cap on total members (including owner) for a GROUP project. */
+    public static final int MAX_GROUP_MEMBERS = 10;
+
     private final ProjectId id;
     private final UserId ownerId;
     private final ProjectType type;
@@ -173,18 +177,54 @@ public class Project {
     }
 
     public void inviteMember(UserId actorId, UserId invitedUserId, boolean isAdmin) {
+        inviteMember(actorId, invitedUserId, isAdmin, BigDecimal.ZERO);
+    }
+
+    /**
+     * Invite a member with an explicit monthly commitment. Enforces the
+     * {@link #MAX_GROUP_MEMBERS} cap (owner counted) and rejects invites when
+     * the project is FROZEN/ABANDONED/COMPLETED/CANCELLED.
+     */
+    public void inviteMember(UserId actorId, UserId invitedUserId, boolean isAdmin,
+                             BigDecimal monthlyCommitmentAmount) {
         requireGroup();
+        requireActive();
         requireCanManage(actorId);
 
         if (invitedUserId.equals(ownerId)) {
             throw new ProjectException("Owner cannot be invited", ProjectErrorCode.PROJECT_DUPLICATE_MEMBER);
         }
+        if (monthlyCommitmentAmount == null
+                || monthlyCommitmentAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new ProjectException(
+                    "Monthly commitment amount is required for GROUP invites",
+                    ProjectErrorCode.MONTHLY_COMMITMENT_REQUIRED);
+        }
+
+        // Cap = MAX_GROUP_MEMBERS - 1 active members in the map (owner counted separately).
+        long activeMembers = members.values().stream()
+                .filter(m -> m.getJoinStatus() != JoinStatus.LEFT
+                        && m.getJoinStatus() != JoinStatus.DEFAULTED)
+                .count();
+        if (activeMembers + 1 >= MAX_GROUP_MEMBERS) { // +1 for owner
+            throw new ProjectException(
+                    "Member limit (" + MAX_GROUP_MEMBERS + ") reached",
+                    ProjectErrorCode.PROJECT_MEMBER_LIMIT_REACHED);
+        }
+
         ProjectMember existing = members.get(invitedUserId.value());
-        if (existing != null && existing.getJoinStatus() != JoinStatus.LEFT) {
+        if (existing != null
+                && existing.getJoinStatus() != JoinStatus.LEFT
+                && existing.getJoinStatus() != JoinStatus.DEFAULTED) {
             throw new ProjectException("Member already exists", ProjectErrorCode.PROJECT_DUPLICATE_MEMBER);
         }
 
-        ProjectMember member = new ProjectMember(invitedUserId, JoinStatus.INVITED, isAdmin);
+        ProjectMember member = new ProjectMember(
+                invitedUserId,
+                JoinStatus.INVITED,
+                isAdmin,
+                monthlyCommitmentAmount,
+                BigDecimal.ZERO);
         members.put(invitedUserId.value(), member);
     }
 
@@ -229,7 +269,9 @@ public class Project {
             throw new ProjectException("Contribution amount must be > 0",
                     ProjectErrorCode.PROJECT_CONTRIBUTION_INVALID_AMOUNT);
         }
+        requireContributable();
 
+        ProjectMember contributorMember = null;
         if (type == ProjectType.PERSONAL) {
             if (!actorId.equals(ownerId)) {
                 throw new ProjectException("Permission denied",
@@ -237,15 +279,26 @@ public class Project {
             }
         } else {
             if (actorId.equals(ownerId)) {
-                // Owner can always contribute in GROUP projects
+                // Owner contributes as the implicit admin; reduce their member
+                // arrears too if a member row exists (rare; owner is normally
+                // tracked via project_members for arrears purposes via a
+                // synthetic admin row created at project creation).
+                contributorMember = members.get(actorId.value());
             } else {
-            ProjectMember member = members.get(actorId.value());
-            if (member == null) {
-                throw new ProjectException("Member not found", ProjectErrorCode.PROJECT_MEMBER_NOT_FOUND);
-            }
-            if (member.getJoinStatus() != JoinStatus.JOINED) {
-                throw new ProjectException("Member not joined", ProjectErrorCode.PROJECT_MEMBER_NOT_FOUND);
-            }
+                ProjectMember member = members.get(actorId.value());
+                if (member == null) {
+                    throw new ProjectException("Member not found",
+                            ProjectErrorCode.PROJECT_MEMBER_NOT_FOUND);
+                }
+                if (member.isDefaulted()) {
+                    throw new ProjectException("Member has been removed for default",
+                            ProjectErrorCode.PROJECT_MEMBER_DEFAULTED);
+                }
+                if (member.getJoinStatus() != JoinStatus.JOINED) {
+                    throw new ProjectException("Member not joined",
+                            ProjectErrorCode.PROJECT_MEMBER_NOT_JOINED);
+                }
+                contributorMember = member;
             }
         }
 
@@ -258,6 +311,11 @@ public class Project {
                 Instant.now()
         );
         contributions.add(c);
+
+        // Catch-up logic: reduce member arrears by this contribution amount.
+        if (contributorMember != null) {
+            contributorMember.reduceArrears(amount);
+        }
         return c;
     }
 
@@ -307,6 +365,40 @@ public class Project {
         }
     }
 
+    /**
+     * Operations that mutate membership require an ACTIVE project — FROZEN,
+     * ABANDONED, COMPLETED, and CANCELLED are all closed for invites/removes.
+     */
+    private void requireActive() {
+        if (status == ProjectStatus.FROZEN) {
+            throw new ProjectException("Project is frozen", ProjectErrorCode.PROJECT_FROZEN);
+        }
+        if (status == ProjectStatus.ABANDONED) {
+            throw new ProjectException("Project is abandoned", ProjectErrorCode.PROJECT_ABANDONED);
+        }
+        if (status != ProjectStatus.ACTIVE) {
+            throw new ProjectException("Project is not active", ProjectErrorCode.PROJECT_PERMISSION_DENIED);
+        }
+    }
+
+    /**
+     * Contributions are only valid on ACTIVE projects.
+     */
+    private void requireContributable() {
+        if (status == ProjectStatus.FROZEN) {
+            throw new ProjectException("Project is frozen; contributions are paused",
+                    ProjectErrorCode.PROJECT_FROZEN);
+        }
+        if (status == ProjectStatus.ABANDONED) {
+            throw new ProjectException("Project is abandoned; contributions are closed",
+                    ProjectErrorCode.PROJECT_ABANDONED);
+        }
+        if (status != ProjectStatus.ACTIVE) {
+            throw new ProjectException("Project is not active; contributions are closed",
+                    ProjectErrorCode.PROJECT_PERMISSION_DENIED);
+        }
+    }
+
     private void requireCanManage(UserId actorId) {
         if (actorId == null) {
             throw new ProjectException("Permission denied",
@@ -324,6 +416,134 @@ public class Project {
 
     public Instant getCreatedAt() {
         return createdAt;
+    }
+
+    // ──────────────────────────────────────────────────────────────────
+    //  V13 — Lifecycle transitions for Hybrid Splitwise group projects
+    // ──────────────────────────────────────────────────────────────────
+
+    /**
+     * Manually freezes the project. Only the owner may freeze; the project
+     * must currently be ACTIVE. The automated arrears worker also calls this
+     * (via the dedicated system path) when the admin/owner hits 3-month default.
+     */
+    public void freeze(UserId actorId) {
+        if (actorId != null && !actorId.equals(ownerId)) {
+            throw new ProjectException("Only owner can freeze project",
+                    ProjectErrorCode.PROJECT_PERMISSION_DENIED);
+        }
+        if (status == ProjectStatus.ABANDONED) {
+            throw new ProjectException("Project is abandoned", ProjectErrorCode.PROJECT_ABANDONED);
+        }
+        if (status == ProjectStatus.COMPLETED) {
+            throw new ProjectException("Project is completed", ProjectErrorCode.PROJECT_PERMISSION_DENIED);
+        }
+        this.status = ProjectStatus.FROZEN;
+    }
+
+    /**
+     * Lifts a freeze. Only the owner may unfreeze; the admin/owner's own
+     * member arrears must be zero (i.e. they've caught up).
+     */
+    public void unfreeze(UserId actorId) {
+        if (!actorId.equals(ownerId)) {
+            throw new ProjectException("Only owner can unfreeze project",
+                    ProjectErrorCode.PROJECT_PERMISSION_DENIED);
+        }
+        if (status != ProjectStatus.FROZEN) {
+            throw new ProjectException("Project is not frozen",
+                    ProjectErrorCode.PROJECT_PERMISSION_DENIED);
+        }
+        ProjectMember adminMember = members.get(actorId.value());
+        if (adminMember != null
+                && adminMember.getArrearsBalance().compareTo(BigDecimal.ZERO) > 0) {
+            throw new ProjectException(
+                    "Pay off your arrears before unfreezing",
+                    ProjectErrorCode.PROJECT_FROZEN);
+        }
+        this.status = ProjectStatus.ACTIVE;
+    }
+
+    /**
+     * Terminal abandonment. The application layer is responsible for issuing
+     * the compensating PROJECT_REFUND transactions; this method only flips
+     * the status flag and blocks future mutations.
+     */
+    public void abandon(UserId actorId) {
+        if (!actorId.equals(ownerId)) {
+            throw new ProjectException("Only owner can abandon project",
+                    ProjectErrorCode.PROJECT_PERMISSION_DENIED);
+        }
+        if (status == ProjectStatus.ABANDONED) {
+            throw new ProjectException("Project already abandoned",
+                    ProjectErrorCode.PROJECT_ABANDONED);
+        }
+        this.status = ProjectStatus.ABANDONED;
+    }
+
+    /**
+     * System-only call from the monthly arrears worker. Marks a member as
+     * DEFAULTED (kicked + arrears wiped). Owner cannot be kicked — for
+     * owner default the worker freezes the project instead.
+     */
+    public void kickForDefault(UserId memberId) {
+        if (memberId.equals(ownerId)) {
+            throw new ProjectException("Owner cannot be kicked",
+                    ProjectErrorCode.PROJECT_PERMISSION_DENIED);
+        }
+        ProjectMember member = members.get(memberId.value());
+        if (member == null) {
+            throw new ProjectException("Member not found",
+                    ProjectErrorCode.PROJECT_MEMBER_NOT_FOUND);
+        }
+        member.markDefaulted();
+    }
+
+    /**
+     * @return the in-map member record for the owner, if one was explicitly
+     * created at project setup (so the arrears worker can track owner
+     * commitments). Empty when no such row exists.
+     */
+    public java.util.Optional<ProjectMember> ownerAsMember() {
+        return java.util.Optional.ofNullable(members.get(ownerId.value()));
+    }
+
+    /**
+     * Registers the project owner as a synthetic JOINED admin in the members
+     * map with the supplied monthly commitment, so the arrears worker can
+     * track the owner's own pledge. Called once at GROUP project creation.
+     */
+    public void registerOwnerAsMember(BigDecimal ownerMonthlyCommitment) {
+        requireGroup();
+        if (members.containsKey(ownerId.value())) {
+            throw new ProjectException("Owner already registered as member",
+                    ProjectErrorCode.PROJECT_DUPLICATE_MEMBER);
+        }
+        if (ownerMonthlyCommitment == null
+                || ownerMonthlyCommitment.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new ProjectException(
+                    "Owner monthly commitment is required",
+                    ProjectErrorCode.MONTHLY_COMMITMENT_REQUIRED);
+        }
+        ProjectMember owner = new ProjectMember(
+                ownerId,
+                JoinStatus.JOINED,
+                true,
+                ownerMonthlyCommitment,
+                BigDecimal.ZERO);
+        members.put(ownerId.value(), owner);
+    }
+
+    /**
+     * @return sum of {@code arrearsBalance} across all current members
+     * (excluding LEFT/DEFAULTED). Used to refresh {@code project_tracking.money_owed}.
+     */
+    public BigDecimal sumActiveArrears() {
+        return members.values().stream()
+                .filter(m -> m.getJoinStatus() != JoinStatus.LEFT
+                        && m.getJoinStatus() != JoinStatus.DEFAULTED)
+                .map(ProjectMember::getArrearsBalance)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
     public static Project rehydrate (ProjectId id,
