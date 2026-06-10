@@ -149,24 +149,82 @@ public class ProjectController {
 
     // ================= INVITE MEMBER =================
 
-    @Operation(summary = "Invite member to group project")
+    @Operation(
+            summary = "Invite member to group project",
+            description = "Generates a one-time deep-link invite token (7-day TTL), sends push + email to the invitee, and returns the deep-link URL."
+    )
     @PostMapping("/{projectId}/members/invite")
-    public CheckResponse<ProjectDetailResponse> invite(Authentication auth,
-                                                       @PathVariable String projectId,
-                                                       @Valid @RequestBody InviteProjectMemberRequest req) {
-        ProjectDetailResponse data = inviteProjectMemberUseCase.execute(actorId(auth), projectId, req);
-        return CheckResponse.<ProjectDetailResponse>builder()
+    public CheckResponse<InviteResponse> invite(Authentication auth,
+                                                @PathVariable String projectId,
+                                                @Valid @RequestBody InviteProjectMemberRequest req) {
+        InviteResponse data = inviteProjectMemberUseCase.execute(actorId(auth), projectId, req);
+        return CheckResponse.<InviteResponse>builder()
                 .success(true)
                 .message("Invited")
                 .data(data)
                 .build();
     }
 
-    @Operation(summary = "Accept project invitation")
-    @PostMapping("/{projectId}/members/accept")
-    public CheckResponse<ProjectDetailResponse> accept(Authentication auth,
-                                                       @PathVariable String projectId) {
-        ProjectDetailResponse data = acceptProjectInviteUseCase.execute(actorId(auth), projectId);
+    @Operation(
+            summary = "Direct browser invite acceptance (Method B)",
+            description = "GET endpoint requested directly from a browser click. Secured by session form login, completes invite, and displays HTML success."
+    )
+    @GetMapping(value = "/invites/accept-direct", produces = "text/html")
+    @ResponseBody
+    public String acceptViaTokenDirect(Authentication auth, @RequestParam("token") String token) {
+        try {
+            AcceptInviteRequest req = new AcceptInviteRequest();
+            req.setToken(token);
+            
+            ProjectDetailResponse detail = acceptProjectInviteUseCase.execute(actorId(auth), req);
+            
+            return "<html>" +
+                    "<head><style>" +
+                    "body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; background-color: #f3f4f6; margin: 0; }" +
+                    ".card { background: white; padding: 2.5rem; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06); text-align: center; max-width: 400px; }" +
+                    "h1 { color: #10b981; margin-top: 0; }" +
+                    "p { color: #4b5563; font-size: 1.1rem; line-height: 1.5; }" +
+                    ".btn { display: inline-block; margin-top: 1.5rem; padding: 0.75rem 1.5rem; background-color: #3b82f6; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; transition: background 0.2s; }" +
+                    ".btn:hover { background-color: #2563eb; }" +
+                    "</style></head>" +
+                    "<body>" +
+                    "<div class='card'>" +
+                    "<h1>Project Joined!</h1>" +
+                    "<p>You have successfully accepted the invitation and joined the project <strong>" + detail.getName() + "</strong>.</p>" +
+                    "<a href='/swagger-ui.html' class='btn'>Go to API Swagger docs</a>" +
+                    "</div>" +
+                    "</body>" +
+                    "</html>";
+        } catch (Exception ex) {
+            return "<html>" +
+                    "<head><style>" +
+                    "body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; background-color: #f3f4f6; margin: 0; }" +
+                    ".card { background: white; padding: 2.5rem; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06); text-align: center; max-width: 400px; }" +
+                    "h1 { color: #ef4444; margin-top: 0; }" +
+                    "p { color: #4b5563; font-size: 1.1rem; line-height: 1.5; }" +
+                    ".btn { display: inline-block; margin-top: 1.5rem; padding: 0.75rem 1.5rem; background-color: #3b82f6; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; transition: background 0.2s; }" +
+                    ".btn:hover { background-color: #2563eb; }" +
+                    "</style></head>" +
+                    "<body>" +
+                    "<div class='card'>" +
+                    "<h1>Invitation Failed</h1>" +
+                    "<p>Could not accept the invitation: <strong>" + ex.getMessage() + "</strong></p>" +
+                    "<p style='font-size:0.9rem;color:#9ca3af;margin-top:1rem;'>The token may be expired, already used, or invalid.</p>" +
+                    "<a href='/swagger-ui.html' class='btn'>Go to API Swagger docs</a>" +
+                    "</div>" +
+                    "</body>" +
+                    "</html>";
+        }
+    }
+
+    @Operation(
+            summary = "Accept project invitation via token",
+            description = "Redeems the one-time invite token received by push / email. Accepts the invite and burns the token."
+    )
+    @PostMapping("/invites/accept")
+    public CheckResponse<ProjectDetailResponse> acceptViaToken(Authentication auth,
+                                                               @Valid @RequestBody AcceptInviteRequest req) {
+        ProjectDetailResponse data = acceptProjectInviteUseCase.execute(actorId(auth), req);
         return CheckResponse.<ProjectDetailResponse>builder()
                 .success(true)
                 .message("Accepted")
