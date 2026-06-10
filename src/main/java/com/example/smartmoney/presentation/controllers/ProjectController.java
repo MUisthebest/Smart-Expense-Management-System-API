@@ -53,6 +53,11 @@ public class ProjectController {
     private final GetProjectHistoryUseCase getProjectHistoryUseCase;
     private final ProjectBudgetAdvisorUseCase projectBudgetAdvisorUseCase;
 
+    // V13: arrears / freeze lifecycle
+    private final FreezeProjectUseCase freezeProjectUseCase;
+    private final UnfreezeProjectUseCase unfreezeProjectUseCase;
+    private final UpdateMemberCommitmentUseCase updateMemberCommitmentUseCase;
+
     private String actorId(Authentication auth) {
         
         return auth.getName();
@@ -336,6 +341,63 @@ public class ProjectController {
         return CheckResponse.<ProjectBudgetAdvisorResponse>builder()
                 .success(true)
                 .message("OK")
+                .data(data)
+                .build();
+    }
+
+    // ============ V13: Arrears / Freeze lifecycle ============
+
+    @Operation(
+            summary = "Freeze project",
+            description = "Owner pauses contributions. Project moves to FROZEN; no further " +
+                    "contributions or invitations until unfrozen. Owner must catch up on " +
+                    "their own arrears (if any) before unfreezing succeeds."
+    )
+    @PostMapping("/{projectId}/freeze")
+    public CheckResponse<ProjectDetailResponse> freeze(
+            Authentication auth,
+            @PathVariable String projectId) {
+        ProjectDetailResponse data = freezeProjectUseCase.execute(actorId(auth), projectId);
+        return CheckResponse.<ProjectDetailResponse>builder()
+                .success(true)
+                .message("Frozen")
+                .data(data)
+                .build();
+    }
+
+    @Operation(
+            summary = "Unfreeze project",
+            description = "Owner resumes a frozen project. Requires the owner's own member " +
+                    "arrears balance to be zero."
+    )
+    @PostMapping("/{projectId}/unfreeze")
+    public CheckResponse<ProjectDetailResponse> unfreeze(
+            Authentication auth,
+            @PathVariable String projectId) {
+        ProjectDetailResponse data = unfreezeProjectUseCase.execute(actorId(auth), projectId);
+        return CheckResponse.<ProjectDetailResponse>builder()
+                .success(true)
+                .message("Unfrozen")
+                .data(data)
+                .build();
+    }
+
+    @Operation(
+            summary = "Update member monthly commitment",
+            description = "Owner or admin changes a member's pledged monthly amount. " +
+                    "If raised, the target member's safe-spending headroom must cover the delta."
+    )
+    @PatchMapping("/{projectId}/members/{userId}/commitment")
+    public CheckResponse<ProjectDetailResponse> updateMemberCommitment(
+            Authentication auth,
+            @PathVariable String projectId,
+            @PathVariable String userId,
+            @Valid @RequestBody UpdateMemberCommitmentRequest req) {
+        ProjectDetailResponse data = updateMemberCommitmentUseCase.execute(
+                actorId(auth), projectId, userId, req);
+        return CheckResponse.<ProjectDetailResponse>builder()
+                .success(true)
+                .message("Updated")
                 .data(data)
                 .build();
     }

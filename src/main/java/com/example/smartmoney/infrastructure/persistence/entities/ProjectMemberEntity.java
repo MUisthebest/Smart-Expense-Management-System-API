@@ -4,6 +4,7 @@ import com.example.smartmoney.domain.models.project.enums.JoinStatus;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -34,9 +35,18 @@ public class ProjectMemberEntity {
     @Column(name = "is_admin", nullable = false)
     private boolean admin;
 
+    /** V13: pledged monthly contribution amount; 0 for legacy members. */
+    @Column(name = "monthly_commitment_amount", nullable = false, precision = 19, scale = 2)
+    private BigDecimal monthlyCommitmentAmount;
+
+    /** V13: running unpaid pledge accumulated by the arrears worker. */
+    @Column(name = "arrears_balance", nullable = false, precision = 19, scale = 2)
+    private BigDecimal arrearsBalance;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 }
+
