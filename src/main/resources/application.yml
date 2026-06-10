@@ -80,6 +80,9 @@ app:
     audience: "smart-money-users"
     token-prefix: "Bearer "
   
+  # Base URL used for deep-link invite generation
+  base-url: ${APP_BASE_URL:https://yourapp.com}
+  
   # Google OAuth Configuration
   google:
     oauth2:
@@ -120,9 +123,9 @@ app:
 
   # Cloudinary Configuration
   cloudinary:
-    cloud-name: ${CLOUDINARY_CLOUD_NAME:your_cloud_name}
-    api-key: ${CLOUDINARY_API_KEY:your_api_key}
-    api-secret: ${CLOUDINARY_API_SECRET:your_api_secret}
+    cloud-name: ${APP_CLOUDINARY_CLOUD_NAME:your_cloud_name}
+    api-key: ${APP_CLOUDINARY_API_KEY:your_api_key}
+    api-secret: ${APP_CLOUDINARY_API_SECRET:your_api_secret}
     folder: "smart-money/users"
     secure: true
   
