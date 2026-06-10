@@ -51,6 +51,12 @@ public class CreateProjectUseCase {
                 req.getDeadline()
         );
 
+        // For GROUP projects, register the owner as a synthetic JOINED admin
+        // member so the arrears worker can track the owner's own pledge.
+        if (req.getType() == com.example.smartmoney.domain.models.project.enums.ProjectType.GROUP) {
+            p.registerOwnerAsMember(req.getOwnerMonthlyCommitmentAmount());
+        }
+
         Project savedProject = projectRepository.save(p);
 
         // Automate tracking creation
@@ -73,6 +79,15 @@ public class CreateProjectUseCase {
     }
 
     private void validateCreate(String actorId, CreateProjectRequest req) {
+        // ── V13: Project creation window — only days 1..7 of month ──
+        int dayOfMonth = LocalDate.now().getDayOfMonth();
+        if (dayOfMonth > 7) {
+            throw new ProjectException(
+                    "Projects can only be created during the first week of the month (days 1-7)",
+                    ProjectErrorCode.PROJECT_CREATION_OUTSIDE_WINDOW
+            );
+        }
+
         UUID userId;
         try {
             userId = UUID.fromString(actorId);
@@ -105,6 +120,16 @@ public class CreateProjectUseCase {
             throw new ProjectException(
                     "Project currency must match your user income currency",
                     ProjectErrorCode.PROJECT_USER_INCOME_REQUIRED
+            );
+        }
+
+        // GROUP-specific: require owner commitment
+        if (req.getType() == com.example.smartmoney.domain.models.project.enums.ProjectType.GROUP
+                && (req.getOwnerMonthlyCommitmentAmount() == null
+                    || req.getOwnerMonthlyCommitmentAmount().compareTo(BigDecimal.ZERO) <= 0)) {
+            throw new ProjectException(
+                    "ownerMonthlyCommitmentAmount is required for GROUP projects",
+                    ProjectErrorCode.MONTHLY_COMMITMENT_REQUIRED
             );
         }
 
@@ -159,6 +184,16 @@ public class CreateProjectUseCase {
                 otherActive,
                 MonthlyObligationPolicy.derivedMonthly(req.getTargetAmount(), req.getDeadline())
         );
+
+        // ── V13: Hard safe-spending gate — refuse if the new obligation
+        // would push the user underwater. For PERSONAL we use the derived
+        // monthly saving (target/months). For GROUP we use the owner's
+        // explicit pledge.
+        BigDecimal proposedMonthly =
+                req.getType() == com.example.smartmoney.domain.models.project.enums.ProjectType.GROUP
+                        ? req.getOwnerMonthlyCommitmentAmount()
+                        : MonthlyObligationPolicy.derivedMonthly(req.getTargetAmount(), req.getDeadline());
+        safeSpendingService.requireCanAfford(actor, proposedMonthly);
     }
 
     private int monthsToDeadline(LocalDate today, LocalDate deadline) {

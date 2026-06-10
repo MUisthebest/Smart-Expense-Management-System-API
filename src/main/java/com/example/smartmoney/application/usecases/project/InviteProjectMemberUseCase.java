@@ -23,7 +23,14 @@ public class InviteProjectMemberUseCase {
         Project p = projectRepository.findById(ProjectId.of(projectId))
                 .orElseThrow(() -> new ProjectException("Project not found", ProjectErrorCode.PROJECT_NOT_FOUND));
 
-        p.inviteMember(UserId.of(actorId), UserId.of(req.getUserId()), req.isAdmin());
+        // Note: invitee's safe-spending is intentionally NOT checked here.
+        // That check belongs in AcceptProjectInviteUseCase so the admin
+        // never sees the invitee's financial state (privacy-preserving).
+        p.inviteMember(
+                UserId.of(actorId),
+                UserId.of(req.getUserId()),
+                req.isAdmin(),
+                req.getMonthlyCommitmentAmount());
 
         Project saved = projectRepository.save(p);
         return ProjectDetailResponse.fromDomain(saved);
