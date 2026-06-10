@@ -1,5 +1,6 @@
 package com.example.smartmoney.domain.services;
 
+import com.example.smartmoney.domain.exceptions.InsufficientSafeSpendingException;
 import com.example.smartmoney.domain.exceptions.ProjectErrorCode;
 import com.example.smartmoney.domain.exceptions.ProjectException;
 import com.example.smartmoney.domain.models.project.Project;
@@ -40,24 +41,7 @@ public class SafeSpendingService {
             return;
         }
 
-        List<Project> activeProjects = projectRepository.findAllByUser(ownerId)
-                .stream()
-                .filter(p -> p.getStatus() == ProjectStatus.ACTIVE)
-                .toList();
-
-        BigDecimal sumObligations = BigDecimal.ZERO;
-
-        for (Project p : activeProjects) {
-            ProjectTracking tracking = projectTrackingRepository.findByProjectId(p.getId()).orElse(null);
-            
-            BigDecimal monthlySaving = tracking != null && tracking.getMonthlySaving() != null 
-                    ? tracking.getMonthlySaving() : derivedMonthly(p);
-            
-            BigDecimal moneyOwed = tracking != null && tracking.getMoneyOwed() != null 
-                    ? tracking.getMoneyOwed() : BigDecimal.ZERO;
-
-            sumObligations = sumObligations.add(monthlySaving).add(moneyOwed);
-        }
+        BigDecimal sumObligations = sumObligationsForUser(ownerId);
 
         int newSafeSpending = income.getUsableIncome() - sumObligations.setScale(0, RoundingMode.HALF_UP).intValue();
         if (newSafeSpending < 0) {
@@ -66,6 +50,79 @@ public class SafeSpendingService {
 
         income.setSafeSpending(newSafeSpending);
         userIncomeRepository.save(income);
+    }
+
+    /**
+     * @return the user's persisted safe spending, or {@link BigDecimal#ZERO}
+     * when the user has no income profile yet.
+     */
+    public BigDecimal currentSafeSpending(UserId ownerId) {
+        UserIncome income = userIncomeRepository.findById(ownerId.value()).orElse(null);
+        if (income == null || income.getSafeSpending() == null) {
+            return BigDecimal.ZERO;
+        }
+        return BigDecimal.valueOf(income.getSafeSpending());
+    }
+
+    /**
+     * Pure-arithmetic preview: what the user's safe spending would be if a
+     * new monthly obligation of {@code additionalMonthly} were added on top
+     * of their current active commitments. Does not persist anything.
+     */
+    public BigDecimal projectedSafeSpendingIfAdded(UserId ownerId, BigDecimal additionalMonthly) {
+        if (additionalMonthly == null) additionalMonthly = BigDecimal.ZERO;
+
+        UserIncome income = userIncomeRepository.findById(ownerId.value()).orElse(null);
+        if (income == null || income.getUsableIncome() == null) {
+            return BigDecimal.ZERO;
+        }
+
+        BigDecimal sumObligations = sumObligationsForUser(ownerId).add(additionalMonthly);
+        BigDecimal usable = BigDecimal.valueOf(income.getUsableIncome());
+        BigDecimal result = usable.subtract(sumObligations);
+        return result.compareTo(BigDecimal.ZERO) < 0 ? BigDecimal.ZERO : result;
+    }
+
+    /**
+     * Gating check used by every code path that increases a user's monthly
+     * obligations (create personal project, raise monthly saving, accept a
+     * group invite). Throws {@link InsufficientSafeSpendingException} with
+     * the requested and currently-available figures when the addition would
+     * push safe spending below zero.
+     *
+     * <p>Boundary: equal to current safe spending is allowed (i.e. floor is 0).
+     */
+    public void requireCanAfford(UserId ownerId, BigDecimal additionalMonthly) {
+        if (additionalMonthly == null
+                || additionalMonthly.compareTo(BigDecimal.ZERO) <= 0) return;
+
+        BigDecimal current = currentSafeSpending(ownerId);
+        if (additionalMonthly.compareTo(current) > 0) {
+            throw new InsufficientSafeSpendingException(additionalMonthly, current);
+        }
+    }
+
+    private BigDecimal sumObligationsForUser(UserId ownerId) {
+        List<Project> activeProjects = projectRepository.findAllByUser(ownerId)
+                .stream()
+                .filter(p -> ownerId.equals(p.getOwnerId()))
+                .filter(p -> p.getStatus() == ProjectStatus.ACTIVE)
+                .toList();
+
+        BigDecimal sumObligations = BigDecimal.ZERO;
+
+        for (Project p : activeProjects) {
+            ProjectTracking tracking = projectTrackingRepository.findByProjectId(p.getId()).orElse(null);
+
+            BigDecimal monthlySaving = tracking != null && tracking.getMonthlySaving() != null
+                    ? tracking.getMonthlySaving() : derivedMonthly(p);
+
+            BigDecimal moneyOwed = tracking != null && tracking.getMoneyOwed() != null
+                    ? tracking.getMoneyOwed() : BigDecimal.ZERO;
+
+            sumObligations = sumObligations.add(monthlySaving).add(moneyOwed);
+        }
+        return sumObligations;
     }
 
     private BigDecimal derivedMonthly(Project p) {

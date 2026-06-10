@@ -4,21 +4,41 @@ import com.example.smartmoney.domain.models.project.ProjectMember;
 import com.example.smartmoney.domain.models.project.valueobjects.UserId;
 import com.example.smartmoney.infrastructure.persistence.entities.ProjectMemberEntity;
 import org.mapstruct.Mapper;
-import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
 import org.springframework.stereotype.Component;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
+/**
+ * Maps {@link ProjectMember} ↔ {@link ProjectMemberEntity}. Both directions
+ * are written explicitly to avoid MapStruct ambiguity introduced by the
+ * V13 fields (monthly commitment, arrears balance) — these need to flow
+ * through the rich 5-arg domain constructor.
+ */
 @Component
 @Mapper(componentModel = "spring")
 public abstract class ProjectMemberMapper {
 
-    public abstract ProjectMemberEntity toEntity(ProjectMember domain);
+    /** Hand-rolled to ensure the 5-arg domain constructor is used. */
+    public ProjectMember toDomain(ProjectMemberEntity entity) {
+        if (entity == null) return null;
+        BigDecimal commitment = entity.getMonthlyCommitmentAmount() != null
+                ? entity.getMonthlyCommitmentAmount() : BigDecimal.ZERO;
+        BigDecimal arrears = entity.getArrearsBalance() != null
+                ? entity.getArrearsBalance() : BigDecimal.ZERO;
+        return new ProjectMember(
+                mapUserIdToDomain(entity.getUserId()),
+                entity.getJoinStatus(),
+                entity.isAdmin(),
+                commitment,
+                arrears
+        );
+    }
 
-    @Mapping(target = "userId", expression = "java(mapUserIdToDomain(entity.getUserId()))")
-    public abstract ProjectMember toDomain(ProjectMemberEntity entity);
+    /** Letting MapStruct generate the shell; @AfterMapping fills value objects. */
+    public abstract ProjectMemberEntity toEntity(ProjectMember domain);
 
     protected UUID mapUserIdToEntity(UserId userId) {
         return userId != null ? userId.value() : null;
@@ -34,6 +54,12 @@ public abstract class ProjectMemberMapper {
             entity.setUserId(mapUserIdToEntity(domain.getUserId()));
             entity.setJoinStatus(domain.getJoinStatus());
             entity.setAdmin(domain.isAdmin());
+            entity.setMonthlyCommitmentAmount(
+                    domain.getMonthlyCommitmentAmount() != null
+                            ? domain.getMonthlyCommitmentAmount() : BigDecimal.ZERO);
+            entity.setArrearsBalance(
+                    domain.getArrearsBalance() != null
+                            ? domain.getArrearsBalance() : BigDecimal.ZERO);
         }
     }
 
@@ -46,3 +72,4 @@ public abstract class ProjectMemberMapper {
         return e;
     }
 }
+
