@@ -11,10 +11,13 @@ import com.example.smartmoney.domain.models.project.valueobjects.ProjectId;
 import com.example.smartmoney.domain.models.project.valueobjects.UserId;
 import com.example.smartmoney.domain.repositories.ProjectHistoryRepository;
 import com.example.smartmoney.domain.repositories.ProjectRepository;
+import com.example.smartmoney.domain.repositories.UserRepository;
+import com.example.smartmoney.application.dtos.responses.project.ProjectMemberResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -23,6 +26,7 @@ public class GetProjectDetailUseCase {
 
     private final ProjectRepository projectRepository;
     private final ProjectHistoryRepository projectHistoryRepository;
+    private final UserRepository userRepository;
 
     @Transactional(readOnly = true)
     public ProjectDetailResponse execute(String actorId, String projectId) {
@@ -48,6 +52,35 @@ public class GetProjectDetailUseCase {
                 .map(ProjectHistoryResponse::fromDomain)
                 .toList();
 
-        return ProjectDetailResponse.fromDomain(p, histories);
+        List<ProjectMemberResponse> memberResponses = new ArrayList<>();
+        if (p.getType() == ProjectType.GROUP) {
+            userRepository.findById(p.getOwnerId().value()).ifPresent(owner -> {
+                memberResponses.add(ProjectMemberResponse.builder()
+                        .userId(owner.getId().toString())
+                        .username(owner.getUsername())
+                        .email(owner.getEmail() != null ? owner.getEmail().getValue() : "")
+                        .fullName(owner.getFullName())
+                        .joinStatus(JoinStatus.JOINED)
+                        .admin(true)
+                        .build());
+            });
+
+            for (var m : p.getMembers()) {
+                if (m.getJoinStatus() != JoinStatus.LEFT) {
+                    userRepository.findById(m.getUserId().value()).ifPresent(user -> {
+                        memberResponses.add(ProjectMemberResponse.builder()
+                                .userId(user.getId().toString())
+                                .username(user.getUsername())
+                                .email(user.getEmail() != null ? user.getEmail().getValue() : "")
+                                .fullName(user.getFullName())
+                                .joinStatus(m.getJoinStatus())
+                                .admin(m.isAdmin())
+                                .build());
+                    });
+                }
+            }
+        }
+
+        return ProjectDetailResponse.fromDomain(p, histories, memberResponses);
     }
 }

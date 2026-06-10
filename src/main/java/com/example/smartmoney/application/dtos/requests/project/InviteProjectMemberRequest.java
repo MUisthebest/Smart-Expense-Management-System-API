@@ -1,7 +1,8 @@
 package com.example.smartmoney.application.dtos.requests.project;
 
-import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
@@ -9,8 +10,9 @@ import java.math.BigDecimal;
 
 @Data
 public class InviteProjectMemberRequest {
-    @NotBlank(message = "UserId is required")
-    private String userId;
+    @NotBlank(message = "Email is required")
+    @Email(message = "Invalid email format")
+    private String email;
 
     private boolean admin;
 

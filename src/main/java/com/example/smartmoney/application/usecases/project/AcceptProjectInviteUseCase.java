@@ -1,6 +1,9 @@
 package com.example.smartmoney.application.usecases.project;
 
+import com.example.smartmoney.application.dtos.requests.project.AcceptInviteRequest;
 import com.example.smartmoney.application.dtos.responses.project.ProjectDetailResponse;
+import com.example.smartmoney.application.ports.invite.InviteTokenPort;
+import com.example.smartmoney.application.ports.invite.InviteTokenPort.InviteTokenPayload;
 import com.example.smartmoney.domain.exceptions.ProjectErrorCode;
 import com.example.smartmoney.domain.exceptions.ProjectException;
 import com.example.smartmoney.domain.models.project.Project;
@@ -10,45 +13,54 @@ import com.example.smartmoney.domain.models.project.valueobjects.UserId;
 import com.example.smartmoney.domain.repositories.ProjectRepository;
 import com.example.smartmoney.domain.services.SafeSpendingService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
-
+/**
+ * Redeems a one-time project invite token.
+ *
+ * <ol>
+ *   <li>Validates the token against Redis — rejects if expired or already used.</li>
+ *   <li>Accepts the invite in the {@code project_members} row (sets {@code JOIN_STATUS = JOINED}).</li>
+ *   <li>Deletes the token from Redis to prevent replay attacks.</li>
+ * </ol>
+ *
+ * <p>The invitee submits the token they received via push notification or email, together
+ * with an optional {@code commitmentAmount} (reserved for future billing integration).
+ */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AcceptProjectInviteUseCase {
 
     private final ProjectRepository projectRepository;
-    private final SafeSpendingService safeSpendingService;
+    private final InviteTokenPort inviteTokenPort;
 
     @Transactional
-    public ProjectDetailResponse execute(String actorId, String projectId) {
-        Project p = projectRepository.findById(ProjectId.of(projectId))
+    public ProjectDetailResponse execute(String actorId, AcceptInviteRequest req) {
+
+        // 1. Validate the token from Redis
+        InviteTokenPayload payload = inviteTokenPort.find(req.getToken())
+                .orElseThrow(() -> new ProjectException(
+                        "Invite token is invalid or has expired",
+                        ProjectErrorCode.PROJECT_NOT_FOUND));
+
+        String projectId = payload.projectId().toString();
+
+        // 2. Load the project
+        Project project = projectRepository.findById(ProjectId.of(projectId))
                 .orElseThrow(() -> new ProjectException("Project not found", ProjectErrorCode.PROJECT_NOT_FOUND));
 
-        UserId invitee = UserId.of(actorId);
+        // 3. Accept the invite — domain model sets JoinStatus → JOINED
+        project.acceptInvite(UserId.of(actorId));
 
-        // Privacy-preserving safe-spending precondition. The InsufficientSafeSpendingException
-        // is only ever surfaced via this endpoint, which is invoked by the invitee themselves —
-        // the admin who issued the invite never sees the financial details.
-        ProjectMember member = p.getMembers().stream()
-                .filter(m -> invitee.equals(m.getUserId()))
-                .findFirst()
-                .orElseThrow(() -> new ProjectException("Invite not found",
-                        ProjectErrorCode.PROJECT_MEMBER_NOT_FOUND));
+        Project saved = projectRepository.save(project);
 
-        BigDecimal commitment = member.getMonthlyCommitmentAmount();
-        if (commitment != null && commitment.compareTo(BigDecimal.ZERO) > 0) {
-            safeSpendingService.requireCanAfford(invitee, commitment);
-        }
+        // 4. Burn the token so it cannot be reused
+        inviteTokenPort.delete(req.getToken());
 
-        p.acceptInvite(invitee);
-        Project saved = projectRepository.save(p);
-
-        // Recalculate invitee's safe spending so their commitments include
-        // the new project obligation going forward.
-        safeSpendingService.recalculateAndSaveSafeSpending(invitee);
+        log.info("[AcceptInvite] User {} accepted invite for project {} (token burned)", actorId, projectId);
 
         return ProjectDetailResponse.fromDomain(saved);
     }

@@ -48,15 +48,23 @@ public class ProjectDetailResponse {
     private BigDecimal moneyOwed;
 
     private List<ProjectHistoryResponse> histories;
-
-    /** V13: per-member commitment + arrears for group projects. */
     private List<ProjectMemberResponse> members;
 
     public static ProjectDetailResponse fromDomain(Project p) {
-        return fromDomain(p, List.of());
+        return fromDomain(p, List.of(), List.of());
     }
 
     public static ProjectDetailResponse fromDomain(Project p, List<ProjectHistoryResponse> histories) {
+        return fromDomain(p, histories, List.of());
+    }
+
+    public static ProjectDetailResponse fromDomain(Project p, List<ProjectHistoryResponse> histories, List<ProjectMemberResponse> members) {
+        ProjectDetailResponse detail = fromDomainInternal(p, histories);
+        detail.setMembers(members);
+        return detail;
+    }
+
+    private static ProjectDetailResponse fromDomainInternal(Project p, List<ProjectHistoryResponse> histories) {
         BigDecimal targetAmount = p.getTargetAmount().amount();
         BigDecimal totalContributed = p.getTracking() != null ? p.getTracking().getMoneySaved() : p.totalContributed().amount();
         BigDecimal progressPercent = p.progressPercent();
