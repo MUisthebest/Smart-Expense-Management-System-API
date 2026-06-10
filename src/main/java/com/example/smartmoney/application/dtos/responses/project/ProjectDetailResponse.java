@@ -48,12 +48,36 @@ public class ProjectDetailResponse {
     private BigDecimal moneyOwed;
 
     private List<ProjectHistoryResponse> histories;
+    private List<ProjectMemberResponse> members;
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class ProjectMemberResponse {
+        private String userId;
+        private String username;
+        private String email;
+        private String fullName;
+        private String joinStatus;
+        private boolean admin;
+    }
 
     public static ProjectDetailResponse fromDomain(Project p) {
-        return fromDomain(p, List.of());
+        return fromDomain(p, List.of(), List.of());
     }
 
     public static ProjectDetailResponse fromDomain(Project p, List<ProjectHistoryResponse> histories) {
+        return fromDomain(p, histories, List.of());
+    }
+
+    public static ProjectDetailResponse fromDomain(Project p, List<ProjectHistoryResponse> histories, List<ProjectMemberResponse> members) {
+        ProjectDetailResponse detail = fromDomainInternal(p, histories);
+        detail.setMembers(members);
+        return detail;
+    }
+
+    private static ProjectDetailResponse fromDomainInternal(Project p, List<ProjectHistoryResponse> histories) {
         BigDecimal targetAmount = p.getTargetAmount().amount();
         BigDecimal totalContributed = p.getTracking() != null ? p.getTracking().getMoneySaved() : p.totalContributed().amount();
         BigDecimal progressPercent = p.progressPercent();
