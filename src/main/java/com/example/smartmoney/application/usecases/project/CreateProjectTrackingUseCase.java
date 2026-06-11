@@ -8,7 +8,6 @@ import com.example.smartmoney.domain.models.project.Project;
 import com.example.smartmoney.domain.models.project.ProjectTracking;
 import com.example.smartmoney.domain.models.project.valueobjects.ProjectId;
 import com.example.smartmoney.domain.models.project.valueobjects.UserId;
-import com.example.smartmoney.domain.models.user.UserIncome;
 import com.example.smartmoney.domain.repositories.ProjectRepository;
 import com.example.smartmoney.domain.repositories.ProjectTrackingRepository;
 import com.example.smartmoney.domain.repositories.UserIncomeRepository;
@@ -52,7 +51,7 @@ public class CreateProjectTrackingUseCase {
                 ownerId,
                 project.getId().value()
         );
-        userIncomeRepository.findById(ownerId.value()).ifPresent(income ->
+        userIncomeRepository.findByUserId(ownerId.value()).ifPresent(income ->
                 MonthlyObligationPolicy.assertWithinLimit(income, otherActive, monthlySaving)
         );
 

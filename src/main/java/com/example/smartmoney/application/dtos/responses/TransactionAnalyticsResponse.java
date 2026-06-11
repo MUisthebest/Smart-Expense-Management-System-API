@@ -15,6 +15,12 @@ public class TransactionAnalyticsResponse {
 
     private List<CategoryProportion> categoryProportions;
 
+    private long monthlyTotalTransactions;
+
+    private java.math.BigDecimal monthlyTotalExpense;
+
+    private java.math.BigDecimal monthlyTotalIncome;
+
     @Data
     @AllArgsConstructor
     public static class MonthlyStat {

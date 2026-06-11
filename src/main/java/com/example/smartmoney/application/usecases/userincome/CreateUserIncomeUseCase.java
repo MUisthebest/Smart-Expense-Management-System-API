@@ -29,7 +29,7 @@ public class CreateUserIncomeUseCase {
         userRepository.findById(userId)
                 .orElseThrow(() -> new DomainException("User not found", "USER_NOT_FOUND"));
 
-        if (userIncomeRepository.findById(userId).isPresent()) {
+        if (userIncomeRepository.findByUserId(userId).isPresent()) {
             throw new DomainException("User income already exists", "USER_INCOME_ALREADY_EXISTS");
         }
 

@@ -11,6 +11,6 @@ public class ExecutorConfig {
 
     @Bean
     public ExecutorService notificationExecutor() {
-        return Executors.newFixedThreadPool(10); // 👈 chỉnh tùy server
+        return Executors.newFixedThreadPool(1); // 👈 chỉnh tùy server
     }
 }
