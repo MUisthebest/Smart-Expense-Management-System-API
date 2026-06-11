@@ -63,9 +63,14 @@ public class InviteProjectMemberUseCase {
         Project project = projectRepository.findById(ProjectId.of(projectId))
                 .orElseThrow(() -> new ProjectException("Project not found", ProjectErrorCode.PROJECT_NOT_FOUND));
 
-        // Let the domain model enforce GROUP-only + admin guard + duplicate check
-        project.inviteMember(UserId.of(actorId), UserId.of(invitedUserUuid.toString()), req.isAdmin());
-        projectRepository.save(project);
+        // Note: invitee's safe-spending is intentionally NOT checked here.
+        // That check belongs in AcceptProjectInviteUseCase so the admin
+        // never sees the invitee's financial state (privacy-preserving).
+        project.inviteMember(
+                UserId.of(actorId),
+                UserId.of(invitedUserUuid.toString()),
+                req.isAdmin(),
+                req.getMonthlyCommitmentAmount());
 
         // Generate a one-time invite token stored in Redis (7-day TTL)
         String token = UUID.randomUUID().toString().replace("-", "");

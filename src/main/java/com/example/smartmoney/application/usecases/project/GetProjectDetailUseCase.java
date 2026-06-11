@@ -12,7 +12,7 @@ import com.example.smartmoney.domain.models.project.valueobjects.UserId;
 import com.example.smartmoney.domain.repositories.ProjectHistoryRepository;
 import com.example.smartmoney.domain.repositories.ProjectRepository;
 import com.example.smartmoney.domain.repositories.UserRepository;
-import com.example.smartmoney.application.dtos.responses.project.ProjectDetailResponse.ProjectMemberResponse;
+import com.example.smartmoney.application.dtos.responses.project.ProjectMemberResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -60,7 +60,7 @@ public class GetProjectDetailUseCase {
                         .username(owner.getUsername())
                         .email(owner.getEmail() != null ? owner.getEmail().getValue() : "")
                         .fullName(owner.getFullName())
-                        .joinStatus("JOINED")
+                        .joinStatus(JoinStatus.JOINED)
                         .admin(true)
                         .build());
             });
@@ -73,7 +73,7 @@ public class GetProjectDetailUseCase {
                                 .username(user.getUsername())
                                 .email(user.getEmail() != null ? user.getEmail().getValue() : "")
                                 .fullName(user.getFullName())
-                                .joinStatus(m.getJoinStatus().name())
+                                .joinStatus(m.getJoinStatus())
                                 .admin(m.isAdmin())
                                 .build());
                     });

@@ -19,6 +19,9 @@ import java.math.BigDecimal;
 @AllArgsConstructor
 public class ProjectMemberResponse {
     private String userId;
+    private String username;
+    private String email;
+    private String fullName;
     private JoinStatus joinStatus;
     private boolean admin;
     private BigDecimal monthlyCommitmentAmount;
