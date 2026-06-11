@@ -59,7 +59,7 @@ public class InviteGroupMemberUseCase {
         String token = UUID.randomUUID().toString().replace("-", "");
         inviteTokenPort.save(token, UUID.fromString(groupId));
 
-        String deepLink = baseUrl + "/api/v1/groups/invites/accept?token=" + token;
+        String deepLink = baseUrl + "/api/v1/groups/invites/accept-direct?token=" + token;
 
         try {
             dispatchNotifications(invitedUser.getId(), group.getName(), deepLink, token);

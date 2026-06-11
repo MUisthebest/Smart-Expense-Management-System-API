@@ -8,25 +8,35 @@ import com.example.smartmoney.domain.models.group.enums.GroupProjectStatus;
 import com.example.smartmoney.domain.models.group.valueobjects.GroupId;
 import com.example.smartmoney.domain.models.group.valueobjects.GroupProjectId;
 import com.example.smartmoney.domain.models.project.Project;
+import com.example.smartmoney.domain.models.project.ProjectContribution;
 import com.example.smartmoney.domain.models.project.enums.ProjectStatus;
 import com.example.smartmoney.domain.models.project.valueobjects.UserId;
+import com.example.smartmoney.domain.models.transaction.Transaction;
+import com.example.smartmoney.domain.models.transaction.enums.Category;
+import com.example.smartmoney.domain.models.transaction.enums.TransactionType;
+import com.example.smartmoney.domain.models.transaction.valueobjects.Amount;
 import com.example.smartmoney.domain.repositories.GroupProjectRepository;
 import com.example.smartmoney.domain.repositories.GroupRepository;
 import com.example.smartmoney.domain.repositories.ProjectRepository;
+import com.example.smartmoney.domain.repositories.TransactionRepository;
 import com.example.smartmoney.domain.services.SafeSpendingService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class DissolveGroupProjectUseCase {
 
     private final GroupProjectRepository groupProjectRepository;
     private final GroupRepository groupRepository;
     private final ProjectRepository projectRepository;
+    private final TransactionRepository transactionRepository;
     private final SafeSpendingService safeSpendingService;
 
     @Transactional
@@ -48,14 +58,30 @@ public class DissolveGroupProjectUseCase {
                     ProjectErrorCode.PROJECT_PERMISSION_DENIED);
         }
 
-        // Abandon all active/frozen sub-personal projects
+        // Refund contributions and delete all sub-personal projects
         List<Project> subProjects = projectRepository.findAllByGroupProjectId(gp.getId().value());
         for (Project sub : subProjects) {
             if (sub.getStatus() == ProjectStatus.ACTIVE || sub.getStatus() == ProjectStatus.FROZEN) {
-                sub.abandon(sub.getOwnerId());
-                projectRepository.save(sub);
-                safeSpendingService.recalculateAndSaveSafeSpending(sub.getOwnerId());
+                for (ProjectContribution c : sub.getContributions()) {
+                    try {
+                        Transaction refund = Transaction.create(
+                                c.getUserId().value(),
+                                new Amount(c.getMoney().amount()),
+                                TransactionType.INCOME,
+                                Category.PROJECT_REFUND,
+                                "Refund: sub-project '" + sub.getName() + "' deleted due to group project dissolution",
+                                LocalDateTime.now()
+                        );
+                        transactionRepository.save(refund);
+                    } catch (Exception ex) {
+                        log.warn("Failed to issue PROJECT_REFUND for contributor {} on sub-project {}: {}",
+                                c.getUserId().value(), sub.getId().value(), ex.getMessage());
+                    }
+                }
             }
+
+            projectRepository.deleteById(sub.getId());
+            safeSpendingService.recalculateAndSaveSafeSpending(sub.getOwnerId());
         }
 
         gp.dissolve();

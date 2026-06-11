@@ -15,6 +15,7 @@ import com.example.smartmoney.domain.models.project.valueobjects.UserId;
 import com.example.smartmoney.domain.repositories.GroupProjectRepository;
 import com.example.smartmoney.domain.repositories.GroupRepository;
 import com.example.smartmoney.domain.repositories.ProjectRepository;
+import com.example.smartmoney.domain.repositories.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +24,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -31,6 +33,7 @@ public class GetGroupProjectDetailUseCase {
     private final GroupProjectRepository groupProjectRepository;
     private final GroupRepository groupRepository;
     private final ProjectRepository projectRepository;
+    private final UserRepository userRepository;
 
     @Transactional
     public GroupProjectDetailResponse execute(String actorId, String groupProjectId) {
@@ -77,8 +80,12 @@ public class GetGroupProjectDetailUseCase {
             BigDecimal pct = target.compareTo(BigDecimal.ZERO) > 0
                     ? saved.multiply(BigDecimal.valueOf(100)).divide(target, 2, RoundingMode.HALF_UP).min(BigDecimal.valueOf(100))
                     : BigDecimal.ZERO;
+            String username = userRepository.findById(UUID.fromString(sub.getOwnerId().toString()))
+                    .map(u -> u.getUsername())
+                    .orElse(null);
             memberProgress.add(GroupProjectMemberProgressResponse.builder()
                     .userId(sub.getOwnerId().toString())
+                    .username(username)
                     .personalProjectId(sub.getId().toString())
                     .moneySaved(saved)
                     .targetAmount(target)

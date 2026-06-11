@@ -107,6 +107,7 @@ public class DeleteProjectUseCase {
         project.abandon(actor);
         projectRepository.save(project);
 
+
         // Recalculate safe spending for every affected user.
         for (UUID uid : affectedUserIds) {
             try {

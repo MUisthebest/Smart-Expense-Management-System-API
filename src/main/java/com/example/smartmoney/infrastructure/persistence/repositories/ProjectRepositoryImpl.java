@@ -104,9 +104,12 @@ public class ProjectRepositoryImpl implements ProjectRepository {
         List<ProjectEntity> entities = jpaProjectRepository.findByGroupProjectId(groupProjectId);
         List<Project> result = new ArrayList<>();
         for (ProjectEntity p : entities) {
+            UUID pid = p.getId();
+            List<ProjectContributionEntity> contributions =
+                    jpaProjectContributionRepository.findByProjectIdOrderByCreatedAtDesc(pid);
             ProjectTrackingEntity tracking =
-                    jpaProjectTrackingRepository.findByProjectId(p.getId()).orElse(null);
-            result.add(projectPersistenceMapper.toDomain(p, null, tracking));
+                    jpaProjectTrackingRepository.findByProjectId(pid).orElse(null);
+            result.add(projectPersistenceMapper.toDomain(p, contributions, tracking));
         }
         return result;
     }

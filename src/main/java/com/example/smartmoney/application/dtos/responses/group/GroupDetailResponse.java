@@ -16,16 +16,22 @@ public class GroupDetailResponse {
     private String description;
     private String adminId;
     private GroupStatus status;
+    private String groupProjectId;
     private List<GroupMemberResponse> members;
     private Instant createdAt;
 
     public static GroupDetailResponse fromDomain(Group g) {
+        return fromDomain(g, null);
+    }
+
+    public static GroupDetailResponse fromDomain(Group g, String groupProjectId) {
         return GroupDetailResponse.builder()
                 .groupId(g.getId().toString())
                 .name(g.getName())
                 .description(g.getDescription())
                 .adminId(g.getAdminId().toString())
                 .status(g.getStatus())
+                .groupProjectId(groupProjectId)
                 .members(g.getMembers().stream().map(GroupMemberResponse::fromDomain).toList())
                 .createdAt(g.getCreatedAt())
                 .build();

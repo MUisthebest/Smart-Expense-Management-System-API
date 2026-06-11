@@ -12,6 +12,7 @@ import com.example.smartmoney.domain.models.project.valueobjects.UserId;
 import com.example.smartmoney.domain.repositories.GroupProjectRepository;
 import com.example.smartmoney.domain.repositories.GroupRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,10 +26,13 @@ public class CreateGroupProjectUseCase {
     private final GroupRepository groupRepository;
     private final GroupProjectRepository groupProjectRepository;
 
+    @Value("${app.bypass-date-gate:false}")
+    private boolean bypassDateGate;
+
     @Transactional
     public GroupProjectDetailResponse execute(String actorId, CreateGroupProjectRequest req) {
         int dayOfMonth = LocalDate.now().getDayOfMonth();
-        if (dayOfMonth > 7) {
+        if (!bypassDateGate && dayOfMonth > 7) {
             throw new ProjectException(
                     "Group projects can only be created during days 1-7 of the month",
                     ProjectErrorCode.PROJECT_CREATION_OUTSIDE_WINDOW);

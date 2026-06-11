@@ -13,14 +13,20 @@ import java.time.Instant;
 @Builder
 public class GroupMemberResponse {
     private String userId;
+    private String username;
     private GroupMemberRole role;
     private GroupMemberInviteStatus inviteStatus;
     private BigDecimal capacitySnapshot;
     private Instant joinedAt;
 
     public static GroupMemberResponse fromDomain(GroupMember m) {
+        return fromDomain(m, null);
+    }
+
+    public static GroupMemberResponse fromDomain(GroupMember m, String username) {
         return GroupMemberResponse.builder()
                 .userId(m.getUserId().toString())
+                .username(username)
                 .role(m.getRole())
                 .inviteStatus(m.getInviteStatus())
                 .capacitySnapshot(m.getCapacitySnapshot())
