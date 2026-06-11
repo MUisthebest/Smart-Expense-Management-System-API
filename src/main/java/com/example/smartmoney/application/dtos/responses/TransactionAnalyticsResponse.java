@@ -25,8 +25,8 @@ public class TransactionAnalyticsResponse {
     @AllArgsConstructor
     public static class MonthlyStat {
         private String week;
-        private int income;
-        private int expense;
+        private double income;
+        private double expense;
     }
 
     @Data
