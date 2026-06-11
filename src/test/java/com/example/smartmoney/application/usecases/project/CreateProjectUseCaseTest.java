@@ -67,7 +67,7 @@ class CreateProjectUseCaseTest {
     void rejectWhenUserIncomeMissing() {
         CreateProjectRequest req = baseReq();
 
-        when(userIncomeRepository.findById(eq(actorUuid))).thenReturn(Optional.empty());
+        when(userIncomeRepository.findByUserId(eq(actorUuid))).thenReturn(Optional.empty());
 
         ProjectException ex = assertThrows(ProjectException.class, () -> useCase.execute(actorId, req));
         assertEquals(ProjectErrorCode.PROJECT_USER_INCOME_REQUIRED.name(), ex.getErrorCode());
@@ -78,7 +78,7 @@ class CreateProjectUseCaseTest {
     void rejectWhenMaxActiveReached() {
         CreateProjectRequest req = baseReq();
 
-        when(userIncomeRepository.findById(eq(actorUuid))).thenReturn(Optional.of(validIncome(actorUuid)));
+        when(userIncomeRepository.findByUserId(eq(actorUuid))).thenReturn(Optional.of(validIncome(actorUuid)));
         when(projectRepository.findAllByUser(eq(UserId.of(actorId)))).thenReturn(List.of(
                 activeProject(ProjectPriority.LOW, LocalDate.now()),
                 activeProject(ProjectPriority.MEDIUM, LocalDate.now()),
@@ -95,7 +95,7 @@ class CreateProjectUseCaseTest {
         CreateProjectRequest req = baseReq();
         req.setPriority(ProjectPriority.HIGH);
 
-        when(userIncomeRepository.findById(eq(actorUuid))).thenReturn(Optional.of(validIncome(actorUuid)));
+        when(userIncomeRepository.findByUserId(eq(actorUuid))).thenReturn(Optional.of(validIncome(actorUuid)));
         when(projectRepository.findAllByUser(eq(UserId.of(actorId)))).thenReturn(List.of(
                 activeProject(ProjectPriority.HIGH, LocalDate.now())
         ));
@@ -115,7 +115,7 @@ class CreateProjectUseCaseTest {
         UserIncome income = validIncome(actorUuid);
         // usable_income = 1000 => limit = 200
 
-        when(userIncomeRepository.findById(eq(actorUuid))).thenReturn(Optional.of(income));
+        when(userIncomeRepository.findByUserId(eq(actorUuid))).thenReturn(Optional.of(income));
         when(projectRepository.findAllByUser(eq(UserId.of(actorId)))).thenReturn(List.of(
                 // existing monthly = 150
                 Project.createNew(UserId.of(actorId), ProjectType.PERSONAL, ProjectPriority.LOW,
@@ -132,7 +132,7 @@ class CreateProjectUseCaseTest {
         CreateProjectRequest req = baseReq();
         req.setDeadline(LocalDate.now().plusMonths(60));
 
-        when(userIncomeRepository.findById(eq(actorUuid))).thenReturn(Optional.of(validIncome(actorUuid)));
+        when(userIncomeRepository.findByUserId(eq(actorUuid))).thenReturn(Optional.of(validIncome(actorUuid)));
         when(projectRepository.findAllByUser(eq(UserId.of(actorId)))).thenReturn(List.of());
 
         ProjectException ex = assertThrows(ProjectException.class, () -> useCase.execute(actorId, req));
