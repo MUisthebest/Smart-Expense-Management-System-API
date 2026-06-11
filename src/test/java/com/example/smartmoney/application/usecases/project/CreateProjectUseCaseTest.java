@@ -71,7 +71,7 @@ class CreateProjectUseCaseTest {
     void rejectWhenUserIncomeMissing() {
         try (MockedStatic<LocalDate> mocked = mockLocalDate()) {
             CreateProjectRequest req = baseReq();
-            when(userIncomeRepository.findById(eq(actorUuid))).thenReturn(Optional.empty());
+            when(userIncomeRepository.findByUserId(eq(actorUuid))).thenReturn(Optional.empty());
 
             ProjectException ex = assertThrows(ProjectException.class, () -> useCase.execute(actorId, req));
             assertEquals(ProjectErrorCode.PROJECT_USER_INCOME_REQUIRED.name(), ex.getErrorCode());
@@ -84,12 +84,12 @@ class CreateProjectUseCaseTest {
         try (MockedStatic<LocalDate> mocked = mockLocalDate()) {
             CreateProjectRequest req = baseReq();
 
-            when(userIncomeRepository.findById(eq(actorUuid))).thenReturn(Optional.of(validIncome(actorUuid)));
-            when(projectRepository.findAllByUser(eq(UserId.of(actorId)))).thenReturn(List.of(
-                    activeProject(ProjectPriority.LOW, WINDOW_DATE),
-                    activeProject(ProjectPriority.MEDIUM, WINDOW_DATE),
-                    activeProject(ProjectPriority.HIGH, WINDOW_DATE)
-            ));
+            Project p1 = activeProject(ProjectPriority.LOW, WINDOW_DATE);
+            Project p2 = activeProject(ProjectPriority.MEDIUM, WINDOW_DATE);
+            Project p3 = activeProject(ProjectPriority.HIGH, WINDOW_DATE);
+
+            when(userIncomeRepository.findByUserId(eq(actorUuid))).thenReturn(Optional.of(validIncome(actorUuid)));
+            when(projectRepository.findAllByUser(eq(UserId.of(actorId)))).thenReturn(List.of(p1, p2, p3));
 
             ProjectException ex = assertThrows(ProjectException.class, () -> useCase.execute(actorId, req));
             assertEquals(ProjectErrorCode.PROJECT_MAX_ACTIVE_REACHED.name(), ex.getErrorCode());
@@ -103,10 +103,10 @@ class CreateProjectUseCaseTest {
             CreateProjectRequest req = baseReq();
             req.setPriority(ProjectPriority.HIGH);
 
-            when(userIncomeRepository.findById(eq(actorUuid))).thenReturn(Optional.of(validIncome(actorUuid)));
-            when(projectRepository.findAllByUser(eq(UserId.of(actorId)))).thenReturn(List.of(
-                    activeProject(ProjectPriority.HIGH, WINDOW_DATE)
-            ));
+            Project existing = activeProject(ProjectPriority.HIGH, WINDOW_DATE);
+
+            when(userIncomeRepository.findByUserId(eq(actorUuid))).thenReturn(Optional.of(validIncome(actorUuid)));
+            when(projectRepository.findAllByUser(eq(UserId.of(actorId)))).thenReturn(List.of(existing));
 
             ProjectException ex = assertThrows(ProjectException.class, () -> useCase.execute(actorId, req));
             assertEquals(ProjectErrorCode.PROJECT_ACTIVE_PRIORITY_CONFLICT.name(), ex.getErrorCode());
@@ -125,12 +125,11 @@ class CreateProjectUseCaseTest {
             UserIncome income = validIncome(actorUuid);
             // usable_income = 1000 => limit = 200
 
-            when(userIncomeRepository.findById(eq(actorUuid))).thenReturn(Optional.of(income));
-            when(projectRepository.findAllByUser(eq(UserId.of(actorId)))).thenReturn(List.of(
-                    // existing monthly = 150
-                    Project.createNew(UserId.of(actorId), ProjectType.PERSONAL, ProjectPriority.LOW,
-                            "P1", null, new Money(new BigDecimal("150"), "VND"), WINDOW_DATE)
-            ));
+            Project existing = Project.createNew(UserId.of(actorId), ProjectType.PERSONAL, ProjectPriority.LOW,
+                    "P1", null, new Money(new BigDecimal("150"), "VND"), WINDOW_DATE);
+
+            when(userIncomeRepository.findByUserId(eq(actorUuid))).thenReturn(Optional.of(income));
+            when(projectRepository.findAllByUser(eq(UserId.of(actorId)))).thenReturn(List.of(existing));
 
             ProjectException ex = assertThrows(ProjectException.class, () -> useCase.execute(actorId, req));
             assertEquals(ProjectErrorCode.PROJECT_USABLE_INCOME_LIMIT_EXCEEDED.name(), ex.getErrorCode());
@@ -144,7 +143,7 @@ class CreateProjectUseCaseTest {
             CreateProjectRequest req = baseReq();
             req.setDeadline(WINDOW_DATE.plusMonths(60));
 
-            when(userIncomeRepository.findById(eq(actorUuid))).thenReturn(Optional.of(validIncome(actorUuid)));
+            when(userIncomeRepository.findByUserId(eq(actorUuid))).thenReturn(Optional.of(validIncome(actorUuid)));
             when(projectRepository.findAllByUser(eq(UserId.of(actorId)))).thenReturn(List.of());
 
             ProjectException ex = assertThrows(ProjectException.class, () -> useCase.execute(actorId, req));
@@ -169,7 +168,6 @@ class CreateProjectUseCaseTest {
         CreateProjectRequest req = new CreateProjectRequest();
         req.setName("My Project");
         req.setDescription(null);
-        req.setType(ProjectType.PERSONAL);
         req.setPriority(ProjectPriority.MEDIUM);
         req.setTargetAmount(new BigDecimal("1000"));
         req.setCurrency("VND");

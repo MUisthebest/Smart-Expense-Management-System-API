@@ -9,6 +9,9 @@ import com.example.smartmoney.domain.models.project.valueobjects.UserId;
 import com.example.smartmoney.domain.models.transaction.Transaction;
 import com.example.smartmoney.domain.models.transaction.enums.TransactionType;
 import com.example.smartmoney.domain.models.user.UserIncome;
+import com.example.smartmoney.domain.models.group.GroupProject;
+import com.example.smartmoney.domain.models.group.enums.GroupProjectStatus;
+import com.example.smartmoney.domain.repositories.GroupProjectRepository;
 import com.example.smartmoney.domain.repositories.ProjectHistoryRepository;
 import com.example.smartmoney.domain.repositories.ProjectRepository;
 import com.example.smartmoney.domain.repositories.ProjectTrackingRepository;
@@ -39,6 +42,7 @@ public class PerformMonthlySettlementUseCase {
     private final UserIncomeRepository userIncomeRepository;
     private final ProjectHistoryRepository projectHistoryRepository;
     private final SafeSpendingService safeSpendingService;
+    private final GroupProjectRepository groupProjectRepository;
 
     public void execute() {
         List<Project> activeProjects = projectRepository.findAllByStatus(ProjectStatus.ACTIVE);
@@ -57,6 +61,33 @@ public class PerformMonthlySettlementUseCase {
         }
 
         log.info("[Settlement] Monthly settlement complete.");
+
+        checkGroupProjectCompletion();
+    }
+
+    private void checkGroupProjectCompletion() {
+        List<GroupProject> activeGroupProjects = groupProjectRepository.findAllByStatus(GroupProjectStatus.ACTIVE);
+        for (GroupProject gp : activeGroupProjects) {
+            try {
+                List<com.example.smartmoney.domain.models.project.Project> subProjects =
+                        projectRepository.findAllByGroupProjectId(gp.getId().value());
+                BigDecimal aggregate = subProjects.stream()
+                        .map(p -> {
+                            ProjectTracking t = projectTrackingRepository.findByProjectId(p.getId()).orElse(null);
+                            return t != null && t.getMoneySaved() != null ? t.getMoneySaved() : BigDecimal.ZERO;
+                        })
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+                if (aggregate.compareTo(gp.getTargetAmount()) >= 0) {
+                    gp.markCompleted();
+                    groupProjectRepository.save(gp);
+                    log.info("[Settlement] Group project {} marked COMPLETED (aggregate={}).",
+                            gp.getId().value(), aggregate);
+                }
+            } catch (Exception ex) {
+                log.error("[Settlement] Failed completion check for group project {}: {}",
+                        gp.getId().value(), ex.getMessage(), ex);
+            }
+        }
     }
 
     @Transactional

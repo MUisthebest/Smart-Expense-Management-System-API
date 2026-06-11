@@ -5,8 +5,6 @@ import com.example.smartmoney.domain.models.project.ProjectContribution;
 import com.example.smartmoney.domain.exceptions.ProjectErrorCode;
 import com.example.smartmoney.domain.exceptions.ProjectException;
 import com.example.smartmoney.domain.models.project.Project;
-import com.example.smartmoney.domain.models.project.enums.JoinStatus;
-import com.example.smartmoney.domain.models.project.enums.ProjectType;
 import com.example.smartmoney.domain.models.project.valueobjects.ProjectId;
 import com.example.smartmoney.domain.models.project.valueobjects.UserId;
 import com.example.smartmoney.domain.repositories.ProjectRepository;
@@ -30,20 +28,11 @@ public class ListProjectContributionsUseCase {
 
         UserId actor = UserId.of(actorId);
         if (!actor.equals(p.getOwnerId())) {
-            if (p.getType() == ProjectType.GROUP) {
-                boolean joined = p.getMembers().stream()
-                        .anyMatch(m -> m.getUserId().equals(actor) && m.getJoinStatus() == JoinStatus.JOINED);
-                if (!joined) throw new ProjectException("Permission denied", ProjectErrorCode.PROJECT_PERMISSION_DENIED);
-            } else {
-                throw new ProjectException("Permission denied", ProjectErrorCode.PROJECT_PERMISSION_DENIED);
-            }
+            throw new ProjectException("Permission denied", ProjectErrorCode.PROJECT_PERMISSION_DENIED);
         }
 
-
         return p.getContributions().stream()
-                .sorted(
-                        Comparator.comparing((ProjectContribution c) -> c.getCreatedAt()).reversed()
-                )
+                .sorted(Comparator.comparing(ProjectContribution::getCreatedAt).reversed())
                 .map(ProjectContributionResponse::fromDomain)
                 .toList();
     }
