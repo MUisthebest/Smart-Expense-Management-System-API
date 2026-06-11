@@ -25,7 +25,7 @@ public class UpdateUserIncomeUseCase {
     public UserIncomeResponse execute(String actorId, UpdateUserIncomeRequest req) {
         UUID userId = UUID.fromString(actorId);
 
-        UserIncome current = userIncomeRepository.findById(userId)
+        UserIncome current = userIncomeRepository.findByUserId(userId)
                 .orElseThrow(() -> new EntityNotFoundException("UserIncome", actorId));
 
         Integer nextNetIncome = req.getNetIncome() != null ? req.getNetIncome() : current.getNetIncome();

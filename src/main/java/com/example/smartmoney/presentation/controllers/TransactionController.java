@@ -433,7 +433,7 @@ public class TransactionController {
             log.info("Fetching analytics for user ID: {} and month, year: {}", userId, request.getMonth(), request.getYear());
 
             // 3. Thực thi UseCase
-            TransactionAnalyticsResponse analyticsResponse = getTransactionAnalyticsUseCase.execute(request.getYear(), targetMonth);
+            TransactionAnalyticsResponse analyticsResponse = getTransactionAnalyticsUseCase.execute(userId, request.getYear(), targetMonth);
 
             // 4. Trả về kết quả theo cấu trúc CheckResponse
             CheckResponse<TransactionAnalyticsResponse> response = CheckResponse.<TransactionAnalyticsResponse>builder()
