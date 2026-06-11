@@ -18,6 +18,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
@@ -29,8 +30,8 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -55,6 +56,9 @@ class CreateProjectUseCaseTest {
     private UUID actorUuid;
     private String actorId;
 
+    /** A fixed date whose dayOfMonth is 1, inside the V13 creation window (days 1-7). */
+    private static final LocalDate WINDOW_DATE = LocalDate.of(2026, 6, 1);
+
     @BeforeEach
     void setUp() {
         useCase = new CreateProjectUseCase(projectRepository, projectTrackingRepository, userIncomeRepository, safeSpendingService);
@@ -65,78 +69,100 @@ class CreateProjectUseCaseTest {
     @Test
     @DisplayName("Reject when user income row missing")
     void rejectWhenUserIncomeMissing() {
-        CreateProjectRequest req = baseReq();
+        try (MockedStatic<LocalDate> mocked = mockLocalDate()) {
+            CreateProjectRequest req = baseReq();
+            when(userIncomeRepository.findById(eq(actorUuid))).thenReturn(Optional.empty());
 
-        when(userIncomeRepository.findById(eq(actorUuid))).thenReturn(Optional.empty());
-
-        ProjectException ex = assertThrows(ProjectException.class, () -> useCase.execute(actorId, req));
-        assertEquals(ProjectErrorCode.PROJECT_USER_INCOME_REQUIRED.name(), ex.getErrorCode());
+            ProjectException ex = assertThrows(ProjectException.class, () -> useCase.execute(actorId, req));
+            assertEquals(ProjectErrorCode.PROJECT_USER_INCOME_REQUIRED.name(), ex.getErrorCode());
+        }
     }
 
     @Test
     @DisplayName("Reject when already 3 ACTIVE projects")
     void rejectWhenMaxActiveReached() {
-        CreateProjectRequest req = baseReq();
+        try (MockedStatic<LocalDate> mocked = mockLocalDate()) {
+            CreateProjectRequest req = baseReq();
 
-        when(userIncomeRepository.findById(eq(actorUuid))).thenReturn(Optional.of(validIncome(actorUuid)));
-        when(projectRepository.findAllByUser(eq(UserId.of(actorId)))).thenReturn(List.of(
-                activeProject(ProjectPriority.LOW, LocalDate.now()),
-                activeProject(ProjectPriority.MEDIUM, LocalDate.now()),
-                activeProject(ProjectPriority.HIGH, LocalDate.now())
-        ));
+            when(userIncomeRepository.findById(eq(actorUuid))).thenReturn(Optional.of(validIncome(actorUuid)));
+            when(projectRepository.findAllByUser(eq(UserId.of(actorId)))).thenReturn(List.of(
+                    activeProject(ProjectPriority.LOW, WINDOW_DATE),
+                    activeProject(ProjectPriority.MEDIUM, WINDOW_DATE),
+                    activeProject(ProjectPriority.HIGH, WINDOW_DATE)
+            ));
 
-        ProjectException ex = assertThrows(ProjectException.class, () -> useCase.execute(actorId, req));
-        assertEquals(ProjectErrorCode.PROJECT_MAX_ACTIVE_REACHED.name(), ex.getErrorCode());
+            ProjectException ex = assertThrows(ProjectException.class, () -> useCase.execute(actorId, req));
+            assertEquals(ProjectErrorCode.PROJECT_MAX_ACTIVE_REACHED.name(), ex.getErrorCode());
+        }
     }
 
     @Test
     @DisplayName("Reject when new priority duplicates an ACTIVE project's priority")
     void rejectWhenPriorityConflict() {
-        CreateProjectRequest req = baseReq();
-        req.setPriority(ProjectPriority.HIGH);
+        try (MockedStatic<LocalDate> mocked = mockLocalDate()) {
+            CreateProjectRequest req = baseReq();
+            req.setPriority(ProjectPriority.HIGH);
 
-        when(userIncomeRepository.findById(eq(actorUuid))).thenReturn(Optional.of(validIncome(actorUuid)));
-        when(projectRepository.findAllByUser(eq(UserId.of(actorId)))).thenReturn(List.of(
-                activeProject(ProjectPriority.HIGH, LocalDate.now())
-        ));
+            when(userIncomeRepository.findById(eq(actorUuid))).thenReturn(Optional.of(validIncome(actorUuid)));
+            when(projectRepository.findAllByUser(eq(UserId.of(actorId)))).thenReturn(List.of(
+                    activeProject(ProjectPriority.HIGH, WINDOW_DATE)
+            ));
 
-        ProjectException ex = assertThrows(ProjectException.class, () -> useCase.execute(actorId, req));
-        assertEquals(ProjectErrorCode.PROJECT_ACTIVE_PRIORITY_CONFLICT.name(), ex.getErrorCode());
+            ProjectException ex = assertThrows(ProjectException.class, () -> useCase.execute(actorId, req));
+            assertEquals(ProjectErrorCode.PROJECT_ACTIVE_PRIORITY_CONFLICT.name(), ex.getErrorCode());
+        }
     }
 
     @Test
     @DisplayName("Reject when monthly sum exceeds 20% usable_income")
     void rejectWhenMonthlySumExceedsLimit() {
-        CreateProjectRequest req = baseReq();
-        // new project monthly = 100 (deadline today => 1 month)
-        req.setTargetAmount(new BigDecimal("100"));
-        req.setDeadline(LocalDate.now());
+        try (MockedStatic<LocalDate> mocked = mockLocalDate()) {
+            CreateProjectRequest req = baseReq();
+            // new project monthly = 100 (deadline today => 1 month)
+            req.setTargetAmount(new BigDecimal("100"));
+            req.setDeadline(WINDOW_DATE);
 
-        UserIncome income = validIncome(actorUuid);
-        // usable_income = 1000 => limit = 200
+            UserIncome income = validIncome(actorUuid);
+            // usable_income = 1000 => limit = 200
 
-        when(userIncomeRepository.findById(eq(actorUuid))).thenReturn(Optional.of(income));
-        when(projectRepository.findAllByUser(eq(UserId.of(actorId)))).thenReturn(List.of(
-                // existing monthly = 150
-                Project.createNew(UserId.of(actorId), ProjectType.PERSONAL, ProjectPriority.LOW,
-                        "P1", null, new Money(new BigDecimal("150"), "VND"), LocalDate.now())
-        ));
+            when(userIncomeRepository.findById(eq(actorUuid))).thenReturn(Optional.of(income));
+            when(projectRepository.findAllByUser(eq(UserId.of(actorId)))).thenReturn(List.of(
+                    // existing monthly = 150
+                    Project.createNew(UserId.of(actorId), ProjectType.PERSONAL, ProjectPriority.LOW,
+                            "P1", null, new Money(new BigDecimal("150"), "VND"), WINDOW_DATE)
+            ));
 
-        ProjectException ex = assertThrows(ProjectException.class, () -> useCase.execute(actorId, req));
-        assertEquals(ProjectErrorCode.PROJECT_USABLE_INCOME_LIMIT_EXCEEDED.name(), ex.getErrorCode());
+            ProjectException ex = assertThrows(ProjectException.class, () -> useCase.execute(actorId, req));
+            assertEquals(ProjectErrorCode.PROJECT_USABLE_INCOME_LIMIT_EXCEEDED.name(), ex.getErrorCode());
+        }
     }
 
     @Test
     @DisplayName("Reject when deadline exceeds 60 months")
     void rejectWhenDeadlineTooFar() {
-        CreateProjectRequest req = baseReq();
-        req.setDeadline(LocalDate.now().plusMonths(60));
+        try (MockedStatic<LocalDate> mocked = mockLocalDate()) {
+            CreateProjectRequest req = baseReq();
+            req.setDeadline(WINDOW_DATE.plusMonths(60));
 
-        when(userIncomeRepository.findById(eq(actorUuid))).thenReturn(Optional.of(validIncome(actorUuid)));
-        when(projectRepository.findAllByUser(eq(UserId.of(actorId)))).thenReturn(List.of());
+            when(userIncomeRepository.findById(eq(actorUuid))).thenReturn(Optional.of(validIncome(actorUuid)));
+            when(projectRepository.findAllByUser(eq(UserId.of(actorId)))).thenReturn(List.of());
 
-        ProjectException ex = assertThrows(ProjectException.class, () -> useCase.execute(actorId, req));
-        assertEquals(ProjectErrorCode.PROJECT_INVALID_DEADLINE.name(), ex.getErrorCode());
+            ProjectException ex = assertThrows(ProjectException.class, () -> useCase.execute(actorId, req));
+            assertEquals(ProjectErrorCode.PROJECT_INVALID_DEADLINE.name(), ex.getErrorCode());
+        }
+    }
+
+    /**
+     * Helper: mock LocalDate so that LocalDate.now() returns WINDOW_DATE (day 1),
+     * while all other static methods (of, parse, etc.) behave normally.
+     */
+    private MockedStatic<LocalDate> mockLocalDate() {
+        return mockStatic(LocalDate.class, invocation -> {
+            if ("now".equals(invocation.getMethod().getName()) && invocation.getArguments().length == 0) {
+                return WINDOW_DATE;
+            }
+            return invocation.callRealMethod();
+        });
     }
 
     private CreateProjectRequest baseReq() {
@@ -147,7 +173,7 @@ class CreateProjectUseCaseTest {
         req.setPriority(ProjectPriority.MEDIUM);
         req.setTargetAmount(new BigDecimal("1000"));
         req.setCurrency("VND");
-        req.setDeadline(LocalDate.now());
+        req.setDeadline(WINDOW_DATE);
         return req;
     }
 

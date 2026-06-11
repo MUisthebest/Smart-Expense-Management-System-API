@@ -50,22 +50,6 @@ public class ProjectDetailResponse {
     private List<ProjectHistoryResponse> histories;
     private List<ProjectMemberResponse> members;
 
-    @Data
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class ProjectMemberResponse {
-        private String userId;
-        private String username;
-        private String email;
-        private String fullName;
-        private String joinStatus;
-        private boolean admin;
-    }
-
-    /** V13: per-member commitment + arrears for group projects. */
-    private List<ProjectMemberResponse> members;
-
     public static ProjectDetailResponse fromDomain(Project p) {
         return fromDomain(p, List.of(), List.of());
     }
