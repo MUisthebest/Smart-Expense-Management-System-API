@@ -53,7 +53,9 @@ public class SecurityConfig implements WebMvcConfigurer {
     @Order(1)
     public SecurityFilterChain inviteAcceptFilterChain(HttpSecurity http) throws Exception {
         http
-            .securityMatcher("/api/v1/projects/invites/accept-direct", "/login")
+            .securityMatcher("/api/v1/projects/invites/accept-direct",
+                             "/api/v1/groups/invites/accept-direct",
+                             "/login")
             .csrf(csrf -> csrf.disable())
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
@@ -95,7 +97,7 @@ public class SecurityConfig implements WebMvcConfigurer {
                     "/configuration/**",
                     "/actuator/health",
                     "/error",
-                    "/ws/**" 
+                    "/ws/**"
                 ).permitAll()
                 
                 // Admin only endpoints

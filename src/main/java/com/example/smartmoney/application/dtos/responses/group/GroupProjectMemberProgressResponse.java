@@ -9,6 +9,7 @@ import java.math.BigDecimal;
 @Builder
 public class GroupProjectMemberProgressResponse {
     private String userId;
+    private String username;
     private String personalProjectId;
     private BigDecimal moneySaved;
     private BigDecimal targetAmount;

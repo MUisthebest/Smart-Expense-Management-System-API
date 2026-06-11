@@ -18,6 +18,7 @@ import com.example.smartmoney.domain.repositories.ProjectTrackingRepository;
 import com.example.smartmoney.domain.repositories.UserIncomeRepository;
 import com.example.smartmoney.domain.services.SafeSpendingService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,6 +38,9 @@ public class CreateProjectUseCase {
     private final ProjectTrackingRepository projectTrackingRepository;
     private final UserIncomeRepository userIncomeRepository;
     private final SafeSpendingService safeSpendingService;
+
+    @Value("${app.bypass-date-gate:false}")
+    private boolean bypassDateGate;
 
     @Transactional
     public ProjectDetailResponse execute(String actorId, CreateProjectRequest req) {
@@ -74,7 +78,7 @@ public class CreateProjectUseCase {
 
     private void validateCreate(String actorId, CreateProjectRequest req) {
         int dayOfMonth = LocalDate.now().getDayOfMonth();
-        if (dayOfMonth > 7) {
+        if (!bypassDateGate && dayOfMonth > 7) {
             throw new ProjectException(
                     "Projects can only be created during the first week of the month (days 1-7)",
                     ProjectErrorCode.PROJECT_CREATION_OUTSIDE_WINDOW
