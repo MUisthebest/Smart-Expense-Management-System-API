@@ -5,17 +5,18 @@ import com.example.smartmoney.application.dtos.responses.project.ProjectDetailRe
 import com.example.smartmoney.domain.exceptions.ProjectErrorCode;
 import com.example.smartmoney.domain.exceptions.ProjectException;
 import com.example.smartmoney.domain.models.project.Project;
+import com.example.smartmoney.domain.models.project.ProjectTracking;
 import com.example.smartmoney.domain.models.project.enums.ProjectPriority;
 import com.example.smartmoney.domain.models.project.enums.ProjectStatus;
+import com.example.smartmoney.domain.models.project.enums.ProjectType;
 import com.example.smartmoney.domain.models.project.valueobjects.Money;
+import com.example.smartmoney.domain.models.project.valueobjects.ProjectId;
 import com.example.smartmoney.domain.models.project.valueobjects.UserId;
 import com.example.smartmoney.domain.models.user.UserIncome;
 import com.example.smartmoney.domain.repositories.ProjectRepository;
 import com.example.smartmoney.domain.repositories.ProjectTrackingRepository;
 import com.example.smartmoney.domain.repositories.UserIncomeRepository;
 import com.example.smartmoney.domain.services.SafeSpendingService;
-import com.example.smartmoney.domain.models.project.ProjectTracking;
-import com.example.smartmoney.domain.models.project.valueobjects.ProjectId;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,7 +44,7 @@ public class CreateProjectUseCase {
 
         Project p = Project.createNew(
                 UserId.of(actorId),
-                req.getType(),
+                ProjectType.PERSONAL,
                 req.getPriority(),
                 req.getName(),
                 req.getDescription(),
@@ -51,25 +52,18 @@ public class CreateProjectUseCase {
                 req.getDeadline()
         );
 
-        // For GROUP projects, register the owner as a synthetic JOINED admin
-        // member so the arrears worker can track the owner's own pledge.
-        if (req.getType() == com.example.smartmoney.domain.models.project.enums.ProjectType.GROUP) {
-            p.registerOwnerAsMember(req.getOwnerMonthlyCommitmentAmount());
-        }
-
         Project savedProject = projectRepository.save(p);
 
-        // Automate tracking creation
         int monthsLeft = monthsToDeadline(LocalDate.now(), req.getDeadline());
         BigDecimal monthlySaving = monthlyTarget(req.getTargetAmount(), req.getDeadline());
 
         ProjectTracking tracking = ProjectTracking.createNew(
                 ProjectId.of(savedProject.getId().toString()),
-                BigDecimal.ZERO, // moneySaved
-                1,               // currentMonth
+                BigDecimal.ZERO,
+                1,
                 monthlySaving,
                 monthsLeft,
-                BigDecimal.ZERO  // moneyOwed
+                BigDecimal.ZERO
         );
         projectTrackingRepository.save(tracking);
 
@@ -79,7 +73,6 @@ public class CreateProjectUseCase {
     }
 
     private void validateCreate(String actorId, CreateProjectRequest req) {
-        // ── V13: Project creation window — only days 1..7 of month ──
         int dayOfMonth = LocalDate.now().getDayOfMonth();
         if (dayOfMonth > 7) {
             throw new ProjectException(
@@ -123,16 +116,6 @@ public class CreateProjectUseCase {
             );
         }
 
-        // GROUP-specific: require owner commitment
-        if (req.getType() == com.example.smartmoney.domain.models.project.enums.ProjectType.GROUP
-                && (req.getOwnerMonthlyCommitmentAmount() == null
-                    || req.getOwnerMonthlyCommitmentAmount().compareTo(BigDecimal.ZERO) <= 0)) {
-            throw new ProjectException(
-                    "ownerMonthlyCommitmentAmount is required for GROUP projects",
-                    ProjectErrorCode.MONTHLY_COMMITMENT_REQUIRED
-            );
-        }
-
         UserId actor = UserId.of(actorId);
         List<Project> all = projectRepository.findAllByUser(actor);
         List<Project> activeOwned = all.stream()
@@ -147,25 +130,14 @@ public class CreateProjectUseCase {
             );
         }
 
-        // Deadline must be within 60 months (create-time rule)
         int monthsToDeadline = monthsToDeadline(LocalDate.now(), req.getDeadline());
         if (monthsToDeadline > 60) {
-            throw new ProjectException(
-                    "Max deadline is 60 months",
-                    ProjectErrorCode.PROJECT_INVALID_DEADLINE
-            );
+            throw new ProjectException("Max deadline is 60 months", ProjectErrorCode.PROJECT_INVALID_DEADLINE);
         }
 
-        // Each ACTIVE project must have a unique priority
         Set<ProjectPriority> existingPriorities = new HashSet<>();
         for (Project p : activeOwned) {
-            ProjectPriority pr = p.getPriority();
-            if (!existingPriorities.add(pr)) {
-                throw new ProjectException(
-                        "Each ACTIVE project must have a unique priority (fix existing duplicates first)",
-                        ProjectErrorCode.PROJECT_ACTIVE_PRIORITY_CONFLICT
-                );
-            }
+            existingPriorities.add(p.getPriority());
         }
 
         ProjectPriority newPriority = req.getPriority() != null ? req.getPriority() : ProjectPriority.MEDIUM;
@@ -176,24 +148,17 @@ public class CreateProjectUseCase {
             );
         }
 
-        // 20% monthly obligation rule — enforced via MonthlyObligationPolicy
-        List<Project> otherActive = MonthlyObligationPolicy.otherActiveOwned(
-                all, actor, null /* brand-new project: nothing to exclude */);
+        List<Project> otherActive = MonthlyObligationPolicy.otherActiveOwned(all, actor, null);
         MonthlyObligationPolicy.assertWithinLimit(
                 income,
                 otherActive,
                 MonthlyObligationPolicy.derivedMonthly(req.getTargetAmount(), req.getDeadline())
         );
 
-        // ── V13: Hard safe-spending gate — refuse if the new obligation
-        // would push the user underwater. For PERSONAL we use the derived
-        // monthly saving (target/months). For GROUP we use the owner's
-        // explicit pledge.
-        BigDecimal proposedMonthly =
-                req.getType() == com.example.smartmoney.domain.models.project.enums.ProjectType.GROUP
-                        ? req.getOwnerMonthlyCommitmentAmount()
-                        : MonthlyObligationPolicy.derivedMonthly(req.getTargetAmount(), req.getDeadline());
-        safeSpendingService.requireCanAfford(actor, proposedMonthly);
+        safeSpendingService.requireCanAfford(
+                actor,
+                MonthlyObligationPolicy.derivedMonthly(req.getTargetAmount(), req.getDeadline())
+        );
     }
 
     private int monthsToDeadline(LocalDate today, LocalDate deadline) {
@@ -203,8 +168,8 @@ public class CreateProjectUseCase {
         if (deadline.isBefore(today)) {
             throw new ProjectException("Deadline must be today or later", ProjectErrorCode.PROJECT_INVALID_DEADLINE);
         }
-
-        int months = (deadline.getYear() - today.getYear()) * 12 + (deadline.getMonthValue() - today.getMonthValue()) + 1;
+        int months = (deadline.getYear() - today.getYear()) * 12
+                + (deadline.getMonthValue() - today.getMonthValue()) + 1;
         return Math.max(1, months);
     }
 

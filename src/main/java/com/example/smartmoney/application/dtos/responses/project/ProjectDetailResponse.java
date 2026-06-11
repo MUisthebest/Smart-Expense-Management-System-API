@@ -1,6 +1,7 @@
 package com.example.smartmoney.application.dtos.responses.project;
 
 import com.example.smartmoney.domain.models.project.Project;
+import com.example.smartmoney.domain.models.project.enums.ProjectPriority;
 import com.example.smartmoney.domain.models.project.enums.ProjectType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -12,6 +13,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.Period;
 import java.util.List;
+import java.util.UUID;
 
 @Data
 @Builder
@@ -21,6 +23,7 @@ public class ProjectDetailResponse {
     private String projectId;
     private String ownerId;
     private ProjectType type;
+    private UUID groupProjectId;
 
     private String name;
     private String description;
@@ -34,12 +37,12 @@ public class ProjectDetailResponse {
 
     private LocalDate deadline;
 
-    private String status;          // ONGOING | COMPLETED | OVERDUE
-    private Integer monthsLeft;     // 0, 1, 2,...
-    private String deadlineLabel;   // "6 months", "Completed", "Overdue"
-    private String statusLabel;     // "3 months left", "Completed", "Overdue"
+    private String status;
+    private Integer monthsLeft;
+    private String deadlineLabel;
+    private String statusLabel;
 
-    private com.example.smartmoney.domain.models.project.enums.ProjectPriority priority;
+    private ProjectPriority priority;
 
     private BigDecimal monthlySaving;
     private Instant createdAt;
@@ -48,25 +51,16 @@ public class ProjectDetailResponse {
     private BigDecimal moneyOwed;
 
     private List<ProjectHistoryResponse> histories;
-    private List<ProjectMemberResponse> members;
 
     public static ProjectDetailResponse fromDomain(Project p) {
-        return fromDomain(p, List.of(), List.of());
+        return fromDomain(p, List.of());
     }
 
     public static ProjectDetailResponse fromDomain(Project p, List<ProjectHistoryResponse> histories) {
-        return fromDomain(p, histories, List.of());
-    }
-
-    public static ProjectDetailResponse fromDomain(Project p, List<ProjectHistoryResponse> histories, List<ProjectMemberResponse> members) {
-        ProjectDetailResponse detail = fromDomainInternal(p, histories);
-        detail.setMembers(members);
-        return detail;
-    }
-
-    private static ProjectDetailResponse fromDomainInternal(Project p, List<ProjectHistoryResponse> histories) {
         BigDecimal targetAmount = p.getTargetAmount().amount();
-        BigDecimal totalContributed = p.getTracking() != null ? p.getTracking().getMoneySaved() : p.totalContributed().amount();
+        BigDecimal totalContributed = p.getTracking() != null
+                ? p.getTracking().getMoneySaved()
+                : p.totalContributed().amount();
         BigDecimal progressPercent = p.progressPercent();
         BigDecimal remaining = targetAmount.subtract(totalContributed).max(BigDecimal.ZERO);
 
@@ -88,51 +82,35 @@ public class ProjectDetailResponse {
             statusLabel = "Overdue";
         } else {
             status = "ONGOING";
-
             if (p.getTracking() != null) {
                 monthsLeft = p.getTracking().getMonthLeft();
             } else if (deadline != null) {
-                Period period =  Period.between(today, deadline);
+                Period period = Period.between(today, deadline);
                 monthsLeft = period.getYears() * 12 + period.getMonths();
-
-                if (deadline.getDayOfMonth() >= today.getDayOfMonth()) {
-                    monthsLeft += 1;
-                }
-
-                if (monthsLeft < 1) {
-                    monthsLeft = 1;
-                }
+                if (deadline.getDayOfMonth() >= today.getDayOfMonth()) monthsLeft += 1;
+                if (monthsLeft < 1) monthsLeft = 1;
             }
-
             deadlineLabel = monthsLeft == 1 ? "1 month" : monthsLeft + " months";
             statusLabel = monthsLeft == 1 ? "1 month left" : monthsLeft + " months left";
         }
 
         BigDecimal monthlySaving = p.getTracking() != null ? p.getTracking().getMonthlySaving() : BigDecimal.ZERO;
-        Instant createdAt = p.getCreatedAt();
         int durationMonths = 0;
         if (p.getCreatedAt() != null && deadline != null) {
             LocalDate createdDate = p.getCreatedAt().atZone(java.time.ZoneId.systemDefault()).toLocalDate();
             Period period = Period.between(createdDate, deadline);
             durationMonths = period.getYears() * 12 + period.getMonths();
-            if (deadline.getDayOfMonth() >= createdDate.getDayOfMonth()) {
-                durationMonths += 1;
-            }
-            if (durationMonths < 1) {
-                durationMonths = 1;
-            }
+            if (deadline.getDayOfMonth() >= createdDate.getDayOfMonth()) durationMonths += 1;
+            if (durationMonths < 1) durationMonths = 1;
         }
         Integer currentMonth = p.getTracking() != null ? p.getTracking().getCurrentMonth() : null;
         BigDecimal moneyOwed = p.getTracking() != null ? p.getTracking().getMoneyOwed() : BigDecimal.ZERO;
-
-        List<ProjectMemberResponse> memberDtos = p.getMembers().stream()
-                .map(ProjectMemberResponse::fromDomain)
-                .toList();
 
         return ProjectDetailResponse.builder()
                 .projectId(p.getId().toString())
                 .ownerId(p.getOwnerId().toString())
                 .type(p.getType())
+                .groupProjectId(p.getGroupProjectId())
                 .name(p.getName())
                 .description(p.getDescription())
                 .targetAmount(p.getTargetAmount().amount())
@@ -147,12 +125,11 @@ public class ProjectDetailResponse {
                 .statusLabel(statusLabel)
                 .priority(p.getPriority())
                 .monthlySaving(monthlySaving)
-                .createdAt(createdAt)
+                .createdAt(p.getCreatedAt())
                 .durationMonths(durationMonths)
                 .currentMonth(currentMonth)
                 .moneyOwed(moneyOwed)
                 .histories(histories)
-                .members(memberDtos)
                 .build();
     }
 }

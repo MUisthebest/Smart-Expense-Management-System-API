@@ -1,8 +1,6 @@
 package com.example.smartmoney.domain.services;
 
 import com.example.smartmoney.domain.exceptions.InsufficientSafeSpendingException;
-import com.example.smartmoney.domain.exceptions.ProjectErrorCode;
-import com.example.smartmoney.domain.exceptions.ProjectException;
 import com.example.smartmoney.domain.models.project.Project;
 import com.example.smartmoney.domain.models.project.ProjectTracking;
 import com.example.smartmoney.domain.models.project.enums.ProjectStatus;
@@ -57,7 +55,7 @@ public class SafeSpendingService {
      * when the user has no income profile yet.
      */
     public BigDecimal currentSafeSpending(UserId ownerId) {
-        UserIncome income = userIncomeRepository.findById(ownerId.value()).orElse(null);
+        UserIncome income = userIncomeRepository.findByUserId(ownerId.value()).orElse(null);
         if (income == null || income.getSafeSpending() == null) {
             return BigDecimal.ZERO;
         }
@@ -72,7 +70,7 @@ public class SafeSpendingService {
     public BigDecimal projectedSafeSpendingIfAdded(UserId ownerId, BigDecimal additionalMonthly) {
         if (additionalMonthly == null) additionalMonthly = BigDecimal.ZERO;
 
-        UserIncome income = userIncomeRepository.findById(ownerId.value()).orElse(null);
+        UserIncome income = userIncomeRepository.findByUserId(ownerId.value()).orElse(null);
         if (income == null || income.getUsableIncome() == null) {
             return BigDecimal.ZERO;
         }

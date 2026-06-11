@@ -1,6 +1,5 @@
 package com.example.smartmoney.application.dtos.requests.project;
 
-import com.example.smartmoney.domain.models.project.enums.ProjectType;
 import com.example.smartmoney.domain.models.project.enums.ProjectPriority;
 import jakarta.validation.constraints.*;
 import lombok.Data;
@@ -17,9 +16,6 @@ public class CreateProjectRequest {
     @Size(max = 500, message = "Description must not exceed 500 characters")
     private String description;
 
-    @NotNull(message = "Project type is required")
-    private ProjectType type;
-
     private ProjectPriority priority;
 
     @NotNull(message = "Target amount is required")
@@ -32,13 +28,4 @@ public class CreateProjectRequest {
 
     @NotNull(message = "Deadline is required")
     private LocalDate deadline;
-
-    /**
-     * Required only when {@link #type} is GROUP. Defines the owner's own
-     * monthly pledge — the arrears worker will use this to track whether
-     * the owner is meeting their commitment. Ignored for PERSONAL projects
-     * (which derive monthly saving from {@code targetAmount} / months).
-     */
-    @DecimalMin(value = "0.01", message = "ownerMonthlyCommitmentAmount must be > 0")
-    private BigDecimal ownerMonthlyCommitmentAmount;
 }
