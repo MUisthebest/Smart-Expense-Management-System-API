@@ -34,6 +34,8 @@ public class User {
     private boolean active = true;
     private boolean emailVerified = false;  // Trạng thái xác minh email
     private boolean notificationEnabled = true;
+    private boolean incomeSetupCompleted = false;
+    private boolean financialSetupCompleted = false;
     
     // Factory method for registration
     public static User create(
@@ -267,6 +269,12 @@ public class User {
     
     public boolean isEmailVerified() { return emailVerified; }
     public void setEmailVerified(boolean emailVerified) { this.emailVerified = emailVerified; }
+
+    public boolean isIncomeSetupCompleted() { return incomeSetupCompleted; }
+    public void setIncomeSetupCompleted(boolean incomeSetupCompleted) { this.incomeSetupCompleted = incomeSetupCompleted; }
+
+    public boolean isFinancialSetupCompleted() { return financialSetupCompleted; }
+    public void setFinancialSetupCompleted(boolean financialSetupCompleted) { this.financialSetupCompleted = financialSetupCompleted; }
 
     public void enableNotification() {
     this.notificationEnabled = true;

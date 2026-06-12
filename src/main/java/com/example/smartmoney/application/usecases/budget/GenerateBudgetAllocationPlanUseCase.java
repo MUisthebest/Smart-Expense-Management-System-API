@@ -1,8 +1,11 @@
 package com.example.smartmoney.application.usecases.budget;
 
 import com.example.smartmoney.application.usecases.queue.ProcessQueueRequestUseCase;
+import com.example.smartmoney.domain.exceptions.ProjectErrorCode;
+import com.example.smartmoney.domain.exceptions.ProjectException;
 import com.example.smartmoney.domain.models.message.MessageRecord;
 import com.example.smartmoney.domain.models.project.valueobjects.UserId;
+import com.example.smartmoney.domain.repositories.UserRepository;
 import com.example.smartmoney.infrastructure.persistence.entities.UserFinancialProfileEntity;
 import com.example.smartmoney.infrastructure.persistence.entities.UserIncomeEntity;
 import com.example.smartmoney.infrastructure.persistence.repositories.JpaTransactionRepository;
@@ -25,6 +28,7 @@ public class GenerateBudgetAllocationPlanUseCase {
     private final JpaUserIncomeRepository userIncomeRepository;
     private final JpaUserFinancialProfileRepository userFinancialProfileRepository;
     private final JpaTransactionRepository transactionRepository;
+    private final UserRepository userRepository;
     private final ProcessQueueRequestUseCase processQueueRequestUseCase;
     private final ObjectMapper objectMapper;
 
@@ -32,12 +36,14 @@ public class GenerateBudgetAllocationPlanUseCase {
             JpaUserIncomeRepository userIncomeRepository,
             JpaUserFinancialProfileRepository userFinancialProfileRepository,
             JpaTransactionRepository transactionRepository,
+            UserRepository userRepository,
             ProcessQueueRequestUseCase processQueueRequestUseCase,
             ObjectMapper objectMapper
     ) {
         this.userIncomeRepository = userIncomeRepository;
         this.userFinancialProfileRepository = userFinancialProfileRepository;
         this.transactionRepository = transactionRepository;
+        this.userRepository = userRepository;
         this.processQueueRequestUseCase = processQueueRequestUseCase;
         this.objectMapper = objectMapper;
     }
@@ -45,6 +51,21 @@ public class GenerateBudgetAllocationPlanUseCase {
     @Transactional(readOnly = true)
     public MessageRecord execute(UserId userId) {
         UUID uid = userId.value();
+
+        var user = userRepository.findById(uid)
+                .orElseThrow(() -> new ProjectException("User not found", ProjectErrorCode.PROJECT_PERMISSION_DENIED));
+
+        if (!user.isIncomeSetupCompleted()) {
+            throw new ProjectException(
+                    "Please set up your income profile before using Budget AI",
+                    ProjectErrorCode.INCOME_PROFILE_REQUIRED);
+        }
+
+        if (!user.isFinancialSetupCompleted()) {
+            throw new ProjectException(
+                    "Please set up your financial profile before using Budget AI",
+                    ProjectErrorCode.FINANCIAL_PROFILE_REQUIRED);
+        }
 
         UserIncomeEntity income = userIncomeRepository.findByUserId(uid)
                 .orElseThrow(() -> new RuntimeException("User income not found"));

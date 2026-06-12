@@ -7,6 +7,7 @@ import com.example.smartmoney.domain.exceptions.ProjectErrorCode;
 import com.example.smartmoney.domain.exceptions.ProjectException;
 import com.example.smartmoney.domain.models.user.UserIncome;
 import com.example.smartmoney.domain.repositories.UserIncomeRepository;
+import com.example.smartmoney.domain.repositories.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -36,10 +37,16 @@ public class ProjectBudgetAdvisorUseCase {
     private static final int MAX_MONTHS = 60;
 
     private final UserIncomeRepository userIncomeRepository;
+    private final UserRepository userRepository;
     private final LlmPort llmPort; // kept for future services; not used here
 
     public ProjectBudgetAdvisorResponse execute(String actorId, ProjectBudgetAdvisorRequest req) {
         UUID userId = parseUserId(actorId);
+
+        var user = userRepository.findById(userId)
+                .orElseThrow(() -> new ProjectException("User not found", ProjectErrorCode.PROJECT_PERMISSION_DENIED));
+
+        validateIncomeSetupCompleted(user);
 
         UserIncome income = userIncomeRepository.findByUserId(userId)
                 .orElseThrow(() -> new ProjectException(
@@ -118,6 +125,14 @@ public class ProjectBudgetAdvisorUseCase {
             return UUID.fromString(actorId);
         } catch (Exception e) {
             throw new ProjectException("Invalid actor id", ProjectErrorCode.PROJECT_PERMISSION_DENIED);
+        }
+    }
+
+    private void validateIncomeSetupCompleted(com.example.smartmoney.domain.models.user.User user) {
+        if (!user.isIncomeSetupCompleted()) {
+            throw new ProjectException(
+                    "Please set up your income profile before using project advisor",
+                    ProjectErrorCode.INCOME_PROFILE_REQUIRED);
         }
     }
 }

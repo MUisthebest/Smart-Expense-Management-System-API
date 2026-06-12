@@ -1,5 +1,6 @@
 package com.example.smartmoney.application.dtos.responses;
 
+import com.example.smartmoney.domain.models.userprofile.UserFinancialProfile;
 import com.example.smartmoney.infrastructure.persistence.entities.UserFinancialProfileEntity;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Builder;
@@ -11,6 +12,7 @@ import java.util.UUID;
 @Getter
 @Builder
 public class UserFinancialProfileResponse {
+
     private UUID id;
     private UUID userId;
 
@@ -42,6 +44,24 @@ public class UserFinancialProfileResponse {
 
     private Instant createdAt;
     private Instant updatedAt;
+
+    public static UserFinancialProfileResponse fromDomain(UserFinancialProfile profile) {
+        return UserFinancialProfileResponse.builder()
+                .id(profile.getId())
+                .userId(profile.getUserId())
+                .role(profile.getRole().name())
+                .livingStatus(profile.getLivingStatus().name())
+                .incomeLevel(profile.getIncomeLevel().name())
+                .transportMode(profile.getTransportMode().name())
+                .spendingStyle(profile.getSpendingStyle().name())
+                .workStyle(profile.getWorkStyle().name())
+                .familyStatus(profile.getFamilyStatus().name())
+                .studyIntensity(profile.getStudyIntensity().name())
+                .healthNeed(profile.getHealthNeed().name())
+                .createdAt(profile.getCreatedAt())
+                .updatedAt(profile.getUpdatedAt())
+                .build();
+    }
 
     public static UserFinancialProfileResponse fromEntity(UserFinancialProfileEntity entity) {
         return UserFinancialProfileResponse.builder()

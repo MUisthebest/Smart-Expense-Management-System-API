@@ -10,10 +10,12 @@ import com.example.smartmoney.domain.models.project.enums.ProjectType;
 import com.example.smartmoney.domain.models.project.valueobjects.Money;
 import com.example.smartmoney.domain.models.project.valueobjects.ProjectId;
 import com.example.smartmoney.domain.models.project.valueobjects.UserId;
+import com.example.smartmoney.domain.models.user.User;
 import com.example.smartmoney.domain.models.user.UserIncome;
 import com.example.smartmoney.domain.repositories.ProjectRepository;
 import com.example.smartmoney.domain.repositories.ProjectTrackingRepository;
 import com.example.smartmoney.domain.repositories.UserIncomeRepository;
+import com.example.smartmoney.domain.repositories.UserRepository;
 import com.example.smartmoney.domain.services.SafeSpendingService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -47,6 +49,9 @@ class UpdateProjectUseCaseTest {
     private UserIncomeRepository userIncomeRepository;
 
     @Mock
+    private UserRepository userRepository;
+
+    @Mock
     private ProjectTrackingRepository projectTrackingRepository;
 
     @Mock
@@ -59,9 +64,10 @@ class UpdateProjectUseCaseTest {
 
     @BeforeEach
     void setUp() {
-        useCase = new UpdateProjectUseCase(projectRepository, projectTrackingRepository, userIncomeRepository, safeSpendingService);
+        useCase = new UpdateProjectUseCase(projectRepository, projectTrackingRepository, userIncomeRepository, userRepository, safeSpendingService);
         actorUuid = UUID.randomUUID();
         actorId = actorUuid.toString();
+        when(userRepository.findById(any(UUID.class))).thenReturn(Optional.of(onboardedUser()));
     }
 
     @Test
@@ -72,7 +78,7 @@ class UpdateProjectUseCaseTest {
         req.setName("New");
 
         when(projectRepository.findById(eq(ProjectId.of(existing.getId().toString())))).thenReturn(Optional.of(existing));
-        when(userIncomeRepository.findById(eq(actorUuid))).thenReturn(Optional.empty());
+        when(userIncomeRepository.findByUserId(eq(actorUuid))).thenReturn(Optional.empty());
 
         ProjectException ex = assertThrows(ProjectException.class,
                 () -> useCase.execute(actorId, existing.getId().toString(), req));
@@ -88,7 +94,7 @@ class UpdateProjectUseCaseTest {
         req.setStatus(ProjectStatus.ACTIVE);
 
         when(projectRepository.findById(any())).thenReturn(Optional.of(existing));
-        when(userIncomeRepository.findById(eq(actorUuid))).thenReturn(Optional.of(validIncome(actorUuid)));
+        when(userIncomeRepository.findByUserId(eq(actorUuid))).thenReturn(Optional.of(validIncome(actorUuid)));
 
         when(projectRepository.findAllByUser(eq(UserId.of(actorId)))).thenReturn(List.of(
                 activeProject(ProjectPriority.LOW, LocalDate.now()),
@@ -111,7 +117,7 @@ class UpdateProjectUseCaseTest {
         req.setPriority(ProjectPriority.HIGH);
 
         when(projectRepository.findById(any())).thenReturn(Optional.of(existing));
-        when(userIncomeRepository.findById(eq(actorUuid))).thenReturn(Optional.of(validIncome(actorUuid)));
+        when(userIncomeRepository.findByUserId(eq(actorUuid))).thenReturn(Optional.of(validIncome(actorUuid)));
         when(projectRepository.findAllByUser(eq(UserId.of(actorId)))).thenReturn(List.of(
                 existing,
                 activeProject(ProjectPriority.HIGH, LocalDate.now())
@@ -132,7 +138,7 @@ class UpdateProjectUseCaseTest {
         req.setDeadline(LocalDate.now());
 
         when(projectRepository.findById(any())).thenReturn(Optional.of(existing));
-        when(userIncomeRepository.findById(eq(actorUuid))).thenReturn(Optional.of(validIncome(actorUuid)));
+        when(userIncomeRepository.findByUserId(eq(actorUuid))).thenReturn(Optional.of(validIncome(actorUuid)));
 
         when(projectRepository.findAllByUser(eq(UserId.of(actorId)))).thenReturn(List.of(
                 existing,
@@ -155,7 +161,7 @@ class UpdateProjectUseCaseTest {
         req.setDeadline(LocalDate.now().plusMonths(60));
 
         when(projectRepository.findById(any())).thenReturn(Optional.of(existing));
-        when(userIncomeRepository.findById(eq(actorUuid))).thenReturn(Optional.of(validIncome(actorUuid)));
+        when(userIncomeRepository.findByUserId(eq(actorUuid))).thenReturn(Optional.of(validIncome(actorUuid)));
         when(projectRepository.findAllByUser(eq(UserId.of(actorId)))).thenReturn(List.of(existing));
 
         ProjectException ex = assertThrows(ProjectException.class,
@@ -179,5 +185,16 @@ class UpdateProjectUseCaseTest {
                 "P", null, new Money(new BigDecimal("10"), "VND"), deadline);
         p.updateStatus(UserId.of(actorId), ProjectStatus.COMPLETED);
         return p;
+    }
+
+    private User onboardedUser() {
+        return User.builder()
+                .id(actorUuid)
+                .username("user")
+                .fullName("User")
+                .active(true)
+                .incomeSetupCompleted(true)
+                .financialSetupCompleted(true)
+                .build();
     }
 }

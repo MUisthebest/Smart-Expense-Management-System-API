@@ -2,43 +2,54 @@ package com.example.smartmoney.application.usecases.userprofile;
 
 import com.example.smartmoney.application.dtos.requests.userfinancialprofile.UpdateUserFinancialProfileRequest;
 import com.example.smartmoney.application.dtos.responses.UserFinancialProfileResponse;
-import com.example.smartmoney.domain.models.project.valueobjects.UserId;
-import com.example.smartmoney.infrastructure.persistence.entities.UserFinancialProfileEntity;
-import com.example.smartmoney.infrastructure.persistence.repositories.JpaUserFinancialProfileRepository;
+import com.example.smartmoney.domain.exceptions.DomainException;
+import com.example.smartmoney.domain.exceptions.EntityNotFoundException;
+import com.example.smartmoney.domain.models.userprofile.UserFinancialProfile;
+import com.example.smartmoney.domain.repositories.UserFinancialProfileRepository;
+import com.example.smartmoney.domain.repositories.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.UUID;
 
 @Service
 public class UpdateUserFinancialProfileUseCase {
 
-    private final JpaUserFinancialProfileRepository repository;
+    private final UserFinancialProfileRepository userFinancialProfileRepository;
+    private final UserRepository userRepository;
 
-    public UpdateUserFinancialProfileUseCase(JpaUserFinancialProfileRepository repository) {
-        this.repository = repository;
+    public UpdateUserFinancialProfileUseCase(
+            UserFinancialProfileRepository userFinancialProfileRepository,
+            UserRepository userRepository
+    ) {
+        this.userFinancialProfileRepository = userFinancialProfileRepository;
+        this.userRepository = userRepository;
     }
 
     @Transactional
     public UserFinancialProfileResponse execute(String userId, UpdateUserFinancialProfileRequest request) {
-
         UUID uid = UUID.fromString(userId);
 
-        UserFinancialProfileEntity entity = repository.findByUserId(uid)
-                .orElseThrow(() -> new RuntimeException("User financial profile not found"));
+        UserFinancialProfile current = userFinancialProfileRepository.findByUserId(uid)
+                .orElseThrow(() -> new EntityNotFoundException("UserFinancialProfile", userId));
 
-        entity.setRole(request.getRole());
-        entity.setLivingStatus(request.getLivingStatus());
-        entity.setIncomeLevel(request.getIncomeLevel());
-        entity.setTransportMode(request.getTransportMode());
-        entity.setSpendingStyle(request.getSpendingStyle());
-        entity.setWorkStyle(request.getWorkStyle());
-        entity.setFamilyStatus(request.getFamilyStatus());
-        entity.setStudyIntensity(request.getStudyIntensity());
-        entity.setHealthNeed(request.getHealthNeed());
+        current.update(
+                request.getRole(),
+                request.getLivingStatus(),
+                request.getIncomeLevel(),
+                request.getTransportMode(),
+                request.getSpendingStyle(),
+                request.getWorkStyle(),
+                request.getFamilyStatus(),
+                request.getStudyIntensity(),
+                request.getHealthNeed()
+        );
 
-        UserFinancialProfileEntity saved = repository.save(entity);
+        UserFinancialProfile saved = userFinancialProfileRepository.save(current);
 
-        return UserFinancialProfileResponse.fromEntity(saved);
+        userRepository.markFinancialSetupCompleted(uid, true);
+
+        return UserFinancialProfileResponse.fromDomain(saved);
     }
 }

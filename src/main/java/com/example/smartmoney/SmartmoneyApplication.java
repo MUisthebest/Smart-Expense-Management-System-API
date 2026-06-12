@@ -31,7 +31,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
     ),
     servers = {
         @Server(
-            url = "http://localhost:8080",
+            url = "http://localhost:8082",
             description = "Local Development Server"
         ),
         @Server(
