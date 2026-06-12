@@ -15,6 +15,7 @@ import com.example.smartmoney.domain.models.user.UserIncome;
 import com.example.smartmoney.domain.repositories.ProjectRepository;
 import com.example.smartmoney.domain.repositories.ProjectTrackingRepository;
 import com.example.smartmoney.domain.repositories.UserIncomeRepository;
+import com.example.smartmoney.domain.repositories.UserRepository;
 import com.example.smartmoney.domain.services.SafeSpendingService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -36,6 +37,7 @@ public class UpdateProjectUseCase {
     private final ProjectRepository projectRepository;
     private final ProjectTrackingRepository projectTrackingRepository;
     private final UserIncomeRepository userIncomeRepository;
+    private final UserRepository userRepository;
     private final SafeSpendingService safeSpendingService;
 
     @Transactional
@@ -78,6 +80,21 @@ public class UpdateProjectUseCase {
             userId = UUID.fromString(actorId);
         } catch (Exception ex) {
             throw new ProjectException("Invalid actor id", ProjectErrorCode.PROJECT_PERMISSION_DENIED);
+        }
+
+        var user = userRepository.findById(userId)
+                .orElseThrow(() -> new ProjectException("User not found", ProjectErrorCode.PROJECT_PERMISSION_DENIED));
+
+        if (!user.isIncomeSetupCompleted()) {
+            throw new ProjectException(
+                    "Please set up your income profile before updating projects",
+                    ProjectErrorCode.INCOME_PROFILE_REQUIRED);
+        }
+
+        if (!user.isFinancialSetupCompleted()) {
+            throw new ProjectException(
+                    "Please set up your financial profile before updating projects",
+                    ProjectErrorCode.FINANCIAL_PROFILE_REQUIRED);
         }
 
         UserIncome income = userIncomeRepository.findByUserId(userId)
