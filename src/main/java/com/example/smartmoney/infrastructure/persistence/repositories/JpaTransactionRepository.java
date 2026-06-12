@@ -95,7 +95,7 @@ public interface JpaTransactionRepository extends JpaRepository<TransactionEntit
 
     void deleteById(UUID id);
 
-    @Query(value = "SELECT t.category, COUNT(*) FROM transactions t WHERE t.user_id = CAST(:userId AS uuid) AND EXTRACT(YEAR FROM t.date) = :year AND EXTRACT(MONTH FROM t.date) = :month GROUP BY t.category", nativeQuery = true)
+    @Query(value = "SELECT t.category, COUNT(t.id), SUM(t.amount) FROM transactions t WHERE t.user_id = CAST(:userId AS uuid) AND t.type = 'EXPENSE' AND EXTRACT(YEAR FROM t.date) = :year AND EXTRACT(MONTH FROM t.date) = :month GROUP BY t.category", nativeQuery = true)
     List<Object[]> getTransactionProportionByCategory(
             @Param("userId") UUID userId,
             @Param("year") int year,
@@ -113,7 +113,7 @@ public interface JpaTransactionRepository extends JpaRepository<TransactionEntit
         SELECT
             t.type,
             ((EXTRACT(DAY FROM t.date)::int - 1) / 7) + 1 AS week_of_month,
-            COUNT(*) AS total_rows
+            COALESCE(SUM(t.amount), 0) AS total_amount
         FROM transactions t
         WHERE t.user_id = CAST(:userId AS uuid)
           AND EXTRACT(MONTH FROM t.date) = :month
@@ -123,7 +123,7 @@ public interface JpaTransactionRepository extends JpaRepository<TransactionEntit
     SELECT
         types.type,
         weeks.week_of_month,
-        COALESCE(stats.total_rows, 0) AS total_rows
+        COALESCE(stats.total_amount, 0) AS total_amount
     FROM weeks
     CROSS JOIN types
     LEFT JOIN stats

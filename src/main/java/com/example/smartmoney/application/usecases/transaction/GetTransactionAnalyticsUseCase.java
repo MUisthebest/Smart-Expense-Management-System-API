@@ -60,15 +60,15 @@ public class GetTransactionAnalyticsUseCase {
 
             String type = row[0].toString();
             String week = row[1].toString();
-            int amount = ((Number) row[2]).intValue();
+            double amount = ((Number) row[2]).doubleValue();
 
             TransactionAnalyticsResponse.MonthlyStat stat =
                     statsMap.computeIfAbsent(
                             week,
                             w -> new TransactionAnalyticsResponse.MonthlyStat(
                                     w,
-                                    0,
-                                    0
+                                    0.0,
+                                    0.0
                             )
                     );
 
@@ -82,12 +82,15 @@ public class GetTransactionAnalyticsUseCase {
         return new ArrayList<>(statsMap.values());
     }
     private List<TransactionAnalyticsResponse.CategoryProportion> mapToProportions(List<Object[]> raw) {
-        long total = raw.stream().mapToLong(r -> ((Number) r[1]).longValue()).sum();
+        double totalExpenseAmount = raw.stream()
+                .mapToDouble(r -> r[2] != null ? ((Number) r[2]).doubleValue() : 0.0)
+                .sum();
 
         return raw.stream().map(row -> {
             String category = row[0].toString();
-            long count = ((Number) row[1]).longValue();
-            double percent = total == 0 ? 0 : (double) count * 100 / total;
+            long count = row[1] != null ? ((Number) row[1]).longValue() : 0L;
+            double amount = row[2] != null ? ((Number) row[2]).doubleValue() : 0.0;
+            double percent = totalExpenseAmount == 0 ? 0 : amount * 100 / totalExpenseAmount;
             return new TransactionAnalyticsResponse.CategoryProportion(category, count, percent);
         }).collect(Collectors.toList());
     }
