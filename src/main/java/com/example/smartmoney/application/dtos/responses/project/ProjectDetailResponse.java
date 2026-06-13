@@ -82,12 +82,10 @@ public class ProjectDetailResponse {
             statusLabel = "Overdue";
         } else {
             status = "ONGOING";
-            if (p.getTracking() != null) {
-                monthsLeft = p.getTracking().getMonthLeft();
-            } else if (deadline != null) {
+            if (deadline != null) {
                 Period period = Period.between(today, deadline);
                 monthsLeft = period.getYears() * 12 + period.getMonths();
-                if (deadline.getDayOfMonth() >= today.getDayOfMonth()) monthsLeft += 1;
+                if (period.getDays() > 0) monthsLeft += 1;
                 if (monthsLeft < 1) monthsLeft = 1;
             }
             deadlineLabel = monthsLeft == 1 ? "1 month" : monthsLeft + " months";
