@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -46,13 +47,14 @@ public class GetGroupDetailUseCase {
                 .map(gp -> gp.getId().toString())
                 .orElse(null);
 
-        // Batch-load usernames for all members
-        Map<String, String> usernameByUserId = group.getMembers().stream()
+        // Batch-load usernames for all members in a single query
+        Set<UUID> memberIds = group.getMembers().stream()
+                .map(m -> UUID.fromString(m.getUserId().toString()))
+                .collect(Collectors.toSet());
+        Map<String, String> usernameByUserId = userRepository.findAllByIds(memberIds).stream()
                 .collect(Collectors.toMap(
-                        m -> m.getUserId().toString(),
-                        m -> userRepository.findById(UUID.fromString(m.getUserId().toString()))
-                                .map(u -> u.getUsername())
-                                .orElse(null),
+                        u -> u.getId().toString(),
+                        u -> u.getUsername(),
                         (a, b) -> a
                 ));
 

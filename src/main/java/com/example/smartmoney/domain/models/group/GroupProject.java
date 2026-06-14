@@ -15,7 +15,7 @@ public class GroupProject {
     private final UUID groupId;
     private final String name;
     private final String description;
-    private final BigDecimal targetAmount;
+    private BigDecimal targetAmount;
     private final BigDecimal totalCapacity;
     private final String currency;
     private final int totalMonths;
@@ -49,6 +49,11 @@ public class GroupProject {
         return new GroupProject(GroupProjectId.newId(), groupId, name.trim(), description,
                 targetAmount, totalCapacity, currency.toUpperCase(), totalMonths, deadline,
                 GroupProjectStatus.ACTIVE, now, now);
+    }
+
+    public void reduceTargetAmount(BigDecimal reduction) {
+        this.targetAmount = this.targetAmount.subtract(reduction).max(BigDecimal.ZERO);
+        this.updatedAt = Instant.now();
     }
 
     public void markCompleted() {

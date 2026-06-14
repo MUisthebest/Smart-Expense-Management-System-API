@@ -26,7 +26,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -55,11 +57,14 @@ public class DissolveGroupProjectUseCase {
 
         if (gp.getStatus() == GroupProjectStatus.DISSOLVED) {
             throw new ProjectException("Group project is already dissolved",
-                    ProjectErrorCode.PROJECT_PERMISSION_DENIED);
+                    ProjectErrorCode.PROJECT_ALREADY_DISSOLVED);
         }
 
-        // Refund contributions and delete all sub-personal projects
         List<Project> subProjects = projectRepository.findAllByGroupProjectId(gp.getId().value());
+
+        // Refund and delete only ACTIVE/FROZEN sub-projects.
+        // COMPLETED and ABANDONED sub-projects are preserved so members retain their history.
+        Set<UserId> ownersToRecalculate = new LinkedHashSet<>();
         for (Project sub : subProjects) {
             if (sub.getStatus() == ProjectStatus.ACTIVE || sub.getStatus() == ProjectStatus.FROZEN) {
                 for (ProjectContribution c : sub.getContributions()) {
@@ -78,10 +83,14 @@ public class DissolveGroupProjectUseCase {
                                 c.getUserId().value(), sub.getId().value(), ex.getMessage());
                     }
                 }
+                projectRepository.deleteById(sub.getId());
+                ownersToRecalculate.add(sub.getOwnerId());
             }
+        }
 
-            projectRepository.deleteById(sub.getId());
-            safeSpendingService.recalculateAndSaveSafeSpending(sub.getOwnerId());
+        // Recalculate safe spending once per owner after all deletions are complete
+        for (UserId ownerId : ownersToRecalculate) {
+            safeSpendingService.recalculateAndSaveSafeSpending(ownerId);
         }
 
         gp.dissolve();

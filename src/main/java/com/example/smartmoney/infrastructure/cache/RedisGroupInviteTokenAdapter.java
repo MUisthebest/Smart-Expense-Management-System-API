@@ -23,15 +23,18 @@ public class RedisGroupInviteTokenAdapter implements GroupInviteTokenPort {
     }
 
     @Override
-    public void save(String token, UUID groupId) {
-        redisTemplate.opsForValue().set(KEY_PREFIX + token, groupId.toString(), TTL);
+    public void save(String token, UUID groupId, UUID invitedUserId) {
+        String value = groupId.toString() + ":" + invitedUserId.toString();
+        redisTemplate.opsForValue().set(KEY_PREFIX + token, value, TTL);
     }
 
     @Override
-    public Optional<UUID> find(String token) {
+    public Optional<InvitePayload> find(String token) {
         String value = redisTemplate.opsForValue().get(KEY_PREFIX + token);
         if (value == null) return Optional.empty();
-        return Optional.of(UUID.fromString(value));
+        String[] parts = value.split(":", 2);
+        if (parts.length != 2) return Optional.empty();
+        return Optional.of(new InvitePayload(UUID.fromString(parts[0]), UUID.fromString(parts[1])));
     }
 
     @Override

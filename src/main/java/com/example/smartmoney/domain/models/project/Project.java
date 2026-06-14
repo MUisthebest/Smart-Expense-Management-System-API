@@ -53,8 +53,6 @@ public class Project {
         this.deadline = Objects.requireNonNull(deadline);
         this.groupProjectId = groupProjectId;
         this.createdAt = createdAt == null ? Instant.now() : createdAt;
-
-        validateCreate();
     }
 
     public static Project createNew(UserId ownerId,
@@ -64,8 +62,10 @@ public class Project {
                                     String description,
                                     Money targetAmount,
                                     LocalDate deadline) {
-        return new Project(ProjectId.newId(), ownerId, type, ProjectStatus.ACTIVE, priority,
+        Project p = new Project(ProjectId.newId(), ownerId, type, ProjectStatus.ACTIVE, priority,
                 name, description, targetAmount, deadline, null, Instant.now());
+        p.validateNew();
+        return p;
     }
 
     public static Project createSubPersonal(UserId ownerId,
@@ -76,11 +76,13 @@ public class Project {
                                             LocalDate deadline,
                                             UUID groupProjectId) {
         Objects.requireNonNull(groupProjectId, "groupProjectId required for sub-personal project");
-        return new Project(ProjectId.newId(), ownerId, ProjectType.PERSONAL, ProjectStatus.ACTIVE,
+        Project p = new Project(ProjectId.newId(), ownerId, ProjectType.PERSONAL, ProjectStatus.ACTIVE,
                 priority, name, description, targetAmount, deadline, groupProjectId, Instant.now());
+        p.validateNew();
+        return p;
     }
 
-    private void validateCreate() {
+    private void validateNew() {
         if (targetAmount.amount().compareTo(BigDecimal.ZERO) <= 0) {
             throw new ProjectException("Target amount must be > 0", ProjectErrorCode.PROJECT_INVALID_TARGET_AMOUNT);
         }
@@ -91,7 +93,7 @@ public class Project {
 
     private String normalizeName(String raw) {
         if (raw == null || raw.isBlank()) {
-            throw new ProjectException("Project name is required", ProjectErrorCode.PROJECT_INVALID_TARGET_AMOUNT);
+            throw new ProjectException("Project name is required", ProjectErrorCode.PROJECT_INVALID_NAME);
         }
         return raw.trim();
     }
@@ -224,7 +226,7 @@ public class Project {
     }
 
     public void freeze(UserId actorId) {
-        if (actorId != null && !actorId.equals(ownerId)) {
+        if (actorId == null || !actorId.equals(ownerId)) {
             throw new ProjectException("Only owner can freeze project",
                     ProjectErrorCode.PROJECT_PERMISSION_DENIED);
         }
@@ -238,7 +240,7 @@ public class Project {
     }
 
     public void unfreeze(UserId actorId) {
-        if (!actorId.equals(ownerId)) {
+        if (actorId == null || !actorId.equals(ownerId)) {
             throw new ProjectException("Only owner can unfreeze project",
                     ProjectErrorCode.PROJECT_PERMISSION_DENIED);
         }
@@ -250,7 +252,7 @@ public class Project {
     }
 
     public void abandon(UserId actorId) {
-        if (!actorId.equals(ownerId)) {
+        if (actorId == null || !actorId.equals(ownerId)) {
             throw new ProjectException("Only owner can abandon project",
                     ProjectErrorCode.PROJECT_PERMISSION_DENIED);
         }

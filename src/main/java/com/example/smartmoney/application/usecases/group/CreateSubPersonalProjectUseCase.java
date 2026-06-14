@@ -60,8 +60,9 @@ public class CreateSubPersonalProjectUseCase {
                 .orElseThrow(() -> new ProjectException("Group not found", ProjectErrorCode.PROJECT_NOT_FOUND));
 
         UserId actor = UserId.of(actorId);
+        UUID actorUuid = UUID.fromString(actorId);
 
-        // Actor must be a JOINED member
+        // Actor must be a JOINED member — fetch the snapshot committed at accept time
         BigDecimal capacitySnapshot = group.getMembers().stream()
                 .filter(m -> m.getUserId().equals(actor)
                         && m.getInviteStatus() == GroupMemberInviteStatus.JOINED)
@@ -71,15 +72,7 @@ public class CreateSubPersonalProjectUseCase {
                         "You are not a joined member of this group",
                         ProjectErrorCode.PROJECT_PERMISSION_DENIED));
 
-        // Check for existing sub-project
-        boolean alreadyJoined = projectRepository.findAllByGroupProjectId(gp.getId().value()).stream()
-                .anyMatch(p -> actor.equals(p.getOwnerId()));
-        if (alreadyJoined) {
-            throw new ProjectException("You already have a sub-project for this group project",
-                    ProjectErrorCode.PROJECT_DUPLICATE_MEMBER);
-        }
-
-        UUID actorUuid = UUID.fromString(actorId);
+        // Load current income once — reused for currency check, capacity, and obligation checks
         UserIncome income = userIncomeRepository.findByUserId(actorUuid)
                 .orElseThrow(() -> new ProjectException(
                         "Income not set", ProjectErrorCode.PROJECT_USER_INCOME_REQUIRED));
@@ -87,14 +80,32 @@ public class CreateSubPersonalProjectUseCase {
         if (!gp.getCurrency().equalsIgnoreCase(income.getCurrency())) {
             throw new ProjectException(
                     "Your income currency does not match the group project currency",
-                    ProjectErrorCode.PROJECT_USER_INCOME_REQUIRED);
+                    ProjectErrorCode.PROJECT_CURRENCY_MISMATCH);
         }
+
+        // Re-check current capacity. If income dropped since accept time, use the lower value
+        // so a small income drop doesn't block the member from joining their own group project.
+        BigDecimal currentCapacity = CreateGroupUseCase.computeCapacity(income);
+        if (currentCapacity.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new ProjectException(
+                    "You have no remaining project capacity; please update your income first",
+                    ProjectErrorCode.PROJECT_USABLE_INCOME_LIMIT_EXCEEDED);
+        }
+        BigDecimal effectiveCapacity = capacitySnapshot.min(currentCapacity);
 
         List<Project> allProjects = projectRepository.findAllByUser(actor);
 
+        // Check for existing sub-project — derived from allProjects to avoid a second DB call
+        boolean alreadyJoined = allProjects.stream()
+                .anyMatch(p -> p.isSubPersonal()
+                        && gp.getId().value().equals(p.getGroupProjectId()));
+        if (alreadyJoined) {
+            throw new ProjectException("You already have a sub-project for this group project",
+                    ProjectErrorCode.PROJECT_DUPLICATE_MEMBER);
+        }
+
         // Max 3 active projects
         long activeCount = allProjects.stream()
-                .filter(p -> actor.equals(p.getOwnerId()))
                 .filter(p -> p.getStatus() == ProjectStatus.ACTIVE)
                 .count();
         if (activeCount >= 3) {
@@ -105,7 +116,6 @@ public class CreateSubPersonalProjectUseCase {
         // Priority must not be in use
         ProjectPriority priority = req.getPriority();
         boolean priorityTaken = allProjects.stream()
-                .filter(p -> actor.equals(p.getOwnerId()))
                 .filter(p -> p.getStatus() == ProjectStatus.ACTIVE)
                 .anyMatch(p -> p.getPriority() == priority);
         if (priorityTaken) {
@@ -113,12 +123,19 @@ public class CreateSubPersonalProjectUseCase {
                     ProjectErrorCode.PROJECT_ACTIVE_PRIORITY_CONFLICT);
         }
 
-        // 20% obligation check using capacitySnapshot as the new monthly obligation
+        // 20% obligation check and safe-spending gate use effectiveCapacity
         List<Project> otherActive = MonthlyObligationPolicy.otherActiveOwned(allProjects, actor, null);
-        MonthlyObligationPolicy.assertWithinLimit(income, otherActive, capacitySnapshot);
-        safeSpendingService.requireCanAfford(actor, capacitySnapshot);
+        MonthlyObligationPolicy.assertWithinLimit(income, otherActive, effectiveCapacity);
+        safeSpendingService.requireCanAfford(actor, effectiveCapacity);
 
-        BigDecimal targetAmount = capacitySnapshot.multiply(BigDecimal.valueOf(gp.getTotalMonths()));
+        // If income dropped, reduce the group project's target so auto-complete can still fire
+        BigDecimal capacityGap = capacitySnapshot.subtract(effectiveCapacity);
+        if (capacityGap.compareTo(BigDecimal.ZERO) > 0) {
+            gp.reduceTargetAmount(capacityGap.multiply(BigDecimal.valueOf(gp.getTotalMonths())));
+            groupProjectRepository.save(gp);
+        }
+
+        BigDecimal targetAmount = effectiveCapacity.multiply(BigDecimal.valueOf(gp.getTotalMonths()));
 
         Project sub = Project.createSubPersonal(
                 actor,
@@ -136,7 +153,7 @@ public class CreateSubPersonalProjectUseCase {
                 ProjectId.of(saved.getId().toString()),
                 BigDecimal.ZERO,
                 1,
-                capacitySnapshot,
+                effectiveCapacity,
                 gp.getTotalMonths(),
                 BigDecimal.ZERO
         );

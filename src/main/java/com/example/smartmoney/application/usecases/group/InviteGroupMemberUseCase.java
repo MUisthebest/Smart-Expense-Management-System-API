@@ -21,6 +21,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.Map;
 import java.util.UUID;
@@ -40,6 +42,9 @@ public class InviteGroupMemberUseCase {
     @Value("${app.base-url:https://yourapp.com}")
     private String baseUrl;
 
+    @Value("${app.mobile-scheme:smartmoney}")
+    private String mobileScheme;
+
     @Transactional
     public GroupInviteResponse execute(String actorId, String groupId, InviteGroupMemberRequest req) {
         Group group = groupRepository.findById(GroupId.of(groupId))
@@ -57,54 +62,67 @@ public class InviteGroupMemberUseCase {
         groupRepository.save(group);
 
         String token = UUID.randomUUID().toString().replace("-", "");
-        inviteTokenPort.save(token, UUID.fromString(groupId));
+        String mobileDeepLink = mobileScheme + "://group-invite?token=" + token;
+        String webFallbackUrl = baseUrl + "/api/v1/groups/invites/accept-direct?token=" + token;
 
-        String deepLink = baseUrl + "/api/v1/groups/invites/accept-direct?token=" + token;
-
-        try {
-            dispatchNotifications(invitedUser.getId(), group.getName(), deepLink, token);
-        } catch (Exception e) {
-            log.warn("[GroupInvite] Notification failed for {} on group {}: {}", req.getEmail(), groupId, e.getMessage());
-        }
+        // Write token to Redis and dispatch notifications ONLY after the DB transaction commits.
+        // If the JPA commit fails, the token is never written and no email is sent — no orphan state.
+        String groupName = group.getName();
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                inviteTokenPort.save(token, UUID.fromString(groupId), invitedUser.getId());
+                try {
+                    dispatchNotifications(invitedUser, groupName, mobileDeepLink, webFallbackUrl);
+                } catch (Exception e) {
+                    log.warn("[GroupInvite] Notification failed for {} on group {}: {}",
+                            req.getEmail(), groupId, e.getMessage());
+                }
+            }
+        });
 
         return GroupInviteResponse.builder()
                 .token(token)
-                .deepLinkUrl(deepLink)
+                .deepLinkUrl(mobileDeepLink)
                 .message("Invitation sent. Link expires in 7 days.")
                 .build();
     }
 
-    private void dispatchNotifications(UUID invitedUserId, String groupName, String deepLink, String token) {
-        var pushTokens = pushTokenPort.findByUserId(invitedUserId.toString());
+    private void dispatchNotifications(User invitedUser, String groupName,
+                                       String mobileDeepLink, String webFallbackUrl) {
+        // Push notification carries the mobile deep link so the app can handle it directly
+        var pushTokens = pushTokenPort.findByUserId(invitedUser.getId().toString());
         if (!pushTokens.isEmpty()) {
             String body = "You've been invited to join group \"" + groupName + "\". Tap to accept.";
-            Map<String, String> data = Map.of("path", "/group-invite/" + token);
+            Map<String, String> data = Map.of("url", mobileDeepLink);
             for (var pt : pushTokens) {
                 pushSender.send(pt.getPushToken(), "Group Invitation", body, data);
             }
         }
-        userRepository.findById(invitedUserId).ifPresent(user -> {
-            String email = user.getEmail() != null ? user.getEmail().getValue() : null;
-            if (email != null && !email.isBlank()) {
-                String html = buildEmailHtml(user.getFullName(), groupName, deepLink);
-                mailPort.sendHtmlMail(email, "You're invited to join group " + groupName, html);
-            }
-        });
+        // Email carries the web fallback URL which shows an "Open in app" page
+        String email = invitedUser.getEmail() != null ? invitedUser.getEmail().getValue() : null;
+        if (email != null && !email.isBlank()) {
+            String html = buildEmailHtml(invitedUser.getFullName(), groupName, webFallbackUrl, mobileDeepLink);
+            mailPort.sendHtmlMail(email, "You're invited to join group " + groupName, html);
+        }
     }
 
-    private String buildEmailHtml(String name, String groupName, String deepLink) {
+    private String buildEmailHtml(String name, String groupName, String webFallbackUrl, String mobileDeepLink) {
         String displayName = (name != null && !name.isBlank()) ? name : "there";
         return """
                 <!DOCTYPE html><html><body style="font-family:Arial,sans-serif;background:#f5f5f5;padding:24px">
                   <div style="max-width:520px;margin:auto;background:#fff;border-radius:12px;padding:32px">
-                    <h2 style="color:#1a1a2e">Group Invitation 🎉</h2>
+                    <h2 style="color:#1a1a2e">Group Invitation</h2>
                     <p>Hi <strong>%s</strong>,</p>
                     <p>You have been invited to join the savings group <strong>"%s"</strong>.</p>
                     <a href="%s" style="display:inline-block;background:#6c63ff;color:#fff;padding:14px 28px;
-                       border-radius:8px;text-decoration:none;font-weight:bold;margin-top:8px">Accept Invitation</a>
-                    <p style="margin-top:24px;color:#888;font-size:12px">This link expires in 7 days.</p>
+                       border-radius:8px;text-decoration:none;font-weight:bold;margin-top:8px">Open Invitation</a>
+                    <p style="margin-top:16px;color:#888;font-size:12px">
+                      On mobile? <a href="%s" style="color:#6c63ff">Tap here to open in the Smart Money app</a>.
+                    </p>
+                    <p style="color:#888;font-size:12px">This link expires in 7 days.</p>
                   </div>
                 </body></html>
-                """.formatted(displayName, groupName, deepLink);
+                """.formatted(displayName, groupName, webFallbackUrl, mobileDeepLink);
     }
 }
