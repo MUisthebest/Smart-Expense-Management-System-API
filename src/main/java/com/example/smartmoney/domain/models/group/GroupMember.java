@@ -56,6 +56,13 @@ public class GroupMember {
         this.updatedAt = Instant.now();
     }
 
+    public void reinvite() {
+        this.inviteStatus = GroupMemberInviteStatus.INVITED;
+        this.capacitySnapshot = null;
+        this.joinedAt = null;
+        this.updatedAt = Instant.now();
+    }
+
     public boolean isResolved() {
         return inviteStatus == GroupMemberInviteStatus.JOINED
                 || inviteStatus == GroupMemberInviteStatus.DECLINED;

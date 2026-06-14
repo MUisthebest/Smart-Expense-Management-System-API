@@ -7,7 +7,6 @@ import com.example.smartmoney.domain.exceptions.ProjectException;
 import com.example.smartmoney.domain.models.group.Group;
 import com.example.smartmoney.domain.models.group.GroupProject;
 import com.example.smartmoney.domain.models.group.enums.GroupMemberInviteStatus;
-import com.example.smartmoney.domain.models.group.enums.GroupProjectStatus;
 import com.example.smartmoney.domain.models.group.valueobjects.GroupId;
 import com.example.smartmoney.domain.models.group.valueobjects.GroupProjectId;
 import com.example.smartmoney.domain.models.project.Project;
@@ -24,7 +23,10 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -35,7 +37,7 @@ public class GetGroupProjectDetailUseCase {
     private final ProjectRepository projectRepository;
     private final UserRepository userRepository;
 
-    @Transactional
+    @Transactional(readOnly = true)
     public GroupProjectDetailResponse execute(String actorId, String groupProjectId) {
         GroupProject gp = groupProjectRepository.findById(GroupProjectId.of(groupProjectId))
                 .orElseThrow(() -> new ProjectException("Group project not found", ProjectErrorCode.PROJECT_NOT_FOUND));
@@ -52,8 +54,7 @@ public class GetGroupProjectDetailUseCase {
             throw new ProjectException("Permission denied", ProjectErrorCode.PROJECT_PERMISSION_DENIED);
         }
 
-        List<Project> subProjects = projectRepository.findAllByGroupProjectId(
-                gp.getId().value());
+        List<Project> subProjects = projectRepository.findAllByGroupProjectId(gp.getId().value());
 
         BigDecimal aggregate = subProjects.stream()
                 .map(p -> p.getTracking() != null ? p.getTracking().getMoneySaved() : BigDecimal.ZERO)
@@ -66,12 +67,16 @@ public class GetGroupProjectDetailUseCase {
                     .min(BigDecimal.valueOf(100));
         }
 
-        // Auto-complete if aggregate reached target
-        if (gp.getStatus() == GroupProjectStatus.ACTIVE
-                && aggregate.compareTo(gp.getTargetAmount()) >= 0) {
-            gp.markCompleted();
-            groupProjectRepository.save(gp);
-        }
+        // Batch-load usernames to avoid N+1 — one query for all sub-project owners
+        Set<UUID> ownerIds = subProjects.stream()
+                .map(p -> UUID.fromString(p.getOwnerId().toString()))
+                .collect(Collectors.toSet());
+        Map<String, String> usernameByUserId = userRepository.findAllByIds(ownerIds).stream()
+                .collect(Collectors.toMap(
+                        u -> u.getId().toString(),
+                        u -> u.getUsername(),
+                        (a, b) -> a
+                ));
 
         List<GroupProjectMemberProgressResponse> memberProgress = new ArrayList<>();
         for (Project sub : subProjects) {
@@ -80,9 +85,7 @@ public class GetGroupProjectDetailUseCase {
             BigDecimal pct = target.compareTo(BigDecimal.ZERO) > 0
                     ? saved.multiply(BigDecimal.valueOf(100)).divide(target, 2, RoundingMode.HALF_UP).min(BigDecimal.valueOf(100))
                     : BigDecimal.ZERO;
-            String username = userRepository.findById(UUID.fromString(sub.getOwnerId().toString()))
-                    .map(u -> u.getUsername())
-                    .orElse(null);
+            String username = usernameByUserId.get(sub.getOwnerId().toString());
             memberProgress.add(GroupProjectMemberProgressResponse.builder()
                     .userId(sub.getOwnerId().toString())
                     .username(username)

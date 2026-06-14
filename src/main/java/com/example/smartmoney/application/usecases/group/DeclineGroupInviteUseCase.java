@@ -3,6 +3,7 @@ package com.example.smartmoney.application.usecases.group;
 import com.example.smartmoney.application.dtos.requests.group.DeclineGroupInviteRequest;
 import com.example.smartmoney.application.dtos.responses.group.GroupDetailResponse;
 import com.example.smartmoney.application.ports.invite.GroupInviteTokenPort;
+import com.example.smartmoney.application.ports.invite.GroupInviteTokenPort.InvitePayload;
 import com.example.smartmoney.domain.exceptions.ProjectErrorCode;
 import com.example.smartmoney.domain.exceptions.ProjectException;
 import com.example.smartmoney.domain.models.group.Group;
@@ -26,18 +27,24 @@ public class DeclineGroupInviteUseCase {
 
     @Transactional
     public GroupDetailResponse execute(String actorId, DeclineGroupInviteRequest req) {
-        UUID groupUuid = inviteTokenPort.find(req.getToken())
+        InvitePayload payload = inviteTokenPort.find(req.getToken())
                 .orElseThrow(() -> new ProjectException(
                         "Invite token is invalid or has expired", ProjectErrorCode.PROJECT_NOT_FOUND));
 
-        Group group = groupRepository.findById(GroupId.of(groupUuid.toString()))
+        if (!payload.invitedUserId().equals(UUID.fromString(actorId))) {
+            throw new ProjectException(
+                    "This invite was not issued to you",
+                    ProjectErrorCode.PROJECT_INVITE_USER_MISMATCH);
+        }
+
+        Group group = groupRepository.findById(GroupId.of(payload.groupId().toString()))
                 .orElseThrow(() -> new ProjectException("Group not found", ProjectErrorCode.PROJECT_NOT_FOUND));
 
         group.declineMember(UserId.of(actorId));
         groupRepository.save(group);
         inviteTokenPort.delete(req.getToken());
 
-        log.info("[GroupInvite] User {} declined group invite for group {}", actorId, groupUuid);
+        log.info("[GroupInvite] User {} declined group invite for group {}", actorId, payload.groupId());
         return GroupDetailResponse.fromDomain(group);
     }
 }

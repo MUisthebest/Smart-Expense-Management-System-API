@@ -52,19 +52,37 @@ public class Group {
         if (invitedUserId.equals(adminId)) {
             throw new ProjectException("Admin cannot be re-invited", ProjectErrorCode.PROJECT_DUPLICATE_MEMBER);
         }
-        long activeCount = members.stream()
-                .filter(m -> m.getInviteStatus() != GroupMemberInviteStatus.DECLINED)
-                .count();
-        if (activeCount >= MAX_GROUP_MEMBERS) {
-            throw new ProjectException("Member limit reached", ProjectErrorCode.PROJECT_MEMBER_LIMIT_REACHED);
-        }
         boolean alreadyActive = members.stream()
                 .anyMatch(m -> m.getUserId().equals(invitedUserId)
                         && m.getInviteStatus() != GroupMemberInviteStatus.DECLINED);
         if (alreadyActive) {
             throw new ProjectException("Member already invited or joined", ProjectErrorCode.PROJECT_DUPLICATE_MEMBER);
         }
-        members.add(GroupMember.invited(invitedUserId, GroupMemberRole.MEMBER));
+
+        // Re-invite a previously declined member by resetting their status instead of adding a duplicate
+        members.stream()
+                .filter(m -> m.getUserId().equals(invitedUserId)
+                        && m.getInviteStatus() == GroupMemberInviteStatus.DECLINED)
+                .findFirst()
+                .ifPresentOrElse(existing -> {
+                    long activeCount = members.stream()
+                            .filter(m -> m.getInviteStatus() != GroupMemberInviteStatus.DECLINED
+                                    || m == existing)
+                            .count();
+                    if (activeCount > MAX_GROUP_MEMBERS) {
+                        throw new ProjectException("Member limit reached", ProjectErrorCode.PROJECT_MEMBER_LIMIT_REACHED);
+                    }
+                    existing.reinvite();
+                }, () -> {
+                    long activeCount = members.stream()
+                            .filter(m -> m.getInviteStatus() != GroupMemberInviteStatus.DECLINED)
+                            .count();
+                    if (activeCount >= MAX_GROUP_MEMBERS) {
+                        throw new ProjectException("Member limit reached", ProjectErrorCode.PROJECT_MEMBER_LIMIT_REACHED);
+                    }
+                    members.add(GroupMember.invited(invitedUserId, GroupMemberRole.MEMBER));
+                });
+
         updatedAt = Instant.now();
     }
 
