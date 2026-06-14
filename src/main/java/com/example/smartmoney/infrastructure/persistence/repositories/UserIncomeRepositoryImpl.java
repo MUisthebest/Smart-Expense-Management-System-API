@@ -24,13 +24,13 @@ public class UserIncomeRepositoryImpl implements UserIncomeRepository {
     }
 
     @Override
-    public Optional<UserIncome> findById(UUID userId) {
-        return jpaUserIncomeRepository.findById(userId)
+    public Optional<UserIncome> findByUserId(UUID userId) {
+        return jpaUserIncomeRepository.findByUserId(userId)
                 .map(userIncomeMapper::toDomain);
     }
 
     @Override
-    public void deleteById(UUID userId) {
-        jpaUserIncomeRepository.deleteById(userId);
+    public void deleteByUserId(UUID userId) {
+        jpaUserIncomeRepository.deleteByUserId(userId);
     }
 }

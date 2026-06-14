@@ -15,12 +15,18 @@ public class TransactionAnalyticsResponse {
 
     private List<CategoryProportion> categoryProportions;
 
+    private long monthlyTotalTransactions;
+
+    private java.math.BigDecimal monthlyTotalExpense;
+
+    private java.math.BigDecimal monthlyTotalIncome;
+
     @Data
     @AllArgsConstructor
     public static class MonthlyStat {
         private String week;
-        private int income;
-        private int expense;
+        private double income;
+        private double expense;
     }
 
     @Data

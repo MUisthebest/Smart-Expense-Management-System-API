@@ -202,15 +202,17 @@ public class TransactionRepositoryImpl implements TransactionRepository {
     }
 
     @Override
-    public List<Object[]> getTransactionProportionByCategory(int year, int month) {
-        return jpaTransactionRepository.getTransactionProportionByCategory(year, month);
+    public List<Object[]> getTransactionProportionByCategory(UUID userId, int year, int month) {
+        return jpaTransactionRepository.getTransactionProportionByCategory(userId, year, month);
     }
 
     @Override
-    public List<Object[]> getTransactionsByMonth(int year, int month) {
-        return jpaTransactionRepository.getTransactionProportionByTypeForYear(year, month);
-
+    public List<Object[]> getTransactionsByMonth(UUID userId, int year, int month) {
+        return jpaTransactionRepository.getTransactionProportionByTypeForYear(userId, year, month);
     }
 
-
+    @Override
+    public List<Object[]> getMonthlyTotals(UUID userId, int year, int month) {
+        return jpaTransactionRepository.getMonthlyTotals(userId, year, month);
+    }
 }

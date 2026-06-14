@@ -80,7 +80,7 @@ public class UpdateProjectUseCase {
             throw new ProjectException("Invalid actor id", ProjectErrorCode.PROJECT_PERMISSION_DENIED);
         }
 
-        UserIncome income = userIncomeRepository.findById(userId)
+        UserIncome income = userIncomeRepository.findByUserId(userId)
                 .orElseThrow(() -> new ProjectException(
                         "You must set net_income and usable_income before updating projects",
                         ProjectErrorCode.PROJECT_USER_INCOME_REQUIRED
@@ -242,7 +242,7 @@ public class UpdateProjectUseCase {
                     ownerId,
                     project.getId().value()
             );
-            userIncomeRepository.findById(ownerId.value()).ifPresent(income ->
+            userIncomeRepository.findByUserId(ownerId.value()).ifPresent(income ->
                     MonthlyObligationPolicy.assertWithinLimit(income, otherActive, newMonthlySaving)
             );
 

@@ -34,7 +34,7 @@ public class NotificationWorker {
     private static final String STREAM = "notification_stream";
     private static final String GROUP = "notification_group";
 
-    private static final int CONSUMER_COUNT = 10;
+    private static final int CONSUMER_COUNT = 1;
     private static final int BATCH_SIZE = 10;
 
     private volatile boolean running = true;
