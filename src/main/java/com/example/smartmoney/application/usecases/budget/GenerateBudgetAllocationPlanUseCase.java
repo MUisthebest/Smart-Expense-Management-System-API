@@ -47,7 +47,7 @@ public class GenerateBudgetAllocationPlanUseCase {
     public MessageRecord execute(UserId userId) {
         UUID uid = userId.value();
 
-        UserIncomeEntity income = userIncomeRepository.findById(uid)
+        UserIncomeEntity income = userIncomeRepository.findByUserId(uid)
                 .orElseThrow(() -> new RuntimeException("User income not found"));
 
         UserFinancialProfileEntity profile = userFinancialProfileRepository.findByUserId(uid)

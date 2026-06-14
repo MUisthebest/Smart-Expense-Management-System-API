@@ -19,7 +19,7 @@ public class GetUserIncomeUseCase {
     public UserIncomeResponse execute(String actorId) {
         UUID userId = UUID.fromString(actorId);
 
-        return userIncomeRepository.findById(userId)
+        return userIncomeRepository.findByUserId(userId)
                 .map(UserIncomeResponse::fromDomain)
                 .orElseThrow(() -> new EntityNotFoundException("UserIncome", actorId));
     }
