@@ -4,6 +4,7 @@ import com.example.smartmoney.application.dtos.requests.group.CreateGroupProject
 import com.example.smartmoney.application.dtos.responses.group.GroupProjectDetailResponse;
 import com.example.smartmoney.application.ports.notification.PushNotificationSenderPort;
 import com.example.smartmoney.application.ports.notification.PushTokenPort;
+import com.example.smartmoney.application.usecases.notification.CreateNotificationUseCase;
 import com.example.smartmoney.domain.exceptions.ProjectErrorCode;
 import com.example.smartmoney.domain.exceptions.ProjectException;
 import com.example.smartmoney.domain.models.group.Group;
@@ -33,6 +34,7 @@ public class CreateGroupProjectUseCase {
     private final GroupProjectRepository groupProjectRepository;
     private final PushTokenPort pushTokenPort;
     private final PushNotificationSenderPort pushSender;
+    private final CreateNotificationUseCase createNotificationUseCase;
 
     @Value("${app.bypass-date-gate:false}")
     private boolean bypassDateGate;
@@ -87,18 +89,21 @@ public class CreateGroupProjectUseCase {
     private void notifyMembers(Group group, GroupProject gp) {
         String title = "Group project started!";
         String body = "\"" + gp.getName() + "\" is ready. Open the app to set your personal savings target.";
-        Map<String, String> data = Map.of("path", "/group-projects/" + gp.getId().value());
+        String deepLink = "/group-projects/" + gp.getId().value();
+        Map<String, String> data = Map.of("url", deepLink);
 
         for (GroupMember member : group.joinedMembers()) {
             // Admin created the project — no need to notify themselves
             if (member.getUserId().equals(group.getAdminId())) continue;
             try {
+                createNotificationUseCase.createNotification(member.getUserId().value(), body, deepLink);
+
                 var tokens = pushTokenPort.findByUserId(member.getUserId().toString());
                 for (var pt : tokens) {
                     pushSender.send(pt.getPushToken(), title, body, data);
                 }
             } catch (Exception ex) {
-                log.warn("[GroupProject] Push notification failed for member {}: {}",
+                log.warn("[GroupProject] Notification failed for member {}: {}",
                         member.getUserId(), ex.getMessage());
             }
         }
