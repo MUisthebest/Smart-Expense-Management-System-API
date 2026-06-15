@@ -4,6 +4,7 @@ import com.example.smartmoney.application.dtos.requests.project.AddProjectContri
 import com.example.smartmoney.application.dtos.responses.project.ProjectContributionResponse;
 import com.example.smartmoney.domain.exceptions.ProjectErrorCode;
 import com.example.smartmoney.domain.exceptions.ProjectException;
+import com.example.smartmoney.application.usecases.group.NotifyGroupProjectCompletedUseCase;
 import com.example.smartmoney.domain.models.group.GroupProject;
 import com.example.smartmoney.domain.models.group.enums.GroupProjectStatus;
 import com.example.smartmoney.domain.models.group.valueobjects.GroupProjectId;
@@ -30,6 +31,7 @@ public class AddProjectContributionUseCase {
 
     private final ProjectRepository projectRepository;
     private final GroupProjectRepository groupProjectRepository;
+    private final NotifyGroupProjectCompletedUseCase notifyGroupProjectCompleted;
 
     @Transactional
     public ProjectContributionResponse execute(String actorId, String projectId, AddProjectContributionRequest req) {
@@ -69,6 +71,7 @@ public class AddProjectContributionUseCase {
                 groupProjectRepository.save(gp);
                 log.info("[GroupProject] Auto-completed group project {} — aggregate {} >= target {}",
                         groupProjectId, aggregate, gp.getTargetAmount());
+                notifyGroupProjectCompleted.notifyCompleted(gp);
             }
         } catch (Exception ex) {
             log.warn("[GroupProject] Auto-complete check failed for group project {}: {}",

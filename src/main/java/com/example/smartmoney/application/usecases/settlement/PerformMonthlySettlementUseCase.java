@@ -9,6 +9,7 @@ import com.example.smartmoney.domain.models.project.valueobjects.UserId;
 import com.example.smartmoney.domain.models.transaction.Transaction;
 import com.example.smartmoney.domain.models.transaction.enums.TransactionType;
 import com.example.smartmoney.domain.models.user.UserIncome;
+import com.example.smartmoney.application.usecases.group.NotifyGroupProjectCompletedUseCase;
 import com.example.smartmoney.domain.models.group.GroupProject;
 import com.example.smartmoney.domain.models.group.enums.GroupProjectStatus;
 import com.example.smartmoney.domain.repositories.GroupProjectRepository;
@@ -43,6 +44,7 @@ public class PerformMonthlySettlementUseCase {
     private final ProjectHistoryRepository projectHistoryRepository;
     private final SafeSpendingService safeSpendingService;
     private final GroupProjectRepository groupProjectRepository;
+    private final NotifyGroupProjectCompletedUseCase notifyGroupProjectCompleted;
 
     public void execute() {
         List<Project> activeProjects = projectRepository.findAllByStatus(ProjectStatus.ACTIVE);
@@ -82,6 +84,7 @@ public class PerformMonthlySettlementUseCase {
                     groupProjectRepository.save(gp);
                     log.info("[Settlement] Group project {} marked COMPLETED (aggregate={}).",
                             gp.getId().value(), aggregate);
+                    notifyGroupProjectCompleted.notifyCompleted(gp);
                 }
             } catch (Exception ex) {
                 log.error("[Settlement] Failed completion check for group project {}: {}",

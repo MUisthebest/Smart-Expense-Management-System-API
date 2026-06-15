@@ -6,6 +6,7 @@ import com.example.smartmoney.application.ports.invite.GroupInviteTokenPort;
 import com.example.smartmoney.application.ports.mail.MailPort;
 import com.example.smartmoney.application.ports.notification.PushNotificationSenderPort;
 import com.example.smartmoney.application.ports.notification.PushTokenPort;
+import com.example.smartmoney.application.usecases.notification.CreateNotificationUseCase;
 import com.example.smartmoney.domain.exceptions.ProjectErrorCode;
 import com.example.smartmoney.domain.exceptions.ProjectException;
 import com.example.smartmoney.domain.models.group.Group;
@@ -38,6 +39,7 @@ public class InviteGroupMemberUseCase {
     private final MailPort mailPort;
     private final PushTokenPort pushTokenPort;
     private final PushNotificationSenderPort pushSender;
+    private final CreateNotificationUseCase createNotificationUseCase;
 
     @Value("${app.base-url:https://yourapp.com}")
     private String baseUrl;
@@ -64,10 +66,19 @@ public class InviteGroupMemberUseCase {
         String token = UUID.randomUUID().toString().replace("-", "");
         String mobileDeepLink = mobileScheme + "://group-invite?token=" + token;
         String webFallbackUrl = baseUrl + "/api/v1/groups/invites/accept-direct?token=" + token;
-
-        // Write token to Redis and dispatch notifications ONLY after the DB transaction commits.
-        // If the JPA commit fails, the token is never written and no email is sent — no orphan state.
         String groupName = group.getName();
+
+        // Persist the in-app notification as part of THIS transaction so it commits atomically
+        // with the invite. (It must not run inside afterCommit: starting a new transaction there
+        // fails with "Cannot activate transaction synchronization - already active".)
+        createNotificationUseCase.createNotification(
+                invitedUser.getId(),
+                "You've been invited to join group \"" + groupName + "\". Tap to accept.",
+                mobileDeepLink
+        );
+
+        // Write token to Redis and dispatch push/email ONLY after the DB transaction commits.
+        // If the JPA commit fails, the token is never written and no email is sent — no orphan state.
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
@@ -90,7 +101,6 @@ public class InviteGroupMemberUseCase {
 
     private void dispatchNotifications(User invitedUser, String groupName,
                                        String mobileDeepLink, String webFallbackUrl) {
-        // Push notification carries the mobile deep link so the app can handle it directly
         var pushTokens = pushTokenPort.findByUserId(invitedUser.getId().toString());
         if (!pushTokens.isEmpty()) {
             String body = "You've been invited to join group \"" + groupName + "\". Tap to accept.";
@@ -99,7 +109,6 @@ public class InviteGroupMemberUseCase {
                 pushSender.send(pt.getPushToken(), "Group Invitation", body, data);
             }
         }
-        // Email carries the web fallback URL which shows an "Open in app" page
         String email = invitedUser.getEmail() != null ? invitedUser.getEmail().getValue() : null;
         if (email != null && !email.isBlank()) {
             String html = buildEmailHtml(invitedUser.getFullName(), groupName, webFallbackUrl, mobileDeepLink);
