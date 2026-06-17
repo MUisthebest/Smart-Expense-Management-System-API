@@ -83,7 +83,8 @@ public class CreateGroupProjectUseCase {
 
         notifyMembers(group, saved);
 
-        return GroupProjectDetailResponse.fromDomain(saved, null, null, List.of());
+        // No sub-projects yet at creation: required target = original target, nothing saved.
+        return GroupProjectDetailResponse.fromDomain(saved, saved.getTargetAmount(), null, null, List.of());
     }
 
     private void notifyMembers(Group group, GroupProject gp) {

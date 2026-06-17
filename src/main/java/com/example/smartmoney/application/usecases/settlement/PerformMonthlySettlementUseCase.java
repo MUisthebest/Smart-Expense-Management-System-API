@@ -1,5 +1,6 @@
 package com.example.smartmoney.application.usecases.settlement;
 
+import com.example.smartmoney.application.usecases.notification.CreateNotificationUseCase;
 import com.example.smartmoney.domain.models.project.Project;
 import com.example.smartmoney.domain.models.project.ProjectHistory;
 import com.example.smartmoney.domain.models.project.ProjectTracking;
@@ -22,6 +23,7 @@ import com.example.smartmoney.domain.services.SafeSpendingService;
 import com.example.smartmoney.domain.services.SettlementEngine;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,6 +34,16 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
+/**
+ * All-auto monthly settlement engine. Single owner of the project calendar,
+ * debt accrual/repayment, freeze/unfreeze, completion and expiry.
+ * See docs/project-tracking-all-auto-plan.md §4.
+ *
+ * <p>Processes ACTIVE and FROZEN projects: ACTIVE projects accrue savings and
+ * may take overspend penalties (debt) up to a cap; FROZEN projects accrue no new
+ * savings and no new penalty but keep being repaid from surplus and keep their
+ * calendar advancing, so they can recover (auto-unfreeze) or eventually EXPIRE.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -45,12 +57,22 @@ public class PerformMonthlySettlementUseCase {
     private final SafeSpendingService safeSpendingService;
     private final GroupProjectRepository groupProjectRepository;
     private final NotifyGroupProjectCompletedUseCase notifyGroupProjectCompleted;
+    private final CreateNotificationUseCase createNotificationUseCase;
+
+    @Value("${app.project.freeze-mult:3}")
+    private int freezeMult;
+    @Value("${app.project.unfreeze-mult:0}")
+    private int unfreezeMult;
+    @Value("${app.project.max-frozen-months:3}")
+    private int maxFrozenMonths;
 
     public void execute() {
-        List<Project> activeProjects = projectRepository.findAllByStatus(ProjectStatus.ACTIVE);
-        log.info("[Settlement] Starting monthly settlement for {} active project(s).", activeProjects.size());
+        List<Project> live = new ArrayList<>();
+        live.addAll(projectRepository.findAllByStatus(ProjectStatus.ACTIVE));
+        live.addAll(projectRepository.findAllByStatus(ProjectStatus.FROZEN));
+        log.info("[Settlement] Starting monthly settlement for {} live project(s).", live.size());
 
-        Map<UserId, List<Project>> userProjects = activeProjects.stream()
+        Map<UserId, List<Project>> userProjects = live.stream()
                 .collect(Collectors.groupingBy(Project::getOwnerId));
 
         for (Map.Entry<UserId, List<Project>> entry : userProjects.entrySet()) {
@@ -67,23 +89,35 @@ public class PerformMonthlySettlementUseCase {
         checkGroupProjectCompletion();
     }
 
+    /**
+     * Auto-complete check for group projects: a group completes when the
+     * aggregate net savings of its still-participating members meets the
+     * required target of those same members. EXPIRED / ABANDONED sub-projects
+     * drop out of both sides (the goal shrinks so the rest can still finish).
+     * See docs/project-tracking-all-auto-plan.md §6.
+     */
     private void checkGroupProjectCompletion() {
         List<GroupProject> activeGroupProjects = groupProjectRepository.findAllByStatus(GroupProjectStatus.ACTIVE);
         for (GroupProject gp : activeGroupProjects) {
             try {
-                List<com.example.smartmoney.domain.models.project.Project> subProjects =
-                        projectRepository.findAllByGroupProjectId(gp.getId().value());
-                BigDecimal aggregate = subProjects.stream()
-                        .map(p -> {
-                            ProjectTracking t = projectTrackingRepository.findByProjectId(p.getId()).orElse(null);
-                            return t != null && t.getMoneySaved() != null ? t.getMoneySaved() : BigDecimal.ZERO;
-                        })
+                List<Project> subs = projectRepository.findAllByGroupProjectId(gp.getId().value());
+                List<Project> participating = subs.stream()
+                        .filter(p -> p.getStatus() != ProjectStatus.EXPIRED
+                                && p.getStatus() != ProjectStatus.ABANDONED)
+                        .toList();
+
+                BigDecimal required = participating.stream()
+                        .map(p -> p.getTargetAmount().amount())
                         .reduce(BigDecimal.ZERO, BigDecimal::add);
-                if (aggregate.compareTo(gp.getTargetAmount()) >= 0) {
+                BigDecimal aggregate = participating.stream()
+                        .map(Project::netSavedAmount)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                if (required.compareTo(BigDecimal.ZERO) > 0 && aggregate.compareTo(required) >= 0) {
                     gp.markCompleted();
                     groupProjectRepository.save(gp);
-                    log.info("[Settlement] Group project {} marked COMPLETED (aggregate={}).",
-                            gp.getId().value(), aggregate);
+                    log.info("[Settlement] Group project {} marked COMPLETED (aggregate={} >= required={}).",
+                            gp.getId().value(), aggregate, required);
                     notifyGroupProjectCompleted.notifyCompleted(gp);
                 }
             } catch (Exception ex) {
@@ -132,9 +166,7 @@ public class PerformMonthlySettlementUseCase {
                 .reduce(BigDecimal.ZERO, BigDecimal::add)
                 .setScale(2, RoundingMode.HALF_UP);
 
-        // SafeSpending as stored is already penalized. 
-        // We need the "Base Safe Spending" (BSS) = UsableIncome - Sum(Monthly Savings)
-        // ESS (Effective Safe Spending) = BSS - TotalDebt
+        // Base Safe Spending (BSS) = stored (already debt-penalized) safe spending + total debt.
         BigDecimal totalDebt = validProjects.stream()
                 .map(p -> {
                     ProjectTracking t = trackingMap.get(p.getId());
@@ -162,11 +194,16 @@ public class PerformMonthlySettlementUseCase {
         Map<ProjectId, BigDecimal> surplusInvestedMap = new HashMap<>();
         Map<ProjectId, BigDecimal> penaltyAppliedMap = new HashMap<>();
 
+        // 1. Credit the monthly reservation to ACTIVE projects only; FROZEN projects
+        //    accrue no new savings. Cap gross at target.
         for (Project p : validProjects) {
             ProjectTracking t = trackingMap.get(p.getId());
-            BigDecimal newSaved = t.getMoneySaved().add(t.getMonthlySaving());
-            if (newSaved.compareTo(p.getTargetAmount().amount()) > 0) {
-                newSaved = p.getTargetAmount().amount();
+            BigDecimal newSaved = t.getMoneySaved();
+            if (p.getStatus() == ProjectStatus.ACTIVE) {
+                newSaved = newSaved.add(t.getMonthlySaving());
+                if (newSaved.compareTo(p.getTargetAmount().amount()) > 0) {
+                    newSaved = p.getTargetAmount().amount();
+                }
             }
             finalMoneySaved.put(p.getId(), newSaved);
             finalMoneyOwed.put(p.getId(), t.getMoneyOwed() != null ? t.getMoneyOwed() : BigDecimal.ZERO);
@@ -175,11 +212,11 @@ public class PerformMonthlySettlementUseCase {
         }
 
         if (netSurplus.compareTo(BigDecimal.ZERO) > 0) {
-            // 1. Repay Debt First (Highest to Lowest priority)
+            // 2a. Repay debt across ALL live projects (incl. FROZEN) — this is how
+            //     frozen projects recover. Highest priority first.
             List<Project> debtOrder = validProjects.stream()
-                    .sorted(Comparator.comparingInt(p -> -p.getPriority().ordinal())) // HIGH -> LOW
+                    .sorted(Comparator.comparingInt(p -> -p.getPriority().ordinal()))
                     .toList();
-
             for (Project p : debtOrder) {
                 if (netSurplus.compareTo(BigDecimal.ZERO) <= 0) break;
                 BigDecimal currentOwed = finalMoneyOwed.get(p.getId());
@@ -191,19 +228,16 @@ public class PerformMonthlySettlementUseCase {
                 }
             }
 
-            // 2. Extra Savings (If remaining surplus and AutoInvest is true)
+            // 2b. Auto-invest remaining surplus into ACTIVE projects only.
             if (netSurplus.compareTo(BigDecimal.ZERO) > 0 && Boolean.TRUE.equals(userIncome.getAutoInvestSurplus())) {
                 List<Project> surplusOrder = validProjects.stream()
-                        .sorted(Comparator.comparingInt(p -> -p.getPriority().ordinal())) // HIGH -> LOW
+                        .filter(p -> p.getStatus() == ProjectStatus.ACTIVE)
+                        .sorted(Comparator.comparingInt(p -> -p.getPriority().ordinal()))
                         .toList();
-
                 for (Project p : surplusOrder) {
                     if (netSurplus.compareTo(BigDecimal.ZERO) <= 0) break;
-
                     BigDecimal currentSaved = finalMoneySaved.get(p.getId());
-                    BigDecimal target = p.getTargetAmount().amount();
-                    BigDecimal room = target.subtract(currentSaved);
-
+                    BigDecimal room = p.getTargetAmount().amount().subtract(currentSaved);
                     if (room.compareTo(BigDecimal.ZERO) > 0) {
                         BigDecimal toAdd = netSurplus.min(room);
                         finalMoneySaved.put(p.getId(), currentSaved.add(toAdd));
@@ -213,9 +247,12 @@ public class PerformMonthlySettlementUseCase {
                 }
             }
         } else if (netPenalty.compareTo(BigDecimal.ZERO) > 0) {
-            // Distribute Penalty
+            // 3. Distribute penalty as debt to ACTIVE projects only, capped per project
+            //    at freezeMult × monthlySaving. Leftover with no room is discarded
+            //    (no real money; the cap + freeze is the consequence).
             List<Project> penaltyOrder = validProjects.stream()
-                    .sorted(Comparator.comparingInt(p -> p.getPriority().ordinal())) // LOW -> HIGH
+                    .filter(p -> p.getStatus() == ProjectStatus.ACTIVE)
+                    .sorted(Comparator.comparingInt(p -> p.getPriority().ordinal()))
                     .toList();
 
             for (int i = 0; i < penaltyOrder.size(); i++) {
@@ -224,53 +261,102 @@ public class PerformMonthlySettlementUseCase {
 
                 ProjectTracking t = trackingMap.get(p.getId());
                 BigDecimal monthlySaving = t.getMonthlySaving() != null ? t.getMonthlySaving() : BigDecimal.ZERO;
-
-                BigDecimal toAdd;
-                if (i == penaltyOrder.size() - 1) {
-                    toAdd = netPenalty;
-                } else {
-                    toAdd = netPenalty.min(monthlySaving);
-                }
-
+                BigDecimal cap = monthlySaving.multiply(BigDecimal.valueOf(freezeMult));
                 BigDecimal currentOwed = finalMoneyOwed.get(p.getId());
+                BigDecimal room = cap.subtract(currentOwed).max(BigDecimal.ZERO);
+
+                BigDecimal share = (i == penaltyOrder.size() - 1) ? netPenalty : netPenalty.min(monthlySaving);
+                BigDecimal toAdd = share.min(room);
+
                 finalMoneyOwed.put(p.getId(), currentOwed.add(toAdd));
                 penaltyAppliedMap.put(p.getId(), toAdd);
                 netPenalty = netPenalty.subtract(toAdd);
             }
         }
 
+        // 4. Persist + advance calendar (ONCE) + transitions + history.
         for (Project p : validProjects) {
             ProjectTracking t = trackingMap.get(p.getId());
+            BigDecimal target = p.getTargetAmount().amount();
             BigDecimal newSaved = finalMoneySaved.get(p.getId());
             BigDecimal newOwed = finalMoneyOwed.get(p.getId());
+            BigDecimal monthlySaving = t.getMonthlySaving() != null ? t.getMonthlySaving() : BigDecimal.ZERO;
 
             int newMonthLeft = SettlementEngine.recalculateMonthLeft(
-                    p.getTargetAmount().amount(), newSaved, t.getMonthlySaving(), t.getMonthLeft());
+                    target, newSaved, monthlySaving, t.getMonthLeft());
 
             BigDecimal moneySavedBefore = t.getMoneySaved();
             int monthLeftBefore = t.getMonthLeft();
 
             t.update(newSaved, t.getCurrentMonth() + 1, newMonthLeft, newOwed);
+
+            ProjectStatus before = p.getStatus();
+            int frozenMonths = t.getFrozenMonths();
+
+            BigDecimal freezeCap = monthlySaving.multiply(BigDecimal.valueOf(freezeMult));
+            BigDecimal unfreezeThreshold = monthlySaving.multiply(BigDecimal.valueOf(unfreezeMult));
+
+            // Freeze / unfreeze transition
+            if (before == ProjectStatus.ACTIVE && newOwed.compareTo(freezeCap) >= 0) {
+                p.systemFreeze();
+                frozenMonths = 0;
+                log.warn("[Settlement] Project {} frozen — debt {} >= cap {}.",
+                        p.getId().value(), newOwed, freezeCap);
+            } else if (before == ProjectStatus.FROZEN && newOwed.compareTo(unfreezeThreshold) <= 0) {
+                p.systemUnfreeze();
+                frozenMonths = 0;
+                log.info("[Settlement] Project {} unfrozen — debt {} <= threshold {}.",
+                        p.getId().value(), newOwed, unfreezeThreshold);
+            } else if (before == ProjectStatus.FROZEN) {
+                frozenMonths = frozenMonths + 1;
+            }
+
+            // Completion / expiry (net = gross − debt)
+            BigDecimal net = newSaved.subtract(newOwed);
+            if (net.compareTo(target) >= 0) {
+                p.complete();
+            } else if (newMonthLeft <= 0) {
+                p.expire();
+                notifyExpired(p);
+            } else if (p.getStatus() == ProjectStatus.FROZEN && frozenMonths >= maxFrozenMonths) {
+                p.expire();
+                notifyExpired(p);
+            }
+
+            // Frozen-months counter: only meaningful while FROZEN, else reset.
+            t.setFrozenMonths(p.getStatus() == ProjectStatus.FROZEN ? frozenMonths : 0);
             projectTrackingRepository.save(t);
 
             ProjectHistory snapshot = ProjectHistory.createSnapshot(
                     p.getId(), ownerUuid, firstOfPrevMonth.getMonthValue(),
-                    firstOfPrevMonth.getYear(), moneySavedBefore, newSaved, t.getMonthlySaving(),
-                    penaltyAppliedMap.get(p.getId()), surplusInvestedMap.get(p.getId()), monthLeftBefore, newMonthLeft
+                    firstOfPrevMonth.getYear(), moneySavedBefore, newSaved, monthlySaving,
+                    penaltyAppliedMap.get(p.getId()), surplusInvestedMap.get(p.getId()),
+                    monthLeftBefore, newMonthLeft
             );
             projectHistoryRepository.save(snapshot);
 
-            if (newMonthLeft <= 0 || newSaved.compareTo(p.getTargetAmount().amount()) >= 0) {
-                p.updateStatus(ownerId, ProjectStatus.COMPLETED);
+            if (p.getStatus() != before) {
                 projectRepository.save(p);
-                log.info("[Settlement] Project {} marked COMPLETED.", p.getId().value());
+                log.info("[Settlement] Project {} status {} -> {}.",
+                        p.getId().value(), before, p.getStatus());
             }
 
-            log.info("[Settlement] Settled project {} | saved: {} → {} | owed: {} → {} | monthLeft: {} → {}",
-                    p.getId().value(), t.getMoneySaved(), newSaved, t.getMoneyOwed(), newOwed, t.getMonthLeft(), newMonthLeft);
+            log.info("[Settlement] Settled project {} | saved: {} -> {} | owed: {} -> {} | monthLeft: {} -> {}",
+                    p.getId().value(), moneySavedBefore, newSaved, totalDebt, newOwed, monthLeftBefore, newMonthLeft);
         }
 
-        // This call will recalculate Safe Spending based on the NEW total debt
+        // Recalculate Safe Spending based on the new obligations/debt.
         safeSpendingService.recalculateAndSaveSafeSpending(ownerId);
+    }
+
+    private void notifyExpired(Project p) {
+        try {
+            String body = "Your project \"" + p.getName() + "\" has expired before reaching its goal.";
+            String deepLink = "/projects/" + p.getId().value();
+            createNotificationUseCase.createNotification(p.getOwnerId().value(), body, deepLink);
+        } catch (Exception ex) {
+            log.warn("[Settlement] Expiry notification failed for project {}: {}",
+                    p.getId().value(), ex.getMessage());
+        }
     }
 }

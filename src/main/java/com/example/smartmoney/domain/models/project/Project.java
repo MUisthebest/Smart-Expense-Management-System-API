@@ -176,15 +176,21 @@ public class Project {
         return c;
     }
 
+    /**
+     * Net savings = money_saved − money_owed, floored at zero. This is the single
+     * source of truth for progress and completion in the all-auto model: a project
+     * only counts what it has actually put away net of overspend debt.
+     * See docs/project-tracking-all-auto-plan.md §2.
+     */
+    public BigDecimal netSavedAmount() {
+        if (tracking == null) return BigDecimal.ZERO;
+        BigDecimal saved = tracking.getMoneySaved() != null ? tracking.getMoneySaved() : BigDecimal.ZERO;
+        BigDecimal owed = tracking.getMoneyOwed() != null ? tracking.getMoneyOwed() : BigDecimal.ZERO;
+        return saved.subtract(owed).max(BigDecimal.ZERO);
+    }
+
     public Money totalContributed() {
-        if (tracking != null) {
-            return new Money(tracking.getMoneySaved(), targetAmount.currency());
-        }
-        Money total = Money.zero(targetAmount.currency());
-        for (ProjectContribution c : contributions) {
-            total = total.plus(c.getMoney());
-        }
-        return total;
+        return new Money(netSavedAmount(), targetAmount.currency());
     }
 
     public Money remaining() {
@@ -261,6 +267,45 @@ public class Project {
                     ProjectErrorCode.PROJECT_ABANDONED);
         }
         this.status = ProjectStatus.ABANDONED;
+    }
+
+    // ── System-driven lifecycle (monthly settlement) ─────────────────────────
+    // These bypass the owner check because they are initiated by the settlement
+    // engine, not a user. See docs/project-tracking-all-auto-plan.md §3.
+
+    /** Freeze due to debt reaching the cap. No-op unless currently ACTIVE. */
+    public void systemFreeze() {
+        if (status == ProjectStatus.ACTIVE) {
+            this.status = ProjectStatus.FROZEN;
+        }
+    }
+
+    /** Auto-unfreeze once debt is repaid below threshold. No-op unless FROZEN. */
+    public void systemUnfreeze() {
+        if (status == ProjectStatus.FROZEN) {
+            this.status = ProjectStatus.ACTIVE;
+        }
+    }
+
+    /** Mark completed (netSaved reached target). Only from a live state. */
+    public void complete() {
+        if (status == ProjectStatus.ACTIVE || status == ProjectStatus.FROZEN) {
+            this.status = ProjectStatus.COMPLETED;
+        }
+    }
+
+    /** Terminal failure: deadline passed under target, or stuck FROZEN too long. */
+    public void expire() {
+        if (status == ProjectStatus.ACTIVE || status == ProjectStatus.FROZEN) {
+            this.status = ProjectStatus.EXPIRED;
+        }
+    }
+
+    public boolean isTerminal() {
+        return status == ProjectStatus.COMPLETED
+                || status == ProjectStatus.ABANDONED
+                || status == ProjectStatus.CANCELLED
+                || status == ProjectStatus.EXPIRED;
     }
 
     public static Project rehydrate(ProjectId id,

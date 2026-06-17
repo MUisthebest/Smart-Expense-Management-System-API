@@ -104,19 +104,22 @@ public class CreateSubPersonalProjectUseCase {
                     ProjectErrorCode.PROJECT_DUPLICATE_MEMBER);
         }
 
-        // Max 3 active projects
-        long activeCount = allProjects.stream()
-                .filter(p -> p.getStatus() == ProjectStatus.ACTIVE)
+        // Max 3 non-terminal projects (ACTIVE + FROZEN): a frozen project still occupies
+        // a slot until it recovers or ends. See docs/project-tracking-all-auto-plan.md §8.1.
+        long liveCount = allProjects.stream()
+                .filter(p -> p.getStatus() == ProjectStatus.ACTIVE
+                        || p.getStatus() == ProjectStatus.FROZEN)
                 .count();
-        if (activeCount >= 3) {
-            throw new ProjectException("Max 3 active projects allowed",
+        if (liveCount >= 3) {
+            throw new ProjectException("Max 3 active projects allowed (a frozen project still counts until it recovers or ends)",
                     ProjectErrorCode.PROJECT_MAX_ACTIVE_REACHED);
         }
 
-        // Priority must not be in use
+        // Priority must not be in use by another non-terminal project
         ProjectPriority priority = req.getPriority();
         boolean priorityTaken = allProjects.stream()
-                .filter(p -> p.getStatus() == ProjectStatus.ACTIVE)
+                .filter(p -> p.getStatus() == ProjectStatus.ACTIVE
+                        || p.getStatus() == ProjectStatus.FROZEN)
                 .anyMatch(p -> p.getPriority() == priority);
         if (priorityTaken) {
             throw new ProjectException("Priority already in use by another active project",

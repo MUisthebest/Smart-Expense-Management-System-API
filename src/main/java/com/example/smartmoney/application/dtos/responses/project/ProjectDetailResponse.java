@@ -49,6 +49,7 @@ public class ProjectDetailResponse {
     private Integer durationMonths;
     private Integer currentMonth;
     private BigDecimal moneyOwed;
+    private BigDecimal netSaved;
 
     private List<ProjectHistoryResponse> histories;
 
@@ -58,9 +59,8 @@ public class ProjectDetailResponse {
 
     public static ProjectDetailResponse fromDomain(Project p, List<ProjectHistoryResponse> histories) {
         BigDecimal targetAmount = p.getTargetAmount().amount();
-        BigDecimal totalContributed = p.getTracking() != null
-                ? p.getTracking().getMoneySaved()
-                : p.totalContributed().amount();
+        // Net savings (money_saved − money_owed) is the source of truth for progress.
+        BigDecimal totalContributed = p.netSavedAmount();
         BigDecimal progressPercent = p.progressPercent();
         BigDecimal remaining = targetAmount.subtract(totalContributed).max(BigDecimal.ZERO);
 
@@ -72,7 +72,18 @@ public class ProjectDetailResponse {
         String deadlineLabel;
         String statusLabel;
 
-        if (progressPercent.compareTo(BigDecimal.valueOf(100)) >= 0) {
+        // Reflect the real domain lifecycle status first; fall back to the
+        // progress/deadline-derived display status only while genuinely live.
+        com.example.smartmoney.domain.models.project.enums.ProjectStatus domainStatus = p.getStatus();
+        if (domainStatus == com.example.smartmoney.domain.models.project.enums.ProjectStatus.FROZEN
+                || domainStatus == com.example.smartmoney.domain.models.project.enums.ProjectStatus.EXPIRED
+                || domainStatus == com.example.smartmoney.domain.models.project.enums.ProjectStatus.ABANDONED
+                || domainStatus == com.example.smartmoney.domain.models.project.enums.ProjectStatus.CANCELLED) {
+            status = domainStatus.name();
+            deadlineLabel = capitalize(domainStatus.name());
+            statusLabel = capitalize(domainStatus.name());
+        } else if (progressPercent.compareTo(BigDecimal.valueOf(100)) >= 0
+                || domainStatus == com.example.smartmoney.domain.models.project.enums.ProjectStatus.COMPLETED) {
             status = "COMPLETED";
             deadlineLabel = "Completed";
             statusLabel = "Completed";
@@ -127,7 +138,13 @@ public class ProjectDetailResponse {
                 .durationMonths(durationMonths)
                 .currentMonth(currentMonth)
                 .moneyOwed(moneyOwed)
+                .netSaved(totalContributed)
                 .histories(histories)
                 .build();
+    }
+
+    private static String capitalize(String s) {
+        if (s == null || s.isEmpty()) return s;
+        return s.charAt(0) + s.substring(1).toLowerCase();
     }
 }

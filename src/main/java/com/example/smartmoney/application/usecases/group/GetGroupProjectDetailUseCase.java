@@ -56,14 +56,27 @@ public class GetGroupProjectDetailUseCase {
 
         List<Project> subProjects = projectRepository.findAllByGroupProjectId(gp.getId().value());
 
-        BigDecimal aggregate = subProjects.stream()
-                .map(p -> p.getTracking() != null ? p.getTracking().getMoneySaved() : BigDecimal.ZERO)
+        // Completion is driven by still-participating members: a member whose sub-project
+        // is EXPIRED/ABANDONED drops out of BOTH the required target and the aggregate, so
+        // the goal shrinks and the remaining members can still complete it.
+        // See docs/project-tracking-all-auto-plan.md §6.
+        List<Project> participating = subProjects.stream()
+                .filter(p -> p.getStatus() != com.example.smartmoney.domain.models.project.enums.ProjectStatus.EXPIRED
+                        && p.getStatus() != com.example.smartmoney.domain.models.project.enums.ProjectStatus.ABANDONED)
+                .toList();
+
+        BigDecimal requiredTarget = participating.stream()
+                .map(p -> p.getTargetAmount().amount())
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal aggregate = participating.stream()
+                .map(Project::netSavedAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         BigDecimal progress = BigDecimal.ZERO;
-        if (gp.getTargetAmount().compareTo(BigDecimal.ZERO) > 0) {
+        if (requiredTarget.compareTo(BigDecimal.ZERO) > 0) {
             progress = aggregate.multiply(BigDecimal.valueOf(100))
-                    .divide(gp.getTargetAmount(), 2, RoundingMode.HALF_UP)
+                    .divide(requiredTarget, 2, RoundingMode.HALF_UP)
                     .min(BigDecimal.valueOf(100));
         }
 
@@ -81,9 +94,12 @@ public class GetGroupProjectDetailUseCase {
         List<GroupProjectMemberProgressResponse> memberProgress = new ArrayList<>();
         for (Project sub : subProjects) {
             BigDecimal saved = sub.getTracking() != null ? sub.getTracking().getMoneySaved() : BigDecimal.ZERO;
+            BigDecimal owed = sub.getTracking() != null && sub.getTracking().getMoneyOwed() != null
+                    ? sub.getTracking().getMoneyOwed() : BigDecimal.ZERO;
+            BigDecimal net = sub.netSavedAmount();
             BigDecimal target = sub.getTargetAmount().amount();
             BigDecimal pct = target.compareTo(BigDecimal.ZERO) > 0
-                    ? saved.multiply(BigDecimal.valueOf(100)).divide(target, 2, RoundingMode.HALF_UP).min(BigDecimal.valueOf(100))
+                    ? net.multiply(BigDecimal.valueOf(100)).divide(target, 2, RoundingMode.HALF_UP).min(BigDecimal.valueOf(100))
                     : BigDecimal.ZERO;
             String username = usernameByUserId.get(sub.getOwnerId().toString());
             memberProgress.add(GroupProjectMemberProgressResponse.builder()
@@ -91,12 +107,14 @@ public class GetGroupProjectDetailUseCase {
                     .username(username)
                     .personalProjectId(sub.getId().toString())
                     .moneySaved(saved)
+                    .moneyOwed(owed)
+                    .netSaved(net)
                     .targetAmount(target)
                     .progressPercent(pct)
                     .projectStatus(sub.getStatus().name())
                     .build());
         }
 
-        return GroupProjectDetailResponse.fromDomain(gp, aggregate, progress, memberProgress);
+        return GroupProjectDetailResponse.fromDomain(gp, requiredTarget, aggregate, progress, memberProgress);
     }
 }

@@ -16,9 +16,17 @@ public enum ProjectStatus {
      */
     FROZEN,
     /**
-     * Project is terminally cancelled. All past contributions are reversed via
-     * compensating PROJECT_REFUND transactions, restoring members' safe spending.
+     * Project is terminally cancelled by the owner/admin (abandon / dissolve).
+     * The obligation is released so the user's safe spending recovers.
      * No further mutations allowed.
      */
-    ABANDONED
+    ABANDONED,
+    /**
+     * Project failed to meet its target: either the deadline passed while still
+     * under target, or it stayed FROZEN beyond {@code app.project.max-frozen-months}
+     * with no recovery. Terminal; the obligation is released (debt stops affecting
+     * safe spending) so a failed goal does not haunt the user. See
+     * docs/project-tracking-all-auto-plan.md §3.
+     */
+    EXPIRED
 }
