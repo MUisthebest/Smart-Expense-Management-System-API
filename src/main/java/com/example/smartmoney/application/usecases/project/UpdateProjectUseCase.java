@@ -49,6 +49,10 @@ public class UpdateProjectUseCase {
             throw new ProjectException("Project is abandoned",
                     ProjectErrorCode.PROJECT_ABANDONED);
         }
+        if (p.getStatus() == ProjectStatus.EXPIRED) {
+            throw new ProjectException("Project has expired and can no longer be edited",
+                    ProjectErrorCode.PROJECT_ABANDONED);
+        }
 
         validateUpdate(actorId, p, req);
 

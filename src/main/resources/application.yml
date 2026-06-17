@@ -85,6 +85,15 @@ app:
 
   # Set BYPASS_DATE_GATE=true in .env to skip the days 1-7 creation window (dev/testing only)
   bypass-date-gate: ${BYPASS_DATE_GATE:false}
+
+  # All-auto project tracking tunables (see docs/project-tracking-all-auto-plan.md §10)
+  project:
+    # Freeze + per-project debt cap = freeze-mult × monthly_saving
+    freeze-mult: ${PROJECT_FREEZE_MULT:3}
+    # Auto-unfreeze when money_owed <= unfreeze-mult × monthly_saving (0 = debt fully cleared)
+    unfreeze-mult: ${PROJECT_UNFREEZE_MULT:0}
+    # Consecutive frozen months with no recovery before the project EXPIRES
+    max-frozen-months: ${PROJECT_MAX_FROZEN_MONTHS:3}
   
   # Google OAuth Configuration
   google:

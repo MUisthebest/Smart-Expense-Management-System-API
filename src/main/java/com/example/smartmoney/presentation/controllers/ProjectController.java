@@ -34,9 +34,6 @@ public class ProjectController {
     private final GetProjectDetailUseCase getProjectDetailUseCase;
     private final ListMyProjectsUseCase listMyProjectsUseCase;
 
-    private final AddProjectContributionUseCase addProjectContributionUseCase;
-    private final ListProjectContributionsUseCase listProjectContributionsUseCase;
-    private final GetProjectContributionSummaryUseCase getProjectContributionSummaryUseCase;
     private final DeleteProjectUseCase deleteProjectUseCase;
     private final CreateProjectTrackingUseCase createProjectTrackingUseCase;
     private final GetProjectTrackingUseCase getProjectTrackingUseCase;
@@ -136,48 +133,6 @@ public class ProjectController {
         return CheckResponse.<Void>builder()
                 .success(true)
                 .message("Deleted")
-                .build();
-    }
-
-    // ===== Contributions =====
-
-    @Operation(summary = "Add contribution to project")
-    @PostMapping("/{projectId}/contributions")
-    public CheckResponse<ProjectContributionResponse> addContribution(
-            Authentication auth,
-            @PathVariable String projectId,
-            @Valid @RequestBody AddProjectContributionRequest req) {
-        ProjectContributionResponse data = addProjectContributionUseCase.execute(actorId(auth), projectId, req);
-        return CheckResponse.<ProjectContributionResponse>builder()
-                .success(true)
-                .message("Added")
-                .data(data)
-                .build();
-    }
-
-    @Operation(summary = "List contributions of project")
-    @GetMapping("/{projectId}/contributions")
-    public CheckResponse<List<ProjectContributionResponse>> listContributions(
-            Authentication auth,
-            @PathVariable String projectId) {
-        List<ProjectContributionResponse> data = listProjectContributionsUseCase.execute(actorId(auth), projectId);
-        return CheckResponse.<List<ProjectContributionResponse>>builder()
-                .success(true)
-                .message("OK")
-                .data(data)
-                .build();
-    }
-
-    @Operation(summary = "Get contribution summary")
-    @GetMapping("/{projectId}/contributions/summary")
-    public CheckResponse<ContributionSummaryResponse> summary(
-            Authentication auth,
-            @PathVariable String projectId) {
-        ContributionSummaryResponse data = getProjectContributionSummaryUseCase.execute(actorId(auth), projectId);
-        return CheckResponse.<ContributionSummaryResponse>builder()
-                .success(true)
-                .message("OK")
-                .data(data)
                 .build();
     }
 

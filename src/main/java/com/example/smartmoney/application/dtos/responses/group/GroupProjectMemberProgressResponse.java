@@ -11,7 +11,9 @@ public class GroupProjectMemberProgressResponse {
     private String userId;
     private String username;
     private String personalProjectId;
-    private BigDecimal moneySaved;
+    private BigDecimal moneySaved;   // gross reserved
+    private BigDecimal moneyOwed;    // overspend debt
+    private BigDecimal netSaved;     // moneySaved − moneyOwed (drives progress)
     private BigDecimal targetAmount;
     private BigDecimal progressPercent;
     private String projectStatus;

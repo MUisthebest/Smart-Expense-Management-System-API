@@ -37,7 +37,7 @@ public class ProjectListItemResponse {
 
     public static ProjectListItemResponse fromDomain(Project p) {
         BigDecimal targetAmount = p.getTargetAmount().amount();
-        BigDecimal totalContributed = p.getTracking() != null ? p.getTracking().getMoneySaved() : p.totalContributed().amount();
+        BigDecimal totalContributed = p.netSavedAmount();
         BigDecimal progressPercent = p.progressPercent();
         BigDecimal remaining = targetAmount.subtract(totalContributed).max(BigDecimal.ZERO);
 
@@ -67,7 +67,7 @@ public class ProjectListItemResponse {
                 .type(p.getType())
                 .targetAmount(targetAmount)
                 .currency(p.getTargetAmount().currency())
-                .totalContributed(p.totalContributed().amount())
+                .totalContributed(totalContributed)
                 .remaining(remaining)
                 .progressPercent(progressPercent)
                 .deadline(deadline)

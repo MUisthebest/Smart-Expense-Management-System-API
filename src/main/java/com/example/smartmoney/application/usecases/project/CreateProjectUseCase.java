@@ -122,14 +122,19 @@ public class CreateProjectUseCase {
 
         UserId actor = UserId.of(actorId);
         List<Project> all = projectRepository.findAllByUser(actor);
-        List<Project> activeOwned = all.stream()
+
+        // Slot/priority occupancy counts non-terminal projects (ACTIVE + FROZEN): a FROZEN
+        // project is a goal in debt recovery, not a free slot. See
+        // docs/project-tracking-all-auto-plan.md §8.1.
+        List<Project> liveOwned = all.stream()
                 .filter(p -> actor.equals(p.getOwnerId()))
-                .filter(p -> p.getStatus() == ProjectStatus.ACTIVE)
+                .filter(p -> p.getStatus() == ProjectStatus.ACTIVE
+                        || p.getStatus() == ProjectStatus.FROZEN)
                 .toList();
 
-        if (activeOwned.size() >= 3) {
+        if (liveOwned.size() >= 3) {
             throw new ProjectException(
-                    "Max 3 ACTIVE projects allowed",
+                    "Max 3 active projects allowed (a frozen project still counts until it recovers or ends)",
                     ProjectErrorCode.PROJECT_MAX_ACTIVE_REACHED
             );
         }
@@ -140,7 +145,7 @@ public class CreateProjectUseCase {
         }
 
         Set<ProjectPriority> existingPriorities = new HashSet<>();
-        for (Project p : activeOwned) {
+        for (Project p : liveOwned) {
             existingPriorities.add(p.getPriority());
         }
 

@@ -100,25 +100,42 @@ public class SafeSpendingService {
         }
     }
 
+    /**
+     * Sum of monthly obligations and outstanding debt across the user's
+     * non-terminal projects.
+     *
+     * <ul>
+     *   <li>ACTIVE  → reserve {@code monthly_saving} + carry {@code money_owed}</li>
+     *   <li>FROZEN  → carry {@code money_owed} only (we stopped reserving the
+     *       monthly saving while frozen, but the debt must keep suppressing safe
+     *       spending so the user is pushed to recover)</li>
+     *   <li>COMPLETED / EXPIRED / ABANDONED / CANCELLED → nothing (obligation released)</li>
+     * </ul>
+     *
+     * See docs/project-tracking-all-auto-plan.md §5.
+     */
     private BigDecimal sumObligationsForUser(UserId ownerId) {
-        List<Project> activeProjects = projectRepository.findAllByUser(ownerId)
+        List<Project> liveProjects = projectRepository.findAllByUser(ownerId)
                 .stream()
                 .filter(p -> ownerId.equals(p.getOwnerId()))
-                .filter(p -> p.getStatus() == ProjectStatus.ACTIVE)
+                .filter(p -> p.getStatus() == ProjectStatus.ACTIVE
+                        || p.getStatus() == ProjectStatus.FROZEN)
                 .toList();
 
         BigDecimal sumObligations = BigDecimal.ZERO;
 
-        for (Project p : activeProjects) {
+        for (Project p : liveProjects) {
             ProjectTracking tracking = projectTrackingRepository.findByProjectId(p.getId()).orElse(null);
-
-            BigDecimal monthlySaving = tracking != null && tracking.getMonthlySaving() != null
-                    ? tracking.getMonthlySaving() : derivedMonthly(p);
 
             BigDecimal moneyOwed = tracking != null && tracking.getMoneyOwed() != null
                     ? tracking.getMoneyOwed() : BigDecimal.ZERO;
+            sumObligations = sumObligations.add(moneyOwed);
 
-            sumObligations = sumObligations.add(monthlySaving).add(moneyOwed);
+            if (p.getStatus() == ProjectStatus.ACTIVE) {
+                BigDecimal monthlySaving = tracking != null && tracking.getMonthlySaving() != null
+                        ? tracking.getMonthlySaving() : derivedMonthly(p);
+                sumObligations = sumObligations.add(monthlySaving);
+            }
         }
         return sumObligations;
     }
