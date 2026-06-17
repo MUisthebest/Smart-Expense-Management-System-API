@@ -77,7 +77,7 @@ class CreateProjectUseCaseTest {
             assertEquals(ProjectErrorCode.PROJECT_USER_INCOME_REQUIRED.name(), ex.getErrorCode());
         }
     }
-
+  
     @Test
     @DisplayName("Reject when already 3 ACTIVE projects")
     void rejectWhenMaxActiveReached() {
@@ -94,8 +94,8 @@ class CreateProjectUseCaseTest {
             ProjectException ex = assertThrows(ProjectException.class, () -> useCase.execute(actorId, req));
             assertEquals(ProjectErrorCode.PROJECT_MAX_ACTIVE_REACHED.name(), ex.getErrorCode());
         }
-    }
-
+    } 
+  
     @Test
     @DisplayName("Reject when new priority duplicates an ACTIVE project's priority")
     void rejectWhenPriorityConflict() {
@@ -112,21 +112,26 @@ class CreateProjectUseCaseTest {
             assertEquals(ProjectErrorCode.PROJECT_ACTIVE_PRIORITY_CONFLICT.name(), ex.getErrorCode());
         }
     }
-
+  
     @Test
     @DisplayName("Reject when monthly sum exceeds 20% usable_income")
     void rejectWhenMonthlySumExceedsLimit() {
         try (MockedStatic<LocalDate> mocked = mockLocalDate()) {
             CreateProjectRequest req = baseReq();
-            // new project monthly = 100 (deadline today => 1 month)
             req.setTargetAmount(new BigDecimal("100"));
             req.setDeadline(WINDOW_DATE);
 
             UserIncome income = validIncome(actorUuid);
-            // usable_income = 1000 => limit = 200
 
-            Project existing = Project.createNew(UserId.of(actorId), ProjectType.PERSONAL, ProjectPriority.LOW,
-                    "P1", null, new Money(new BigDecimal("150"), "VND"), WINDOW_DATE);
+            Project existing = Project.createNew(
+                    UserId.of(actorId),
+                    ProjectType.PERSONAL,
+                    ProjectPriority.LOW,
+                    "P1",
+                    null,
+                    new Money(new BigDecimal("150"), "VND"),
+                    WINDOW_DATE
+            );
 
             when(userIncomeRepository.findByUserId(eq(actorUuid))).thenReturn(Optional.of(income));
             when(projectRepository.findAllByUser(eq(UserId.of(actorId)))).thenReturn(List.of(existing));
@@ -149,19 +154,6 @@ class CreateProjectUseCaseTest {
             ProjectException ex = assertThrows(ProjectException.class, () -> useCase.execute(actorId, req));
             assertEquals(ProjectErrorCode.PROJECT_INVALID_DEADLINE.name(), ex.getErrorCode());
         }
-    }
-
-    /**
-     * Helper: mock LocalDate so that LocalDate.now() returns WINDOW_DATE (day 1),
-     * while all other static methods (of, parse, etc.) behave normally.
-     */
-    private MockedStatic<LocalDate> mockLocalDate() {
-        return mockStatic(LocalDate.class, invocation -> {
-            if ("now".equals(invocation.getMethod().getName()) && invocation.getArguments().length == 0) {
-                return WINDOW_DATE;
-            }
-            return invocation.callRealMethod();
-        });
     }
 
     private CreateProjectRequest baseReq() {
