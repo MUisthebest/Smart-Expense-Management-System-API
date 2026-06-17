@@ -43,6 +43,17 @@ public class UpdateProjectUseCase {
         Project p = projectRepository.findById(ProjectId.of(projectId))
                 .orElseThrow(() -> new ProjectException("Project not found", ProjectErrorCode.PROJECT_NOT_FOUND));
 
+        // V13: terminal/frozen states block edits — owner must abandon or
+        // unfreeze first, not back-door changes through update.
+        if (p.getStatus() == ProjectStatus.ABANDONED) {
+            throw new ProjectException("Project is abandoned",
+                    ProjectErrorCode.PROJECT_ABANDONED);
+        }
+        if (p.getStatus() == ProjectStatus.EXPIRED) {
+            throw new ProjectException("Project has expired and can no longer be edited",
+                    ProjectErrorCode.PROJECT_ABANDONED);
+        }
+
         validateUpdate(actorId, p, req);
 
         Money target = null;
@@ -245,6 +256,16 @@ public class UpdateProjectUseCase {
             userIncomeRepository.findByUserId(ownerId.value()).ifPresent(income ->
                     MonthlyObligationPolicy.assertWithinLimit(income, otherActive, newMonthlySaving)
             );
+
+            // V13: hard safe-spending gate — if the new monthly saving is HIGHER
+            // than the previous one, require the user's current safe-spending
+            // headroom to cover the delta. (Decreases never need a gate.)
+            BigDecimal oldMonthlySaving = tracking.getMonthlySaving() != null
+                    ? tracking.getMonthlySaving() : BigDecimal.ZERO;
+            BigDecimal delta = newMonthlySaving.subtract(oldMonthlySaving);
+            if (delta.compareTo(BigDecimal.ZERO) > 0) {
+                safeSpendingService.requireCanAfford(ownerId, delta);
+            }
 
             tracking.recalibrate(newMonthlySaving, newMonthLeft);
         }

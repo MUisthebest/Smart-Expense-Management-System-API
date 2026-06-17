@@ -5,18 +5,20 @@ import com.example.smartmoney.application.dtos.responses.project.ProjectDetailRe
 import com.example.smartmoney.domain.exceptions.ProjectErrorCode;
 import com.example.smartmoney.domain.exceptions.ProjectException;
 import com.example.smartmoney.domain.models.project.Project;
+import com.example.smartmoney.domain.models.project.ProjectTracking;
 import com.example.smartmoney.domain.models.project.enums.ProjectPriority;
 import com.example.smartmoney.domain.models.project.enums.ProjectStatus;
+import com.example.smartmoney.domain.models.project.enums.ProjectType;
 import com.example.smartmoney.domain.models.project.valueobjects.Money;
+import com.example.smartmoney.domain.models.project.valueobjects.ProjectId;
 import com.example.smartmoney.domain.models.project.valueobjects.UserId;
 import com.example.smartmoney.domain.models.user.UserIncome;
 import com.example.smartmoney.domain.repositories.ProjectRepository;
 import com.example.smartmoney.domain.repositories.ProjectTrackingRepository;
 import com.example.smartmoney.domain.repositories.UserIncomeRepository;
 import com.example.smartmoney.domain.services.SafeSpendingService;
-import com.example.smartmoney.domain.models.project.ProjectTracking;
-import com.example.smartmoney.domain.models.project.valueobjects.ProjectId;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,13 +39,16 @@ public class CreateProjectUseCase {
     private final UserIncomeRepository userIncomeRepository;
     private final SafeSpendingService safeSpendingService;
 
+    @Value("${app.bypass-date-gate:false}")
+    private boolean bypassDateGate;
+
     @Transactional
     public ProjectDetailResponse execute(String actorId, CreateProjectRequest req) {
         validateCreate(actorId, req);
 
         Project p = Project.createNew(
                 UserId.of(actorId),
-                req.getType(),
+                ProjectType.PERSONAL,
                 req.getPriority(),
                 req.getName(),
                 req.getDescription(),
@@ -53,17 +58,16 @@ public class CreateProjectUseCase {
 
         Project savedProject = projectRepository.save(p);
 
-        // Automate tracking creation
         int monthsLeft = monthsToDeadline(LocalDate.now(), req.getDeadline());
         BigDecimal monthlySaving = monthlyTarget(req.getTargetAmount(), req.getDeadline());
 
         ProjectTracking tracking = ProjectTracking.createNew(
                 ProjectId.of(savedProject.getId().toString()),
-                BigDecimal.ZERO, // moneySaved
-                1,               // currentMonth
+                BigDecimal.ZERO,
+                1,
                 monthlySaving,
                 monthsLeft,
-                BigDecimal.ZERO  // moneyOwed
+                BigDecimal.ZERO
         );
         projectTrackingRepository.save(tracking);
 
@@ -73,6 +77,14 @@ public class CreateProjectUseCase {
     }
 
     private void validateCreate(String actorId, CreateProjectRequest req) {
+        int dayOfMonth = LocalDate.now().getDayOfMonth();
+        if (!bypassDateGate && dayOfMonth > 7) {
+            throw new ProjectException(
+                    "Projects can only be created during the first week of the month (days 1-7)",
+                    ProjectErrorCode.PROJECT_CREATION_OUTSIDE_WINDOW
+            );
+        }
+
         UUID userId;
         try {
             userId = UUID.fromString(actorId);
@@ -110,37 +122,31 @@ public class CreateProjectUseCase {
 
         UserId actor = UserId.of(actorId);
         List<Project> all = projectRepository.findAllByUser(actor);
-        List<Project> activeOwned = all.stream()
+
+        // Slot/priority occupancy counts non-terminal projects (ACTIVE + FROZEN): a FROZEN
+        // project is a goal in debt recovery, not a free slot. See
+        // docs/project-tracking-all-auto-plan.md §8.1.
+        List<Project> liveOwned = all.stream()
                 .filter(p -> actor.equals(p.getOwnerId()))
-                .filter(p -> p.getStatus() == ProjectStatus.ACTIVE)
+                .filter(p -> p.getStatus() == ProjectStatus.ACTIVE
+                        || p.getStatus() == ProjectStatus.FROZEN)
                 .toList();
 
-        if (activeOwned.size() >= 3) {
+        if (liveOwned.size() >= 3) {
             throw new ProjectException(
-                    "Max 3 ACTIVE projects allowed",
+                    "Max 3 active projects allowed (a frozen project still counts until it recovers or ends)",
                     ProjectErrorCode.PROJECT_MAX_ACTIVE_REACHED
             );
         }
 
-        // Deadline must be within 60 months (create-time rule)
         int monthsToDeadline = monthsToDeadline(LocalDate.now(), req.getDeadline());
         if (monthsToDeadline > 60) {
-            throw new ProjectException(
-                    "Max deadline is 60 months",
-                    ProjectErrorCode.PROJECT_INVALID_DEADLINE
-            );
+            throw new ProjectException("Max deadline is 60 months", ProjectErrorCode.PROJECT_INVALID_DEADLINE);
         }
 
-        // Each ACTIVE project must have a unique priority
         Set<ProjectPriority> existingPriorities = new HashSet<>();
-        for (Project p : activeOwned) {
-            ProjectPriority pr = p.getPriority();
-            if (!existingPriorities.add(pr)) {
-                throw new ProjectException(
-                        "Each ACTIVE project must have a unique priority (fix existing duplicates first)",
-                        ProjectErrorCode.PROJECT_ACTIVE_PRIORITY_CONFLICT
-                );
-            }
+        for (Project p : liveOwned) {
+            existingPriorities.add(p.getPriority());
         }
 
         ProjectPriority newPriority = req.getPriority() != null ? req.getPriority() : ProjectPriority.MEDIUM;
@@ -151,12 +157,15 @@ public class CreateProjectUseCase {
             );
         }
 
-        // 20% monthly obligation rule — enforced via MonthlyObligationPolicy
-        List<Project> otherActive = MonthlyObligationPolicy.otherActiveOwned(
-                all, actor, null /* brand-new project: nothing to exclude */);
+        List<Project> otherActive = MonthlyObligationPolicy.otherActiveOwned(all, actor, null);
         MonthlyObligationPolicy.assertWithinLimit(
                 income,
                 otherActive,
+                MonthlyObligationPolicy.derivedMonthly(req.getTargetAmount(), req.getDeadline())
+        );
+
+        safeSpendingService.requireCanAfford(
+                actor,
                 MonthlyObligationPolicy.derivedMonthly(req.getTargetAmount(), req.getDeadline())
         );
     }
@@ -168,8 +177,8 @@ public class CreateProjectUseCase {
         if (deadline.isBefore(today)) {
             throw new ProjectException("Deadline must be today or later", ProjectErrorCode.PROJECT_INVALID_DEADLINE);
         }
-
-        int months = (deadline.getYear() - today.getYear()) * 12 + (deadline.getMonthValue() - today.getMonthValue()) + 1;
+        int months = (deadline.getYear() - today.getYear()) * 12
+                + (deadline.getMonthValue() - today.getMonthValue()) + 1;
         return Math.max(1, months);
     }
 
