@@ -21,6 +21,7 @@ public class ProjectTrackingMapper {
                 entity.getMonthlySaving(),
                 entity.getMonthLeft(),
                 entity.getMoneyOwed(),
+                entity.getFrozenMonths() != null ? entity.getFrozenMonths() : 0,
                 entity.getCreatedAt(),
                 entity.getUpdatedAt()
         );
@@ -35,6 +36,7 @@ public class ProjectTrackingMapper {
                 .monthlySaving(domain.getMonthlySaving())
                 .monthLeft(domain.getMonthLeft())
                 .moneyOwed(domain.getMoneyOwed())
+                .frozenMonths(domain.getFrozenMonths())
                 .createdAt(domain.getCreatedAt())
                 .updatedAt(domain.getUpdatedAt())
                 .build();
