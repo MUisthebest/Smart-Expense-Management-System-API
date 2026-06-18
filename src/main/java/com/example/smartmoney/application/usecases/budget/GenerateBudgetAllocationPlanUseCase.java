@@ -129,7 +129,8 @@ public class GenerateBudgetAllocationPlanUseCase {
 
         return Map.of(
                 "FOOD_avg_3m_ratio", 0.28,
-                "TRANSPORT_avg_3m_ratio", 0.12,
+                "CLOTHING_avg_3m_ratio", 0.02,
+                "TRANSPORTATION_avg_3m_ratio", 0.10,
                 "SHOPPING_avg_3m_ratio", 0.15,
                 "ENTERTAINMENT_avg_3m_ratio", 0.08,
                 "UTILITIES_avg_3m_ratio", 0.14,
