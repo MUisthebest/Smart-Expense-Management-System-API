@@ -190,6 +190,7 @@ class PerformMonthlySettlementUseCaseTest {
         useCase.settleUserProjects(UserId.of(OWNER), List.of(p));
 
         assertEquals(ProjectStatus.EXPIRED, p.getStatus());
+        verify(projectRepository, times(1)).save(p); // status change must be persisted
         verify(createNotificationUseCase, times(1))
                 .createNotification(any(UUID.class), any(String.class), any(String.class));
     }
@@ -205,6 +206,7 @@ class PerformMonthlySettlementUseCaseTest {
 
         assertAmount("250", p.getTracking().getMoneyOwed()); // unchanged
         assertEquals(ProjectStatus.EXPIRED, p.getStatus());   // frozenMonths 2 -> 3 == max
+        verify(projectRepository, times(1)).save(p); // status change must be persisted
         verify(createNotificationUseCase, times(1))
                 .createNotification(any(UUID.class), any(String.class), any(String.class));
     }
