@@ -313,14 +313,15 @@ public class PerformMonthlySettlementUseCase {
 
             // Completion / expiry (net = gross − debt)
             BigDecimal net = newSaved.subtract(newOwed);
+            boolean expiredNow = false;
             if (net.compareTo(target) >= 0) {
                 p.complete();
             } else if (newMonthLeft <= 0) {
                 p.expire();
-                notifyExpired(p);
+                expiredNow = true;
             } else if (p.getStatus() == ProjectStatus.FROZEN && frozenMonths >= maxFrozenMonths) {
                 p.expire();
-                notifyExpired(p);
+                expiredNow = true;
             }
 
             // Frozen-months counter: only meaningful while FROZEN, else reset.
@@ -339,6 +340,12 @@ public class PerformMonthlySettlementUseCase {
                 projectRepository.save(p);
                 log.info("[Settlement] Project {} status {} -> {}.",
                         p.getId().value(), before, p.getStatus());
+            }
+
+            // Notify only after the status change has been persisted, so a failed save
+            // can never leave a project ACTIVE while its owner was told it expired.
+            if (expiredNow) {
+                notifyExpired(p);
             }
 
             log.info("[Settlement] Settled project {} | saved: {} -> {} | owed: {} -> {} | monthLeft: {} -> {}",
