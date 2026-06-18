@@ -66,6 +66,12 @@ public class GroupProject {
         this.updatedAt = Instant.now();
     }
 
+    /** No participating members remain (all sub-projects EXPIRED/ABANDONED): the goal can no longer be met. */
+    public void markExpired() {
+        this.status = GroupProjectStatus.EXPIRED;
+        this.updatedAt = Instant.now();
+    }
+
     public static GroupProject rehydrate(GroupProjectId id, UUID groupId, String name,
                                          String description, BigDecimal targetAmount,
                                          BigDecimal totalCapacity, String currency,
