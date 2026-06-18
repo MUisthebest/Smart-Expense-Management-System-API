@@ -156,6 +156,17 @@ class CreateProjectUseCaseTest {
         }
     }
 
+    /**
+     * Pins {@link LocalDate#now()} to {@link #WINDOW_DATE} (day-of-month 1, inside the
+     * V13 days 1-7 creation window) so the date-gate check passes, while leaving every
+     * other LocalDate method (of, plusMonths, ...) real.
+     */
+    private MockedStatic<LocalDate> mockLocalDate() {
+        MockedStatic<LocalDate> mocked = mockStatic(LocalDate.class, org.mockito.Mockito.CALLS_REAL_METHODS);
+        mocked.when(LocalDate::now).thenReturn(WINDOW_DATE);
+        return mocked;
+    }
+
     private CreateProjectRequest baseReq() {
         CreateProjectRequest req = new CreateProjectRequest();
         req.setName("My Project");
