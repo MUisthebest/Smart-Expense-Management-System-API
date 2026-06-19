@@ -27,6 +27,5 @@ public class DeleteUserIncomeUseCase {
         userIncomeRepository.deleteByUserId(userId);
 
         userRepository.markIncomeSetupCompleted(userId, false);
-        userRepository.markFinancialSetupCompleted(userId, false);
     }
 }
