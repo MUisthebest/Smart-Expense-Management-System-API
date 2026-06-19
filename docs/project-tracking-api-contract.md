@@ -205,8 +205,13 @@ Sort client-side by (`year`,`month`) descending for newest-first.
 |---|---|---|
 | `POST` | `/api/v1/projects` | `ProjectDetailResponse` (create) |
 | `PUT` | `/api/v1/projects/{projectId}` | `ProjectDetailResponse` (update info) |
-| `DELETE` | `/api/v1/projects/{projectId}` | `void` |
+| `DELETE` | `/api/v1/projects/{projectId}` | `void` — see note below |
 | `POST` | `/api/v1/projects/project-advisor` | `ProjectBudgetAdvisorResponse` |
+
+> **`DELETE` semantics:** for a **standalone** personal project this is now a **true hard delete**
+> (it disappears — project, tracking, and history are removed). For a **sub-personal** project
+> (`groupProjectId != null`) it instead abandons the project so the group stays consistent. Same
+> request/response either way; label the button "Delete" and treat it as **irreversible**.
 
 > Group-project endpoints (`requiredTarget`, per-member `netSaved`/`moneyOwed`) are covered in
 > `docs/ui-contract-changes.md` §4 — needed only for the Phase 3 group view.
