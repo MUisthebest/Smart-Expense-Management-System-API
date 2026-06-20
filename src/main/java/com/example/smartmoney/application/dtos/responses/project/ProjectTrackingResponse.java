@@ -12,23 +12,30 @@ import java.time.Instant;
 public class ProjectTrackingResponse {
     private String id;
     private String projectId;
-    private BigDecimal moneySaved;
+    private BigDecimal moneySaved;   // gross reserved
+    private BigDecimal moneyOwed;    // overspend debt
+    private BigDecimal netSaved;     // moneySaved − moneyOwed (drives progress/completion)
     private Integer currentMonth;
     private BigDecimal monthlySaving;
     private Integer monthLeft;
-    private BigDecimal moneyOwed;
+    private Integer frozenMonths;
     private Instant createdAt;
     private Instant updatedAt;
 
     public static ProjectTrackingResponse fromDomain(ProjectTracking tracking) {
+        BigDecimal saved = tracking.getMoneySaved() != null ? tracking.getMoneySaved() : BigDecimal.ZERO;
+        BigDecimal owed = tracking.getMoneyOwed() != null ? tracking.getMoneyOwed() : BigDecimal.ZERO;
+        BigDecimal net = saved.subtract(owed).max(BigDecimal.ZERO);
         return ProjectTrackingResponse.builder()
                 .id(tracking.getId().toString())
                 .projectId(tracking.getProjectId().toString())
-                .moneySaved(tracking.getMoneySaved())
+                .moneySaved(saved)
+                .moneyOwed(owed)
+                .netSaved(net)
                 .currentMonth(tracking.getCurrentMonth())
                 .monthlySaving(tracking.getMonthlySaving())
                 .monthLeft(tracking.getMonthLeft())
-                .moneyOwed(tracking.getMoneyOwed())
+                .frozenMonths(tracking.getFrozenMonths())
                 .createdAt(tracking.getCreatedAt())
                 .updatedAt(tracking.getUpdatedAt())
                 .build();
