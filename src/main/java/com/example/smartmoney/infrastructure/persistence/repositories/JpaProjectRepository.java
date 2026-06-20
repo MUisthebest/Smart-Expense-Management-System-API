@@ -10,12 +10,12 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.Collection;
 import java.util.List;
-import java.util.Set;
 import java.util.UUID;
 
 public interface JpaProjectRepository extends JpaRepository<ProjectEntity, UUID> {
     List<ProjectEntity> findByOwnerId(UUID ownerId);
     List<ProjectEntity> findByStatus(ProjectStatus status);
+    List<ProjectEntity> findByGroupProjectId(UUID groupProjectId);
 
     @Query("""
      SELECT p

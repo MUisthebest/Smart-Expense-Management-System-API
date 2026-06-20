@@ -151,4 +151,58 @@ public interface JpaTransactionRepository extends JpaRepository<TransactionEntit
             @Param("year") int year,
             @Param("month") int month
     );
+
+    @Query(value = "SELECT EXTRACT(DAY FROM t.date)::int AS day_of_month, " +
+            "COALESCE(SUM(CASE WHEN t.type = 'INCOME' THEN t.amount ELSE 0 END), 0) AS total_income, " +
+            "COALESCE(SUM(CASE WHEN t.type = 'EXPENSE' THEN t.amount ELSE 0 END), 0) AS total_expense " +
+            "FROM transactions t " +
+            "WHERE t.user_id = CAST(:userId AS uuid) " +
+            "AND EXTRACT(YEAR FROM t.date) = :year " +
+            "AND EXTRACT(MONTH FROM t.date) = :month " +
+            "GROUP BY day_of_month " +
+            "ORDER BY day_of_month",
+            nativeQuery = true)
+    List<Object[]> getDailyTotals(
+            @Param("userId") UUID userId,
+            @Param("year") int year,
+            @Param("month") int month
+    );
+
+    @Query(value = "SELECT t.type, EXTRACT(MONTH FROM t.date)::int AS month_of_year, " +
+            "COALESCE(SUM(t.amount), 0) AS total_amount " +
+            "FROM transactions t " +
+            "WHERE t.user_id = CAST(:userId AS uuid) " +
+            "AND EXTRACT(YEAR FROM t.date) = :year " +
+            "GROUP BY t.type, month_of_year " +
+            "ORDER BY month_of_year, t.type",
+            nativeQuery = true)
+    List<Object[]> getTransactionsByYear(
+            @Param("userId") UUID userId,
+            @Param("year") int year
+    );
+
+    @Query(value = "SELECT t.category, COUNT(t.id), SUM(t.amount) " +
+            "FROM transactions t " +
+            "WHERE t.user_id = CAST(:userId AS uuid) " +
+            "AND t.type = 'EXPENSE' " +
+            "AND EXTRACT(YEAR FROM t.date) = :year " +
+            "GROUP BY t.category",
+            nativeQuery = true)
+    List<Object[]> getTransactionProportionByCategoryForYear(
+            @Param("userId") UUID userId,
+            @Param("year") int year
+    );
+
+    @Query(value = "SELECT " +
+            "COALESCE(SUM(CASE WHEN t.type = 'INCOME' THEN t.amount ELSE 0 END), 0) AS total_income, " +
+            "COALESCE(SUM(CASE WHEN t.type = 'EXPENSE' THEN t.amount ELSE 0 END), 0) AS total_expense, " +
+            "COUNT(t.id) AS total_transactions " +
+            "FROM transactions t " +
+            "WHERE t.user_id = CAST(:userId AS uuid) " +
+            "AND EXTRACT(YEAR FROM t.date) = :year",
+            nativeQuery = true)
+    List<Object[]> getYearlyTotals(
+            @Param("userId") UUID userId,
+            @Param("year") int year
+    );
 }

@@ -8,12 +8,14 @@ import com.example.smartmoney.domain.models.project.valueobjects.UserId;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 public interface ProjectRepository {
     Optional<Project> findById(ProjectId id);
     List<Project> findAllByUser(UserId userId);
     List<Project> findAllByUser(UserId userId, ProjectFilterRequest filter);
     List<Project> findAllByStatus(ProjectStatus status);
+    List<Project> findAllByGroupProjectId(UUID groupProjectId);
     Project save(Project project);
     void deleteById(ProjectId id);
 }

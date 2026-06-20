@@ -32,11 +32,14 @@ public class NotificationService {
         var tokens = pushTokenRepo.findByUserId(notification.getUserId().toString());
 
         for (var pushToken : tokens) {
+            Map<String, String> data = notification.getDeepLink() != null
+                    ? Map.of("notificationId", notification.getId().toString(), "url", notification.getDeepLink())
+                    : Map.of("notificationId", notification.getId().toString());
             pushSender.send(
                 pushToken.getPushToken(),
                 "New Notification",
                 notification.getContent(),
-                Map.of("notificationId", notification.getId().toString())
+                data
             );
         }
     }
