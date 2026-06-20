@@ -33,6 +33,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
@@ -423,30 +424,33 @@ class TransactionControllerTest {
                     .categoryProportions(List.of())
                     .monthlyTotalTransactions(0L)
                     .build();
-            when(getTransactionAnalyticsUseCase.execute(eq(USER_ID), anyInt(), anyInt()))
-                    .thenReturn(analyticsResponse);
-
+            
             AnalyticsRequest req = new AnalyticsRequest();
             req.setYear(2024);
             req.setMonth(6);
+            
+            when(getTransactionAnalyticsUseCase.execute(eq(USER_ID), any(AnalyticsRequest.class)))
+                    .thenReturn(analyticsResponse);
 
             ResponseEntity<CheckResponse<TransactionAnalyticsResponse>> response =
                     controller.getAnalytics(AUTH_HEADER, req);
 
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
             assertThat(response.getBody().isSuccess()).isTrue();
+            verify(getTransactionAnalyticsUseCase).execute(eq(USER_ID), eq(req));
         }
 
         @Test
         @DisplayName("returns 500 on analytics computation failure")
         void getAnalyticsReturns500OnError() {
             when(jwtTokenProvider.getUserIdFromToken(TOKEN)).thenReturn(USER_ID);
-            when(getTransactionAnalyticsUseCase.execute(any(UUID.class), anyInt(), anyInt()))
-                    .thenThrow(new RuntimeException("Database error"));
-
+            
             AnalyticsRequest req = new AnalyticsRequest();
             req.setYear(2024);
             req.setMonth(6);
+            
+            when(getTransactionAnalyticsUseCase.execute(any(UUID.class), any(AnalyticsRequest.class)))
+                    .thenThrow(new RuntimeException("Database error"));
 
             ResponseEntity<CheckResponse<TransactionAnalyticsResponse>> response =
                     controller.getAnalytics(AUTH_HEADER, req);
