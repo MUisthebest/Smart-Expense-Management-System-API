@@ -149,38 +149,6 @@ public class ProjectRepositoryImpl implements ProjectRepository {
         jpaProjectRepository.deleteById(projectId);
     }
 
-    private void syncMembers(Project project, UUID projectId, Instant now) {
-        List<ProjectMemberEntity> existing = jpaProjectMemberRepository.findByProjectId(projectId);
-        Map<UUID, ProjectMemberEntity> existingByUserId = existing.stream()
-                .collect(Collectors.toMap(ProjectMemberEntity::getUserId, member -> member));
-
-        Map<UUID, ProjectMemberEntity> incomingByUserId = new LinkedHashMap<>();
-        for (var member : project.getMembers()) {
-            ProjectMemberEntity mapped = projectMemberMapper.toEntity(member, projectId, now);
-            UUID userId = mapped.getUserId();
-
-            ProjectMemberEntity old = existingByUserId.get(userId);
-            if (old != null) {
-                mapped.setId(old.getId());
-                mapped.setCreatedAt(old.getCreatedAt());
-            }
-
-            incomingByUserId.put(userId, mapped);
-        }
-
-        Set<UUID> incomingUserIds = incomingByUserId.keySet();
-        List<UUID> toDelete = existing.stream()
-                .filter(existingMember -> !incomingUserIds.contains(existingMember.getUserId()))
-                .map(ProjectMemberEntity::getId)
-                .toList();
-
-        if (!toDelete.isEmpty()) {
-            jpaProjectMemberRepository.deleteAllById(toDelete);
-        }
-        if (!incomingByUserId.isEmpty()) {
-            jpaProjectMemberRepository.saveAll(incomingByUserId.values());
-        }
-    }
 
     private void syncContributions(Project project, UUID projectId) {
         List<ProjectContributionEntity> incoming = project.getContributions().stream()
