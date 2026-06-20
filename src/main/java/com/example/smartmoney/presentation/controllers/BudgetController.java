@@ -198,11 +198,11 @@ public class BudgetController {
                     request.getYear()
             );
 
-            BulkBudgetsResponse bulkResponse = updateBulkBudgetsUseCase.execute(userId, request);
+            BulkBudgetsResponse bulkResponse = upsertBulkBudgetsUseCase.execute(userId, request);
 
             CheckResponse<BulkBudgetsResponse> response = CheckResponse.<BulkBudgetsResponse>builder()
                     .success(true)
-                    .message(String.format("Successfully updated %d budgets", bulkResponse.getTotalCreated()))
+                    .message(String.format("Successfully upserted %d budgets", bulkResponse.getTotalCreated()))
                     .data(bulkResponse)
                     .build();
 
