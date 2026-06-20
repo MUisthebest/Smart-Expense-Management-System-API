@@ -104,6 +104,14 @@ public class UserFinancialProfileController {
     public CheckResponse<UserFinancialProfileResponse> get(Authentication auth) {
         UserFinancialProfileResponse data = getUseCase.execute(actorId(auth));
 
+        if (data == null) {
+            return CheckResponse.<UserFinancialProfileResponse>builder()
+                    .success(false)
+                    .message("Failed")
+                    .data(null)
+                    .build();
+        }
+
         return CheckResponse.<UserFinancialProfileResponse>builder()
                 .success(true)
                 .message("Success")
