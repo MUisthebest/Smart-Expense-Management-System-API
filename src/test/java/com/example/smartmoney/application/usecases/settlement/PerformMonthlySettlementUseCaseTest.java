@@ -1,6 +1,6 @@
 package com.example.smartmoney.application.usecases.settlement;
 
-import com.example.smartmoney.application.usecases.group.NotifyGroupProjectCompletedUseCase;
+import com.example.smartmoney.application.usecases.group.GroupProjectNotificationUseCase;
 import com.example.smartmoney.application.usecases.notification.CreateNotificationUseCase;
 import com.example.smartmoney.domain.models.project.Project;
 import com.example.smartmoney.domain.models.project.ProjectTracking;
@@ -61,7 +61,7 @@ class PerformMonthlySettlementUseCaseTest {
     @Mock private ProjectHistoryRepository projectHistoryRepository;
     @Mock private SafeSpendingService safeSpendingService;
     @Mock private GroupProjectRepository groupProjectRepository;
-    @Mock private NotifyGroupProjectCompletedUseCase notifyGroupProjectCompleted;
+    @Mock private GroupProjectNotificationUseCase groupProjectNotification;
     @Mock private CreateNotificationUseCase createNotificationUseCase;
 
     private PerformMonthlySettlementUseCase useCase;
@@ -71,7 +71,7 @@ class PerformMonthlySettlementUseCaseTest {
         useCase = new PerformMonthlySettlementUseCase(
                 projectRepository, projectTrackingRepository, transactionRepository,
                 userIncomeRepository, projectHistoryRepository, safeSpendingService,
-                groupProjectRepository, notifyGroupProjectCompleted, createNotificationUseCase);
+                groupProjectRepository, groupProjectNotification, createNotificationUseCase);
         ReflectionTestUtils.setField(useCase, "freezeMult", 3);
         ReflectionTestUtils.setField(useCase, "unfreezeMult", 0);
         ReflectionTestUtils.setField(useCase, "maxFrozenMonths", 3);
@@ -190,6 +190,7 @@ class PerformMonthlySettlementUseCaseTest {
         useCase.settleUserProjects(UserId.of(OWNER), List.of(p));
 
         assertEquals(ProjectStatus.EXPIRED, p.getStatus());
+        verify(projectRepository, times(1)).save(p); // status change must be persisted
         verify(createNotificationUseCase, times(1))
                 .createNotification(any(UUID.class), any(String.class), any(String.class));
     }
@@ -205,6 +206,7 @@ class PerformMonthlySettlementUseCaseTest {
 
         assertAmount("250", p.getTracking().getMoneyOwed()); // unchanged
         assertEquals(ProjectStatus.EXPIRED, p.getStatus());   // frozenMonths 2 -> 3 == max
+        verify(projectRepository, times(1)).save(p); // status change must be persisted
         verify(createNotificationUseCase, times(1))
                 .createNotification(any(UUID.class), any(String.class), any(String.class));
     }

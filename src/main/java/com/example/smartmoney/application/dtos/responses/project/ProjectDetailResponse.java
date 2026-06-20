@@ -2,6 +2,7 @@ package com.example.smartmoney.application.dtos.responses.project;
 
 import com.example.smartmoney.domain.models.project.Project;
 import com.example.smartmoney.domain.models.project.enums.ProjectPriority;
+import com.example.smartmoney.domain.models.project.enums.ProjectStatus;
 import com.example.smartmoney.domain.models.project.enums.ProjectType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -38,7 +39,10 @@ public class ProjectDetailResponse {
     private LocalDate deadline;
 
     private String status;
-    private Integer monthsLeft;
+    private ProjectStatusReason statusReason;
+    private Integer monthsLeft;        // calendar months to deadline (deadline countdown)
+    private Integer paceMonthsLeft;    // pace-aware months left from tracking; null when no tracking
+    private PaceStatus paceStatus;     // paceMonthsLeft vs monthsLeft
     private String deadlineLabel;
     private String statusLabel;
 
@@ -115,6 +119,11 @@ public class ProjectDetailResponse {
         Integer currentMonth = p.getTracking() != null ? p.getTracking().getCurrentMonth() : null;
         BigDecimal moneyOwed = p.getTracking() != null ? p.getTracking().getMoneyOwed() : BigDecimal.ZERO;
 
+        Integer trackingMonthLeft = p.getTracking() != null ? p.getTracking().getMonthLeft() : null;
+        ProjectStatusReason statusReason = deriveStatusReason(
+                domainStatus, progressPercent, deadline, today, monthsLeft, trackingMonthLeft);
+        PaceStatus paceStatus = derivePaceStatus(domainStatus, monthsLeft, trackingMonthLeft);
+
         return ProjectDetailResponse.builder()
                 .projectId(p.getId().toString())
                 .ownerId(p.getOwnerId().toString())
@@ -129,7 +138,10 @@ public class ProjectDetailResponse {
                 .progressPercent(progressPercent)
                 .deadline(deadline)
                 .status(status)
+                .statusReason(statusReason)
                 .monthsLeft(monthsLeft)
+                .paceMonthsLeft(trackingMonthLeft)
+                .paceStatus(paceStatus)
                 .deadlineLabel(deadlineLabel)
                 .statusLabel(statusLabel)
                 .priority(p.getPriority())
@@ -146,5 +158,63 @@ public class ProjectDetailResponse {
     private static String capitalize(String s) {
         if (s == null || s.isEmpty()) return s;
         return s.charAt(0) + s.substring(1).toLowerCase();
+    }
+
+    /**
+     * Machine-readable explanation behind the status, for the UI's "why" banner.
+     * For EXPIRED we can only infer the cause (deadline vs stuck-frozen) since the
+     * domain persists the status, not the reason: monthLeft &le; 0 implies the
+     * deadline ran out, otherwise it expired from staying frozen too long.
+     */
+    private static ProjectStatusReason deriveStatusReason(
+            ProjectStatus domainStatus,
+            BigDecimal progressPercent,
+            LocalDate deadline,
+            LocalDate today,
+            int monthsLeft,
+            Integer trackingMonthLeft) {
+        switch (domainStatus) {
+            case ABANDONED:
+                return ProjectStatusReason.ABANDONED_BY_USER;
+            case FROZEN:
+                return ProjectStatusReason.FROZEN_DEBT;
+            case COMPLETED:
+                return ProjectStatusReason.COMPLETED;
+            case CANCELLED:
+                return ProjectStatusReason.NONE;
+            case EXPIRED:
+                return (trackingMonthLeft != null && trackingMonthLeft <= 0)
+                        ? ProjectStatusReason.EXPIRED_DEADLINE
+                        : ProjectStatusReason.EXPIRED_FROZEN_TOO_LONG;
+            case ACTIVE:
+            default:
+                if (progressPercent.compareTo(BigDecimal.valueOf(100)) >= 0) {
+                    return ProjectStatusReason.COMPLETED;
+                }
+                boolean overdue = deadline != null && deadline.isBefore(today);
+                boolean behindPace = trackingMonthLeft != null && monthsLeft > 0 && trackingMonthLeft > monthsLeft;
+                return (overdue || behindPace) ? ProjectStatusReason.BEHIND_PACE : ProjectStatusReason.ON_TRACK;
+        }
+    }
+
+    /**
+     * Pace-aware months left ({@code trackingMonthLeft}) vs the calendar countdown
+     * ({@code monthsLeft}). Mirrors {@link ProjectTrackingResponse}'s pace logic so both
+     * responses agree. NOT_APPLICABLE for terminal projects or when tracking is absent.
+     */
+    private static PaceStatus derivePaceStatus(ProjectStatus domainStatus, int monthsLeft, Integer trackingMonthLeft) {
+        if (trackingMonthLeft == null || isTerminal(domainStatus)) {
+            return PaceStatus.NOT_APPLICABLE;
+        }
+        if (trackingMonthLeft < monthsLeft) return PaceStatus.AHEAD;
+        if (trackingMonthLeft > monthsLeft) return PaceStatus.BEHIND;
+        return PaceStatus.ON_TRACK;
+    }
+
+    private static boolean isTerminal(ProjectStatus status) {
+        return status == ProjectStatus.COMPLETED
+                || status == ProjectStatus.EXPIRED
+                || status == ProjectStatus.ABANDONED
+                || status == ProjectStatus.CANCELLED;
     }
 }

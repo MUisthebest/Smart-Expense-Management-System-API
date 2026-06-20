@@ -10,9 +10,10 @@ import com.example.smartmoney.domain.models.project.valueobjects.UserId;
 import com.example.smartmoney.domain.models.transaction.Transaction;
 import com.example.smartmoney.domain.models.transaction.enums.TransactionType;
 import com.example.smartmoney.domain.models.user.UserIncome;
-import com.example.smartmoney.application.usecases.group.NotifyGroupProjectCompletedUseCase;
+import com.example.smartmoney.application.usecases.group.GroupProjectNotificationUseCase;
 import com.example.smartmoney.domain.models.group.GroupProject;
 import com.example.smartmoney.domain.models.group.enums.GroupProjectStatus;
+import com.example.smartmoney.domain.models.group.valueobjects.GroupProjectId;
 import com.example.smartmoney.domain.repositories.GroupProjectRepository;
 import com.example.smartmoney.domain.repositories.ProjectHistoryRepository;
 import com.example.smartmoney.domain.repositories.ProjectRepository;
@@ -56,7 +57,7 @@ public class PerformMonthlySettlementUseCase {
     private final ProjectHistoryRepository projectHistoryRepository;
     private final SafeSpendingService safeSpendingService;
     private final GroupProjectRepository groupProjectRepository;
-    private final NotifyGroupProjectCompletedUseCase notifyGroupProjectCompleted;
+    private final GroupProjectNotificationUseCase groupProjectNotification;
     private final CreateNotificationUseCase createNotificationUseCase;
 
     @Value("${app.project.freeze-mult:3}")
@@ -113,12 +114,19 @@ public class PerformMonthlySettlementUseCase {
                         .map(Project::netSavedAmount)
                         .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-                if (required.compareTo(BigDecimal.ZERO) > 0 && aggregate.compareTo(required) >= 0) {
+                if (!subs.isEmpty() && participating.isEmpty()) {
+                    // Every member's sub-project dropped out — the goal can no longer be met.
+                    gp.markExpired();
+                    groupProjectRepository.save(gp);
+                    log.info("[Settlement] Group project {} marked EXPIRED — no participating members remain.",
+                            gp.getId().value());
+                    groupProjectNotification.notifyGroupExpired(gp);
+                } else if (required.compareTo(BigDecimal.ZERO) > 0 && aggregate.compareTo(required) >= 0) {
                     gp.markCompleted();
                     groupProjectRepository.save(gp);
                     log.info("[Settlement] Group project {} marked COMPLETED (aggregate={} >= required={}).",
                             gp.getId().value(), aggregate, required);
-                    notifyGroupProjectCompleted.notifyCompleted(gp);
+                    groupProjectNotification.notifyCompleted(gp);
                 }
             } catch (Exception ex) {
                 log.error("[Settlement] Failed completion check for group project {}: {}",
@@ -313,14 +321,15 @@ public class PerformMonthlySettlementUseCase {
 
             // Completion / expiry (net = gross − debt)
             BigDecimal net = newSaved.subtract(newOwed);
+            boolean expiredNow = false;
             if (net.compareTo(target) >= 0) {
                 p.complete();
             } else if (newMonthLeft <= 0) {
                 p.expire();
-                notifyExpired(p);
+                expiredNow = true;
             } else if (p.getStatus() == ProjectStatus.FROZEN && frozenMonths >= maxFrozenMonths) {
                 p.expire();
-                notifyExpired(p);
+                expiredNow = true;
             }
 
             // Frozen-months counter: only meaningful while FROZEN, else reset.
@@ -341,6 +350,13 @@ public class PerformMonthlySettlementUseCase {
                         p.getId().value(), before, p.getStatus());
             }
 
+            // Notify only after the status change has been persisted, so a failed save
+            // can never leave a project ACTIVE while its owner was told it expired.
+            if (expiredNow) {
+                notifyExpired(p);
+                notifyGroupMemberDropped(p);
+            }
+
             log.info("[Settlement] Settled project {} | saved: {} -> {} | owed: {} -> {} | monthLeft: {} -> {}",
                     p.getId().value(), moneySavedBefore, newSaved, totalDebt, newOwed, monthLeftBefore, newMonthLeft);
         }
@@ -356,6 +372,22 @@ public class PerformMonthlySettlementUseCase {
             createNotificationUseCase.createNotification(p.getOwnerId().value(), body, deepLink);
         } catch (Exception ex) {
             log.warn("[Settlement] Expiry notification failed for project {}: {}",
+                    p.getId().value(), ex.getMessage());
+        }
+    }
+
+    /**
+     * When an expired sub-project belongs to a group, tell the rest of the group that this
+     * member dropped out (their share left the required target). Best-effort, never propagates.
+     */
+    private void notifyGroupMemberDropped(Project p) {
+        UUID groupProjectId = p.getGroupProjectId();
+        if (groupProjectId == null) return;
+        try {
+            groupProjectRepository.findById(new GroupProjectId(groupProjectId))
+                    .ifPresent(gp -> groupProjectNotification.notifyMemberDropped(gp, p.getOwnerId().value()));
+        } catch (Exception ex) {
+            log.warn("[Settlement] Member-dropped notification failed for project {}: {}",
                     p.getId().value(), ex.getMessage());
         }
     }
