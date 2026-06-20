@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -14,7 +15,7 @@ public class PushTokenService {
 
     private final PushTokenPort repository;
 
-    public void saveToken(String userId, SavePushTokenRequest request) {
+    public void saveToken(UUID userId, SavePushTokenRequest request) {
 
         PushToken model = PushToken.builder()
                 .userId(userId)

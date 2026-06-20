@@ -165,6 +165,7 @@ public class Project {
         }
         requireContributable();
 
+        // Only owner can contribute (current supported model)
         if (!actorId.equals(ownerId)) {
             throw new ProjectException("Permission denied", ProjectErrorCode.PROJECT_PERMISSION_DENIED);
         }
@@ -175,6 +176,7 @@ public class Project {
         contributions.add(c);
         return c;
     }
+
 
     /**
      * Net savings = money_saved − money_owed, floored at zero. This is the single

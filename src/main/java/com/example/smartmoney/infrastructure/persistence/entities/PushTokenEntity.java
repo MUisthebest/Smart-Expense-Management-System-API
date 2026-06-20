@@ -3,6 +3,7 @@ package com.example.smartmoney.infrastructure.persistence.entities;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Entity
 @Table(name = "push_tokens")
@@ -17,7 +18,7 @@ public class PushTokenEntity {
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
 
-    private String userId;
+    private UUID userId;
 
     @Column(unique = true, nullable = false)
     private String pushToken;

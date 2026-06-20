@@ -3,6 +3,7 @@ package com.example.smartmoney.application.usecases.budget;
 import com.example.smartmoney.application.usecases.queue.ProcessQueueRequestUseCase;
 import com.example.smartmoney.domain.models.message.MessageRecord;
 import com.example.smartmoney.domain.models.project.valueobjects.UserId;
+import com.example.smartmoney.domain.models.userprofile.enums.*;
 import com.example.smartmoney.infrastructure.persistence.entities.UserFinancialProfileEntity;
 import com.example.smartmoney.infrastructure.persistence.entities.UserIncomeEntity;
 import com.example.smartmoney.infrastructure.persistence.repositories.JpaTransactionRepository;
@@ -42,7 +43,7 @@ public class GenerateBudgetAllocationPlanUseCase {
         this.objectMapper = objectMapper;
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public MessageRecord execute(UserId userId) {
         UUID uid = userId.value();
 
