@@ -5,6 +5,7 @@ import com.example.smartmoney.domain.models.transaction.enums.Category;
 import com.example.smartmoney.domain.models.transaction.enums.TransactionType;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -63,4 +64,22 @@ public interface TransactionRepository {
     List<Object[]> getTransactionsByMonth(UUID userId, int year, int month );
     List<Object[]> getTransactionProportionByCategory(UUID userId, int year, int month);
     List<Object[]> getMonthlyTotals(UUID userId, int year, int month);
+
+    BigDecimal getTotalIncomeBetween(
+            UUID userId,
+            LocalDate start,
+            LocalDate end
+    );
+
+    BigDecimal getTotalExpenseBetween(
+            UUID userId,
+            LocalDate start,
+            LocalDate end
+    );
+
+    List<Object[]> getExpenseByCategoryBetween(
+            UUID userId,
+            LocalDate start,
+            LocalDate end
+    );
 }
