@@ -7,9 +7,11 @@ import com.example.smartmoney.application.dtos.requests.transactions.UpdateTrans
 import com.example.smartmoney.application.dtos.responses.CheckResponse;
 import com.example.smartmoney.application.dtos.responses.TransactionListResponse;
 import com.example.smartmoney.application.dtos.responses.TransactionResponse;
+import com.example.smartmoney.application.dtos.responses.WeeklyTransactionResponse;
 import com.example.smartmoney.application.usecases.transaction.*;
 import com.example.smartmoney.domain.models.transaction.enums.Category;
 import com.example.smartmoney.application.dtos.responses.TransactionAnalyticsResponse;
+import com.example.smartmoney.application.dtos.responses.WeeklyTransactionResponse;
 import com.example.smartmoney.domain.models.transaction.enums.TransactionType;
 import com.example.smartmoney.infrastructure.security.JwtTokenProvider;
 import io.swagger.v3.oas.annotations.Operation;
@@ -29,7 +31,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.UUID;
+import java.util.stream.Collectors;
+import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/transactions")
@@ -454,5 +460,101 @@ public class TransactionController {
 
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
         }
+    }
+
+    @GetMapping("/weekly-summary")
+    @Operation(
+        summary = "Get weekly summary for current and previous week",
+        description = "Returns income/expense totals and expense by category for current week (Mon-Sun) and previous week"
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Weekly summary retrieved successfully"),
+        @ApiResponse(responseCode = "401", description = "Unauthorized")
+    })
+    public ResponseEntity<CheckResponse<WeeklyTransactionResponse>> getWeeklySummary(
+            @RequestHeader("Authorization") String authHeader) {
+        try {
+            UUID userId = extractUserIdFromToken(authHeader);
+            
+            // 1. Xác định khoảng thời gian của 2 tuần
+            LocalDate today = LocalDate.now();
+            LocalDate currentWeekStart = today.with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY));
+            LocalDate currentWeekEnd = currentWeekStart.plusDays(6);
+            LocalDate previousWeekStart = currentWeekStart.minusWeeks(1);
+            LocalDate previousWeekEnd = previousWeekStart.plusDays(6);
+            
+            // 2. Format date theo yêu cầu của TransactionFilterRequest (dd/MM/yyyy HH:mm)
+            java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+            String currentStartStr = currentWeekStart.atStartOfDay().format(formatter);
+            String currentEndStr = currentWeekEnd.atTime(23, 59).format(formatter);
+            String prevStartStr = previousWeekStart.atStartOfDay().format(formatter);
+            String prevEndStr = previousWeekEnd.atTime(23, 59).format(formatter);
+            
+            // 3. Lấy transactions cho từng tuần
+            TransactionFilterRequest currentFilter = TransactionFilterRequest.builder()
+                    .startDate(currentStartStr)
+                    .endDate(currentEndStr)
+                    .build();
+            TransactionListResponse currentWeekResponse = getUserTransactionsUseCase.execute(userId, currentFilter);
+            
+            TransactionFilterRequest prevFilter = TransactionFilterRequest.builder()
+                    .startDate(prevStartStr)
+                    .endDate(prevEndStr)
+                    .build();
+            TransactionListResponse prevWeekResponse = getUserTransactionsUseCase.execute(userId, prevFilter);
+            
+            // 4. Build dữ liệu cho từng tuần (không kèm transactions)
+            WeeklyTransactionResponse.WeekData currentData = buildWeekData(currentWeekStart, currentWeekEnd, 
+                    currentWeekResponse.getTransactions());
+            WeeklyTransactionResponse.WeekData previousData = buildWeekData(previousWeekStart, previousWeekEnd, 
+                    prevWeekResponse.getTransactions());
+            
+            // 5. Tạo response
+            WeeklyTransactionResponse response = WeeklyTransactionResponse.builder()
+                    .currentWeek(currentData)
+                    .previousWeek(previousData)
+                    .build();
+            
+            return ResponseEntity.ok(CheckResponse.<WeeklyTransactionResponse>builder()
+                    .success(true)
+                    .message("Weekly summary retrieved successfully")
+                    .data(response)
+                    .build());
+            
+        } catch (Exception e) {
+            log.error("Failed to get weekly summary", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(CheckResponse.<WeeklyTransactionResponse>builder()
+                            .success(false)
+                            .message("Failed to retrieve weekly summary: " + e.getMessage())
+                            .build());
+        }
+    }
+
+    private WeeklyTransactionResponse.WeekData buildWeekData(LocalDate start, LocalDate end, List<TransactionResponse> transactions) {
+        BigDecimal totalIncome = transactions.stream()
+                .filter(tx -> tx.getType() == TransactionType.INCOME)
+                .map(TransactionResponse::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        
+        BigDecimal totalExpense = transactions.stream()
+                .filter(tx -> tx.getType() == TransactionType.EXPENSE)
+                .map(TransactionResponse::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        
+        Map<String, BigDecimal> expenseByCategory = transactions.stream()
+                .filter(tx -> tx.getType() == TransactionType.EXPENSE)
+                .collect(Collectors.groupingBy(
+                    tx -> tx.getCategory() != null ? tx.getCategory().name() : "UNCATEGORIZED",
+                    Collectors.reducing(BigDecimal.ZERO, TransactionResponse::getAmount, BigDecimal::add)
+                ));
+        
+        return WeeklyTransactionResponse.WeekData.builder()
+                .startDate(start)
+                .endDate(end)
+                .totalIncome(totalIncome)
+                .totalExpense(totalExpense)
+                .expenseByCategory(expenseByCategory)
+                .build();
     }
 }

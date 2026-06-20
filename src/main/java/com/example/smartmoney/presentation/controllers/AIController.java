@@ -1,6 +1,7 @@
 package com.example.smartmoney.presentation.controllers;
 
 import com.example.smartmoney.application.usecases.queue.ProcessQueueRequestUseCase;
+import com.example.smartmoney.application.usecases.chat.ChatWithAIUseCase;
 import com.example.smartmoney.domain.exceptions.DuplicateJobException;
 import com.example.smartmoney.domain.models.message.MessageRecord;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -24,6 +25,7 @@ public class AIController {
 
     private final TransactionController transactionController;
     private final ProcessQueueRequestUseCase processQueueRequestUseCase;
+    private final ChatWithAIUseCase chatWithAIUseCase;
 
     // ── Legacy queue endpoint ─────────────────────────────────────────────────
 
@@ -100,6 +102,28 @@ public class AIController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
                     "error", e.getMessage()
             ));
+        }
+    }
+
+    @PostMapping("/chat")
+    public ResponseEntity<?> chat(
+            @RequestBody Map<String, String> body,
+            @RequestHeader("Authorization") String authHeader
+    ) {
+        try {
+            UUID userId = transactionController.extractUserIdFromToken(authHeader);
+
+            String message = body.get("message");
+
+            String reply = chatWithAIUseCase.execute(message, userId.toString());
+
+            return ResponseEntity.ok(Map.of(
+                    "reply", reply
+            ));
+
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", e.getMessage()));
         }
     }
 }
