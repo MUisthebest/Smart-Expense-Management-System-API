@@ -10,6 +10,7 @@ import com.example.smartmoney.domain.models.project.valueobjects.UserId;
 import com.example.smartmoney.domain.repositories.ProjectRepository;
 import com.example.smartmoney.domain.repositories.ProjectTrackingRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,6 +20,9 @@ public class GetProjectTrackingUseCase {
 
     private final ProjectRepository projectRepository;
     private final ProjectTrackingRepository projectTrackingRepository;
+
+    @Value("${app.project.max-frozen-months:3}")
+    private int maxFrozenMonths;
 
     @Transactional(readOnly = true)
     public ProjectTrackingResponse execute(String actorId, String projectId) {
@@ -31,6 +35,6 @@ public class GetProjectTrackingUseCase {
         ProjectTracking tracking = projectTrackingRepository.findByProjectId(ProjectId.of(projectId))
                 .orElseThrow(() -> new ProjectException("Project tracking not found", ProjectErrorCode.PROJECT_TRACKING_NOT_FOUND));
 
-        return ProjectTrackingResponse.fromDomain(tracking);
+        return ProjectTrackingResponse.fromDomain(tracking, project, maxFrozenMonths);
     }
 }

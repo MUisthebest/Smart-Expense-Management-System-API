@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @Data
@@ -18,6 +19,9 @@ public class TransactionListResponse {
     private Integer size;
     private Long totalElements;
     private Integer totalPages;
+    private BigDecimal totalIncome;
+    private BigDecimal totalExpenses;
+    private BigDecimal totalBalance;
     
     public static TransactionListResponse of(List<TransactionResponse> transactions) {
         return TransactionListResponse.builder()
@@ -26,7 +30,7 @@ public class TransactionListResponse {
                 .build();
     }
     
-    public static TransactionListResponse of(List<TransactionResponse> transactions, int page, int size, long totalElements) {
+    public static TransactionListResponse of(List<TransactionResponse> transactions, int page, int size, long totalElements, BigDecimal totalIncome, BigDecimal totalExpenses, BigDecimal totalBalance) {
         int totalPages = (int) Math.ceil((double) totalElements / size);
         return TransactionListResponse.builder()
                 .transactions(transactions)
@@ -35,6 +39,10 @@ public class TransactionListResponse {
                 .size(size)
                 .totalElements(totalElements)
                 .totalPages(totalPages)
+                .totalIncome(totalIncome)
+                .totalExpenses(totalExpenses)
+                .totalBalance(totalBalance)
                 .build();
     }
 }
+
