@@ -6,7 +6,6 @@ import java.util.UUID;
 
 public class UserIncome {
     private final UUID id;
-    private final UUID userId;
     private Integer netIncome;
     private Integer usableIncome;
     private Integer safeSpending;
@@ -19,7 +18,6 @@ public class UserIncome {
 
     public UserIncome(
             UUID id,
-            UUID userId,
             Integer netIncome,
             Integer usableIncome,
             Integer safeSpending,
@@ -31,7 +29,6 @@ public class UserIncome {
             Instant updatedAt
     ) {
         this.id = Objects.requireNonNull(id);
-        this.userId = Objects.requireNonNull(userId);
         this.netIncome = netIncome;
         this.usableIncome = usableIncome;
         this.safeSpending = safeSpending;
@@ -47,7 +44,7 @@ public class UserIncome {
     public static UserIncome createNew(UUID userId, Integer netIncome, Integer usableIncome, String currency, String calculationNote, Boolean autoInvestSurplus) {
         Instant now = Instant.now();
         boolean autoInvest = autoInvestSurplus != null ? autoInvestSurplus : false;
-        return new UserIncome(UUID.randomUUID(), userId, netIncome, usableIncome, null, currency, calculationNote, autoInvest, null, now, now);
+        return new UserIncome(userId, netIncome, usableIncome, null, currency, calculationNote, autoInvest, null, now, now);
     }
 
     public void update(Integer netIncome, Integer usableIncome, String currency, String calculationNote, Boolean autoInvestSurplus) {
@@ -87,10 +84,6 @@ public class UserIncome {
 
     public UUID getId() {
         return id;
-    }
-
-    public UUID getUserId() {
-        return userId;
     }
 
     public Integer getNetIncome() {

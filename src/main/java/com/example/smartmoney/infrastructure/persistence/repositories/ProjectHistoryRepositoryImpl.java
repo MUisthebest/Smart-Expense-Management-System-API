@@ -30,9 +30,4 @@ public class ProjectHistoryRepositoryImpl implements ProjectHistoryRepository {
                 .map(projectHistoryMapper::toDomain)
                 .toList();
     }
-
-    @Override
-    public void deleteByProjectId(ProjectId projectId) {
-        jpaProjectHistoryRepository.deleteByProjectId(projectId.value());
-    }
 }

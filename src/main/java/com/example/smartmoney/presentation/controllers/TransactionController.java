@@ -433,10 +433,13 @@ public class TransactionController {
         try {
             UUID userId = extractUserIdFromToken(authHeader);
 
-            log.info("Fetching analytics for user ID: {}", userId);
+            // If no input month, get the current year by default
+            int targetMonth = (request.getMonth() == null) ? java.time.LocalDateTime.now().getMonthValue() - 1 : request.getMonth();
+
+            log.info("Fetching analytics for user ID: {} and month, year: {}", userId, request.getMonth(), request.getYear());
 
             // 3. Thực thi UseCase
-            TransactionAnalyticsResponse analyticsResponse = getTransactionAnalyticsUseCase.execute(userId, request);
+            TransactionAnalyticsResponse analyticsResponse = getTransactionAnalyticsUseCase.execute(userId, request.getYear(), targetMonth);
 
             // 4. Trả về kết quả theo cấu trúc CheckResponse
             CheckResponse<TransactionAnalyticsResponse> response = CheckResponse.<TransactionAnalyticsResponse>builder()

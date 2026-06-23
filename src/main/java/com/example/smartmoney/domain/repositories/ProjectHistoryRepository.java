@@ -8,5 +8,4 @@ import java.util.List;
 public interface ProjectHistoryRepository {
     ProjectHistory save(ProjectHistory history);
     List<ProjectHistory> findAllByProjectId(ProjectId projectId);
-    void deleteByProjectId(ProjectId projectId);
 }

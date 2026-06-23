@@ -25,9 +25,6 @@ public class NotificationEntity {
     @Column(nullable = false)
     private String content;
 
-    @Column(name = "deep_link")
-    private String deepLink;
-
     @Column(name = "created_at", nullable = false)
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime createdAt;

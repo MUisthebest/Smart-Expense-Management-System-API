@@ -20,7 +20,7 @@ public class PushTokenController {
         @RequestBody SavePushTokenRequest request,
         @RequestHeader("Authorization") String authHeader
     ) {
-        UUID userId = extractUserIdFromToken(authHeader);
+        String userId = extractUserIdFromToken(authHeader).toString();
         service.saveToken(userId, request);
     }
 

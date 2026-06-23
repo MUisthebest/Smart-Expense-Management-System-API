@@ -12,7 +12,6 @@ public class NotificationMapper {
             entity.getId(),
             entity.getUserId(),
             entity.getContent(),
-            entity.getDeepLink(),
             entity.getCreatedAt()
         );
     }
@@ -21,7 +20,6 @@ public class NotificationMapper {
         return NotificationEntity.builder()
                 .userId(domain.getUserId())
                 .content(domain.getContent())
-                .deepLink(domain.getDeepLink())
                 .createdAt(domain.getCreatedAt())
                 .build();
     }
