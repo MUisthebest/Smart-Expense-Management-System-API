@@ -221,6 +221,19 @@ public class TransactionRepositoryImpl implements TransactionRepository {
     }
 
     @Override
+    public BigDecimal getTotalIncomeBetween(UUID userId, LocalDate start, LocalDate end) {
+        return jpaTransactionRepository.getTotalIncomeBetween(userId, start, end);
+    }
+
+    @Override
+    public BigDecimal getTotalExpenseBetween(UUID userId, LocalDate start, LocalDate end) {
+        return jpaTransactionRepository.getTotalExpenseBetween(userId, start, end);
+    }
+
+    @Override
+    public List<Object[]> getExpenseByCategoryBetween(UUID userId, LocalDate start, LocalDate end) {
+        return jpaTransactionRepository.getExpenseByCategoryBetween(userId, start, end);
+    }
     public List<Object[]> getDailyTotals(UUID userId, int year, int month) {
         return jpaTransactionRepository.getDailyTotals(userId, year, month);
     }

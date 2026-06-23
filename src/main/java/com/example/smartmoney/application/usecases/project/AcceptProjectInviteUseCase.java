@@ -11,24 +11,20 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * Owner-initiated freeze of a project. Used rarely — the typical trigger is
- * automated via {@code AssessProjectArrearsUseCase} when the owner hits the
- * 3-month default threshold. Exposed as an explicit endpoint for cases where
- * the owner wants to pause contributions deliberately.
- */
 @Service
 @RequiredArgsConstructor
-public class FreezeProjectUseCase {
+public class AcceptProjectInviteUseCase {
 
     private final ProjectRepository projectRepository;
 
     @Transactional
     public ProjectDetailResponse execute(String actorId, String projectId) {
         Project p = projectRepository.findById(ProjectId.of(projectId))
-                .orElseThrow(() -> new ProjectException("Project not found",
-                        ProjectErrorCode.PROJECT_NOT_FOUND));
-        p.freeze(UserId.of(actorId));
-        return ProjectDetailResponse.fromDomain(projectRepository.save(p));
+                .orElseThrow(() -> new ProjectException("Project not found", ProjectErrorCode.PROJECT_NOT_FOUND));
+
+        p.acceptInvite(UserId.of(actorId));
+
+        Project saved = projectRepository.save(p);
+        return ProjectDetailResponse.fromDomain(saved);
     }
 }

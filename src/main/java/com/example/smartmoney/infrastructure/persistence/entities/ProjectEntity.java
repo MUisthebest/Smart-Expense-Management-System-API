@@ -56,9 +56,6 @@ public class ProjectEntity {
     @Column(name = "deadline", nullable = false)
     private LocalDate deadline;
 
-    @Column(name = "group_project_id")
-    private UUID groupProjectId;
-
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 

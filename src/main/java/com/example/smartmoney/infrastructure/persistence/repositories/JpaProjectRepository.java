@@ -18,7 +18,7 @@ import java.util.UUID;
 public interface JpaProjectRepository extends JpaRepository<ProjectEntity, UUID> {
     List<ProjectEntity> findByOwnerId(UUID ownerId);
     List<ProjectEntity> findByStatus(ProjectStatus status);
-    List<ProjectEntity> findByGroupProjectId(UUID groupProjectId);
+
 
 
     @Query("""
