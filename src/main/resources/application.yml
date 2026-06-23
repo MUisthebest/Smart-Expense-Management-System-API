@@ -133,6 +133,9 @@ app:
   gemini:
     api-key: ${GEMINI_API_KEY:}
 
+  openrouter:
+    api-key: ${OPENROUTER_API_KEY}
+
   # Cloudinary Configuration
   cloudinary:
     cloud-name: ${APP_CLOUDINARY_CLOUD_NAME:your_cloud_name}
