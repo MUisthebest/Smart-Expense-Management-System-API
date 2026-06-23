@@ -38,7 +38,8 @@ public class ProjectRepositoryImpl implements ProjectRepository {
     @Transactional(readOnly = true)
     public Optional<Project> findById(ProjectId id) {
         Optional<ProjectEntity> peOpt = jpaProjectRepository.findById(id.value());
-        if (peOpt.isEmpty()) return Optional.empty();
+        if (peOpt.isEmpty())
+            return Optional.empty();
 
         UUID projectId = id.value();
         List<ProjectContributionEntity> contributions =
@@ -128,7 +129,8 @@ public class ProjectRepositoryImpl implements ProjectRepository {
                     return e;
                 });
 
-        if (entity.getCreatedAt() == null) entity.setCreatedAt(now);
+        if (entity.getCreatedAt() == null)
+            entity.setCreatedAt(now);
         entity.setUpdatedAt(now);
         projectEntityMapper.updateEntity(entity, project);
         entity.setGroupProjectId(project.getGroupProjectId());
