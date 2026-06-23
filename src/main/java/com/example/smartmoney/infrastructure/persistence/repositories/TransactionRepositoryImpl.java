@@ -12,10 +12,14 @@ import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.UUID;
+import java.util.Comparator;
+import java.util.Collections;
+import java.util.stream.Stream;
 
 @Repository
 @RequiredArgsConstructor
@@ -234,5 +238,18 @@ public class TransactionRepositoryImpl implements TransactionRepository {
     @Override
     public List<Object[]> getYearlyTotals(UUID userId, int year) {
         return jpaTransactionRepository.getYearlyTotals(userId, year);
+    }
+    public BigDecimal getTotalIncomeBetween(UUID userId, LocalDate start, LocalDate end) {
+        return jpaTransactionRepository.getTotalIncomeBetween(userId, start, end);
+    }
+
+    @Override
+    public BigDecimal getTotalExpenseBetween(UUID userId, LocalDate start, LocalDate end) {
+        return jpaTransactionRepository.getTotalExpenseBetween(userId, start, end);
+    }
+
+    @Override
+    public List<Object[]> getExpenseByCategoryBetween(UUID userId, LocalDate start, LocalDate end) {
+        return jpaTransactionRepository.getExpenseByCategoryBetween(userId, start, end);
     }
 }

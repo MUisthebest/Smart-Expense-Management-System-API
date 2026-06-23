@@ -105,6 +105,7 @@ class CreateProjectUseCaseTest {
 
             Project existing = activeProject(ProjectPriority.HIGH, WINDOW_DATE);
 
+
             when(userIncomeRepository.findByUserId(eq(actorUuid))).thenReturn(Optional.of(validIncome(actorUuid)));
             when(projectRepository.findAllByUser(eq(UserId.of(actorId)))).thenReturn(List.of(existing));
 
