@@ -25,10 +25,7 @@ import java.util.List;
 @RequestMapping("/api/v1/projects")
 @RequiredArgsConstructor
 @Slf4j
-@Tag(
-        name = "Projects",
-        description = "APIs for managing saving projects (Personal / Group)"
-)
+@Tag(name = "Projects", description = "APIs for managing personal saving projects")
 @SecurityRequirement(name = "bearerAuth")
 public class ProjectController {
 
@@ -37,33 +34,26 @@ public class ProjectController {
     private final GetProjectDetailUseCase getProjectDetailUseCase;
     private final ListMyProjectsUseCase listMyProjectsUseCase;
 
-    private final InviteProjectMemberUseCase inviteProjectMemberUseCase;
-    private final AcceptProjectInviteUseCase acceptProjectInviteUseCase;
-    private final SetProjectAdminUseCase setProjectAdminUseCase;
-    private final RemoveProjectMemberUseCase removeProjectMemberUseCase;
-
-    private final AddProjectContributionUseCase addProjectContributionUseCase;
-    private final ListProjectContributionsUseCase listProjectContributionsUseCase;
-    private final GetProjectContributionSummaryUseCase getProjectContributionSummaryUseCase;
     private final DeleteProjectUseCase deleteProjectUseCase;
-        private final CreateProjectTrackingUseCase createProjectTrackingUseCase;
-        private final GetProjectTrackingUseCase getProjectTrackingUseCase;
-        private final UpdateProjectTrackingUseCase updateProjectTrackingUseCase;
-        private final DeleteProjectTrackingUseCase deleteProjectTrackingUseCase;
+    private final CreateProjectTrackingUseCase createProjectTrackingUseCase;
+    private final GetProjectTrackingUseCase getProjectTrackingUseCase;
+    private final UpdateProjectTrackingUseCase updateProjectTrackingUseCase;
+    private final DeleteProjectTrackingUseCase deleteProjectTrackingUseCase;
     private final GetProjectHistoryUseCase getProjectHistoryUseCase;
     private final ProjectBudgetAdvisorUseCase projectBudgetAdvisorUseCase;
 
+    private final FreezeProjectUseCase freezeProjectUseCase;
+    private final UnfreezeProjectUseCase unfreezeProjectUseCase;
+
     private String actorId(Authentication auth) {
-        
         return auth.getName();
-        //return "1";
     }
 
     // ================= CREATE =================
 
     @Operation(
             summary = "Create new project",
-            description = "Create a new saving project (Personal or Group)"
+            description = "Create a new personal saving project"
     )
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Project created successfully"),
@@ -85,19 +75,16 @@ public class ProjectController {
 
     @Operation(
             summary = "Get my projects",
-            description = "Retrieve all projects that current user owns or joined"
+            description = "Retrieve all projects that current user owns"
     )
-
     @GetMapping
     public CheckResponse<List<ProjectListItemResponse>> listMine(
             Authentication auth,
             @RequestParam(required = false) String search,
             @RequestParam(required = false) ProjectType type,
             @RequestParam(required = false) ProjectStatus status,
-            @RequestParam(required = false) ProjectPriority priority
-            ) {
+            @RequestParam(required = false) ProjectPriority priority) {
         ProjectFilterRequest filter = new ProjectFilterRequest(search, type, status, priority);
-
         List<ProjectListItemResponse> data = listMyProjectsUseCase.execute(actorId(auth), filter);
         return CheckResponse.<List<ProjectListItemResponse>>builder()
                 .success(true)
@@ -108,14 +95,11 @@ public class ProjectController {
 
     // ================= DETAIL =================
 
-    @Operation(
-            summary = "Get project detail",
-            description = "Retrieve detail of a specific project"
-    )
+    @Operation(summary = "Get project detail")
     @GetMapping("/{projectId}")
     public CheckResponse<ProjectDetailResponse> detail(
             Authentication auth,
-            @Parameter(description = "Project ID (UUID)", example = "550e8400-e29b-41d4-a716-446655440000")
+            @Parameter(description = "Project ID (UUID)")
             @PathVariable String projectId) {
         ProjectDetailResponse data = getProjectDetailUseCase.execute(actorId(auth), projectId);
         return CheckResponse.<ProjectDetailResponse>builder()
@@ -140,109 +124,12 @@ public class ProjectController {
                 .build();
     }
 
-    // ===== Members (GROUP) =====
-
-    // ================= INVITE MEMBER =================
-
-    @Operation(summary = "Invite member to group project")
-    @PostMapping("/{projectId}/members/invite")
-    public CheckResponse<ProjectDetailResponse> invite(Authentication auth,
-                                                       @PathVariable String projectId,
-                                                       @Valid @RequestBody InviteProjectMemberRequest req) {
-        ProjectDetailResponse data = inviteProjectMemberUseCase.execute(actorId(auth), projectId, req);
-        return CheckResponse.<ProjectDetailResponse>builder()
-                .success(true)
-                .message("Invited")
-                .data(data)
-                .build();
-    }
-
-    @Operation(summary = "Accept project invitation")
-    @PostMapping("/{projectId}/members/accept")
-    public CheckResponse<ProjectDetailResponse> accept(Authentication auth,
-                                                       @PathVariable String projectId) {
-        ProjectDetailResponse data = acceptProjectInviteUseCase.execute(actorId(auth), projectId);
-        return CheckResponse.<ProjectDetailResponse>builder()
-                .success(true)
-                .message("Accepted")
-                .data(data)
-                .build();
-    }
-
-    @Operation(summary = "Set admin role for member")
-    @PatchMapping("/{projectId}/members/{userId}/admin")
-    public CheckResponse<ProjectDetailResponse> setAdmin(Authentication auth,
-                                                         @PathVariable String projectId,
-                                                         @PathVariable String userId,
-                                                         @Valid @RequestBody SetProjectAdminRequest req) {
-        ProjectDetailResponse data = setProjectAdminUseCase.execute(actorId(auth), projectId, userId, req);
-        return CheckResponse.<ProjectDetailResponse>builder()
-                .success(true)
-                .message("Updated")
-                .data(data)
-                .build();
-    }
-
-    @Operation(summary = "Remove member from project")
-    @DeleteMapping("/{projectId}/members/{userId}")
-    public CheckResponse<ProjectDetailResponse> removeMember(Authentication auth,
-                                                             @PathVariable String projectId,
-                                                             @PathVariable String userId) {
-        ProjectDetailResponse data = removeProjectMemberUseCase.execute(actorId(auth), projectId, userId);
-        return CheckResponse.<ProjectDetailResponse>builder()
-                .success(true)
-                .message("Removed")
-                .data(data)
-                .build();
-    }
-
-    // ===== Contributions =====
-
-    @Operation(summary = "Add contribution to project")
-    @PostMapping("/{projectId}/contributions")
-    public CheckResponse<ProjectContributionResponse> addContribution(Authentication auth,
-                                                                      @PathVariable String projectId,
-                                                                      @Valid @RequestBody AddProjectContributionRequest req) {
-        ProjectContributionResponse data = addProjectContributionUseCase.execute(actorId(auth), projectId, req);
-        return CheckResponse.<ProjectContributionResponse>builder()
-                .success(true)
-                .message("Added")
-                .data(data)
-                .build();
-    }
-
-    @Operation(summary = "List contributions of project")
-    @GetMapping("/{projectId}/contributions")
-    public CheckResponse<List<ProjectContributionResponse>> listContributions(Authentication auth,
-                                                                              @PathVariable String projectId) {
-        List<ProjectContributionResponse> data = listProjectContributionsUseCase.execute(actorId(auth), projectId);
-        return CheckResponse.<List<ProjectContributionResponse>>builder()
-                .success(true)
-                .message("OK")
-                .data(data)
-                .build();
-    }
-
-    @Operation(summary = "Get contribution summary")
-    @GetMapping("/{projectId}/contributions/summary")
-    public CheckResponse<ContributionSummaryResponse> summary(Authentication auth,
-                                                              @PathVariable String projectId) {
-        ContributionSummaryResponse data = getProjectContributionSummaryUseCase.execute(actorId(auth), projectId);
-        return CheckResponse.<ContributionSummaryResponse>builder()
-                .success(true)
-                .message("OK")
-                .data(data)
-                .build();
-    }
+    // ================= DELETE =================
 
     @Operation(summary = "Delete project")
     @DeleteMapping("/{projectId}")
-    public CheckResponse<Void> delete(
-            Authentication auth,
-            @PathVariable String projectId
-    ) {
+    public CheckResponse<Void> delete(Authentication auth, @PathVariable String projectId) {
         deleteProjectUseCase.execute(actorId(auth), projectId);
-
         return CheckResponse.<Void>builder()
                 .success(true)
                 .message("Deleted")
@@ -256,8 +143,7 @@ public class ProjectController {
     public CheckResponse<ProjectTrackingResponse> createTracking(
             Authentication auth,
             @PathVariable String projectId,
-            @Valid @RequestBody CreateProjectTrackingRequest req
-    ) {
+            @Valid @RequestBody CreateProjectTrackingRequest req) {
         ProjectTrackingResponse data = createProjectTrackingUseCase.execute(actorId(auth), projectId, req);
         return CheckResponse.<ProjectTrackingResponse>builder()
                 .success(true)
@@ -270,24 +156,9 @@ public class ProjectController {
     @GetMapping("/{projectId}/tracking")
     public CheckResponse<ProjectTrackingResponse> getTracking(
             Authentication auth,
-            @PathVariable String projectId
-    ) {
+            @PathVariable String projectId) {
         ProjectTrackingResponse data = getProjectTrackingUseCase.execute(actorId(auth), projectId);
         return CheckResponse.<ProjectTrackingResponse>builder()
-                .success(true)
-                .message("OK")
-                .data(data)
-                .build();
-    }
-
-    @Operation(summary = "Get project settlement history snapshots")
-    @GetMapping("/{projectId}/history")
-    public CheckResponse<List<ProjectHistoryResponse>> getHistory(
-            Authentication auth,
-            @PathVariable String projectId
-    ) {
-        List<ProjectHistoryResponse> data = getProjectHistoryUseCase.execute(actorId(auth), projectId);
-        return CheckResponse.<List<ProjectHistoryResponse>>builder()
                 .success(true)
                 .message("OK")
                 .data(data)
@@ -299,8 +170,7 @@ public class ProjectController {
     public CheckResponse<ProjectTrackingResponse> updateTracking(
             Authentication auth,
             @PathVariable String projectId,
-            @Valid @RequestBody UpdateProjectTrackingRequest req
-    ) {
+            @Valid @RequestBody UpdateProjectTrackingRequest req) {
         ProjectTrackingResponse data = updateProjectTrackingUseCase.execute(actorId(auth), projectId, req);
         return CheckResponse.<ProjectTrackingResponse>builder()
                 .success(true)
@@ -311,14 +181,24 @@ public class ProjectController {
 
     @Operation(summary = "Delete project tracking")
     @DeleteMapping("/{projectId}/tracking")
-    public CheckResponse<Void> deleteTracking(
-            Authentication auth,
-            @PathVariable String projectId
-    ) {
+    public CheckResponse<Void> deleteTracking(Authentication auth, @PathVariable String projectId) {
         deleteProjectTrackingUseCase.execute(actorId(auth), projectId);
         return CheckResponse.<Void>builder()
                 .success(true)
                 .message("Deleted")
+                .build();
+    }
+
+    @Operation(summary = "Get project settlement history snapshots")
+    @GetMapping("/{projectId}/history")
+    public CheckResponse<List<ProjectHistoryResponse>> getHistory(
+            Authentication auth,
+            @PathVariable String projectId) {
+        List<ProjectHistoryResponse> data = getProjectHistoryUseCase.execute(actorId(auth), projectId);
+        return CheckResponse.<List<ProjectHistoryResponse>>builder()
+                .success(true)
+                .message("OK")
+                .data(data)
                 .build();
     }
 
@@ -336,6 +216,34 @@ public class ProjectController {
         return CheckResponse.<ProjectBudgetAdvisorResponse>builder()
                 .success(true)
                 .message("OK")
+                .data(data)
+                .build();
+    }
+
+    // ===== Freeze lifecycle =====
+
+    @Operation(summary = "Freeze project")
+    @PostMapping("/{projectId}/freeze")
+    public CheckResponse<ProjectDetailResponse> freeze(
+            Authentication auth,
+            @PathVariable String projectId) {
+        ProjectDetailResponse data = freezeProjectUseCase.execute(actorId(auth), projectId);
+        return CheckResponse.<ProjectDetailResponse>builder()
+                .success(true)
+                .message("Frozen")
+                .data(data)
+                .build();
+    }
+
+    @Operation(summary = "Unfreeze project")
+    @PostMapping("/{projectId}/unfreeze")
+    public CheckResponse<ProjectDetailResponse> unfreeze(
+            Authentication auth,
+            @PathVariable String projectId) {
+        ProjectDetailResponse data = unfreezeProjectUseCase.execute(actorId(auth), projectId);
+        return CheckResponse.<ProjectDetailResponse>builder()
+                .success(true)
+                .message("Unfrozen")
                 .data(data)
                 .build();
     }
