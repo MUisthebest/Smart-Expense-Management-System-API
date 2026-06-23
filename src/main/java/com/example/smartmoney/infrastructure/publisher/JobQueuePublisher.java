@@ -45,13 +45,12 @@ public class JobQueuePublisher implements JobQueuePort {
         body.put("createdAt", String.valueOf(System.currentTimeMillis()));
 
         redisTemplate.opsForStream().add(
-                StreamRecords.mapBacked(body)
-                        .withStreamKey(streamKey),
-                XAddOptions.maxlen(maxJobsPerStream)
-                        .approximateTrimming(true)
+            StreamRecords.mapBacked(body)
+                .withStreamKey(streamKey),
+            XAddOptions.maxlen(maxJobsPerStream)
+                .approximateTrimming(true)
         );
 
         System.out.println("xadd success");
-        System.out.println("Redis publisher received jobId = " + jobId);
     }
 }

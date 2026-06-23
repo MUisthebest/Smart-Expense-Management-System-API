@@ -14,7 +14,6 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.core.annotation.Order;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -23,9 +22,6 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import java.util.Arrays;
 import java.util.List;
-
-import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
-import org.springframework.security.core.userdetails.UserDetailsService;
 
 @Configuration
 @EnableWebSecurity
@@ -41,36 +37,6 @@ public class SecurityConfig implements WebMvcConfigurer {
     }
     
     @Bean
-    public DaoAuthenticationProvider daoAuthenticationProvider(
-            UserDetailsService userDetailsService,
-            PasswordEncoder passwordEncoder) {
-        DaoAuthenticationProvider provider = new DaoAuthenticationProvider(userDetailsService);
-        provider.setPasswordEncoder(passwordEncoder);
-        return provider;
-    }
-    
-    @Bean
-    @Order(1)
-    public SecurityFilterChain inviteAcceptFilterChain(HttpSecurity http) throws Exception {
-        http
-            .securityMatcher("/api/v1/projects/invites/accept-direct",
-                             "/api/v1/groups/invites/accept-direct",
-                             "/login")
-            .csrf(csrf -> csrf.disable())
-            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
-            .authorizeHttpRequests(auth -> auth
-                .anyRequest().authenticated()
-            )
-            .formLogin(form -> form
-                .defaultSuccessUrl("/api/v1/projects/invites/accept-direct", false)
-                .permitAll()
-            );
-        return http.build();
-    }
-    
-    @Bean
-    @Order(2)
     public SecurityFilterChain filterChain(HttpSecurity http, AuthenticationFilter authenticationFilter) throws Exception {
         http
             // Disable CSRF for APIs
@@ -97,7 +63,7 @@ public class SecurityConfig implements WebMvcConfigurer {
                     "/configuration/**",
                     "/actuator/health",
                     "/error",
-                    "/ws/**"
+                    "/ws/**" 
                 ).permitAll()
                 
                 // Admin only endpoints

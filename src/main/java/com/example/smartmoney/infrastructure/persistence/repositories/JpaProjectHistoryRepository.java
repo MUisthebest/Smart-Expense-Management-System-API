@@ -8,5 +8,4 @@ import java.util.UUID;
 
 public interface JpaProjectHistoryRepository extends JpaRepository<ProjectHistoryEntity, UUID> {
     List<ProjectHistoryEntity> findByProjectIdOrderByYearDescMonthDesc(UUID projectId);
-    void deleteByProjectId(UUID projectId);
 }

@@ -256,32 +256,6 @@ public class GlobalExceptionHandler {
                 .body(response);
     }
 
-    @ExceptionHandler(InsufficientSafeSpendingException.class)
-    public ResponseEntity<CheckResponse<Map<String, Object>>> handleInsufficientSafeSpending(
-            InsufficientSafeSpendingException ex,
-            WebRequest request
-    ) {
-        log.warn("Insufficient safe spending: requested={}, available={}",
-                ex.getRequested(), ex.getAvailable());
-
-        Map<String, Object> payload = new HashMap<>();
-        payload.put("requested", ex.getRequested());
-        payload.put("available", ex.getAvailable());
-        payload.put("timestamp", LocalDateTime.now());
-        payload.put("path", request.getDescription(false).replace("uri=", ""));
-
-        CheckResponse<Map<String, Object>> response = CheckResponse.<Map<String, Object>>builder()
-                .success(false)
-                .message(ex.getMessage())
-                .data(payload)
-                .errorCode(ex.getErrorCode())
-                .build();
-
-        // 422 Unprocessable Entity — the request is syntactically valid but
-        // violates the safe-spending business constraint.
-        return new ResponseEntity<>(response, HttpStatus.UNPROCESSABLE_ENTITY);
-    }
-
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<CheckResponse<ErrorDetails>> handleBusinessException(
             BusinessException ex,

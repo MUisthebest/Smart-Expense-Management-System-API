@@ -2,7 +2,6 @@ package com.example.smartmoney.domain.models.notification;
 
 import lombok.*;
 import java.time.LocalDateTime;
-import java.util.UUID;
 
 @Getter
 @Setter
@@ -11,7 +10,7 @@ import java.util.UUID;
 @AllArgsConstructor
 public class PushToken {
     private String id;
-    private UUID userId;
+    private String userId;
     private String pushToken;
     private String platform;
     private LocalDateTime createdAt;

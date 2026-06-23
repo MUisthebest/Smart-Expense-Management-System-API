@@ -15,8 +15,6 @@ public class TransactionAnalyticsResponse {
 
     private List<CategoryProportion> categoryProportions;
 
-    private List<DailyStat> dailyStats;
-
     private long monthlyTotalTransactions;
 
     private java.math.BigDecimal monthlyTotalExpense;
@@ -25,19 +23,10 @@ public class TransactionAnalyticsResponse {
 
     @Data
     @AllArgsConstructor
-    @Builder
-    public static class DailyStat {
-        private int day;
-        private double income;
-        private double expense;
-    }
-
-    @Data
-    @AllArgsConstructor
     public static class MonthlyStat {
         private String week;
-        private double income;
-        private double expense;
+        private int income;
+        private int expense;
     }
 
     @Data

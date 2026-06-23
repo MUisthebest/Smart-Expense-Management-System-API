@@ -37,7 +37,7 @@ public class ProjectListItemResponse {
 
     public static ProjectListItemResponse fromDomain(Project p) {
         BigDecimal targetAmount = p.getTargetAmount().amount();
-        BigDecimal totalContributed = p.netSavedAmount();
+        BigDecimal totalContributed = p.getTracking() != null ? p.getTracking().getMoneySaved() : p.totalContributed().amount();
         BigDecimal progressPercent = p.progressPercent();
         BigDecimal remaining = targetAmount.subtract(totalContributed).max(BigDecimal.ZERO);
 
@@ -52,11 +52,19 @@ public class ProjectListItemResponse {
         } else if (deadline != null && deadline.isBefore(today)) {
             deadlineLabel = "Overdue";
         } else {
-            if (deadline != null) {
+            if (p.getTracking() != null) {
+                monthsLeft = p.getTracking().getMonthLeft();
+            } else if (deadline != null) {
                 Period period = Period.between(today, deadline);
                 monthsLeft = period.getYears() * 12 + period.getMonths();
-                if (period.getDays() > 0) monthsLeft += 1;
-                if (monthsLeft < 1) monthsLeft = 1;
+
+                if (deadline.getDayOfMonth() >= today.getDayOfMonth())  {
+                    monthsLeft += 1;
+                }
+
+                if (monthsLeft < 1) {
+                    monthsLeft = 1;
+                }
             }
             deadlineLabel = monthsLeft == 1 ? "1 month" : monthsLeft + " months";
         }
@@ -67,7 +75,7 @@ public class ProjectListItemResponse {
                 .type(p.getType())
                 .targetAmount(targetAmount)
                 .currency(p.getTargetAmount().currency())
-                .totalContributed(totalContributed)
+                .totalContributed(p.totalContributed().amount())
                 .remaining(remaining)
                 .progressPercent(progressPercent)
                 .deadline(deadline)

@@ -39,10 +39,6 @@ public class ProjectTrackingEntity {
     @Column(name = "money_owed", nullable = false, precision = 19, scale = 2)
     private BigDecimal moneyOwed;
 
-    @Column(name = "frozen_months", nullable = false)
-    @Builder.Default
-    private Integer frozenMonths = 0;
-
     @Column(name = "created_at")
     private Instant createdAt;
 
