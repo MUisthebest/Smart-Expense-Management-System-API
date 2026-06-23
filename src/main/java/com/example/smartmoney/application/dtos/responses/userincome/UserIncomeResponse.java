@@ -22,7 +22,7 @@ public class UserIncomeResponse {
 
     public static UserIncomeResponse fromDomain(UserIncome income) {
         return UserIncomeResponse.builder()
-                .userId(income.getId().toString())
+                .userId(income.getUserId().toString())
                 .netIncome(income.getNetIncome())
                 .usableIncome(income.getUsableIncome())
                 .safeSpending(income.getSafeSpending())

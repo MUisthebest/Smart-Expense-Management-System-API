@@ -234,4 +234,22 @@ public class TransactionRepositoryImpl implements TransactionRepository {
     public List<Object[]> getExpenseByCategoryBetween(UUID userId, LocalDate start, LocalDate end) {
         return jpaTransactionRepository.getExpenseByCategoryBetween(userId, start, end);
     }
+    public List<Object[]> getDailyTotals(UUID userId, int year, int month) {
+        return jpaTransactionRepository.getDailyTotals(userId, year, month);
+    }
+
+    @Override
+    public List<Object[]> getTransactionsByYear(UUID userId, int year) {
+        return jpaTransactionRepository.getTransactionsByYear(userId, year);
+    }
+
+    @Override
+    public List<Object[]> getTransactionProportionByCategoryForYear(UUID userId, int year) {
+        return jpaTransactionRepository.getTransactionProportionByCategoryForYear(userId, year);
+    }
+
+    @Override
+    public List<Object[]> getYearlyTotals(UUID userId, int year) {
+        return jpaTransactionRepository.getYearlyTotals(userId, year);
+    }
 }
