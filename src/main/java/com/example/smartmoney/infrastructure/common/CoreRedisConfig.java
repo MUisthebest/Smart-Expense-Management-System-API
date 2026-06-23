@@ -55,10 +55,10 @@ public class CoreRedisConfig {
             config.setUsername(parts[0]);
             config.setPassword(parts[1]);
         }
-        
 
-        LettuceClientConfiguration clientConfig = LettuceClientConfiguration.builder().build();
 
+        LettuceClientConfiguration clientConfig = LettuceClientConfiguration.builder()
+                .build();
 
         return new LettuceConnectionFactory(config, clientConfig);
     }
