@@ -6,6 +6,8 @@ import com.example.smartmoney.domain.models.project.valueobjects.UserId;
 import com.example.smartmoney.domain.repositories.ProjectRepository;
 import com.example.smartmoney.domain.repositories.ProjectTrackingRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.Value;
+
 import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.Objects;
@@ -16,32 +18,21 @@ import java.util.UUID;
 public class GetUserProjectTrackingUseCase {
 
     private final ProjectRepository projectRepository;
-
     private final ProjectTrackingRepository trackingRepository;
+    private final int maxFrozenMonths = 12;
 
     public List<ProjectTrackingResponse> execute(UUID userId) {
-
-        List<Project> projects =
-                projectRepository.findAllByUser(
-                        UserId.of(userId.toString())
-                );
+        List<Project> projects = projectRepository.findAllByUser(UserId.of(userId.toString()));
 
         return projects.stream()
                 .map(project -> {
-
-                    ProjectTracking tracking =
-                            trackingRepository
-                                    .findByProjectId(
-                                            project.getId()
-                                    )
-                                    .orElse(null);
-
-                    return tracking == null
-                            ? null
-                            : ProjectTrackingResponse.fromDomain(
-                                    tracking
-                            );
-
+                    ProjectTracking tracking = trackingRepository
+                            .findByProjectId(project.getId())
+                            .orElse(null);
+                    if (tracking == null) {
+                        return null;
+                    }
+                    return ProjectTrackingResponse.fromDomain(tracking, project, maxFrozenMonths);
                 })
                 .filter(Objects::nonNull)
                 .toList();

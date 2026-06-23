@@ -79,6 +79,8 @@ app:
     issuer: "smart-money-app"
     audience: "smart-money-users"
     token-prefix: "Bearer "
+
+  max-frozen-month: 12
   
   # Base URL used for deep-link invite generation
   base-url: ${APP_BASE_URL:https://yourapp.com}
