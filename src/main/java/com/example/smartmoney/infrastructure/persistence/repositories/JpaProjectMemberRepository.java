@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.Collection;
 
 public interface JpaProjectMemberRepository extends JpaRepository<ProjectMemberEntity, UUID> {
 
@@ -16,6 +17,8 @@ public interface JpaProjectMemberRepository extends JpaRepository<ProjectMemberE
     @Modifying
     @Query("delete from ProjectMemberEntity pm where pm.projectId = :projectId")
     void deleteByProjectId(UUID projectId);
+
+    List<ProjectMemberEntity> findByProjectIdIn(Collection<UUID> projectIds);
 
     @Query("""
         select pm.projectId

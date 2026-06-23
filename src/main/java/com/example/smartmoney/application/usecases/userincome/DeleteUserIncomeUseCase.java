@@ -18,10 +18,10 @@ public class DeleteUserIncomeUseCase {
     public void execute(String actorId) {
         UUID userId = UUID.fromString(actorId);
 
-        if (userIncomeRepository.findById(userId).isEmpty()) {
+        if (userIncomeRepository.findByUserId(userId).isEmpty()) {
             throw new EntityNotFoundException("UserIncome", actorId);
         }
 
-        userIncomeRepository.deleteById(userId);
+        userIncomeRepository.deleteByUserId(userId);
     }
 }

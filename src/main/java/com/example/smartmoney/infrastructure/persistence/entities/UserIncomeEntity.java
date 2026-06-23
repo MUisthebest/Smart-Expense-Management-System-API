@@ -20,6 +20,9 @@ public class UserIncomeEntity {
     @Column(name = "id", nullable = false)
     private UUID id;
 
+    @Column(name = "user_id", nullable = false)
+    private UUID userId;
+
     @Column(name = "net_income")
     private Integer netIncome;
 

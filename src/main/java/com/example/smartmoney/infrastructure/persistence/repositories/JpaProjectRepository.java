@@ -1,8 +1,10 @@
 package com.example.smartmoney.infrastructure.persistence.repositories;
 
+import com.example.smartmoney.domain.models.project.Project;
 import com.example.smartmoney.domain.models.project.enums.ProjectPriority;
 import com.example.smartmoney.domain.models.project.enums.ProjectStatus;
 import com.example.smartmoney.domain.models.project.enums.ProjectType;
+import com.example.smartmoney.domain.models.project.valueobjects.UserId;
 import com.example.smartmoney.infrastructure.persistence.entities.ProjectEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -16,6 +18,7 @@ import java.util.UUID;
 public interface JpaProjectRepository extends JpaRepository<ProjectEntity, UUID> {
     List<ProjectEntity> findByOwnerId(UUID ownerId);
     List<ProjectEntity> findByStatus(ProjectStatus status);
+
 
     @Query("""
      SELECT p

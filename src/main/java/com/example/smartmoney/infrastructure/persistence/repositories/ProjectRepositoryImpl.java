@@ -43,14 +43,14 @@ public class ProjectRepositoryImpl implements ProjectRepository {
     @Transactional(readOnly = true)
     public Optional<Project> findById(ProjectId id) {
         Optional<ProjectEntity> peOpt = jpaProjectRepository.findById(id.value());
-        if (peOpt.isEmpty()) return Optional.empty();
+        if (peOpt.isEmpty())
+            return Optional.empty();
 
         UUID projectId = id.value();
         List<ProjectMemberEntity> members = jpaProjectMemberRepository.findByProjectId(projectId);
-        List<ProjectContributionEntity> contributions =
-                jpaProjectContributionRepository.findByProjectIdOrderByCreatedAtDesc(projectId);
-        ProjectTrackingEntity tracking =
-                jpaProjectTrackingRepository.findByProjectId(projectId).orElse(null);
+        List<ProjectContributionEntity> contributions = jpaProjectContributionRepository
+                .findByProjectIdOrderByCreatedAtDesc(projectId);
+        ProjectTrackingEntity tracking = jpaProjectTrackingRepository.findByProjectId(projectId).orElse(null);
 
         return Optional.of(projectPersistenceMapper.toDomain(peOpt.get(), members, contributions, tracking));
     }
@@ -60,8 +60,7 @@ public class ProjectRepositoryImpl implements ProjectRepository {
     public List<Project> findAllByUser(UserId userId) {
         return findAllByUser(
                 userId,
-                new ProjectFilterRequest(null, null, null, null)
-        );
+                new ProjectFilterRequest(null, null, null, null));
     }
 
     @Override
@@ -71,11 +70,9 @@ public class ProjectRepositoryImpl implements ProjectRepository {
 
         List<ProjectEntity> owned = jpaProjectRepository.findByOwnerId(uid);
 
-        List<UUID> memberProjectIds =
-                jpaProjectMemberRepository.findProjectIdsByUserIdAndJoinStatus(
-                        uid,
-                        JoinStatus.JOINED
-                );
+        List<UUID> memberProjectIds = jpaProjectMemberRepository.findProjectIdsByUserIdAndJoinStatus(
+                uid,
+                JoinStatus.JOINED);
 
         Set<UUID> allIds = new LinkedHashSet<>();
         for (ProjectEntity e : owned) {
@@ -95,27 +92,57 @@ public class ProjectRepositoryImpl implements ProjectRepository {
             search = null;
         }
 
-        List<ProjectEntity> projects =
-                jpaProjectRepository.searchByIdsAndFilter(
-                        allIds,
-                        search,
-                        filter.type(),
-                        filter.status(),
-                        filter.priority()
-                );
+        List<ProjectEntity> projects = jpaProjectRepository.searchByIdsAndFilter(
+                allIds,
+                search,
+                filter.type(),
+                filter.status(),
+                filter.priority());
+
+        List<UUID> projectIds = projects.stream()
+                .map(ProjectEntity::getId)
+                .toList();
+
+        List<ProjectContributionEntity> contributionEntities = jpaProjectContributionRepository
+                .findByProjectIdIn(projectIds);
+
+        Map<UUID, List<ProjectMemberEntity>> membersByProject = jpaProjectMemberRepository
+                .findByProjectIdIn(projectIds)
+                .stream()
+                .collect(Collectors.groupingBy(
+                        ProjectMemberEntity::getProjectId));
+
+        Map<UUID, ProjectTrackingEntity> trackingByProject = jpaProjectTrackingRepository
+                .findByProjectIdIn(projectIds)
+                .stream()
+                .collect(Collectors.toMap(
+                        ProjectTrackingEntity::getProjectId,
+                        tracking -> tracking));
+
+        Map<UUID, List<ProjectContributionEntity>> contributionsByProject = contributionEntities.stream()
+                .collect(Collectors.groupingBy(
+                        ProjectContributionEntity::getProjectId));
 
         List<Project> result = new ArrayList<>();
 
         for (ProjectEntity p : projects) {
-            UUID pid = p.getId();
 
-            List<ProjectMemberEntity> members =
-                    jpaProjectMemberRepository.findByProjectId(pid);
+            List<ProjectMemberEntity> members = membersByProject.getOrDefault(
+                    p.getId(),
+                    Collections.emptyList());
 
-            ProjectTrackingEntity tracking =
-                    jpaProjectTrackingRepository.findByProjectId(pid).orElse(null);
+            List<ProjectContributionEntity> contributions = contributionsByProject.getOrDefault(
+                    p.getId(),
+                    Collections.emptyList());
 
-            result.add(projectPersistenceMapper.toDomain(p, members, null, tracking));
+            ProjectTrackingEntity tracking = trackingByProject.get(p.getId());
+
+            result.add(
+                    projectPersistenceMapper.toDomain(
+                            p,
+                            members,
+                            contributions,
+                            tracking));
         }
 
         return result;
@@ -129,8 +156,7 @@ public class ProjectRepositoryImpl implements ProjectRepository {
         for (ProjectEntity p : entities) {
             UUID pid = p.getId();
             List<ProjectMemberEntity> members = jpaProjectMemberRepository.findByProjectId(pid);
-            ProjectTrackingEntity tracking =
-                    jpaProjectTrackingRepository.findByProjectId(pid).orElse(null);
+            ProjectTrackingEntity tracking = jpaProjectTrackingRepository.findByProjectId(pid).orElse(null);
             result.add(projectPersistenceMapper.toDomain(p, members, null, tracking));
         }
         return result;
@@ -150,10 +176,11 @@ public class ProjectRepositoryImpl implements ProjectRepository {
                     return e;
                 });
 
-        if (entity.getCreatedAt() == null) entity.setCreatedAt(now);
+        if (entity.getCreatedAt() == null)
+            entity.setCreatedAt(now);
         entity.setUpdatedAt(now);
 
-// update fields
+        // update fields
         projectEntityMapper.updateEntity(entity, project);
 
         ProjectEntity saved = jpaProjectRepository.save(entity);
@@ -162,7 +189,8 @@ public class ProjectRepositoryImpl implements ProjectRepository {
         syncContributions(project, saved.getId());
 
         return findById(new ProjectId(saved.getId()))
-                .orElseThrow(() -> new ProjectException("Project not found after save", ProjectErrorCode.PROJECT_NOT_FOUND));
+                .orElseThrow(
+                        () -> new ProjectException("Project not found after save", ProjectErrorCode.PROJECT_NOT_FOUND));
     }
 
     @Override
@@ -177,7 +205,7 @@ public class ProjectRepositoryImpl implements ProjectRepository {
     private void syncMembers(Project project, UUID projectId, Instant now) {
         List<ProjectMemberEntity> existing = jpaProjectMemberRepository.findByProjectId(projectId);
         Map<UUID, ProjectMemberEntity> existingByUserId = existing.stream()
-            .collect(Collectors.toMap(ProjectMemberEntity::getUserId, member -> member));
+                .collect(Collectors.toMap(ProjectMemberEntity::getUserId, member -> member));
 
         Map<UUID, ProjectMemberEntity> incomingByUserId = new LinkedHashMap<>();
         for (var member : project.getMembers()) {
@@ -186,8 +214,8 @@ public class ProjectRepositoryImpl implements ProjectRepository {
 
             ProjectMemberEntity old = existingByUserId.get(userId);
             if (old != null) {
-            mapped.setId(old.getId());
-            mapped.setCreatedAt(old.getCreatedAt());
+                mapped.setId(old.getId());
+                mapped.setCreatedAt(old.getCreatedAt());
             }
 
             incomingByUserId.put(userId, mapped);
@@ -195,8 +223,8 @@ public class ProjectRepositoryImpl implements ProjectRepository {
 
         Set<UUID> incomingUserIds = incomingByUserId.keySet();
         List<UUID> toDelete = existing.stream()
-            .filter(existingMember -> !incomingUserIds.contains(existingMember.getUserId()))
-            .map(ProjectMemberEntity::getId)
+                .filter(existingMember -> !incomingUserIds.contains(existingMember.getUserId()))
+                .map(ProjectMemberEntity::getId)
                 .toList();
 
         if (!toDelete.isEmpty()) {
@@ -216,7 +244,8 @@ public class ProjectRepositoryImpl implements ProjectRepository {
                 .map(ProjectContributionEntity::getId)
                 .collect(Collectors.toSet());
 
-        List<ProjectContributionEntity> existing = jpaProjectContributionRepository.findByProjectIdOrderByCreatedAtDesc(projectId);
+        List<ProjectContributionEntity> existing = jpaProjectContributionRepository
+                .findByProjectIdOrderByCreatedAtDesc(projectId);
         List<UUID> toDelete = existing.stream()
                 .map(ProjectContributionEntity::getId)
                 .filter(existingId -> !incomingIds.contains(existingId))

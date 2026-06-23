@@ -52,7 +52,7 @@ public class CreateProjectTrackingUseCase {
                 ownerId,
                 project.getId().value()
         );
-        userIncomeRepository.findById(ownerId.value()).ifPresent(income ->
+        userIncomeRepository.findByUserId(ownerId.value()).ifPresent(income ->
                 MonthlyObligationPolicy.assertWithinLimit(income, otherActive, monthlySaving)
         );
 

@@ -41,7 +41,7 @@ public class ProjectBudgetAdvisorUseCase {
     public ProjectBudgetAdvisorResponse execute(String actorId, ProjectBudgetAdvisorRequest req) {
         UUID userId = parseUserId(actorId);
 
-        UserIncome income = userIncomeRepository.findById(userId)
+        UserIncome income = userIncomeRepository.findByUserId(userId)
                 .orElseThrow(() -> new ProjectException(
                         "User income record not found. Please set your income first.",
                         ProjectErrorCode.PROJECT_USER_INCOME_REQUIRED));

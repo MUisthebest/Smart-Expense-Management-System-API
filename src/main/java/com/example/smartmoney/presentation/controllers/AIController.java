@@ -2,6 +2,7 @@ package com.example.smartmoney.presentation.controllers;
 
 import com.example.smartmoney.application.usecases.queue.ProcessQueueRequestUseCase;
 import com.example.smartmoney.application.usecases.chat.ChatWithAIUseCase;
+import com.example.smartmoney.application.usecases.chat.GetAISuggestionsUseCase;
 import com.example.smartmoney.domain.exceptions.DuplicateJobException;
 import com.example.smartmoney.domain.models.message.MessageRecord;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -11,10 +12,13 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/ai")
@@ -26,7 +30,7 @@ public class AIController {
     private final TransactionController transactionController;
     private final ProcessQueueRequestUseCase processQueueRequestUseCase;
     private final ChatWithAIUseCase chatWithAIUseCase;
-
+    private final GetAISuggestionsUseCase getAISuggestionsUseCase;
     // ── Legacy queue endpoint ─────────────────────────────────────────────────
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -38,33 +42,25 @@ public class AIController {
             UUID userId = transactionController.extractUserIdFromToken(authHeader);
             MessageRecord requested = processQueueRequestUseCase.execute(data, duty, userId.toString());
             return ResponseEntity.status(HttpStatus.ACCEPTED).body(Map.of(
-                            "jobId", requested.getJobId(),
-                            "status", requested.getStatus(),
-                            "tokenId", requested.getTokenId()
-                    )
-            );
+                    "jobId", requested.getJobId(),
+                    "status", requested.getStatus(),
+                    "tokenId", requested.getTokenId()));
 
-        }
-        catch (DuplicateJobException e) {
+        } catch (DuplicateJobException e) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of(
-                            "error", e.getMessage()
-                    )
-            );
+                    "error", e.getMessage()));
         }
 
         catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
-                            "error", e.getMessage()
-                    )
-            );
+                    "error", e.getMessage()));
         }
     }
 
     @GetMapping("/{jobId}")
     public ResponseEntity<?> getAIResult(
             @PathVariable String jobId,
-            @RequestHeader("Authorization") String authHeader
-    ) {
+            @RequestHeader("Authorization") String authHeader) {
         try {
             UUID userId = transactionController.extractUserIdFromToken(authHeader);
 
@@ -72,8 +68,7 @@ public class AIController {
 
             if (result == null) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
-                        "error", "Job not found"
-                ));
+                        "error", "Job not found"));
             }
 
             Map<String, Object> response = new HashMap<>();
@@ -100,30 +95,78 @@ public class AIController {
 
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
-                    "error", e.getMessage()
-            ));
+                    "error", e.getMessage()));
         }
     }
 
     @PostMapping("/chat")
     public ResponseEntity<?> chat(
             @RequestBody Map<String, String> body,
-            @RequestHeader("Authorization") String authHeader
-    ) {
+            @RequestHeader("Authorization") String authHeader) {
         try {
             UUID userId = transactionController.extractUserIdFromToken(authHeader);
 
             String message = body.get("message");
 
-            String reply = chatWithAIUseCase.execute(message, userId.toString());
+            String reply = chatWithAIUseCase.execute(message, userId);
 
             return ResponseEntity.ok(Map.of(
-                    "reply", reply
-            ));
+                    "reply", reply));
 
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", e.getMessage()));
         }
+    }
+
+    @GetMapping("/suggestions")
+    public ResponseEntity<?> getSuggestions(@RequestHeader("Authorization") String authHeader) {
+        try {
+            UUID userId = transactionController.extractUserIdFromToken(authHeader);
+            List<String> questions = getAISuggestionsUseCase.execute(userId);
+            return ResponseEntity.ok(Map.of("questions", questions));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @GetMapping(value = "/chat/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter streamChat(
+            @RequestParam String message,
+            @RequestHeader("Authorization") String authHeader) {
+        UUID userId = transactionController.extractUserIdFromToken(authHeader);
+
+        // Tạo emitter với timeout 120 giây
+        SseEmitter emitter = new SseEmitter(120_000L);
+
+        // Gọi UseCase stream, truyền callback để đẩy dữ liệu về client
+        chatWithAIUseCase.streamChat(
+                message,
+                userId,
+                chunk -> {
+                    try {
+                        System.out.println("[" + chunk + "]");
+                        // Gửi từng mảnh chữ về client
+                        emitter.send(SseEmitter.event().data(chunk));
+                    } catch (IOException e) {
+                        emitter.completeWithError(e);
+                    }
+                },
+                error -> {
+                    // Xử lý lỗi
+                    emitter.completeWithError(error);
+                },
+                () -> {
+                    // Hoàn thành stream
+                    try {
+                        emitter.send(SseEmitter.event().name("done").data("[DONE]"));
+                    } catch (IOException ignored) {
+                    }
+                    emitter.complete();
+                    emitter.complete();
+                });
+
+        return emitter;
     }
 }

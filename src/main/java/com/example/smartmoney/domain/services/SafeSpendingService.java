@@ -35,7 +35,7 @@ public class SafeSpendingService {
      */
     @Transactional
     public void recalculateAndSaveSafeSpending(UserId ownerId) {
-        UserIncome income = userIncomeRepository.findById(ownerId.value()).orElse(null);
+        UserIncome income = userIncomeRepository.findByUserId(ownerId.value()).orElse(null);
         if (income == null || income.getUsableIncome() == null) {
             return;
         }
