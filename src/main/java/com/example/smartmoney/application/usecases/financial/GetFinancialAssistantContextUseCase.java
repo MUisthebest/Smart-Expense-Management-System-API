@@ -5,7 +5,6 @@ import com.example.smartmoney.application.dtos.responses.WeeklyTransactionRespon
 import com.example.smartmoney.application.dtos.responses.project.ProjectAIContextResponse;
 import com.example.smartmoney.application.dtos.responses.project.ProjectTrackingResponse;
 import com.example.smartmoney.application.usecases.project.GetProjectAIContextUseCase;
-import com.example.smartmoney.application.usecases.project.GetUserProjectTrackingUseCase;
 import com.example.smartmoney.application.usecases.transaction.GetWeeklyTransactionSummaryUseCase;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
