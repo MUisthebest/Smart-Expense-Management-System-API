@@ -36,7 +36,8 @@ public class GetUserTransactionsUseCase {
         // Validate sort parameters
         validateSortParameters(sortBy, sortOrder);
         
-        List<Transaction> allMatchingTransactions;
+        List<Transaction> transactions;
+        long totalElements = 0;
         
         // Check if any filters are provided
         if (filter != null && hasAnyFilters(filter)) {
@@ -44,7 +45,8 @@ public class GetUserTransactionsUseCase {
             LocalDateTime startDate = parseDate(filter.getStartDate());
             LocalDateTime endDate = parseDate(filter.getEndDate());
             
-            allMatchingTransactions = transactionRepository.findByUserIdWithFilters(
+            // Get total count for pagination
+            totalElements = transactionRepository.countByUserIdWithFilters(
                 userId,
                 filter.getMinAmount(),
                 filter.getMaxAmount(),
@@ -53,44 +55,35 @@ public class GetUserTransactionsUseCase {
                 filter.getCategory(),
                 filter.getType()
             );
+            
+            // Find transactions with filters and pagination
+            transactions = transactionRepository.findByUserIdWithFilters(
+                userId,
+                filter.getMinAmount(),
+                filter.getMaxAmount(),
+                startDate,
+                endDate,
+                filter.getCategory(),
+                filter.getType(),
+                sortBy,
+                sortOrder,
+                page,
+                size
+            );
         } else {
-            allMatchingTransactions = transactionRepository.findByUserId(userId);
-        }
-        
-        long totalElements = allMatchingTransactions.size();
-        
-        // Calculate totals on the full set of matching transactions
-        java.math.BigDecimal totalIncome = java.math.BigDecimal.ZERO;
-        java.math.BigDecimal totalExpenses = java.math.BigDecimal.ZERO;
-        
-        for (Transaction t : allMatchingTransactions) {
-            if (t.getType() == com.example.smartmoney.domain.models.transaction.enums.TransactionType.INCOME) {
-                totalIncome = totalIncome.add(t.getAmount().getValue());
-            } else if (t.getType() == com.example.smartmoney.domain.models.transaction.enums.TransactionType.EXPENSE) {
-                totalExpenses = totalExpenses.add(t.getAmount().getValue());
-            }
-        }
-        java.math.BigDecimal totalBalance = totalIncome.subtract(totalExpenses);
-        
-        // Sort the matching list
-        List<Transaction> sortedTransactions = sortTransactions(allMatchingTransactions, sortBy, sortOrder);
-        
-        // Paginate
-        int fromIndex = page * size;
-        int toIndex = Math.min(fromIndex + size, sortedTransactions.size());
-        List<Transaction> paginatedTransactions;
-        if (fromIndex < sortedTransactions.size()) {
-            paginatedTransactions = sortedTransactions.subList(fromIndex, toIndex);
-        } else {
-            paginatedTransactions = java.util.Collections.emptyList();
+            // Find all transactions for user without filters, with sorting and pagination
+            List<Transaction> allTransactions = transactionRepository.findByUserId(userId);
+            totalElements = allTransactions.size();
+            
+            transactions = transactionRepository.findByUserIdSorted(userId, sortBy, sortOrder, page, size);
         }
         
         // Convert to response DTOs
-        List<TransactionResponse> transactionResponses = paginatedTransactions.stream()
+        List<TransactionResponse> transactionResponses = transactions.stream()
                 .map(TransactionResponse::fromDomain)
                 .collect(Collectors.toList());
         
-        return TransactionListResponse.of(transactionResponses, page, size, totalElements, totalIncome, totalExpenses, totalBalance);
+        return TransactionListResponse.of(transactionResponses, page, size, totalElements);
     }
     
     private void validateSortParameters(String sortBy, String sortOrder) {

@@ -24,6 +24,6 @@ public class GetUserFinancialProfileUseCase {
 
         return repository.findByUserId(uid)
                 .map(UserFinancialProfileResponse::fromEntity)
-                .orElse(null);
+                .orElseThrow(() -> new RuntimeException("User financial profile not found"));
     }
 }

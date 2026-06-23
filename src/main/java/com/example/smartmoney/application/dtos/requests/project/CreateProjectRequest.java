@@ -1,5 +1,6 @@
 package com.example.smartmoney.application.dtos.requests.project;
 
+import com.example.smartmoney.domain.models.project.enums.ProjectType;
 import com.example.smartmoney.domain.models.project.enums.ProjectPriority;
 import jakarta.validation.constraints.*;
 import lombok.Data;
@@ -15,6 +16,9 @@ public class CreateProjectRequest {
 
     @Size(max = 500, message = "Description must not exceed 500 characters")
     private String description;
+
+    @NotNull(message = "Project type is required")
+    private ProjectType type;
 
     private ProjectPriority priority;
 

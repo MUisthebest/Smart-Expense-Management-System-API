@@ -12,7 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-@Transactional
+@Transactional(readOnly = true)
 public class LoginUseCase {
     
     private final UserRepository userRepository;
@@ -48,8 +48,11 @@ public class LoginUseCase {
         // Generate tokens
         String accessToken = authPort.generateAccessToken(user);
         String refreshToken = authPort.generateRefreshToken(user);
-
-
+        
+        // Update refresh token in database
+        user.updateRefreshToken(new RefreshToken(refreshToken, java.time.LocalDateTime.now().plusDays(7)));
+        userRepository.save(user);
+        
         // Convert to response
         UserResponse userResponse = mapToUserResponse(user);
         
@@ -68,8 +71,8 @@ public class LoginUseCase {
         response.setUsername(user.getUsername());
         response.setFullName(user.getFullName());
         response.setAvatar(user.getAvatar() != null ? user.getAvatar().getUrl() : null);
-        response.setDateOfBirth(user.getDateOfBirth() != null ? user.getDateOfBirth().getFormattedValue() : null);
-        response.setPhone(user.getPhone() != null ? user.getPhone().getValue() : null);
+        response.setDateOfBirth(user.getDateOfBirth().getFormattedValue());
+        response.setPhone(user.getPhone().getValue());
         response.setEmail(user.getEmail().getValue());
         response.setCoin(user.getCoin());
         response.setRole(user.getRole());

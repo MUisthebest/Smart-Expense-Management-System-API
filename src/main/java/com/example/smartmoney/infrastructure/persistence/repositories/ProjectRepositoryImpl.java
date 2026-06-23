@@ -4,15 +4,18 @@ import com.example.smartmoney.application.dtos.requests.project.ProjectFilterReq
 import com.example.smartmoney.domain.exceptions.ProjectErrorCode;
 import com.example.smartmoney.domain.exceptions.ProjectException;
 import com.example.smartmoney.domain.models.project.Project;
+import com.example.smartmoney.domain.models.project.enums.JoinStatus;
 import com.example.smartmoney.domain.models.project.enums.ProjectStatus;
 import com.example.smartmoney.domain.models.project.valueobjects.ProjectId;
 import com.example.smartmoney.domain.models.project.valueobjects.UserId;
 import com.example.smartmoney.domain.repositories.ProjectRepository;
 import com.example.smartmoney.infrastructure.persistence.entities.ProjectContributionEntity;
 import com.example.smartmoney.infrastructure.persistence.entities.ProjectEntity;
+import com.example.smartmoney.infrastructure.persistence.entities.ProjectMemberEntity;
 import com.example.smartmoney.infrastructure.persistence.entities.ProjectTrackingEntity;
 import com.example.smartmoney.infrastructure.persistence.mappers.ProjectContributionMapper;
 import com.example.smartmoney.infrastructure.persistence.mappers.ProjectEntityMapper;
+import com.example.smartmoney.infrastructure.persistence.mappers.ProjectMemberMapper;
 import com.example.smartmoney.infrastructure.persistence.mappers.ProjectPersistenceMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
@@ -27,10 +30,12 @@ import java.util.stream.Collectors;
 public class ProjectRepositoryImpl implements ProjectRepository {
 
     private final JpaProjectRepository jpaProjectRepository;
+    private final JpaProjectMemberRepository jpaProjectMemberRepository;
     private final JpaProjectContributionRepository jpaProjectContributionRepository;
     private final JpaProjectTrackingRepository jpaProjectTrackingRepository;
 
     private final ProjectPersistenceMapper projectPersistenceMapper;
+    private final ProjectMemberMapper projectMemberMapper;
     private final ProjectContributionMapper projectContributionMapper;
     private final ProjectEntityMapper projectEntityMapper;
 
@@ -42,18 +47,20 @@ public class ProjectRepositoryImpl implements ProjectRepository {
             return Optional.empty();
 
         UUID projectId = id.value();
-        List<ProjectContributionEntity> contributions =
-                jpaProjectContributionRepository.findByProjectIdOrderByCreatedAtDesc(projectId);
-        ProjectTrackingEntity tracking =
-                jpaProjectTrackingRepository.findByProjectId(projectId).orElse(null);
+        List<ProjectMemberEntity> members = jpaProjectMemberRepository.findByProjectId(projectId);
+        List<ProjectContributionEntity> contributions = jpaProjectContributionRepository
+                .findByProjectIdOrderByCreatedAtDesc(projectId);
+        ProjectTrackingEntity tracking = jpaProjectTrackingRepository.findByProjectId(projectId).orElse(null);
 
-        return Optional.of(projectPersistenceMapper.toDomain(peOpt.get(), contributions, tracking));
+        return Optional.of(projectPersistenceMapper.toDomain(peOpt.get(), members, contributions, tracking));
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<Project> findAllByUser(UserId userId) {
-        return findAllByUser(userId, new ProjectFilterRequest(null, null, null, null));
+        return findAllByUser(
+                userId,
+                new ProjectFilterRequest(null, null, null, null));
     }
 
     @Override
@@ -68,11 +75,17 @@ public class ProjectRepositoryImpl implements ProjectRepository {
                 JoinStatus.JOINED);
 
         Set<UUID> allIds = new LinkedHashSet<>();
-        for (ProjectEntity e : owned) allIds.add(e.getId());
+        for (ProjectEntity e : owned) {
+            allIds.add(e.getId());
+        }
+        allIds.addAll(memberProjectIds);
 
-        if (allIds.isEmpty()) return List.of();
+        if (allIds.isEmpty()) {
+            return List.of();
+        }
 
         String search = filter.search();
+
         if (search != null && !search.isBlank()) {
             search = "%" + search.trim().toLowerCase() + "%";
         } else {
@@ -111,6 +124,7 @@ public class ProjectRepositoryImpl implements ProjectRepository {
                         ProjectContributionEntity::getProjectId));
 
         List<Project> result = new ArrayList<>();
+
         for (ProjectEntity p : projects) {
 
             List<ProjectMemberEntity> members = membersByProject.getOrDefault(
@@ -130,6 +144,7 @@ public class ProjectRepositoryImpl implements ProjectRepository {
                             contributions,
                             tracking));
         }
+
         return result;
     }
 
@@ -137,19 +152,6 @@ public class ProjectRepositoryImpl implements ProjectRepository {
     @Transactional(readOnly = true)
     public List<Project> findAllByStatus(ProjectStatus status) {
         List<ProjectEntity> entities = jpaProjectRepository.findByStatus(status);
-        List<Project> result = new ArrayList<>();
-        for (ProjectEntity p : entities) {
-            ProjectTrackingEntity tracking =
-                    jpaProjectTrackingRepository.findByProjectId(p.getId()).orElse(null);
-            result.add(projectPersistenceMapper.toDomain(p, null, tracking));
-        }
-        return result;
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public List<Project> findAllByGroupProjectId(UUID groupProjectId) {
-        List<ProjectEntity> entities = jpaProjectRepository.findByGroupProjectId(groupProjectId);
         List<Project> result = new ArrayList<>();
         for (ProjectEntity p : entities) {
             UUID pid = p.getId();
@@ -180,9 +182,10 @@ public class ProjectRepositoryImpl implements ProjectRepository {
 
         // update fields
         projectEntityMapper.updateEntity(entity, project);
-        entity.setGroupProjectId(project.getGroupProjectId());
 
         ProjectEntity saved = jpaProjectRepository.save(entity);
+
+        syncMembers(project, saved.getId(), now);
         syncContributions(project, saved.getId());
 
         return findById(new ProjectId(saved.getId()))
@@ -195,13 +198,46 @@ public class ProjectRepositoryImpl implements ProjectRepository {
     public void deleteById(ProjectId id) {
         UUID projectId = id.value();
         jpaProjectContributionRepository.deleteByProjectId(projectId);
+        jpaProjectMemberRepository.deleteByProjectId(projectId);
         jpaProjectRepository.deleteById(projectId);
     }
 
+    private void syncMembers(Project project, UUID projectId, Instant now) {
+        List<ProjectMemberEntity> existing = jpaProjectMemberRepository.findByProjectId(projectId);
+        Map<UUID, ProjectMemberEntity> existingByUserId = existing.stream()
+                .collect(Collectors.toMap(ProjectMemberEntity::getUserId, member -> member));
+
+        Map<UUID, ProjectMemberEntity> incomingByUserId = new LinkedHashMap<>();
+        for (var member : project.getMembers()) {
+            ProjectMemberEntity mapped = projectMemberMapper.toEntity(member, projectId, now);
+            UUID userId = mapped.getUserId();
+
+            ProjectMemberEntity old = existingByUserId.get(userId);
+            if (old != null) {
+                mapped.setId(old.getId());
+                mapped.setCreatedAt(old.getCreatedAt());
+            }
+
+            incomingByUserId.put(userId, mapped);
+        }
+
+        Set<UUID> incomingUserIds = incomingByUserId.keySet();
+        List<UUID> toDelete = existing.stream()
+                .filter(existingMember -> !incomingUserIds.contains(existingMember.getUserId()))
+                .map(ProjectMemberEntity::getId)
+                .toList();
+
+        if (!toDelete.isEmpty()) {
+            jpaProjectMemberRepository.deleteAllById(toDelete);
+        }
+        if (!incomingByUserId.isEmpty()) {
+            jpaProjectMemberRepository.saveAll(incomingByUserId.values());
+        }
+    }
 
     private void syncContributions(Project project, UUID projectId) {
         List<ProjectContributionEntity> incoming = project.getContributions().stream()
-                .map(c -> projectContributionMapper.toEntity(c, projectId))
+                .map(contribution -> projectContributionMapper.toEntity(contribution, projectId))
                 .toList();
 
         Set<UUID> incomingIds = incoming.stream()
@@ -212,10 +248,15 @@ public class ProjectRepositoryImpl implements ProjectRepository {
                 .findByProjectIdOrderByCreatedAtDesc(projectId);
         List<UUID> toDelete = existing.stream()
                 .map(ProjectContributionEntity::getId)
-                .filter(eid -> !incomingIds.contains(eid))
+                .filter(existingId -> !incomingIds.contains(existingId))
                 .toList();
 
-        if (!toDelete.isEmpty()) jpaProjectContributionRepository.deleteAllById(toDelete);
-        if (!incoming.isEmpty()) jpaProjectContributionRepository.saveAll(incoming);
+        if (!toDelete.isEmpty()) {
+            jpaProjectContributionRepository.deleteAllById(toDelete);
+        }
+        if (!incoming.isEmpty()) {
+            jpaProjectContributionRepository.saveAll(incoming);
+        }
     }
+
 }

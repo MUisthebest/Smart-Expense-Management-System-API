@@ -82,8 +82,4 @@ public interface TransactionRepository {
             LocalDate start,
             LocalDate end
     );
-    List<Object[]> getDailyTotals(UUID userId, int year, int month);
-    List<Object[]> getTransactionsByYear(UUID userId, int year);
-    List<Object[]> getTransactionProportionByCategoryForYear(UUID userId, int year);
-    List<Object[]> getYearlyTotals(UUID userId, int year);
 }

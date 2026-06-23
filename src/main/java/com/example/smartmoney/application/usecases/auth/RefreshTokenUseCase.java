@@ -33,9 +33,9 @@ public class RefreshTokenUseCase {
             );
         }
         
-        // Generate new tokens — rotate the refresh token so the old one is immediately invalidated
+        // Generate new tokens
         String newAccessToken = authPort.generateAccessToken(user);
-        String newRefreshToken = authPort.generateRefreshToken(user);
+        String newRefreshToken = request.getRefreshToken(); // Reuse the same refresh token for simplicity
         
         // Convert to response
         UserResponse userResponse = mapToUserResponse(user);
@@ -55,8 +55,8 @@ public class RefreshTokenUseCase {
         response.setUsername(user.getUsername());
         response.setFullName(user.getFullName());
         response.setAvatar(user.getAvatar() != null ? user.getAvatar().getUrl() : null);
-        response.setDateOfBirth(user.getDateOfBirth() != null ? user.getDateOfBirth().getFormattedValue() : null);
-        response.setPhone(user.getPhone() != null ? user.getPhone().getValue() : null);
+        response.setDateOfBirth(user.getDateOfBirth().getFormattedValue());
+        response.setPhone(user.getPhone().getValue());
         response.setEmail(user.getEmail().getValue());
         response.setCoin(user.getCoin());
         response.setRole(user.getRole());

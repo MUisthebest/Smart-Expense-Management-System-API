@@ -8,8 +8,6 @@ import com.example.smartmoney.infrastructure.persistence.entities.UserEntity;
 import com.example.smartmoney.infrastructure.persistence.mappers.UserMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
-import java.util.Collection;
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -31,13 +29,6 @@ public class UserRepositoryImpl implements UserRepository {
     public Optional<User> findById(UUID id) {
         return jpaUserRepository.findById(id)
             .map(userMapper::toDomain);
-    }
-
-    @Override
-    public List<User> findAllByIds(Collection<UUID> ids) {
-        return jpaUserRepository.findAllById(ids).stream()
-                .map(userMapper::toDomain)
-                .toList();
     }
     
     @Override

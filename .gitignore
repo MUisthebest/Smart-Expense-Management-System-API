@@ -37,6 +37,3 @@ build/
 .vscode/
 
 /logs/
-
-### Data
-src/main/resources/db/migration/
