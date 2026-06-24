@@ -8,4 +8,8 @@ public class AnalyticsRequest {
     private Integer year;
 
     private Integer month;
+
+    private String type;
+
+    private Integer day;
 }

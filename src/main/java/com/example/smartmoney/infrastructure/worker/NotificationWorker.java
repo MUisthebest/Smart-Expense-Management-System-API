@@ -70,7 +70,7 @@ public class NotificationWorker {
                         Consumer.from(GROUP, consumerName),
                         StreamReadOptions.empty()
                             .count(BATCH_SIZE)
-                            .block(Duration.ofSeconds(2)),
+                            .block(Duration.ofSeconds(30)),
                         StreamOffset.create(STREAM, ReadOffset.lastConsumed())
                     );
 

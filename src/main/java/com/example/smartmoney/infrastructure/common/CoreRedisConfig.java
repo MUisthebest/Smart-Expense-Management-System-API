@@ -5,6 +5,8 @@ import com.example.smartmoney.domain.models.notification.Notification;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
+import io.lettuce.core.ClientOptions;
+import io.lettuce.core.SocketOptions;
 
 import java.net.URI;
 import java.time.Duration;
@@ -54,15 +56,11 @@ public class CoreRedisConfig {
             config.setPassword(parts[1]);
         }
 
-        LettuceClientConfiguration.LettuceClientConfigurationBuilder builder =
-                LettuceClientConfiguration.builder().commandTimeout(Duration.ofSeconds(30));
 
-        // ✅ chỉ bật SSL nếu là rediss
-        if (redisUri.startsWith("rediss://")) {
-            builder.useSsl();
-        }
+        LettuceClientConfiguration clientConfig = LettuceClientConfiguration.builder()
+                .build();
 
-        return new LettuceConnectionFactory(config, builder.build());
+        return new LettuceConnectionFactory(config, clientConfig);
     }
 
     @Bean
