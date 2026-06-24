@@ -118,6 +118,8 @@ public abstract class UserMapper {
             user.setUpdatedAt(entity.getUpdatedAt());
             user.setActive(entity.isActive());
             user.setNotificationEnabled(entity.isNotificationEnabled());
+            user.setIncomeSetupCompleted(entity.isIncomeSetupCompleted());
+            user.setFinancialSetupCompleted(entity.isFinancialSetupCompleted());
         }
     }
     
@@ -133,6 +135,8 @@ public abstract class UserMapper {
             entity.setUpdatedAt(domain.getUpdatedAt());
             entity.setActive(domain.isActive());
             entity.setNotificationEnabled(domain.isNotificationEnabled());
+            entity.setIncomeSetupCompleted(domain.isIncomeSetupCompleted());
+            entity.setFinancialSetupCompleted(domain.isFinancialSetupCompleted());
         }
     }
 }

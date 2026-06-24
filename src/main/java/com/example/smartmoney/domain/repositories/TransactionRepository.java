@@ -64,10 +64,6 @@ public interface TransactionRepository {
     List<Object[]> getTransactionsByMonth(UUID userId, int year, int month );
     List<Object[]> getTransactionProportionByCategory(UUID userId, int year, int month);
     List<Object[]> getMonthlyTotals(UUID userId, int year, int month);
-    List<Object[]> getDailyTotals(UUID userId, int year, int month);
-    List<Object[]> getTransactionsByYear(UUID userId, int year);
-    List<Object[]> getTransactionProportionByCategoryForYear(UUID userId, int year);
-    List<Object[]> getYearlyTotals(UUID userId, int year);
 
     BigDecimal getTotalIncomeBetween(
             UUID userId,

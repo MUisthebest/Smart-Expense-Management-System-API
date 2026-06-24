@@ -28,11 +28,23 @@ public class RedisJobCacheAdapter implements RedisJobCachePort {
 
     @Override
     public Map<String, Object> getJobResult(String jobId) {
-        String key = "job:" + jobId;
+        String key = "ai:job:" + jobId;
 
         Object value = template.opsForValue().get(key);
 
+        if (value == null) {
+            value = template.opsForValue().get("job:" + jobId);
+        }
+
         if (value == null) return null;
+
+        if (value instanceof String rawJson) {
+            try {
+                return objectMapper.readValue(rawJson, Map.class);
+            } catch (Exception exception) {
+                throw new RuntimeException("Invalid cached AI job result: " + jobId, exception);
+            }
+        }
 
         return (Map<String, Object>) value;
     }

@@ -30,7 +30,7 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
     ),
     servers = {
         @Server(
-            url = "http://localhost:8080",
+            url = "http://localhost:8082",
             description = "Local Development Server"
         ),
         @Server(
