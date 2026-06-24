@@ -33,9 +33,9 @@ public class RefreshTokenUseCase {
             );
         }
         
-        // Generate new tokens
+        // Generate new tokens — rotate the refresh token so the old one is immediately invalidated
         String newAccessToken = authPort.generateAccessToken(user);
-        String newRefreshToken = request.getRefreshToken(); // Reuse the same refresh token for simplicity
+        String newRefreshToken = authPort.generateRefreshToken(user);
         
         // Convert to response
         UserResponse userResponse = mapToUserResponse(user);

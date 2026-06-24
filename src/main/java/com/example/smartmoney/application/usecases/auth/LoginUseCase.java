@@ -12,7 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-@Transactional(readOnly = true)
+@Transactional
 public class LoginUseCase {
     
     private final UserRepository userRepository;
@@ -48,11 +48,8 @@ public class LoginUseCase {
         // Generate tokens
         String accessToken = authPort.generateAccessToken(user);
         String refreshToken = authPort.generateRefreshToken(user);
-        
-        // Update refresh token in database
-        user.updateRefreshToken(new RefreshToken(refreshToken, java.time.LocalDateTime.now().plusDays(7)));
-        userRepository.save(user);
-        
+
+
         // Convert to response
         UserResponse userResponse = mapToUserResponse(user);
         

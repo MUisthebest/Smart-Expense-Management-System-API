@@ -56,7 +56,7 @@ public class GenerateBudgetAllocationPlanUseCase {
         this.objectMapper = objectMapper;
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public MessageRecord execute(UserId userId) {
         UUID uid = userId.value();
 

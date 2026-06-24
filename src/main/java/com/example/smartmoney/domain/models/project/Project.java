@@ -10,9 +10,9 @@ import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.*;
-import java.util.stream.Collectors;
 
 public class Project {
+
     private final ProjectId id;
     private final UserId ownerId;
     private final ProjectType type;
@@ -24,7 +24,9 @@ public class Project {
     private Money targetAmount;
     private LocalDate deadline;
 
-    private final Map<UUID, ProjectMember> members = new HashMap<>();
+    /** Non-null for sub-personal projects that belong to a group project. */
+    private final UUID groupProjectId;
+
     private final List<ProjectContribution> contributions = new ArrayList<>();
     private ProjectTracking tracking;
     private final Instant createdAt;
@@ -38,6 +40,7 @@ public class Project {
                     String description,
                     Money targetAmount,
                     LocalDate deadline,
+                    UUID groupProjectId,
                     Instant createdAt) {
         this.id = Objects.requireNonNull(id);
         this.ownerId = Objects.requireNonNull(ownerId);
@@ -48,9 +51,8 @@ public class Project {
         this.description = normalizeDescription(description);
         this.targetAmount = Objects.requireNonNull(targetAmount);
         this.deadline = Objects.requireNonNull(deadline);
+        this.groupProjectId = groupProjectId;
         this.createdAt = createdAt == null ? Instant.now() : createdAt;
-
-        validateCreate();
     }
 
     public static Project createNew(UserId ownerId,
@@ -60,10 +62,27 @@ public class Project {
                                     String description,
                                     Money targetAmount,
                                     LocalDate deadline) {
-        return new Project(ProjectId.newId(), ownerId, type, ProjectStatus.ACTIVE, priority, name, description, targetAmount, deadline, Instant.now());
+        Project p = new Project(ProjectId.newId(), ownerId, type, ProjectStatus.ACTIVE, priority,
+                name, description, targetAmount, deadline, null, Instant.now());
+        p.validateNew();
+        return p;
     }
 
-    private void validateCreate() {
+    public static Project createSubPersonal(UserId ownerId,
+                                            ProjectPriority priority,
+                                            String name,
+                                            String description,
+                                            Money targetAmount,
+                                            LocalDate deadline,
+                                            UUID groupProjectId) {
+        Objects.requireNonNull(groupProjectId, "groupProjectId required for sub-personal project");
+        Project p = new Project(ProjectId.newId(), ownerId, ProjectType.PERSONAL, ProjectStatus.ACTIVE,
+                priority, name, description, targetAmount, deadline, groupProjectId, Instant.now());
+        p.validateNew();
+        return p;
+    }
+
+    private void validateNew() {
         if (targetAmount.amount().compareTo(BigDecimal.ZERO) <= 0) {
             throw new ProjectException("Target amount must be > 0", ProjectErrorCode.PROJECT_INVALID_TARGET_AMOUNT);
         }
@@ -74,7 +93,7 @@ public class Project {
 
     private String normalizeName(String raw) {
         if (raw == null || raw.isBlank()) {
-            throw new ProjectException("Project name is required", ProjectErrorCode.PROJECT_INVALID_TARGET_AMOUNT);
+            throw new ProjectException("Project name is required", ProjectErrorCode.PROJECT_INVALID_NAME);
         }
         return raw.trim();
     }
@@ -83,53 +102,20 @@ public class Project {
         return raw == null ? null : raw.trim();
     }
 
-    public ProjectId getId() {
-        return id;
-    }
-
-    public UserId getOwnerId() {
-        return ownerId;
-    }
-
-    public ProjectType getType() {
-        return type;
-    }
-
-    public ProjectStatus getStatus() {
-        return status;
-    }
-
-    public ProjectPriority getPriority() {
-        return priority;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public String getDescription() {
-        return description;
-    }
-
-    public Money getTargetAmount() {
-        return targetAmount;
-    }
-
-    public LocalDate getDeadline() {
-        return deadline;
-    }
-
-    public List<ProjectMember> getMembers() {
-        return new ArrayList<>(members.values());
-    }
-
-    public List<ProjectContribution> getContributions() {
-        return new ArrayList<>(contributions);
-    }
-
-    public ProjectTracking getTracking() {
-        return tracking;
-    }
+    public ProjectId getId() { return id; }
+    public UserId getOwnerId() { return ownerId; }
+    public ProjectType getType() { return type; }
+    public ProjectStatus getStatus() { return status; }
+    public ProjectPriority getPriority() { return priority; }
+    public String getName() { return name; }
+    public String getDescription() { return description; }
+    public Money getTargetAmount() { return targetAmount; }
+    public LocalDate getDeadline() { return deadline; }
+    public UUID getGroupProjectId() { return groupProjectId; }
+    public boolean isSubPersonal() { return groupProjectId != null; }
+    public List<ProjectContribution> getContributions() { return new ArrayList<>(contributions); }
+    public ProjectTracking getTracking() { return tracking; }
+    public Instant getCreatedAt() { return createdAt; }
 
     public void setTracking(ProjectTracking tracking) {
         this.tracking = tracking;
@@ -172,104 +158,41 @@ public class Project {
         this.priority = newPriority;
     }
 
-    public void inviteMember(UserId actorId, UserId invitedUserId, boolean isAdmin) {
-        requireGroup();
-        requireCanManage(actorId);
-
-        if (invitedUserId.equals(ownerId)) {
-            throw new ProjectException("Owner cannot be invited", ProjectErrorCode.PROJECT_DUPLICATE_MEMBER);
-        }
-        ProjectMember existing = members.get(invitedUserId.value());
-        if (existing != null && existing.getJoinStatus() != JoinStatus.LEFT) {
-            throw new ProjectException("Member already exists", ProjectErrorCode.PROJECT_DUPLICATE_MEMBER);
-        }
-
-        ProjectMember member = new ProjectMember(invitedUserId, JoinStatus.INVITED, isAdmin);
-        members.put(invitedUserId.value(), member);
-    }
-
-    public void acceptInvite(UserId actorId) {
-        requireGroup();
-
-        ProjectMember member = members.get(actorId.value());
-        if (member == null) {
-            throw new ProjectException("Member not found", ProjectErrorCode.PROJECT_MEMBER_NOT_FOUND);
-        }
-        if (member.getJoinStatus() == JoinStatus.LEFT) {
-            throw new ProjectException("Member has left", ProjectErrorCode.PROJECT_MEMBER_NOT_FOUND);
-        }
-        member.accept();
-    }
-
-    public void setAdmin(UserId actorId, UserId targetUserId, boolean isAdmin) {
-        requireGroup();
-        requireCanManage(actorId);
-
-        ProjectMember member = members.get(targetUserId.value());
-        if (member == null || member.getJoinStatus() == JoinStatus.LEFT) {
-            throw new ProjectException("Member not found", ProjectErrorCode.PROJECT_MEMBER_NOT_FOUND);
-        }
-        member.setAdmin(isAdmin);
-    }
-
-    public void removeMember(UserId actorId, UserId targetUserId) {
-        requireGroup();
-        requireCanManage(actorId);
-
-        ProjectMember member = members.get(targetUserId.value());
-        if (member == null || member.getJoinStatus() == JoinStatus.LEFT) {
-            throw new ProjectException("Member not found", ProjectErrorCode.PROJECT_MEMBER_NOT_FOUND);
-        }
-        member.leave();
-    }
-
-    public ProjectContribution addContribution(UserId actorId, BigDecimal amount,
-                                               String note) {
+    public ProjectContribution addContribution(UserId actorId, BigDecimal amount, String note) {
         if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
             throw new ProjectException("Contribution amount must be > 0",
                     ProjectErrorCode.PROJECT_CONTRIBUTION_INVALID_AMOUNT);
         }
+        requireContributable();
 
-        if (type == ProjectType.PERSONAL) {
-            if (!actorId.equals(ownerId)) {
-                throw new ProjectException("Permission denied",
-                        ProjectErrorCode.PROJECT_PERMISSION_DENIED);
-            }
-        } else {
-            if (actorId.equals(ownerId)) {
-                // Owner can always contribute in GROUP projects
-            } else {
-            ProjectMember member = members.get(actorId.value());
-            if (member == null) {
-                throw new ProjectException("Member not found", ProjectErrorCode.PROJECT_MEMBER_NOT_FOUND);
-            }
-            if (member.getJoinStatus() != JoinStatus.JOINED) {
-                throw new ProjectException("Member not joined", ProjectErrorCode.PROJECT_MEMBER_NOT_FOUND);
-            }
-            }
+        // Only owner can contribute (current supported model)
+        if (!actorId.equals(ownerId)) {
+            throw new ProjectException("Permission denied", ProjectErrorCode.PROJECT_PERMISSION_DENIED);
         }
 
         Money money = new Money(amount, targetAmount.currency());
         ProjectContribution c = new ProjectContribution(
-                ContributionId.newId(),
-                actorId,
-                money,
-                note,
-                Instant.now()
-        );
+                ContributionId.newId(), actorId, money, note, Instant.now());
         contributions.add(c);
         return c;
     }
 
+
+    /**
+     * Net savings = money_saved − money_owed, floored at zero. This is the single
+     * source of truth for progress and completion in the all-auto model: a project
+     * only counts what it has actually put away net of overspend debt.
+     * See docs/project-tracking-all-auto-plan.md §2.
+     */
+    public BigDecimal netSavedAmount() {
+        if (tracking == null) return BigDecimal.ZERO;
+        BigDecimal saved = tracking.getMoneySaved() != null ? tracking.getMoneySaved() : BigDecimal.ZERO;
+        BigDecimal owed = tracking.getMoneyOwed() != null ? tracking.getMoneyOwed() : BigDecimal.ZERO;
+        return saved.subtract(owed).max(BigDecimal.ZERO);
+    }
+
     public Money totalContributed() {
-        if (tracking != null) {
-            return new Money(tracking.getMoneySaved(), targetAmount.currency());
-        }
-        Money total = Money.zero(targetAmount.currency());
-        for (ProjectContribution c : contributions) {
-            total = total.plus(c.getMoney());
-        }
-        return total;
+        return new Money(netSavedAmount(), targetAmount.currency());
     }
 
     public Money remaining() {
@@ -289,64 +212,119 @@ public class Project {
         return percent;
     }
 
-    public Map<UserId, Money> breakdownByUser() {
-        Map<UUID, Money> map = new HashMap<>();
-        for (ProjectContribution c : contributions) {
-            UUID uid = c.getUserId().value();
-            Money cur = map.getOrDefault(uid, Money.zero(targetAmount.currency()));
-            map.put(uid, cur.plus(c.getMoney()));
+    private void requireContributable() {
+        if (status == ProjectStatus.FROZEN) {
+            throw new ProjectException("Project is frozen; contributions are paused",
+                    ProjectErrorCode.PROJECT_FROZEN);
         }
-        return map.entrySet().stream()
-                .collect(Collectors.toMap(e -> new UserId(e.getKey()), Map.Entry::getValue));
-    }
-
-    private void requireGroup() {
-        if (type != ProjectType.GROUP) {
-            throw new ProjectException("This operation is only for GROUP project",
+        if (status == ProjectStatus.ABANDONED) {
+            throw new ProjectException("Project is abandoned; contributions are closed",
+                    ProjectErrorCode.PROJECT_ABANDONED);
+        }
+        if (status != ProjectStatus.ACTIVE) {
+            throw new ProjectException("Project is not active; contributions are closed",
                     ProjectErrorCode.PROJECT_PERMISSION_DENIED);
         }
     }
 
     private void requireCanManage(UserId actorId) {
-        if (actorId == null) {
-            throw new ProjectException("Permission denied",
+        if (actorId == null || !actorId.equals(ownerId)) {
+            throw new ProjectException("Permission denied", ProjectErrorCode.PROJECT_PERMISSION_DENIED);
+        }
+    }
+
+    public void freeze(UserId actorId) {
+        if (actorId == null || !actorId.equals(ownerId)) {
+            throw new ProjectException("Only owner can freeze project",
                     ProjectErrorCode.PROJECT_PERMISSION_DENIED);
         }
-        if (actorId.equals(ownerId)) return;
-
-        if (type == ProjectType.GROUP) {
-            ProjectMember member = members.get(actorId.value());
-            if (member != null && member.getJoinStatus() == JoinStatus.JOINED && member.isAdmin()) return;
+        if (status == ProjectStatus.ABANDONED) {
+            throw new ProjectException("Project is abandoned", ProjectErrorCode.PROJECT_ABANDONED);
         }
-
-        throw new ProjectException("Permission denied", ProjectErrorCode.PROJECT_PERMISSION_DENIED);
+        if (status == ProjectStatus.COMPLETED) {
+            throw new ProjectException("Project is completed", ProjectErrorCode.PROJECT_PERMISSION_DENIED);
+        }
+        this.status = ProjectStatus.FROZEN;
     }
 
-    public Instant getCreatedAt() {
-        return createdAt;
+    public void unfreeze(UserId actorId) {
+        if (actorId == null || !actorId.equals(ownerId)) {
+            throw new ProjectException("Only owner can unfreeze project",
+                    ProjectErrorCode.PROJECT_PERMISSION_DENIED);
+        }
+        if (status != ProjectStatus.FROZEN) {
+            throw new ProjectException("Project is not frozen",
+                    ProjectErrorCode.PROJECT_PERMISSION_DENIED);
+        }
+        this.status = ProjectStatus.ACTIVE;
     }
 
-    public static Project rehydrate (ProjectId id,
-                                     UserId ownerId,
-                                     ProjectType type,
-                                     ProjectStatus status,
-                                     ProjectPriority priority,
-                                     String name,
-                                     String description,
-                                     Money targetAmount,
-                                     LocalDate deadline,
-                                     List<ProjectMember> members,
-                                     List<ProjectContribution> contributions,
-                                     ProjectTracking tracking,
-                                     Instant createdAt
-    ) {
-        Project p = new Project(id, ownerId, type, status, priority, name, description, targetAmount, deadline, createdAt);
-        p.members.clear();
-        if (members != null) {
-            for (ProjectMember m : members) {
-                p.members.put(m.getUserId().value(), m);
-            }
+    public void abandon(UserId actorId) {
+        if (actorId == null || !actorId.equals(ownerId)) {
+            throw new ProjectException("Only owner can abandon project",
+                    ProjectErrorCode.PROJECT_PERMISSION_DENIED);
         }
+        if (status == ProjectStatus.ABANDONED) {
+            throw new ProjectException("Project already abandoned",
+                    ProjectErrorCode.PROJECT_ABANDONED);
+        }
+        this.status = ProjectStatus.ABANDONED;
+    }
+
+    // ── System-driven lifecycle (monthly settlement) ─────────────────────────
+    // These bypass the owner check because they are initiated by the settlement
+    // engine, not a user. See docs/project-tracking-all-auto-plan.md §3.
+
+    /** Freeze due to debt reaching the cap. No-op unless currently ACTIVE. */
+    public void systemFreeze() {
+        if (status == ProjectStatus.ACTIVE) {
+            this.status = ProjectStatus.FROZEN;
+        }
+    }
+
+    /** Auto-unfreeze once debt is repaid below threshold. No-op unless FROZEN. */
+    public void systemUnfreeze() {
+        if (status == ProjectStatus.FROZEN) {
+            this.status = ProjectStatus.ACTIVE;
+        }
+    }
+
+    /** Mark completed (netSaved reached target). Only from a live state. */
+    public void complete() {
+        if (status == ProjectStatus.ACTIVE || status == ProjectStatus.FROZEN) {
+            this.status = ProjectStatus.COMPLETED;
+        }
+    }
+
+    /** Terminal failure: deadline passed under target, or stuck FROZEN too long. */
+    public void expire() {
+        if (status == ProjectStatus.ACTIVE || status == ProjectStatus.FROZEN) {
+            this.status = ProjectStatus.EXPIRED;
+        }
+    }
+
+    public boolean isTerminal() {
+        return status == ProjectStatus.COMPLETED
+                || status == ProjectStatus.ABANDONED
+                || status == ProjectStatus.CANCELLED
+                || status == ProjectStatus.EXPIRED;
+    }
+
+    public static Project rehydrate(ProjectId id,
+                                    UserId ownerId,
+                                    ProjectType type,
+                                    ProjectStatus status,
+                                    ProjectPriority priority,
+                                    String name,
+                                    String description,
+                                    Money targetAmount,
+                                    LocalDate deadline,
+                                    UUID groupProjectId,
+                                    List<ProjectContribution> contributions,
+                                    ProjectTracking tracking,
+                                    Instant createdAt) {
+        Project p = new Project(id, ownerId, type, status, priority, name, description,
+                targetAmount, deadline, groupProjectId, createdAt);
         p.contributions.clear();
         if (contributions != null) {
             p.contributions.addAll(contributions);

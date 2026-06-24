@@ -12,6 +12,7 @@ import com.example.smartmoney.domain.repositories.ProjectRepository;
 import com.example.smartmoney.domain.repositories.ProjectTrackingRepository;
 import com.example.smartmoney.domain.repositories.UserIncomeRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,6 +28,9 @@ public class CreateProjectTrackingUseCase {
     private final ProjectRepository projectRepository;
     private final ProjectTrackingRepository projectTrackingRepository;
     private final UserIncomeRepository userIncomeRepository;
+
+    @Value("${app.project.max-frozen-months:3}")
+    private int maxFrozenMonths;
 
     @Transactional
     public ProjectTrackingResponse execute(String actorId, String projectId, CreateProjectTrackingRequest req) {
@@ -64,7 +68,7 @@ public class CreateProjectTrackingUseCase {
                 req.getMoneyOwed()
         );
 
-        return ProjectTrackingResponse.fromDomain(projectTrackingRepository.save(tracking));
+        return ProjectTrackingResponse.fromDomain(projectTrackingRepository.save(tracking), project, maxFrozenMonths);
     }
 
     private void validateMoneySaved(Project project, BigDecimal moneySaved) {
