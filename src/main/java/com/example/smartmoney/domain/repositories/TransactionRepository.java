@@ -82,4 +82,12 @@ public interface TransactionRepository {
             LocalDate start,
             LocalDate end
     );
+
+    public List<Object[]> getDailyTotals(UUID userId, int year, int month);
+
+    public List<Object[]> getTransactionsByYear(UUID userId, int year);
+
+    public List<Object[]> getTransactionProportionByCategoryForYear(UUID userId, int year);
+
+     public List<Object[]> getYearlyTotals(UUID userId, int year);
 }

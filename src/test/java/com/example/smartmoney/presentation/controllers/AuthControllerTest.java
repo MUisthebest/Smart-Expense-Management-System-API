@@ -46,7 +46,7 @@ class AuthControllerTest {
     @Mock private VerifyOtpUseCase verifyOtpUseCase;
     @Mock private UserNotificationUseCase notificationUseCase;
     @Mock private JwtTokenProvider jwtTokenProvider;
-
+    @Mock private GetCurrentUserUseCase getCurrentUserUseCase;
     private AuthController controller;
     private Validator validator;
 
@@ -57,10 +57,21 @@ class AuthControllerTest {
     @BeforeEach
     void setUp() {
         controller = new AuthController(
-                registerUseCase, loginUseCase, refreshTokenUseCase, logoutUseCase,
-                googleLoginUseCase, Optional.of(facebookLoginUseCase),
-                verifyEmailUseCase, updateUserUseCase, sendResetPasswordOtpUseCase,
-                resetPasswordUseCase, verifyOtpUseCase, notificationUseCase, jwtTokenProvider);
+            registerUseCase,
+            loginUseCase,
+            refreshTokenUseCase,
+            logoutUseCase,
+            googleLoginUseCase,
+            Optional.of(facebookLoginUseCase),   // ✅ FIX
+            getCurrentUserUseCase,               // ✅ THÊM
+            verifyEmailUseCase,
+            updateUserUseCase,
+            sendResetPasswordOtpUseCase,
+            resetPasswordUseCase,
+            verifyOtpUseCase,
+            notificationUseCase,
+            jwtTokenProvider
+        );
 
         ValidatorFactory factory = Validation.buildDefaultValidatorFactory();
         validator = factory.getValidator();
@@ -342,7 +353,7 @@ class AuthControllerTest {
         void facebookLoginDisabledWhenOptionalEmpty() {
             AuthController controllerWithoutFacebook = new AuthController(
                     registerUseCase, loginUseCase, refreshTokenUseCase, logoutUseCase,
-                    googleLoginUseCase, Optional.empty(),
+                    googleLoginUseCase, Optional.empty(), getCurrentUserUseCase,
                     verifyEmailUseCase, updateUserUseCase, sendResetPasswordOtpUseCase,
                     resetPasswordUseCase, verifyOtpUseCase, notificationUseCase, jwtTokenProvider);
 
@@ -439,21 +450,25 @@ class AuthControllerTest {
     }
 
     // ========================== GET CURRENT USER ==========================
-
     @Nested
     @DisplayName("GET /me")
     class GetCurrentUser {
 
         @Test
-        @DisplayName("returns 200 with user info placeholder")
-        void getCurrentUserReturns200() {
-            ResponseEntity<CheckResponse<String>> response = controller.getCurrentUser(VALID_AUTH_HEADER);
+        void getCurrentUserSuccess() {
+            UserResponse user = new UserResponse();
+            user.setId(TEST_USER_ID);
+
+            when(getCurrentUserUseCase.execute(TEST_USER_ID)).thenReturn(user);
+
+            ResponseEntity<CheckResponse<UserResponse>> response =
+                    controller.getCurrentUser(TEST_USER_ID);
 
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
             assertThat(response.getBody().isSuccess()).isTrue();
+            assertThat(response.getBody().getData()).isEqualTo(user);
         }
     }
-
     // ========================== UPDATE USER ==========================
 
     @Nested
