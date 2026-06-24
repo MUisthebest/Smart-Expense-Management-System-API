@@ -138,9 +138,9 @@ app:
 
   # Cloudinary Configuration
   cloudinary:
-    cloud-name: ${APP_CLOUDINARY_CLOUD_NAME:your_cloud_name}
-    api-key: ${APP_CLOUDINARY_API_KEY:your_api_key}
-    api-secret: ${APP_CLOUDINARY_API_SECRET:your_api_secret}
+    cloud-name: ${CLOUDINARY_CLOUD_NAME:your_cloud_name}
+    api-key: ${CLOUDINARY_API_KEY:your_api_key}
+    api-secret: ${CLOUDINARY_API_SECRET:your_api_secret}
     folder: "smart-money/users"
     secure: true
   
