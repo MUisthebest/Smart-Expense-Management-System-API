@@ -4,6 +4,7 @@ import com.example.smartmoney.application.dtos.requests.JobEvent;
 import com.example.smartmoney.application.ports.event.JobQueuePort;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.data.redis.connection.stream.RecordId;
 import org.springframework.stereotype.Component;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.connection.RedisStreamCommands.XAddOptions;
@@ -51,7 +52,27 @@ public class JobQueuePublisher implements JobQueuePort {
                         .approximateTrimming(true)
         );
 
-        System.out.println("xadd success");
-        System.out.println("Redis publisher received jobId = " + jobId);
+//        System.out.println("xadd success");
+//        System.out.println("Redis publisher received jobId = " + jobId);
+        RecordId recordId =
+                redisTemplate.opsForStream().add(
+                        StreamRecords
+                                .mapBacked(body)
+                                .withStreamKey(streamKey),
+                        XAddOptions
+                                .maxlen(maxJobsPerStream)
+                                .approximateTrimming(true)
+                );
+
+        System.out.println(
+                "PUBLISHED AI JOB stream="
+                        + streamKey
+                        + " messageId="
+                        + recordId
+                        + " jobId="
+                        + jobId
+                        + " duty="
+                        + jobEvent.getDuty()
+        );
     }
 }

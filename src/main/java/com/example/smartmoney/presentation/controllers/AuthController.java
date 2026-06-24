@@ -20,6 +20,7 @@ import com.example.smartmoney.application.usecases.auth.RefreshTokenUseCase;
 import com.example.smartmoney.application.usecases.auth.RegisterUseCase;
 import com.example.smartmoney.application.usecases.auth.GoogleLoginUseCase;
 import com.example.smartmoney.application.usecases.auth.FacebookLoginUseCase;
+import com.example.smartmoney.application.usecases.auth.GetCurrentUserUseCase;
 import com.example.smartmoney.application.usecases.auth.VerifyEmailUseCase;
 import com.example.smartmoney.application.usecases.auth.VerifyOtpUseCase;
 import com.example.smartmoney.domain.exceptions.DomainException;
@@ -64,6 +65,7 @@ public class AuthController {
     private final LogoutUseCase logoutUseCase;
     private final GoogleLoginUseCase googleLoginUseCase;
     private final Optional<FacebookLoginUseCase> facebookLoginUseCase;
+    private final GetCurrentUserUseCase getCurrentUserUseCase;
     private final VerifyEmailUseCase verifyEmailUseCase;
     private final UpdateUserUseCase updateUserUseCase;
     private final SendResetPasswordOtpUseCase sendResetPasswordOtpUseCase;
@@ -460,14 +462,15 @@ public class AuthController {
         )
     })
     @GetMapping("/me")
-    public ResponseEntity<CheckResponse<String>> getCurrentUser(
-            @Parameter(hidden = true) @RequestHeader("Authorization") String authHeader) {
-        
-        // Implementation would extract user info from token
-        CheckResponse<String> response = CheckResponse.<String>builder()
+    public ResponseEntity<CheckResponse<UserResponse>> getCurrentUser(
+            @Parameter(hidden = true) @CurrentUser UUID userId) {
+
+        UserResponse user = getCurrentUserUseCase.execute(userId);
+
+        CheckResponse<UserResponse> response = CheckResponse.<UserResponse>builder()
             .success(true)
-            .message("Current user endpoint")
-            .data("User info would be here")
+            .message("User information retrieved")
+            .data(user)
             .build();
         
         return ResponseEntity.ok(response);

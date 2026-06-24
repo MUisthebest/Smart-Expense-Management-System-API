@@ -16,12 +16,14 @@ import com.example.smartmoney.domain.models.user.UserIncome;
 import com.example.smartmoney.domain.repositories.ProjectRepository;
 import com.example.smartmoney.domain.repositories.ProjectTrackingRepository;
 import com.example.smartmoney.domain.repositories.UserIncomeRepository;
+import com.example.smartmoney.domain.repositories.UserRepository;
 import com.example.smartmoney.domain.services.SafeSpendingService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.Console;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -37,6 +39,7 @@ public class CreateProjectUseCase {
     private final ProjectRepository projectRepository;
     private final ProjectTrackingRepository projectTrackingRepository;
     private final UserIncomeRepository userIncomeRepository;
+    private final UserRepository userRepository;
     private final SafeSpendingService safeSpendingService;
 
     @Value("${app.bypass-date-gate:false}")
@@ -91,6 +94,21 @@ public class CreateProjectUseCase {
         } catch (Exception ex) {
             throw new ProjectException("Invalid actor id", ProjectErrorCode.PROJECT_PERMISSION_DENIED);
         }
+
+        var user = userRepository.findById(userId)
+                .orElseThrow(() -> new ProjectException("User not found", ProjectErrorCode.PROJECT_PERMISSION_DENIED));
+
+        if (!user.isIncomeSetupCompleted()) {
+            throw new ProjectException(
+                    "Please set up your income profile before creating a project",
+                    ProjectErrorCode.INCOME_PROFILE_REQUIRED);
+        }
+
+//        if (!user.isFinancialSetupCompleted()) {
+//            throw new ProjectException(
+//                    "Please set up your financial profile before creating a project",
+//                    ProjectErrorCode.FINANCIAL_PROFILE_REQUIRED);
+//        }
 
         UserIncome income = userIncomeRepository.findByUserId(userId)
                 .orElseThrow(() -> new ProjectException(
