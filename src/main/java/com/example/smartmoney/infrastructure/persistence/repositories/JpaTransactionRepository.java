@@ -253,8 +253,5 @@ public interface JpaTransactionRepository extends JpaRepository<TransactionEntit
     List<Object[]> getExpenseByCategoryBetween(
             @Param("userId") UUID userId,
             @Param("start") LocalDate start,
-            @Param("end") LocalDate end
-    );
-
-
+            @Param("end") LocalDate end);
 }
