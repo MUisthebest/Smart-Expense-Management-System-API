@@ -8,10 +8,12 @@ import com.example.smartmoney.domain.models.project.enums.ProjectPriority;
 import com.example.smartmoney.domain.models.project.enums.ProjectType;
 import com.example.smartmoney.domain.models.project.valueobjects.Money;
 import com.example.smartmoney.domain.models.project.valueobjects.UserId;
+import com.example.smartmoney.domain.models.user.User;
 import com.example.smartmoney.domain.models.user.UserIncome;
 import com.example.smartmoney.domain.repositories.ProjectRepository;
 import com.example.smartmoney.domain.repositories.ProjectTrackingRepository;
 import com.example.smartmoney.domain.repositories.UserIncomeRepository;
+import com.example.smartmoney.domain.repositories.UserRepository;
 import com.example.smartmoney.domain.services.SafeSpendingService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -46,6 +48,9 @@ class CreateProjectUseCaseTest {
     private UserIncomeRepository userIncomeRepository;
 
     @Mock
+    private UserRepository userRepository;
+
+    @Mock
     private ProjectTrackingRepository projectTrackingRepository;
 
     @Mock
@@ -61,9 +66,10 @@ class CreateProjectUseCaseTest {
 
     @BeforeEach
     void setUp() {
-        useCase = new CreateProjectUseCase(projectRepository, projectTrackingRepository, userIncomeRepository, safeSpendingService);
+        useCase = new CreateProjectUseCase(projectRepository, projectTrackingRepository, userIncomeRepository, userRepository, safeSpendingService);
         actorUuid = UUID.randomUUID();
         actorId = actorUuid.toString();
+        when(userRepository.findById(any(UUID.class))).thenReturn(Optional.of(onboardedUser()));
     }
 
     @Test
@@ -186,5 +192,16 @@ class CreateProjectUseCaseTest {
     private Project activeProject(ProjectPriority priority, LocalDate deadline) {
         return Project.createNew(UserId.of(actorId), ProjectType.PERSONAL, priority,
                 "P", null, new Money(new BigDecimal("10"), "VND"), deadline);
+    }
+
+    private User onboardedUser() {
+        return User.builder()
+                .id(actorUuid)
+                .username("user")
+                .fullName("User")
+                .active(true)
+                .incomeSetupCompleted(true)
+                .financialSetupCompleted(true)
+                .build();
     }
 }
