@@ -7,12 +7,7 @@ import com.example.smartmoney.application.dtos.responses.BudgetItemResponse;
 import com.example.smartmoney.application.dtos.responses.BudgetListResponse;
 import com.example.smartmoney.application.dtos.responses.BulkBudgetsResponse;
 import com.example.smartmoney.application.dtos.responses.CheckResponse;
-import com.example.smartmoney.application.usecases.budget.CreateBudgetUseCase;
-import com.example.smartmoney.application.usecases.budget.CreateBulkBudgetsUseCase;
-import com.example.smartmoney.application.usecases.budget.DeleteBudgetUseCase;
-import com.example.smartmoney.application.usecases.budget.GetBudgetDetailUseCase;
-import com.example.smartmoney.application.usecases.budget.GetBudgetListUseCase;
-import com.example.smartmoney.application.usecases.budget.UpdateBudgetUseCase;
+import com.example.smartmoney.application.usecases.budget.*;
 import com.example.smartmoney.infrastructure.security.JwtTokenProvider;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -44,6 +39,8 @@ public class BudgetController {
 
     private final CreateBudgetUseCase createBudgetUseCase;
     private final CreateBulkBudgetsUseCase createBulkBudgetsUseCase;
+    private final UpdateBulkBudgetsUseCase updateBulkBudgetsUseCase;
+    private final UpsertBulkBudgetsUseCase upsertBulkBudgetsUseCase;
     private final GetBudgetListUseCase getBudgetListUseCase;
     private final GetBudgetDetailUseCase getBudgetDetailUseCase;
     private final UpdateBudgetUseCase updateBudgetUseCase;
@@ -160,6 +157,75 @@ public class BudgetController {
         }
     }
 
+    @Operation(
+            summary = "Update budgets for multiple categories",
+            description = "Update budgets for multiple categories at once with the same month and year. Each budget item must have a unique category."
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Budgets updated successfully",
+                    content = @Content(schema = @Schema(implementation = BulkBudgetsResponse.class))
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Invalid input data"
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Unauthorized - Invalid or missing token"
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Some budgets were not found"
+            )
+    })
+    @PutMapping("/bulk")
+    public ResponseEntity<CheckResponse<BulkBudgetsResponse>> updateBulkBudgets(
+            @Parameter(description = "Bearer token", required = true, hidden = true)
+            @RequestHeader("Authorization") String authHeader,
+            @Parameter(description = "Bulk budget update data", required = true)
+            @Valid @RequestBody CreateBulkBudgetsRequest request) {
+
+        try {
+            UUID userId = extractUserIdFromToken(authHeader);
+
+            log.info(
+                    "Updating bulk budgets for user ID: {} with {} items for month: {}, year: {}",
+                    userId,
+                    request.getBudgets().size(),
+                    request.getMonth(),
+                    request.getYear()
+            );
+
+            BulkBudgetsResponse bulkResponse = upsertBulkBudgetsUseCase.execute(userId, request);
+
+            CheckResponse<BulkBudgetsResponse> response = CheckResponse.<BulkBudgetsResponse>builder()
+                    .success(true)
+                    .message(String.format("Successfully upserted %d budgets", bulkResponse.getTotalCreated()))
+                    .data(bulkResponse)
+                    .build();
+
+            log.info(
+                    "Bulk budgets updated successfully: {} updated, {} failed",
+                    bulkResponse.getTotalCreated(),
+                    bulkResponse.getFailedItems() != null ? bulkResponse.getFailedItems().size() : 0
+            );
+
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            log.error("Failed to update bulk budgets", e);
+
+            CheckResponse<BulkBudgetsResponse> response = CheckResponse.<BulkBudgetsResponse>builder()
+                    .success(false)
+                    .message("Failed to update bulk budgets: " + e.getMessage())
+                    .build();
+
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+        }
+    }
+    
     @Operation(
             summary = "Get budgets for a month",
             description = "Retrieve all budgets for the authenticated user for a specific month and year"

@@ -26,7 +26,7 @@ public class CreateUserIncomeUseCase {
     public UserIncomeResponse execute(String actorId, CreateUserIncomeRequest req) {
         UUID userId = UUID.fromString(actorId);
 
-        userRepository.findById(userId)
+        var user = userRepository.findById(userId)
                 .orElseThrow(() -> new DomainException("User not found", "USER_NOT_FOUND"));
 
         if (userIncomeRepository.findByUserId(userId).isPresent()) {
@@ -47,6 +47,8 @@ public class CreateUserIncomeUseCase {
         );
 
         UserIncome saved = userIncomeRepository.save(created);
+        user.setIncomeSetupCompleted(true);
+        userRepository.save(user);
         safeSpendingService.recalculateAndSaveSafeSpending(UserId.of(actorId));
 
         return UserIncomeResponse.fromDomain(saved);

@@ -95,6 +95,7 @@ public interface JpaTransactionRepository extends JpaRepository<TransactionEntit
             @Param("year") int year,
             @Param("month") int month);
 
+
     @Query(value = """
             WITH weeks AS (
                 SELECT generate_series(1, 5) AS week_of_month
@@ -140,7 +141,9 @@ public interface JpaTransactionRepository extends JpaRepository<TransactionEntit
     List<Object[]> getMonthlyTotals(
             @Param("userId") UUID userId,
             @Param("year") int year,
-            @Param("month") int month);
+            @Param("month") int month
+    );
+
 
     @Query(value = "SELECT EXTRACT(DAY FROM t.date)::int AS day_of_month, " +
             "COALESCE(SUM(CASE WHEN t.type = 'INCOME' THEN t.amount ELSE 0 END), 0) AS total_income, " +
@@ -204,11 +207,13 @@ public interface JpaTransactionRepository extends JpaRepository<TransactionEntit
             "WHERE t.user_id = CAST(:userId AS uuid) " +
             "AND t.date >= CAST(:start AS timestamp) " +
             "AND t.date <= CAST(:end AS timestamp) " +
-            "AND t.type = 'EXPENSE'", nativeQuery = true)
+            "AND t.type = 'EXPENSE'",
+            nativeQuery = true)
     BigDecimal getTotalExpenseBetween(
             @Param("userId") UUID userId,
             @Param("start") LocalDate start,
-            @Param("end") LocalDate end);
+            @Param("end") LocalDate end
+    );
 
     @Query(value = "SELECT COALESCE(SUM(CASE WHEN t.type = 'INCOME' THEN t.amount ELSE 0 END), 0) AS total_income, "
             +
@@ -216,25 +221,40 @@ public interface JpaTransactionRepository extends JpaRepository<TransactionEntit
             "FROM transactions t " +
             "WHERE t.user_id = CAST(:userId AS uuid) " +
             "AND t.date >= CAST(:start AS timestamp) " +
-            "AND t.date <= CAST(:end AS timestamp)", nativeQuery = true)
+            "AND t.date <= CAST(:end AS timestamp)",
+            nativeQuery = true)
     List<Object[]> getTotalIncomeAndExpenseBetween(
             @Param("userId") UUID userId,
             @Param("start") LocalDate start,
-            @Param("end") LocalDate end);
+            @Param("end") LocalDate end
+    );
+
+    @Query(value = "SELECT COALESCE(SUM(CASE WHEN t.type = 'INCOME' THEN t.amount ELSE 0 END), 0) AS total_income, " +
+            "COALESCE(SUM(CASE WHEN t.type = 'EXPENSE' THEN t.amount ELSE 0 END), 0) AS total_expense " +
+            "FROM transactions t " +
+            "WHERE t.user_id = CAST(:userId AS uuid) " +
+            "AND EXTRACT(YEAR FROM t.date) = :year",
+            nativeQuery = true)
+    List<Object[]> getTotalIncomeAndExpenseForYear(
+            @Param("userId") UUID userId,
+            @Param("year") int year
+    );
 
     @Query(value = """
-            SELECT t.category,
-                COALESCE(SUM(t.amount), 0)
-            FROM transactions t
-            WHERE t.user_id = CAST(:userId AS uuid)
-            AND t.type = 'EXPENSE'
-            AND t.date >= :start
-            AND t.date < :end
-            GROUP BY t.category
-            """, nativeQuery = true)
+        SELECT t.category,
+            COALESCE(SUM(t.amount), 0)
+        FROM transactions t
+        WHERE t.user_id = CAST(:userId AS uuid)
+        AND t.type = 'EXPENSE'
+        AND t.date >= :start
+        AND t.date < :end
+        GROUP BY t.category
+        """, nativeQuery = true)
     List<Object[]> getExpenseByCategoryBetween(
             @Param("userId") UUID userId,
             @Param("start") LocalDate start,
-            @Param("end") LocalDate end);
+            @Param("end") LocalDate end
+    );
+
 
 }

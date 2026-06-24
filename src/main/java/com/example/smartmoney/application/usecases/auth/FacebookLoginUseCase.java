@@ -219,7 +219,7 @@ public class FacebookLoginUseCase {
             throw new DomainException("Failed to create user account: " + e.getMessage());
         }
     }
-    
+
     /**
      * Map User domain model to UserResponse DTO
      */
@@ -228,7 +228,7 @@ public class FacebookLoginUseCase {
         response.setId(user.getId());
         response.setUsername(user.getUsername());
         response.setFullName(user.getFullName());
-        response.setEmail(user.getEmail().getValue());
+        response.setEmail(user.getEmail() != null ? user.getEmail().getValue() : null);
         response.setDateOfBirth(user.getDateOfBirth() != null ? user.getDateOfBirth().getFormattedValue() : null);
         response.setPhone(user.getPhone() != null ? user.getPhone().getValue() : null);
         response.setAvatar(user.getAvatar() != null ? user.getAvatar().getUrl() : null);
@@ -236,6 +236,10 @@ public class FacebookLoginUseCase {
         response.setRate(user.getRate());
         response.setRole(user.getRole());
         response.setCoin(user.getCoin());
+        response.setIncomeSetupCompleted(user.isIncomeSetupCompleted());
+        response.setFinancialSetupCompleted(user.isFinancialSetupCompleted());
+        response.setOnboardingCompleted(user.isIncomeSetupCompleted() && user.isFinancialSetupCompleted());
         return response;
     }
+
 }
