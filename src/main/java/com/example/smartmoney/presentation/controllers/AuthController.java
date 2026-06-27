@@ -20,6 +20,7 @@ import com.example.smartmoney.application.usecases.auth.RefreshTokenUseCase;
 import com.example.smartmoney.application.usecases.auth.RegisterUseCase;
 import com.example.smartmoney.application.usecases.auth.GoogleLoginUseCase;
 import com.example.smartmoney.application.usecases.auth.FacebookLoginUseCase;
+import com.example.smartmoney.application.usecases.auth.GetCurrentUserUseCase;
 import com.example.smartmoney.application.usecases.auth.VerifyEmailUseCase;
 import com.example.smartmoney.application.usecases.auth.VerifyOtpUseCase;
 import com.example.smartmoney.domain.exceptions.DomainException;
@@ -27,7 +28,6 @@ import com.example.smartmoney.application.usecases.auth.SendResetPasswordOtpUseC
 import com.example.smartmoney.application.usecases.auth.UserNotificationUseCase;
 import com.example.smartmoney.application.usecases.auth.ResetPasswordUseCase;
 import com.example.smartmoney.application.usecases.auth.UpdateUserUseCase;
-import com.example.smartmoney.domain.models.user.User;
 import com.example.smartmoney.infrastructure.security.CurrentUser;
 import com.example.smartmoney.infrastructure.security.JwtTokenProvider;
 import io.swagger.v3.oas.annotations.Operation;
@@ -65,6 +65,7 @@ public class AuthController {
     private final LogoutUseCase logoutUseCase;
     private final GoogleLoginUseCase googleLoginUseCase;
     private final Optional<FacebookLoginUseCase> facebookLoginUseCase;
+    private final GetCurrentUserUseCase getCurrentUserUseCase;
     private final VerifyEmailUseCase verifyEmailUseCase;
     private final UpdateUserUseCase updateUserUseCase;
     private final SendResetPasswordOtpUseCase sendResetPasswordOtpUseCase;
@@ -462,15 +463,16 @@ public class AuthController {
     })
     @GetMapping("/me")
     public ResponseEntity<CheckResponse<UserResponse>> getCurrentUser(
-            @Parameter(hidden = true) @RequestHeader("Authorization") String authHeader) {
+            @Parameter(hidden = true) @CurrentUser UUID userId) {
 
-        UserResponse userResponse = jwtTokenProvider.getUserByAccessToken(authHeader);
+        UserResponse user = getCurrentUserUseCase.execute(userId);
+
         CheckResponse<UserResponse> response = CheckResponse.<UserResponse>builder()
             .success(true)
-            .message("Current user endpoint")
-            .data(userResponse)
+            .message("User information retrieved")
+            .data(user)
             .build();
-
+        
         return ResponseEntity.ok(response);
     }
 

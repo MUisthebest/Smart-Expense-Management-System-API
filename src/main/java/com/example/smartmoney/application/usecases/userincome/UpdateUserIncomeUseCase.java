@@ -7,6 +7,7 @@ import com.example.smartmoney.domain.exceptions.DomainException;
 import com.example.smartmoney.domain.exceptions.EntityNotFoundException;
 import com.example.smartmoney.domain.models.user.UserIncome;
 import com.example.smartmoney.domain.repositories.UserIncomeRepository;
+import com.example.smartmoney.domain.repositories.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,6 +21,7 @@ import com.example.smartmoney.domain.models.project.valueobjects.UserId;
 public class UpdateUserIncomeUseCase {
 
     private final UserIncomeRepository userIncomeRepository;
+    private final UserRepository userRepository;
     private final SafeSpendingService safeSpendingService;
 
     @Transactional
@@ -43,6 +45,10 @@ public class UpdateUserIncomeUseCase {
                 req.getAutoInvestSurplus()
         );
         UserIncome saved = userIncomeRepository.save(current);
+        var user = userRepository.findById(userId)
+                .orElseThrow(() -> new DomainException("User not found", "USER_NOT_FOUND"));
+        user.setIncomeSetupCompleted(true);
+        userRepository.save(user);
         safeSpendingService.recalculateAndSaveSafeSpending(UserId.of(actorId));
 
         return UserIncomeResponse.fromDomain(saved);

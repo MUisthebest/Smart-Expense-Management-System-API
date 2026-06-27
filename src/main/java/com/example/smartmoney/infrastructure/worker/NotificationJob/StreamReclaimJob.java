@@ -23,7 +23,7 @@ public class StreamReclaimJob {
 
     private static final int MAX_RETRY = 3;
 
-    @Scheduled(fixedDelay = 10000)
+    @Scheduled(fixedDelay = 60000)
     public void reclaim() {
         try {
             // 🔥 lấy danh sách pending message
