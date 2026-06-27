@@ -182,6 +182,7 @@ class AuthControllerTest {
             ResponseEntity<CheckResponse<Void>> response = controller.verifyEmail(req);
 
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+            assert response.getBody() != null;
             assertThat(response.getBody().isSuccess()).isTrue();
         }
 
@@ -447,9 +448,10 @@ class AuthControllerTest {
         @Test
         @DisplayName("returns 200 with user info placeholder")
         void getCurrentUserReturns200() {
-            ResponseEntity<CheckResponse<String>> response = controller.getCurrentUser(VALID_AUTH_HEADER);
+            ResponseEntity<CheckResponse<UserResponse>> response = controller.getCurrentUser(VALID_AUTH_HEADER);
 
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+            assert response.getBody() != null;
             assertThat(response.getBody().isSuccess()).isTrue();
         }
     }

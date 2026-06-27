@@ -27,6 +27,7 @@ import com.example.smartmoney.application.usecases.auth.SendResetPasswordOtpUseC
 import com.example.smartmoney.application.usecases.auth.UserNotificationUseCase;
 import com.example.smartmoney.application.usecases.auth.ResetPasswordUseCase;
 import com.example.smartmoney.application.usecases.auth.UpdateUserUseCase;
+import com.example.smartmoney.domain.models.user.User;
 import com.example.smartmoney.infrastructure.security.CurrentUser;
 import com.example.smartmoney.infrastructure.security.JwtTokenProvider;
 import io.swagger.v3.oas.annotations.Operation;
@@ -460,16 +461,16 @@ public class AuthController {
         )
     })
     @GetMapping("/me")
-    public ResponseEntity<CheckResponse<String>> getCurrentUser(
+    public ResponseEntity<CheckResponse<UserResponse>> getCurrentUser(
             @Parameter(hidden = true) @RequestHeader("Authorization") String authHeader) {
-        
-        // Implementation would extract user info from token
-        CheckResponse<String> response = CheckResponse.<String>builder()
+
+        UserResponse userResponse = jwtTokenProvider.getUserByAccessToken(authHeader);
+        CheckResponse<UserResponse> response = CheckResponse.<UserResponse>builder()
             .success(true)
             .message("Current user endpoint")
-            .data("User info would be here")
+            .data(userResponse)
             .build();
-        
+
         return ResponseEntity.ok(response);
     }
 
