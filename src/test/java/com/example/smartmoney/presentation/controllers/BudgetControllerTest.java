@@ -44,7 +44,8 @@ class BudgetControllerTest {
     @Mock private UpdateBudgetUseCase updateBudgetUseCase;
     @Mock private DeleteBudgetUseCase deleteBudgetUseCase;
     @Mock private JwtTokenProvider jwtTokenProvider;
-
+    @Mock private UpdateBulkBudgetsUseCase updateBulkBudgetsUseCase;
+    @Mock private UpsertBulkBudgetsUseCase upsertBulkBudgetsUseCase;
     private BudgetController controller;
     private Validator validator;
 
@@ -56,9 +57,16 @@ class BudgetControllerTest {
     @BeforeEach
     void setUp() {
         controller = new BudgetController(
-                createBudgetUseCase, createBulkBudgetsUseCase, getBudgetListUseCase,
-                getBudgetDetailUseCase, updateBudgetUseCase, deleteBudgetUseCase, jwtTokenProvider);
-
+                createBudgetUseCase,
+                createBulkBudgetsUseCase,
+                updateBulkBudgetsUseCase,   // ✅ thêm
+                upsertBulkBudgetsUseCase,   // ✅ thêm
+                getBudgetListUseCase,
+                getBudgetDetailUseCase,
+                updateBudgetUseCase,
+                deleteBudgetUseCase,
+                jwtTokenProvider
+        );
         ValidatorFactory factory = Validation.buildDefaultValidatorFactory();
         validator = factory.getValidator();
     }

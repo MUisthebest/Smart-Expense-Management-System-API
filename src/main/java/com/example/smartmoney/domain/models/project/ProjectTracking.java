@@ -15,6 +15,7 @@ public class ProjectTracking {
     private BigDecimal monthlySaving;
     private int monthLeft;
     private BigDecimal moneyOwed;
+    private int frozenMonths;
     private final Instant createdAt;
     private Instant updatedAt;
 
@@ -27,6 +28,7 @@ public class ProjectTracking {
             int monthLeft,
             //int frozen_months,
             BigDecimal moneyOwed,
+            int frozenMonths,
             Instant createdAt,
             Instant updatedAt
     ) {
@@ -37,6 +39,7 @@ public class ProjectTracking {
         this.monthlySaving = normalizeMoney(monthlySaving, "monthlySaving");
         this.monthLeft = normalizeNonNegativeInt(monthLeft, "monthLeft");
         this.moneyOwed = normalizeMoney(moneyOwed, "moneyOwed");
+        this.frozenMonths = normalizeNonNegativeInt(frozenMonths, "frozenMonths");
         this.createdAt = Objects.requireNonNull(createdAt);
         this.updatedAt = Objects.requireNonNull(updatedAt);
     }
@@ -58,6 +61,7 @@ public class ProjectTracking {
                 monthlySaving,
                 monthLeft,
                 moneyOwed,
+                0,
                 now,
                 now
         );
@@ -96,6 +100,15 @@ public class ProjectTracking {
         this.monthlySaving = normalizeMoney(newMonthlySaving, "monthlySaving");
         this.monthLeft     = normalizeNonNegativeInt(newMonthLeft, "monthLeft");
         this.updatedAt     = Instant.now();
+    }
+
+    /**
+     * Sets the consecutive-frozen-months counter (settlement-driven). Reset to 0
+     * on a freeze or unfreeze transition; incremented each month a project stays frozen.
+     */
+    public void setFrozenMonths(int frozenMonths) {
+        this.frozenMonths = normalizeNonNegativeInt(frozenMonths, "frozenMonths");
+        this.updatedAt = Instant.now();
     }
 
     private BigDecimal normalizeMoney(BigDecimal value, String field) {
@@ -148,6 +161,10 @@ public class ProjectTracking {
 
     public BigDecimal getMoneyOwed() {
         return moneyOwed;
+    }
+
+    public int getFrozenMonths() {
+        return frozenMonths;
     }
 
     public Instant getCreatedAt() {

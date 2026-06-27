@@ -14,6 +14,8 @@ import org.springframework.data.redis.serializer.Jackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * AI-specific Redis Configuration for AI/ML features
@@ -21,6 +23,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  */
 @Configuration
 public class AIRedisConfig {
+
+    private static final Logger logger = LoggerFactory.getLogger(AIRedisConfig.class);
 
     @Value("${REDIS_HOST}")
     private String redisHost;
@@ -34,6 +38,9 @@ public class AIRedisConfig {
     @Value("${REDIS_PASSWORD}")
     private String redisPassword;
 
+    @Value("${REDIS_DATABASE:0}")
+    private int redisDatabase;
+
     /**
      * AI Redis Connection Factory
      * Creates a separate connection factory for AI Redis instance
@@ -45,6 +52,15 @@ public class AIRedisConfig {
         config.setPort(redisPort);
         config.setUsername(redisUsername);
         config.setPassword(redisPassword);
+        config.setDatabase(redisDatabase);
+
+        logger.warn(
+                "BE AI REDIS host={} port={} db={} ssl={}",
+                redisHost,
+                redisPort,
+                redisDatabase,
+                false
+        );
 
         LettuceClientConfiguration clientConfig = LettuceClientConfiguration.builder().build();
         return new LettuceConnectionFactory(config, clientConfig);

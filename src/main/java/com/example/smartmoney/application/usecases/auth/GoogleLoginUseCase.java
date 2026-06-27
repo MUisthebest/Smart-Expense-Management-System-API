@@ -99,14 +99,18 @@ public class GoogleLoginUseCase {
         response.setId(user.getId());
         response.setUsername(user.getUsername());
         response.setFullName(user.getFullName());
-        response.setEmail(user.getEmail().getValue());
-        response.setDateOfBirth(user.getDateOfBirth().getFormattedValue());
-        response.setPhone(user.getPhone().getValue());
+        response.setEmail(user.getEmail() != null ? user.getEmail().getValue() : null);
+        response.setDateOfBirth(user.getDateOfBirth() != null ? user.getDateOfBirth().getFormattedValue() : null);
+        response.setPhone(user.getPhone() != null ? user.getPhone().getValue() : null);
         response.setAvatar(user.getAvatar() != null ? user.getAvatar().getUrl() : null);
         response.setActive(user.isActive());
         response.setRate(user.getRate());
         response.setRole(user.getRole());
         response.setCoin(user.getCoin());
+        response.setIncomeSetupCompleted(user.isIncomeSetupCompleted());
+        response.setFinancialSetupCompleted(user.isFinancialSetupCompleted());
+        response.setOnboardingCompleted(user.isIncomeSetupCompleted() && user.isFinancialSetupCompleted());
         return response;
     }
+
 }

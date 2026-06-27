@@ -5,51 +5,57 @@ import com.example.smartmoney.application.dtos.requests.userfinancialprofile.Cre
 import com.example.smartmoney.application.dtos.responses.UserFinancialProfileResponse;
 import com.example.smartmoney.domain.exceptions.BusinessException;
 import com.example.smartmoney.domain.exceptions.CommonErrorCode;
-import com.example.smartmoney.infrastructure.persistence.entities.UserFinancialProfileEntity;
-import com.example.smartmoney.infrastructure.persistence.repositories.JpaUserFinancialProfileRepository;
-import org.springframework.http.HttpStatus;
+import com.example.smartmoney.domain.exceptions.DomainException;
+import com.example.smartmoney.domain.models.userprofile.UserFinancialProfile;
+import com.example.smartmoney.domain.repositories.UserFinancialProfileRepository;
+import com.example.smartmoney.domain.repositories.UserRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
+import java.time.Instant;
 import java.util.UUID;
 
 @Service
+@RequiredArgsConstructor
 public class CreateUserFinancialProfileUseCase {
 
-    private final JpaUserFinancialProfileRepository repository;
-
-    public CreateUserFinancialProfileUseCase(JpaUserFinancialProfileRepository repository) {
-        this.repository = repository;
-    }
+    private final UserFinancialProfileRepository userFinancialProfileRepository;
+    private final UserRepository userRepository;
 
     @Transactional
     public UserFinancialProfileResponse execute(String userId, CreateUserFinancialProfileRequest request) {
         UUID uid = UUID.fromString(userId);
 
-        if (repository.existsByUserId(uid)) {
+        userRepository.findById(uid)
+                .orElseThrow(() -> new DomainException("User not found", "USER_NOT_FOUND"));
+
+        if (userFinancialProfileRepository.existsByUserId(uid)) {
             throw new BusinessException(
                     "User financial profile already exists",
                     CommonErrorCode.RESOURCE_ALREADY_EXISTS
             );
         }
 
-        UserFinancialProfileEntity entity = UserFinancialProfileEntity.builder()
-                .userId(uid)
-                .role(request.getRole())
-                .livingStatus(request.getLivingStatus())
-                .incomeLevel(request.getIncomeLevel())
-                .transportMode(request.getTransportMode())
-                .spendingStyle(request.getSpendingStyle())
-                .workStyle(request.getWorkStyle())
-                .familyStatus(request.getFamilyStatus())
-                .studyIntensity(request.getStudyIntensity())
-                .healthNeed(request.getHealthNeed())
-                .build();
 
-        UserFinancialProfileEntity saved = repository.save(entity);
+        UserFinancialProfile profile = UserFinancialProfile.create(
+                uid,
+                request.getRole(),
+                request.getLivingStatus(),
+                request.getIncomeLevel(),
+                request.getTransportMode(),
+                request.getSpendingStyle(),
+                request.getWorkStyle(),
+                request.getFamilyStatus(),
+                request.getStudyIntensity(),
+                request.getHealthNeed()
+        );
 
-        return UserFinancialProfileResponse.fromEntity(saved);
+        UserFinancialProfile saved = userFinancialProfileRepository.save(profile);
+
+        userRepository.markFinancialSetupCompleted(uid, true);
+
+        return UserFinancialProfileResponse.fromDomain(saved);
     }
 }
 */

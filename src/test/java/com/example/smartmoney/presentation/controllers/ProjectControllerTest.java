@@ -39,17 +39,9 @@ class ProjectControllerTest {
     @Mock private UpdateProjectUseCase updateProjectUseCase;
     @Mock private GetProjectDetailUseCase getProjectDetailUseCase;
     @Mock private ListMyProjectsUseCase listMyProjectsUseCase;
-    @Mock private InviteProjectMemberUseCase inviteProjectMemberUseCase;
-    @Mock private AcceptProjectInviteUseCase acceptProjectInviteUseCase;
-    @Mock private SetProjectAdminUseCase setProjectAdminUseCase;
-    @Mock private RemoveProjectMemberUseCase removeProjectMemberUseCase;
-    @Mock private AddProjectContributionUseCase addProjectContributionUseCase;
-    @Mock private ListProjectContributionsUseCase listProjectContributionsUseCase;
-    @Mock private GetProjectContributionSummaryUseCase getProjectContributionSummaryUseCase;
     @Mock private DeleteProjectUseCase deleteProjectUseCase;
     @Mock private CreateProjectTrackingUseCase createProjectTrackingUseCase;
     @Mock private GetProjectTrackingUseCase getProjectTrackingUseCase;
-    @Mock private UpdateProjectTrackingUseCase updateProjectTrackingUseCase;
     @Mock private DeleteProjectTrackingUseCase deleteProjectTrackingUseCase;
     @Mock private GetProjectHistoryUseCase getProjectHistoryUseCase;
     @Mock private ProjectBudgetAdvisorUseCase projectBudgetAdvisorUseCase;
@@ -136,7 +128,6 @@ class ProjectControllerTest {
         @DisplayName("CreateProjectRequest: null type fails validation")
         void nullTypeFailsValidation() {
             CreateProjectRequest req = validCreateProjectRequest();
-            req.setType(null);
             Set<ConstraintViolation<CreateProjectRequest>> violations = validator.validate(req);
             assertThat(violations).anyMatch(v -> v.getPropertyPath().toString().equals("type"));
         }
@@ -344,247 +335,6 @@ class ProjectControllerTest {
         }
     }
 
-    // ========================== MEMBERS ==========================
-
-    @Nested
-    @DisplayName("POST /projects/{projectId}/members/invite")
-    class InviteMember {
-
-        @Test
-        @DisplayName("returns CheckResponse with success=true on successful invite")
-        void inviteMemberSucceeds() {
-            ProjectDetailResponse detail = buildProjectDetailResponse();
-            when(inviteProjectMemberUseCase.execute(eq(ACTOR_ID), eq(PROJECT_ID), any()))
-                    .thenReturn(detail);
-
-            InviteProjectMemberRequest req = new InviteProjectMemberRequest();
-            req.setUserId(MEMBER_ID);
-
-            CheckResponse<ProjectDetailResponse> response =
-                    controller.invite(mockAuth(), PROJECT_ID, req);
-
-            assertThat(response.isSuccess()).isTrue();
-            assertThat(response.getMessage()).isEqualTo("Invited");
-        }
-
-        @Test
-        @DisplayName("propagates exception when project is not a group project")
-        void inviteMemberThrowsForPersonalProject() {
-            when(inviteProjectMemberUseCase.execute(any(), any(), any()))
-                    .thenThrow(new RuntimeException("Cannot invite members to a PERSONAL project"));
-
-            assertThrows(RuntimeException.class,
-                    () -> controller.invite(mockAuth(), PROJECT_ID, new InviteProjectMemberRequest()));
-        }
-
-        @Test
-        @DisplayName("InviteProjectMemberRequest: blank userId fails validation")
-        void blankUserIdFailsValidation() {
-            InviteProjectMemberRequest req = new InviteProjectMemberRequest();
-            req.setUserId("");
-            Set<ConstraintViolation<InviteProjectMemberRequest>> violations = validator.validate(req);
-            assertThat(violations).anyMatch(v -> v.getPropertyPath().toString().equals("userId"));
-        }
-    }
-
-    @Nested
-    @DisplayName("POST /projects/{projectId}/members/accept")
-    class AcceptInvite {
-
-        @Test
-        @DisplayName("returns CheckResponse with success=true when invitation accepted")
-        void acceptInviteSucceeds() {
-            ProjectDetailResponse detail = buildProjectDetailResponse();
-            when(acceptProjectInviteUseCase.execute(ACTOR_ID, PROJECT_ID)).thenReturn(detail);
-
-            CheckResponse<ProjectDetailResponse> response =
-                    controller.accept(mockAuth(), PROJECT_ID);
-
-            assertThat(response.isSuccess()).isTrue();
-            assertThat(response.getMessage()).isEqualTo("Accepted");
-        }
-
-        @Test
-        @DisplayName("propagates exception when no pending invitation exists")
-        void acceptInviteThrowsWhenNoInvitation() {
-            when(acceptProjectInviteUseCase.execute(any(), any()))
-                    .thenThrow(new RuntimeException("No pending invitation found for this user"));
-
-            assertThrows(RuntimeException.class,
-                    () -> controller.accept(mockAuth(), PROJECT_ID));
-        }
-    }
-
-    @Nested
-    @DisplayName("PATCH /projects/{projectId}/members/{userId}/admin")
-    class SetAdmin {
-
-        @Test
-        @DisplayName("returns CheckResponse with updated project when admin role set")
-        void setAdminSucceeds() {
-            ProjectDetailResponse detail = buildProjectDetailResponse();
-            when(setProjectAdminUseCase.execute(eq(ACTOR_ID), eq(PROJECT_ID), eq(MEMBER_ID), any()))
-                    .thenReturn(detail);
-
-            SetProjectAdminRequest req = new SetProjectAdminRequest();
-            req.setAdmin(true);
-
-            CheckResponse<ProjectDetailResponse> response =
-                    controller.setAdmin(mockAuth(), PROJECT_ID, MEMBER_ID, req);
-
-            assertThat(response.isSuccess()).isTrue();
-            assertThat(response.getMessage()).isEqualTo("Updated");
-        }
-
-        @Test
-        @DisplayName("propagates exception when caller is not owner")
-        void setAdminThrowsWhenNotOwner() {
-            when(setProjectAdminUseCase.execute(any(), any(), any(), any()))
-                    .thenThrow(new RuntimeException("Only the owner can change admin roles"));
-
-            assertThrows(RuntimeException.class,
-                    () -> controller.setAdmin(mockAuth(), PROJECT_ID, MEMBER_ID, new SetProjectAdminRequest()));
-        }
-    }
-
-    @Nested
-    @DisplayName("DELETE /projects/{projectId}/members/{userId}")
-    class RemoveMember {
-
-        @Test
-        @DisplayName("returns CheckResponse with success=true when member removed")
-        void removeMemberSucceeds() {
-            ProjectDetailResponse detail = buildProjectDetailResponse();
-            when(removeProjectMemberUseCase.execute(ACTOR_ID, PROJECT_ID, MEMBER_ID))
-                    .thenReturn(detail);
-
-            CheckResponse<ProjectDetailResponse> response =
-                    controller.removeMember(mockAuth(), PROJECT_ID, MEMBER_ID);
-
-            assertThat(response.isSuccess()).isTrue();
-            assertThat(response.getMessage()).isEqualTo("Removed");
-        }
-
-        @Test
-        @DisplayName("propagates exception when trying to remove the owner")
-        void removeMemberThrowsWhenRemovingOwner() {
-            when(removeProjectMemberUseCase.execute(any(), any(), any()))
-                    .thenThrow(new RuntimeException("Cannot remove the project owner"));
-
-            assertThrows(RuntimeException.class,
-                    () -> controller.removeMember(mockAuth(), PROJECT_ID, ACTOR_ID));
-        }
-    }
-
-    // ========================== CONTRIBUTIONS ==========================
-
-    @Nested
-    @DisplayName("POST /projects/{projectId}/contributions")
-    class AddContribution {
-
-        @Test
-        @DisplayName("returns CheckResponse with contribution on success")
-        void addContributionSucceeds() {
-            ProjectContributionResponse contributionResponse = buildContributionResponse();
-            when(addProjectContributionUseCase.execute(eq(ACTOR_ID), eq(PROJECT_ID), any()))
-                    .thenReturn(contributionResponse);
-
-            AddProjectContributionRequest req = new AddProjectContributionRequest();
-            req.setAmount(new BigDecimal("500.00"));
-            req.setNote("Monthly saving");
-
-            CheckResponse<ProjectContributionResponse> response =
-                    controller.addContribution(mockAuth(), PROJECT_ID, req);
-
-            assertThat(response.isSuccess()).isTrue();
-            assertThat(response.getMessage()).isEqualTo("Added");
-            assertThat(response.getData()).isEqualTo(contributionResponse);
-        }
-
-        @Test
-        @DisplayName("propagates exception when user is not a project member")
-        void addContributionThrowsWhenNotMember() {
-            when(addProjectContributionUseCase.execute(any(), any(), any()))
-                    .thenThrow(new RuntimeException("User is not a member of this project"));
-
-            AddProjectContributionRequest req = new AddProjectContributionRequest();
-            req.setAmount(new BigDecimal("100.00"));
-
-            assertThrows(RuntimeException.class,
-                    () -> controller.addContribution(mockAuth(), PROJECT_ID, req));
-        }
-
-        @Test
-        @DisplayName("AddProjectContributionRequest: null amount fails validation")
-        void nullAmountFailsValidation() {
-            AddProjectContributionRequest req = new AddProjectContributionRequest();
-            req.setAmount(null);
-            Set<ConstraintViolation<AddProjectContributionRequest>> violations = validator.validate(req);
-            assertThat(violations).anyMatch(v -> v.getPropertyPath().toString().equals("amount"));
-        }
-
-        @Test
-        @DisplayName("AddProjectContributionRequest: zero amount fails validation")
-        void zeroAmountFailsValidation() {
-            AddProjectContributionRequest req = new AddProjectContributionRequest();
-            req.setAmount(BigDecimal.ZERO);
-            Set<ConstraintViolation<AddProjectContributionRequest>> violations = validator.validate(req);
-            assertThat(violations).anyMatch(v -> v.getPropertyPath().toString().equals("amount"));
-        }
-
-        @Test
-        @DisplayName("AddProjectContributionRequest: note exceeding 255 chars fails validation")
-        void noteTooLongFailsValidation() {
-            AddProjectContributionRequest req = new AddProjectContributionRequest();
-            req.setAmount(new BigDecimal("100.00"));
-            req.setNote("a".repeat(256));
-            Set<ConstraintViolation<AddProjectContributionRequest>> violations = validator.validate(req);
-            assertThat(violations).anyMatch(v -> v.getPropertyPath().toString().equals("note"));
-        }
-    }
-
-    @Nested
-    @DisplayName("GET /projects/{projectId}/contributions")
-    class ListContributions {
-
-        @Test
-        @DisplayName("returns list of contributions on success")
-        void listContributionsSucceeds() {
-            List<ProjectContributionResponse> contributions = List.of(buildContributionResponse());
-            when(listProjectContributionsUseCase.execute(ACTOR_ID, PROJECT_ID)).thenReturn(contributions);
-
-            CheckResponse<List<ProjectContributionResponse>> response =
-                    controller.listContributions(mockAuth(), PROJECT_ID);
-
-            assertThat(response.isSuccess()).isTrue();
-            assertThat(response.getData()).hasSize(1);
-        }
-    }
-
-    @Nested
-    @DisplayName("GET /projects/{projectId}/contributions/summary")
-    class ContributionSummary {
-
-        @Test
-        @DisplayName("returns contribution summary on success")
-        void summarySucceeds() {
-            ContributionSummaryResponse summaryResponse = ContributionSummaryResponse.builder()
-                    .totalContributed(new BigDecimal("1500.00"))
-                    .remaining(new BigDecimal("3500.00"))
-                    .progressPercent(new BigDecimal("30"))
-                    .contributors(List.of())
-                    .build();
-            when(getProjectContributionSummaryUseCase.execute(ACTOR_ID, PROJECT_ID))
-                    .thenReturn(summaryResponse);
-
-            CheckResponse<ContributionSummaryResponse> response =
-                    controller.summary(mockAuth(), PROJECT_ID);
-
-            assertThat(response.isSuccess()).isTrue();
-            assertThat(response.getData().getTotalContributed()).isEqualByComparingTo("1500.00");
-        }
-    }
-
     // ========================== TRACKING ==========================
 
     @Nested
@@ -752,7 +502,6 @@ class ProjectControllerTest {
         CreateProjectRequest req = new CreateProjectRequest();
         req.setName("Vacation Fund");
         req.setDescription("Save for annual vacation");
-        req.setType(ProjectType.PERSONAL);
         req.setPriority(ProjectPriority.MEDIUM);
         req.setTargetAmount(new BigDecimal("5000.00"));
         req.setCurrency("VND");
@@ -793,17 +542,6 @@ class ProjectControllerTest {
                 .progressPercent(BigDecimal.ZERO)
                 .deadline(LocalDate.now().plusMonths(6))
                 .monthsLeft(6)
-                .build();
-    }
-
-    private ProjectContributionResponse buildContributionResponse() {
-        return ProjectContributionResponse.builder()
-                .contributionId(java.util.UUID.randomUUID().toString())
-                .userId(ACTOR_ID)
-                .amount(new BigDecimal("500.00"))
-                .currency("VND")
-                .note("Monthly saving")
-                .createdAt(Instant.now())
                 .build();
     }
 

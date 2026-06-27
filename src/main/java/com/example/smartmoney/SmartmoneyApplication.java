@@ -10,7 +10,6 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
-import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
 @EnableJpaRepositories
@@ -31,7 +30,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
     ),
     servers = {
         @Server(
-            url = "http://localhost:8080",
+            url = "http://localhost:8082",
             description = "Local Development Server"
         ),
         @Server(
