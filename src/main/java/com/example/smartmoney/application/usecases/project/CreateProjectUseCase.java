@@ -7,6 +7,7 @@ import com.example.smartmoney.domain.exceptions.ProjectException;
 import com.example.smartmoney.domain.models.project.Project;
 import com.example.smartmoney.domain.models.project.enums.ProjectPriority;
 import com.example.smartmoney.domain.models.project.enums.ProjectStatus;
+import com.example.smartmoney.domain.models.project.enums.ProjectType;
 import com.example.smartmoney.domain.models.project.valueobjects.Money;
 import com.example.smartmoney.domain.models.project.valueobjects.UserId;
 import com.example.smartmoney.domain.repositories.ProjectRepository;
@@ -40,7 +41,7 @@ public class CreateProjectUseCase {
 
         Project p = Project.createNew(
                 UserId.of(actorId),
-                req.getType(),
+                ProjectType.PERSONAL, // CreateProjectRequest no longer carries type; only PERSONAL exists
                 req.getPriority(),
                 req.getName(),
                 req.getDescription(),

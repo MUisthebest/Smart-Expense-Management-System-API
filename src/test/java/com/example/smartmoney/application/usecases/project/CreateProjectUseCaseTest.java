@@ -62,7 +62,7 @@ class CreateProjectUseCaseTest {
     private UUID actorUuid;
     private String actorId;
 
-    /** A fixed date whose dayOfMonth is 1, inside the V13 creation window (days 1-7). */
+    // A fixed date whose dayOfMonth is 1, inside the V13 creation window (days 1-7).
     private static final LocalDate WINDOW_DATE = LocalDate.of(2026, 6, 1);
 
     @BeforeEach
@@ -164,11 +164,11 @@ class CreateProjectUseCaseTest {
         }
     }
 
-    /**
-     * Pins {@link LocalDate#now()} to {@link #WINDOW_DATE} (day-of-month 1, inside the
-     * V13 days 1-7 creation window) so the date-gate check passes, while leaving every
-     * other LocalDate method (of, plusMonths, ...) real.
-     */
+    //
+    // Pins LocalDate.now() to WINDOW_DATE (day-of-month 1, inside the
+    // V13 days 1-7 creation window) so the date-gate check passes, while leaving every
+    // other LocalDate method (of, plusMonths, ...) real.
+    //
     private MockedStatic<LocalDate> mockLocalDate() {
         MockedStatic<LocalDate> mocked = mockStatic(LocalDate.class, org.mockito.Mockito.CALLS_REAL_METHODS);
         mocked.when(LocalDate::now).thenReturn(WINDOW_DATE);
