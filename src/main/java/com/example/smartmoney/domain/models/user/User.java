@@ -1,5 +1,8 @@
 package com.example.smartmoney.domain.models.user;
 
+import com.example.smartmoney.domain.models.user.enums.Focus_Mode;
+import com.example.smartmoney.domain.models.user.enums.Intervention_Level;
+import com.example.smartmoney.domain.models.user.enums.Saving_Pace;
 import com.example.smartmoney.domain.models.user.valueobjects.*;
 import com.example.smartmoney.domain.models.user.enums.Role;
 import com.example.smartmoney.domain.exceptions.DomainException;
@@ -34,6 +37,9 @@ public class User {
     private boolean active = true;
     private boolean emailVerified = false;  // Trạng thái xác minh email
     private boolean notificationEnabled = true;
+    private Focus_Mode focusMode;    //New attributes
+    private Intervention_Level interventionLevel;   //New attributes
+    private Saving_Pace savingPace;  //New attributes.
     
     // Factory method for registration
     public static User create(

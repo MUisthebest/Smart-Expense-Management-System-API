@@ -1,5 +1,6 @@
 package com.example.smartmoney.presentation.controllers;
 
+/*
 import com.example.smartmoney.application.dtos.requests.userincome.CreateUserIncomeRequest;
 import com.example.smartmoney.application.dtos.requests.userincome.UpdateUserIncomeRequest;
 import com.example.smartmoney.application.dtos.responses.CheckResponse;
@@ -81,3 +82,4 @@ public class UserIncomeController {
                 .build();
     }
 }
+*/

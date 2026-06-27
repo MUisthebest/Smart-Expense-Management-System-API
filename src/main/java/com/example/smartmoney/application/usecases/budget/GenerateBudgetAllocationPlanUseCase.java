@@ -1,5 +1,6 @@
 package com.example.smartmoney.application.usecases.budget;
 
+/*
 import com.example.smartmoney.application.usecases.queue.ProcessQueueRequestUseCase;
 import com.example.smartmoney.domain.models.message.MessageRecord;
 import com.example.smartmoney.domain.models.project.valueobjects.UserId;
@@ -104,9 +105,6 @@ public class GenerateBudgetAllocationPlanUseCase {
     }
 
     private Map<String, Object> buildHistoryFeatures(UUID userId, YearMonth currentMonth) {
-        // Tạm thời có thể để default trước để test flow BE → Redis → AI.
-        // Sau đó thay bằng logic tính avg_3m_ratio từ transaction history.
-
         return Map.of(
                 "FOOD_avg_3m_ratio", 0.28,
                 "TRANSPORT_avg_3m_ratio", 0.12,
@@ -119,3 +117,4 @@ public class GenerateBudgetAllocationPlanUseCase {
         );
     }
 }
+*/

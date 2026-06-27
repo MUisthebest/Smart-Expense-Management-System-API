@@ -11,7 +11,6 @@ import com.example.smartmoney.domain.models.project.valueobjects.ProjectId;
 import com.example.smartmoney.domain.models.project.valueobjects.UserId;
 import com.example.smartmoney.domain.repositories.ProjectRepository;
 import com.example.smartmoney.domain.repositories.ProjectTrackingRepository;
-import com.example.smartmoney.domain.repositories.UserIncomeRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -37,14 +36,11 @@ class CreateProjectTrackingUseCaseTest {
     @Mock
     private ProjectTrackingRepository projectTrackingRepository;
 
-    @Mock
-    private UserIncomeRepository userIncomeRepository;
-
     private CreateProjectTrackingUseCase useCase;
 
     @BeforeEach
     void setUp() {
-        useCase = new CreateProjectTrackingUseCase(projectRepository, projectTrackingRepository, userIncomeRepository);
+        useCase = new CreateProjectTrackingUseCase(projectRepository, projectTrackingRepository);
     }
 
     @Test

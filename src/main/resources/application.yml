@@ -33,7 +33,7 @@ spring:
   # JPA Configuration
   jpa:
     hibernate:
-      ddl-auto: update  # Flyway manages schema
+      ddl-auto: validate
     show-sql: true
     properties:
       hibernate:

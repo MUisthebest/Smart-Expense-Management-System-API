@@ -1,5 +1,6 @@
 package com.example.smartmoney.application.dtos.responses;
 
+/*
 import com.example.smartmoney.infrastructure.persistence.entities.UserFinancialProfileEntity;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Builder;
@@ -61,3 +62,4 @@ public class UserFinancialProfileResponse {
                 .build();
     }
 }
+*/

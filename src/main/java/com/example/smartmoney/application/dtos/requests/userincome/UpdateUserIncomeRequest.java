@@ -1,5 +1,6 @@
 package com.example.smartmoney.application.dtos.requests.userincome;
 
+/*
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
@@ -21,3 +22,4 @@ public class UpdateUserIncomeRequest {
 
     private Boolean autoInvestSurplus;
 }
+*/

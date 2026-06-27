@@ -1,5 +1,6 @@
 package com.example.smartmoney.infrastructure.persistence.repositories;
 
+/*
 import com.example.smartmoney.infrastructure.persistence.entities.UserFinancialProfileEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -13,3 +14,4 @@ public interface JpaUserFinancialProfileRepository
 
         boolean existsByUserId (UUID userId);
 }
+*/

@@ -9,10 +9,8 @@ import com.example.smartmoney.domain.models.project.enums.ProjectPriority;
 import com.example.smartmoney.domain.models.project.enums.ProjectStatus;
 import com.example.smartmoney.domain.models.project.valueobjects.Money;
 import com.example.smartmoney.domain.models.project.valueobjects.UserId;
-import com.example.smartmoney.domain.models.user.UserIncome;
 import com.example.smartmoney.domain.repositories.ProjectRepository;
 import com.example.smartmoney.domain.repositories.ProjectTrackingRepository;
-import com.example.smartmoney.domain.repositories.UserIncomeRepository;
 import com.example.smartmoney.domain.services.SafeSpendingService;
 import com.example.smartmoney.domain.models.project.ProjectTracking;
 import com.example.smartmoney.domain.models.project.valueobjects.ProjectId;
@@ -26,7 +24,6 @@ import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -34,7 +31,7 @@ public class CreateProjectUseCase {
 
     private final ProjectRepository projectRepository;
     private final ProjectTrackingRepository projectTrackingRepository;
-    private final UserIncomeRepository userIncomeRepository;
+    // private final UserIncomeRepository userIncomeRepository;  // Disabled: user_income table removed
     private final SafeSpendingService safeSpendingService;
 
     @Transactional
@@ -73,40 +70,8 @@ public class CreateProjectUseCase {
     }
 
     private void validateCreate(String actorId, CreateProjectRequest req) {
-        UUID userId;
-        try {
-            userId = UUID.fromString(actorId);
-        } catch (Exception ex) {
-            throw new ProjectException("Invalid actor id", ProjectErrorCode.PROJECT_PERMISSION_DENIED);
-        }
-
-        UserIncome income = userIncomeRepository.findByUserId(userId)
-                .orElseThrow(() -> new ProjectException(
-                        "You must set net_income and usable_income before creating a project",
-                        ProjectErrorCode.PROJECT_USER_INCOME_REQUIRED
-                ));
-
-        if (income.getNetIncome() == null || income.getUsableIncome() == null) {
-            throw new ProjectException(
-                    "You must set net_income and usable_income before creating a project",
-                    ProjectErrorCode.PROJECT_USER_INCOME_REQUIRED
-            );
-        }
-
-        if (income.getUsableIncome() <= 0) {
-            throw new ProjectException(
-                    "usable_income must be > 0 before creating a project",
-                    ProjectErrorCode.PROJECT_USER_INCOME_REQUIRED
-            );
-        }
-
-        if (income.getCurrency() != null && req.getCurrency() != null
-                && !income.getCurrency().equalsIgnoreCase(req.getCurrency())) {
-            throw new ProjectException(
-                    "Project currency must match your user income currency",
-                    ProjectErrorCode.PROJECT_USER_INCOME_REQUIRED
-            );
-        }
+        // Disabled: user_income validation removed (user_income table removed)
+        // Income check and 20% monthly obligation rule are no longer enforced
 
         UserId actor = UserId.of(actorId);
         List<Project> all = projectRepository.findAllByUser(actor);
@@ -150,15 +115,6 @@ public class CreateProjectUseCase {
                     ProjectErrorCode.PROJECT_ACTIVE_PRIORITY_CONFLICT
             );
         }
-
-        // 20% monthly obligation rule — enforced via MonthlyObligationPolicy
-        List<Project> otherActive = MonthlyObligationPolicy.otherActiveOwned(
-                all, actor, null /* brand-new project: nothing to exclude */);
-        MonthlyObligationPolicy.assertWithinLimit(
-                income,
-                otherActive,
-                MonthlyObligationPolicy.derivedMonthly(req.getTargetAmount(), req.getDeadline())
-        );
     }
 
     private int monthsToDeadline(LocalDate today, LocalDate deadline) {

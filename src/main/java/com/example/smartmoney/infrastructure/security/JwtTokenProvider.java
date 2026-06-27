@@ -8,7 +8,6 @@ import com.example.smartmoney.domain.models.user.valueobjects.Phone;
 import com.example.smartmoney.domain.models.user.valueobjects.RefreshToken;
 import com.example.smartmoney.domain.exceptions.AuthenticationException;
 import com.example.smartmoney.domain.models.user.enums.Role;
-import com.example.smartmoney.domain.models.userprofile.enums.UserRole;
 import com.example.smartmoney.domain.repositories.UserRepository;
 
 import io.jsonwebtoken.*;

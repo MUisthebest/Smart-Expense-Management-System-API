@@ -1,5 +1,6 @@
 package com.example.smartmoney.domain.models.userprofile;
 
+/*
 import com.example.smartmoney.domain.models.userprofile.enums.FamilyStatus;
 import com.example.smartmoney.domain.models.userprofile.enums.HealthNeed;
 import com.example.smartmoney.domain.models.userprofile.enums.IncomeLevel;
@@ -37,3 +38,4 @@ public class UserFinancialProfile {
     private final Instant createdAt;
     private final Instant updatedAt;
 }
+*/
