@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.Optional;
 
 @Repository
 @RequiredArgsConstructor
@@ -31,6 +32,11 @@ public class NotificationRepositoryImpl implements NotificationRepository {
         return mapper.toDomain(jpaRepository.save(entity));
     }
 
+    @Override
+    public int updateReadStatusByUserIdAndIds(UUID userId, List<UUID> ids, boolean read) {
+        return jpaRepository.updateReadStatusByUserIdAndIds(userId, ids, read);
+    }
+    
     @Override
     public List<Notification> findByUserIdOrderByCreatedAtDesc(UUID userId) {
         // ❗ tránh findAll + filter (rất tệ performance)

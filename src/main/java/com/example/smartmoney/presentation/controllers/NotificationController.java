@@ -2,12 +2,13 @@ package com.example.smartmoney.presentation.controllers;
 
 import com.example.smartmoney.application.usecases.notification.CreateNotificationUseCase;
 import com.example.smartmoney.application.usecases.notification.GetNotificationUseCase;
+import com.example.smartmoney.application.usecases.notification.MarkNotificationAsReadUseCase;
 import com.example.smartmoney.domain.models.notification.Notification;
 import com.example.smartmoney.application.dtos.requests.notification.CreateNotificationRequest;
+import com.example.smartmoney.application.dtos.requests.notification.MarkNotificationsReadRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 import com.example.smartmoney.application.dtos.responses.CheckResponse;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import com.example.smartmoney.infrastructure.security.JwtTokenProvider;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -32,6 +33,7 @@ public class NotificationController {
 
     private final CreateNotificationUseCase createNotificationUseCase;
     private final GetNotificationUseCase getNotificationUseCase;
+    private final MarkNotificationAsReadUseCase markNotificationAsReadUseCase;
     private final JwtTokenProvider jwtTokenProvider;
 
     @Operation(
@@ -69,6 +71,21 @@ public class NotificationController {
                 .success(true)
                 .message("Notification created successfully")
                 .data(notification)
+                .build()
+        );
+    }
+
+    @PatchMapping("/read")
+    public ResponseEntity<CheckResponse<Void>> markManyAsRead(
+            @RequestBody MarkNotificationsReadRequest request,
+            @RequestHeader("Authorization") String authHeader
+    ) {
+        UUID userId = extractUserIdFromToken(authHeader);
+        markNotificationAsReadUseCase.markManyAsRead(request.getNotificationIds(), userId);
+        return ResponseEntity.ok(
+            CheckResponse.<Void>builder()
+                .success(true)
+                .message("Notifications marked as read")
                 .build()
         );
     }

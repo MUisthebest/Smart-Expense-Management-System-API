@@ -20,6 +20,12 @@ public interface JpaNotificationRepository extends JpaRepository<NotificationEnt
     // Đếm tổng số notification
     long countByUserId(UUID userId);
 
+    @Modifying
+    @Query("UPDATE NotificationEntity n SET n.read = :read WHERE n.userId = :userId AND n.id IN :ids")
+    int updateReadStatusByUserIdAndIds(@Param("userId") UUID userId,
+                                       @Param("ids") List<UUID> ids,
+                                       @Param("read") boolean read);
+
     List<NotificationEntity> findByUserIdOrderByCreatedAtDesc(UUID userId);
     
     // Tìm created_at nhỏ nhất trong số limit bản ghi mới nhất (sắp xếp giảm dần theo thời gian)
