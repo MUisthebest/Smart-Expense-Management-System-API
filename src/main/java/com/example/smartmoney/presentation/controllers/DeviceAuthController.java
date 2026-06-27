@@ -86,7 +86,7 @@ public class DeviceAuthController {
                     .message("Device activated successfully. You may close this tab.")
                     .build());
 
-        } catch (DomainException e) {
+        } catch (DomainException  e) {
             log.warn("Device activation failed: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(CheckResponse.<Void>builder()
