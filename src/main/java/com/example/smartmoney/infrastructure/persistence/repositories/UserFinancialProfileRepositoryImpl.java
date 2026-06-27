@@ -1,5 +1,7 @@
 package com.example.smartmoney.infrastructure.persistence.repositories;
 
+// Disabled: user_financial_profile table removed.
+/*
 import com.example.smartmoney.domain.models.userprofile.UserFinancialProfile;
 import com.example.smartmoney.domain.repositories.UserFinancialProfileRepository;
 import com.example.smartmoney.infrastructure.persistence.entities.UserFinancialProfileEntity;
@@ -79,3 +81,4 @@ public class UserFinancialProfileRepositoryImpl implements UserFinancialProfileR
         return entity;
     }
 }
+*/
