@@ -1,5 +1,6 @@
 package com.example.smartmoney.application.dtos.responses;
 
+/*
 import lombok.Builder;
 import lombok.Getter;
 
@@ -11,3 +12,4 @@ public class UserFinancialProfileMeResponse {
 
     private UserFinancialProfileResponse profile;
 }
+*/

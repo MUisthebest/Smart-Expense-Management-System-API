@@ -67,6 +67,13 @@ public class UserEntity {
     
     @Column(name = "notification_enabled", nullable = false)
     private boolean notificationEnabled = true;
+
+    @Column(name = "income_setup_completed", nullable = false)
+    private boolean incomeSetupCompleted = false;
+
+    @Column(name = "financial_setup_completed", nullable = false)
+    private boolean financialSetupCompleted = false;
+
     // Enum phải là public để MapStruct truy cập được
     public enum Role {
         USER,

@@ -1,5 +1,6 @@
 package com.example.smartmoney.application.usecases.userincome;
 
+/*
 import com.example.smartmoney.domain.exceptions.EntityNotFoundException;
 import com.example.smartmoney.domain.repositories.UserIncomeRepository;
 import lombok.RequiredArgsConstructor;
@@ -25,3 +26,4 @@ public class DeleteUserIncomeUseCase {
         userIncomeRepository.deleteByUserId(userId);
     }
 }
+*/

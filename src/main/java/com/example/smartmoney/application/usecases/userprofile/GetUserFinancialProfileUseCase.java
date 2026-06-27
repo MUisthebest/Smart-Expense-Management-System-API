@@ -1,5 +1,6 @@
 package com.example.smartmoney.application.usecases.userprofile;
 
+/*
 import com.example.smartmoney.application.dtos.responses.UserFinancialProfileResponse;
 import com.example.smartmoney.domain.models.project.valueobjects.UserId;
 import com.example.smartmoney.infrastructure.persistence.repositories.JpaUserFinancialProfileRepository;
@@ -27,3 +28,4 @@ public class GetUserFinancialProfileUseCase {
                 .orElse(null);
     }
 }
+*/

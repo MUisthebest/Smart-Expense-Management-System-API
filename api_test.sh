@@ -14,7 +14,7 @@ PROJECT_ID=""; GROUP_PROJECT_ID=""
 
 # ── Credentials ──────────────────────────────────────────────────
 VERIFIED_EMAIL="nguyenphucanpth@gmail.com"
-VERIFIED_PASS="nguyenphucan"
+VERIFIED_PASS="test@123"
 RAND=$(date +%s)
 NEW_EMAIL="test_${RAND}@test.dev"
 NEW_PASS="Test@123456"
@@ -355,39 +355,39 @@ assert "DELETE /budgets/:id not found → 404" "404"
 # ================================================================
 # 4. USER INCOME
 # ================================================================
-section "4. USER INCOME"
-
-curl -s -X DELETE "$BASE_URL/user-income/me" -H "$AUTH" > /dev/null
-
-call POST "/user-income/me" -H "$AUTH" -H "Content-Type: application/json" \
-  -d '{"netIncome":100000000,"usableIncome":80000000,"currency":"VND","autoInvestSurplus":false,"calculationNote":"Test income"}'
-assert "POST /user-income/me" "200"
-assert_field "income.netIncome" ".data.netIncome"
-
-call POST "/user-income/me" -H "$AUTH" -H "Content-Type: application/json" \
-  -d '{"netIncome":5000000,"usableIncome":4000000,"currency":"VND"}'
-if [[ "$RESP_STATUS" != "200" ]]; then
-  pass "[POST /user-income/me duplicate → error HTTP $RESP_STATUS]"
-else
-  info "[POST /user-income/me duplicate] returned 200 (upsert)"; ((PASS++))
-fi
-
-call GET "/user-income/me" -H "$AUTH"
-assert "GET /user-income/me" "200"
-assert_field "netIncome" ".data.netIncome"
-
-call PUT "/user-income/me" -H "$AUTH" -H "Content-Type: application/json" \
-  -d '{"netIncome":100000000}'
-assert "PUT /user-income/me partial" "200"
-
-call PUT "/user-income/me" -H "$AUTH" -H "Content-Type: application/json" \
-  -d '{"netIncome":100000000,"usableIncome":80000000,"currency":"VND","autoInvestSurplus":true}'
-assert "PUT /user-income/me full" "200"
-assert_field "updated netIncome" ".data.netIncome"
-
-call PUT "/user-income/me" -H "$AUTH" -H "Content-Type: application/json" \
-  -d '{"netIncome":-1000}'
-assert "PUT /user-income/me negative → 400" "400"
+#section "4. USER INCOME"
+#
+#curl -s -X DELETE "$BASE_URL/user-income/me" -H "$AUTH" > /dev/null
+#
+#call POST "/user-income/me" -H "$AUTH" -H "Content-Type: application/json" \
+#  -d '{"netIncome":100000000,"usableIncome":80000000,"currency":"VND","autoInvestSurplus":false,"calculationNote":"Test income"}'
+#assert "POST /user-income/me" "200"
+#assert_field "income.netIncome" ".data.netIncome"
+#
+#call POST "/user-income/me" -H "$AUTH" -H "Content-Type: application/json" \
+#  -d '{"netIncome":5000000,"usableIncome":4000000,"currency":"VND"}'
+#if [[ "$RESP_STATUS" != "200" ]]; then
+#  pass "[POST /user-income/me duplicate → error HTTP $RESP_STATUS]"
+#else
+#  info "[POST /user-income/me duplicate] returned 200 (upsert)"; ((PASS++))
+#fi
+#
+#call GET "/user-income/me" -H "$AUTH"
+#assert "GET /user-income/me" "200"
+#assert_field "netIncome" ".data.netIncome"
+#
+#call PUT "/user-income/me" -H "$AUTH" -H "Content-Type: application/json" \
+#  -d '{"netIncome":100000000}'
+#assert "PUT /user-income/me partial" "200"
+#
+#call PUT "/user-income/me" -H "$AUTH" -H "Content-Type: application/json" \
+#  -d '{"netIncome":100000000,"usableIncome":80000000,"currency":"VND","autoInvestSurplus":true}'
+#assert "PUT /user-income/me full" "200"
+#assert_field "updated netIncome" ".data.netIncome"
+#
+#call PUT "/user-income/me" -H "$AUTH" -H "Content-Type: application/json" \
+#  -d '{"netIncome":-1000}'
+#assert "PUT /user-income/me negative → 400" "400"
 
 # ================================================================
 # 5. PROJECTS
@@ -492,31 +492,31 @@ assert "POST /projects/project-advisor missing mode → 400" "400"
 # ================================================================
 # 6. USER FINANCIAL PROFILE
 # ================================================================
-section "6. USER FINANCIAL PROFILE"
-
-curl -s -X DELETE "$BASE_URL/user-financial-profile" -H "$AUTH" > /dev/null
-
-call POST "/user-financial-profile" -H "$AUTH" -H "Content-Type: application/json" \
-  -d '{"role":"STUDENT","living_status":"WITH_FAMILY","income_level":"LOW","transport_mode":"BUS","spending_style":"FRUGAL","work_style":"PART_TIME","family_status":"SINGLE","study_intensity":"COURSE_HEAVY","health_need":"LOW"}'
-assert "POST /user-financial-profile" "200"
-assert_field "profile.role" ".data.role"
-
-call POST "/user-financial-profile" -H "$AUTH" -H "Content-Type: application/json" \
-  -d '{"role":"STUDENT","living_status":"WITH_FAMILY","income_level":"LOW","transport_mode":"BUS","spending_style":"FRUGAL","work_style":"PART_TIME","family_status":"SINGLE","study_intensity":"COURSE_HEAVY","health_need":"LOW"}'
-assert "POST /user-financial-profile duplicate → 409" "409"
-
-call GET "/user-financial-profile" -H "$AUTH"
-assert "GET /user-financial-profile" "200"
-assert_field "profile.role" ".data.role"
-
-call PUT "/user-financial-profile" -H "$AUTH" -H "Content-Type: application/json" \
-  -d '{"role":"OFFICE_WORKER","living_status":"RENT_ROOM","income_level":"MEDIUM","transport_mode":"MOTORBIKE","spending_style":"BALANCED","work_style":"HYBRID","family_status":"SINGLE","study_intensity":"NORMAL","health_need":"NORMAL"}'
-assert "PUT /user-financial-profile" "200"
-assert_field "updated role" ".data.role"
-
-call PUT "/user-financial-profile" -H "$AUTH" -H "Content-Type: application/json" \
-  -d '{"role":"FREELANCER"}'
-assert "PUT /user-financial-profile missing fields → 400" "400"
+#section "6. USER FINANCIAL PROFILE"
+#
+#curl -s -X DELETE "$BASE_URL/user-financial-profile" -H "$AUTH" > /dev/null
+#
+#call POST "/user-financial-profile" -H "$AUTH" -H "Content-Type: application/json" \
+#  -d '{"role":"STUDENT","living_status":"WITH_FAMILY","income_level":"LOW","transport_mode":"BUS","spending_style":"FRUGAL","work_style":"PART_TIME","family_status":"SINGLE","study_intensity":"COURSE_HEAVY","health_need":"LOW"}'
+#assert "POST /user-financial-profile" "200"
+#assert_field "profile.role" ".data.role"
+#
+#call POST "/user-financial-profile" -H "$AUTH" -H "Content-Type: application/json" \
+#  -d '{"role":"STUDENT","living_status":"WITH_FAMILY","income_level":"LOW","transport_mode":"BUS","spending_style":"FRUGAL","work_style":"PART_TIME","family_status":"SINGLE","study_intensity":"COURSE_HEAVY","health_need":"LOW"}'
+#assert "POST /user-financial-profile duplicate → 409" "409"
+#
+#call GET "/user-financial-profile" -H "$AUTH"
+#assert "GET /user-financial-profile" "200"
+#assert_field "profile.role" ".data.role"
+#
+#call PUT "/user-financial-profile" -H "$AUTH" -H "Content-Type: application/json" \
+#  -d '{"role":"OFFICE_WORKER","living_status":"RENT_ROOM","income_level":"MEDIUM","transport_mode":"MOTORBIKE","spending_style":"BALANCED","work_style":"HYBRID","family_status":"SINGLE","study_intensity":"NORMAL","health_need":"NORMAL"}'
+#assert "PUT /user-financial-profile" "200"
+#assert_field "updated role" ".data.role"
+#
+#call PUT "/user-financial-profile" -H "$AUTH" -H "Content-Type: application/json" \
+#  -d '{"role":"FREELANCER"}'
+#assert "PUT /user-financial-profile missing fields → 400" "400"
 
 # ================================================================
 # 7. NOTIFICATIONS
@@ -648,21 +648,21 @@ if [[ -n "$GROUP_PROJECT_ID" && "$GROUP_PROJECT_ID" != "null" ]]; then
   assert "DELETE /projects/:id (group)" "200"
 fi
 
-# Delete user financial profile
-call DELETE "/user-financial-profile" -H "$AUTH"
-assert_any "DELETE /user-financial-profile" "200" "404"
+## Delete user financial profile
+#call DELETE "/user-financial-profile" -H "$AUTH"
+#assert_any "DELETE /user-financial-profile" "200" "404"
 
-# Delete user income
-call DELETE "/user-income/me" -H "$AUTH"
-assert "DELETE /user-income/me" "200"
+## Delete user income
+#call DELETE "/user-income/me" -H "$AUTH"
+#assert "DELETE /user-income/me" "200"
 
-# Verify income deleted
-call GET "/user-income/me" -H "$AUTH"
-if [[ "$RESP_STATUS" != "200" ]]; then
-  pass "[GET /user-income/me after delete → error HTTP $RESP_STATUS]"
-else
-  info "[GET /user-income/me after delete] returned 200"
-fi
+## Verify income deleted
+#call GET "/user-income/me" -H "$AUTH"
+#if [[ "$RESP_STATUS" != "200" ]]; then
+#  pass "[GET /user-income/me after delete → error HTTP $RESP_STATUS]"
+#else
+#  info "[GET /user-income/me after delete] returned 200"
+#fi
 
 # ================================================================
 # SUMMARY

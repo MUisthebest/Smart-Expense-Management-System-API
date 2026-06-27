@@ -1,5 +1,6 @@
 package com.example.smartmoney.application.dtos.responses.userincome;
 
+/*
 import com.example.smartmoney.domain.models.user.UserIncome;
 import lombok.Builder;
 import lombok.Data;
@@ -35,3 +36,4 @@ public class UserIncomeResponse {
                 .build();
     }
 }
+*/

@@ -1,5 +1,6 @@
 package com.example.smartmoney.infrastructure.persistence.entities;
 
+/*
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -50,3 +51,4 @@ public class UserIncomeEntity {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 }
+*/

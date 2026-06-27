@@ -1,5 +1,6 @@
 package com.example.smartmoney.infrastructure.persistence.repositories;
 
+/*
 import com.example.smartmoney.domain.models.user.UserIncome;
 import com.example.smartmoney.domain.repositories.UserIncomeRepository;
 import com.example.smartmoney.infrastructure.persistence.mappers.UserIncomeMapper;
@@ -34,3 +35,4 @@ public class UserIncomeRepositoryImpl implements UserIncomeRepository {
         jpaUserIncomeRepository.deleteByUserId(userId);
     }
 }
+*/

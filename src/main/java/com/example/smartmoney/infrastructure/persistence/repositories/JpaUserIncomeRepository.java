@@ -1,5 +1,6 @@
 package com.example.smartmoney.infrastructure.persistence.repositories;
 
+/*
 import com.example.smartmoney.infrastructure.persistence.entities.UserIncomeEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -10,3 +11,4 @@ public interface JpaUserIncomeRepository extends JpaRepository<UserIncomeEntity,
     Optional<UserIncomeEntity> findByUserId(UUID userId);
     void deleteByUserId(UUID userId);
 }
+*/
