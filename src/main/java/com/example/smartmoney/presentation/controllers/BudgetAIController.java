@@ -1,6 +1,6 @@
 package com.example.smartmoney.presentation.controllers;
 
-
+/*
 import com.example.smartmoney.application.dtos.responses.CheckResponse;
 import com.example.smartmoney.application.usecases.budget.GenerateBudgetAllocationPlanUseCase;
 import com.example.smartmoney.domain.models.message.MessageRecord;
@@ -50,3 +50,4 @@ public class BudgetAIController {
         return new UserId(UUID.fromString(auth.getName()));
     }
 }
+*/

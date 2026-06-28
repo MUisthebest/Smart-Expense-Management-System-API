@@ -1,5 +1,6 @@
 package com.example.smartmoney.application.usecases.userprofile;
 
+/*
 import com.example.smartmoney.application.dtos.responses.UserFinancialProfileResponse;
 import com.example.smartmoney.domain.exceptions.EntityNotFoundException;
 import com.example.smartmoney.domain.repositories.UserFinancialProfileRepository;
@@ -31,3 +32,4 @@ public class GetUserFinancialProfileUseCase {
                 ));
     }
 }
+*/

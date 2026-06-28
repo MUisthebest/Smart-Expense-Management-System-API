@@ -1,5 +1,6 @@
 package com.example.smartmoney.infrastructure.persistence.mappers;
 
+/*
 import com.example.smartmoney.domain.models.user.UserIncome;
 import com.example.smartmoney.infrastructure.persistence.entities.UserIncomeEntity;
 import org.springframework.stereotype.Component;
@@ -43,3 +44,4 @@ public class UserIncomeMapper {
         return entity;
     }
 }
+*/

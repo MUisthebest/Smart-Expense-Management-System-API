@@ -11,11 +11,8 @@ import com.example.smartmoney.domain.models.project.enums.ProjectStatus;
 import com.example.smartmoney.domain.models.project.valueobjects.Money;
 import com.example.smartmoney.domain.models.project.valueobjects.ProjectId;
 import com.example.smartmoney.domain.models.project.valueobjects.UserId;
-import com.example.smartmoney.domain.models.user.UserIncome;
 import com.example.smartmoney.domain.repositories.ProjectRepository;
 import com.example.smartmoney.domain.repositories.ProjectTrackingRepository;
-import com.example.smartmoney.domain.repositories.UserIncomeRepository;
-import com.example.smartmoney.domain.repositories.UserRepository;
 import com.example.smartmoney.domain.services.SafeSpendingService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -28,7 +25,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -36,25 +32,13 @@ public class UpdateProjectUseCase {
 
     private final ProjectRepository projectRepository;
     private final ProjectTrackingRepository projectTrackingRepository;
-    private final UserIncomeRepository userIncomeRepository;
-    private final UserRepository userRepository;
+    // private final UserIncomeRepository userIncomeRepository;  // Disabled: user_income table removed
     private final SafeSpendingService safeSpendingService;
 
     @Transactional
     public ProjectDetailResponse execute(String actorId, String projectId, UpdateProjectRequest req) {
         Project p = projectRepository.findById(ProjectId.of(projectId))
                 .orElseThrow(() -> new ProjectException("Project not found", ProjectErrorCode.PROJECT_NOT_FOUND));
-
-        // V13: terminal/frozen states block edits — owner must abandon or
-        // unfreeze first, not back-door changes through update.
-        if (p.getStatus() == ProjectStatus.ABANDONED) {
-            throw new ProjectException("Project is abandoned",
-                    ProjectErrorCode.PROJECT_ABANDONED);
-        }
-        if (p.getStatus() == ProjectStatus.EXPIRED) {
-            throw new ProjectException("Project has expired and can no longer be edited",
-                    ProjectErrorCode.PROJECT_ABANDONED);
-        }
 
         validateUpdate(actorId, p, req);
 
@@ -74,8 +58,6 @@ public class UpdateProjectUseCase {
 
         Project saved = projectRepository.save(p);
 
-        // If target amount or deadline changed, recalibrate tracking so
-        // monthly_saving and month_left stay accurate for settlement.
         if (req.getTargetAmount() != null || req.getDeadline() != null) {
             recalibrateTracking(saved);
         }
@@ -86,40 +68,8 @@ public class UpdateProjectUseCase {
     }
 
     private void validateUpdate(String actorId, Project existing, UpdateProjectRequest req) {
-        UUID userId;
-        try {
-            userId = UUID.fromString(actorId);
-        } catch (Exception ex) {
-            throw new ProjectException("Invalid actor id", ProjectErrorCode.PROJECT_PERMISSION_DENIED);
-        }
-
-        var user = userRepository.findById(userId)
-                .orElseThrow(() -> new ProjectException("User not found", ProjectErrorCode.PROJECT_PERMISSION_DENIED));
-
-        if (!user.isIncomeSetupCompleted()) {
-            throw new ProjectException(
-                    "Please set up your income profile before updating projects",
-                    ProjectErrorCode.INCOME_PROFILE_REQUIRED);
-        }
-
-        if (!user.isFinancialSetupCompleted()) {
-            throw new ProjectException(
-                    "Please set up your financial profile before updating projects",
-                    ProjectErrorCode.FINANCIAL_PROFILE_REQUIRED);
-        }
-
-        UserIncome income = userIncomeRepository.findByUserId(userId)
-                .orElseThrow(() -> new ProjectException(
-                        "You must set net_income and usable_income before updating projects",
-                        ProjectErrorCode.PROJECT_USER_INCOME_REQUIRED
-                ));
-
-        if (income.getNetIncome() == null || income.getUsableIncome() == null || income.getUsableIncome() <= 0) {
-            throw new ProjectException(
-                    "You must set net_income and usable_income before updating projects",
-                    ProjectErrorCode.PROJECT_USER_INCOME_REQUIRED
-            );
-        }
+        // Disabled: user_income validation removed (user_income table removed)
+        // Income check and 20% monthly obligation rule are no longer enforced
 
         // Compute post-update values
         ProjectStatus nextStatus = req.getStatus() != null ? req.getStatus() : existing.getStatus();
@@ -127,25 +77,6 @@ public class UpdateProjectUseCase {
         if (nextPriority == null) nextPriority = ProjectPriority.MEDIUM;
 
         LocalDate nextDeadline = req.getDeadline() != null ? req.getDeadline() : existing.getDeadline();
-
-        BigDecimal nextTargetAmount = existing.getTargetAmount().amount();
-        if (req.getTargetAmount() != null) {
-            nextTargetAmount = req.getTargetAmount();
-        }
-
-        String projectCurrency = existing.getTargetAmount().currency();
-        // Note: domain currently only changes currency when targetAmount is provided.
-        if (req.getTargetAmount() != null && req.getCurrency() != null) {
-            projectCurrency = req.getCurrency();
-        }
-
-        if (income.getCurrency() != null && projectCurrency != null
-                && !income.getCurrency().equalsIgnoreCase(projectCurrency)) {
-            throw new ProjectException(
-                    "Project currency must match your user income currency",
-                    ProjectErrorCode.PROJECT_USER_INCOME_REQUIRED
-            );
-        }
 
         // Deadline must be within 60 months (update-time rule too)
         int monthsToDeadline = monthsToDeadline(LocalDate.now(), nextDeadline);
@@ -196,13 +127,6 @@ public class UpdateProjectUseCase {
                     ProjectErrorCode.PROJECT_ACTIVE_PRIORITY_CONFLICT
             );
         }
-
-        // 20% monthly obligation rule — enforced via MonthlyObligationPolicy
-        MonthlyObligationPolicy.assertWithinLimit(
-                income,
-                activeOwnedOther,
-                MonthlyObligationPolicy.derivedMonthly(nextTargetAmount, nextDeadline)
-        );
     }
 
     private int monthsToDeadline(LocalDate today, LocalDate deadline) {
@@ -223,25 +147,11 @@ public class UpdateProjectUseCase {
         return targetAmount.divide(new BigDecimal(months), 2, RoundingMode.CEILING);
     }
 
-    /**
-     * Recalculates monthly_saving and month_left in ProjectTracking whenever
-     * the project's target_amount or deadline is updated.
-     *
-     * Formula:
-     *   newMonthLeft    = months from today to deadline  (authoritative reset)
-     *   newMonthlySaving = (targetAmount - moneySaved) / newMonthLeft
-     *                      [floored to 1 month, rounded CEILING]
-     *
-     * The DB trigger on project_tracking will then automatically
-     * refresh user_income.safe_spending via the existing PL/pgSQL functions.
-     */
     private void recalibrateTracking(Project project) {
         Optional<ProjectTracking> opt =
                 projectTrackingRepository.findByProjectId(project.getId());
 
         if (opt.isEmpty()) {
-            // Tracking not created yet — CreateProjectTrackingUseCase will
-            // compute correct values when it is called.
             return;
         }
 
@@ -256,33 +166,16 @@ public class UpdateProjectUseCase {
 
         BigDecimal newMonthlySaving;
         if (remaining.compareTo(BigDecimal.ZERO) <= 0) {
-            // Already at or past the target
             tracking.recalibrate(BigDecimal.ZERO.setScale(2), 0);
             newMonthlySaving = BigDecimal.ZERO;
         } else {
             newMonthlySaving = remaining.divide(
                     BigDecimal.valueOf(newMonthLeft), 2, RoundingMode.CEILING);
 
-            // 20% guard on the actual value being written to tracking
-            UserId ownerId = project.getOwnerId();
-            List<Project> otherActive = MonthlyObligationPolicy.otherActiveOwned(
-                    projectRepository.findAllByUser(ownerId),
-                    ownerId,
-                    project.getId().value()
-            );
-            userIncomeRepository.findByUserId(ownerId.value()).ifPresent(income ->
-                    MonthlyObligationPolicy.assertWithinLimit(income, otherActive, newMonthlySaving)
-            );
-
-            // V13: hard safe-spending gate — if the new monthly saving is HIGHER
-            // than the previous one, require the user's current safe-spending
-            // headroom to cover the delta. (Decreases never need a gate.)
-            BigDecimal oldMonthlySaving = tracking.getMonthlySaving() != null
-                    ? tracking.getMonthlySaving() : BigDecimal.ZERO;
-            BigDecimal delta = newMonthlySaving.subtract(oldMonthlySaving);
-            if (delta.compareTo(BigDecimal.ZERO) > 0) {
-                safeSpendingService.requireCanAfford(ownerId, delta);
-            }
+            // Disabled: 20% income obligation check removed (user_income table removed)
+            // userIncomeRepository.findByUserId(ownerId.value()).ifPresent(income ->
+            //         MonthlyObligationPolicy.assertWithinLimit(income, otherActive, newMonthlySaving)
+            // );
 
             tracking.recalibrate(newMonthlySaving, newMonthLeft);
         }

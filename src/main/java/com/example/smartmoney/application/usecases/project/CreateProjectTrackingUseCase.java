@@ -10,7 +10,6 @@ import com.example.smartmoney.domain.models.project.valueobjects.ProjectId;
 import com.example.smartmoney.domain.models.project.valueobjects.UserId;
 import com.example.smartmoney.domain.repositories.ProjectRepository;
 import com.example.smartmoney.domain.repositories.ProjectTrackingRepository;
-import com.example.smartmoney.domain.repositories.UserIncomeRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -19,7 +18,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
-import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -27,7 +25,7 @@ public class CreateProjectTrackingUseCase {
 
     private final ProjectRepository projectRepository;
     private final ProjectTrackingRepository projectTrackingRepository;
-    private final UserIncomeRepository userIncomeRepository;
+    // private final UserIncomeRepository userIncomeRepository;  // Disabled: user_income table removed
 
     @Value("${app.project.max-frozen-months:3}")
     private int maxFrozenMonths;
@@ -48,16 +46,10 @@ public class CreateProjectTrackingUseCase {
         validateMoneySaved(project, req.getMoneySaved());
         BigDecimal monthlySaving = calculateMonthlySaving(project);
 
-        // 20% monthly obligation rule — enforced at every write path
-        UserId ownerId = project.getOwnerId();
-        List<Project> otherActive = MonthlyObligationPolicy.otherActiveOwned(
-                projectRepository.findAllByUser(ownerId),
-                ownerId,
-                project.getId().value()
-        );
-        userIncomeRepository.findByUserId(ownerId.value()).ifPresent(income ->
-                MonthlyObligationPolicy.assertWithinLimit(income, otherActive, monthlySaving)
-        );
+        // Disabled: 20% monthly obligation check removed (user_income table removed)
+        // userIncomeRepository.findByUserId(ownerId.value()).ifPresent(income ->
+        //         MonthlyObligationPolicy.assertWithinLimit(income, otherActive, monthlySaving)
+        // );
 
         ProjectTracking tracking = ProjectTracking.createNew(
                 pid,

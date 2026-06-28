@@ -18,12 +18,13 @@ import com.example.smartmoney.domain.models.project.enums.ProjectStatus;
 import com.example.smartmoney.domain.models.project.valueobjects.Money;
 import com.example.smartmoney.domain.models.project.valueobjects.ProjectId;
 import com.example.smartmoney.domain.models.project.valueobjects.UserId;
-import com.example.smartmoney.domain.models.user.UserIncome;
+// Disabled: user_income table removed.
+// import com.example.smartmoney.domain.models.user.UserIncome;
 import com.example.smartmoney.domain.repositories.GroupProjectRepository;
 import com.example.smartmoney.domain.repositories.GroupRepository;
 import com.example.smartmoney.domain.repositories.ProjectRepository;
 import com.example.smartmoney.domain.repositories.ProjectTrackingRepository;
-import com.example.smartmoney.domain.repositories.UserIncomeRepository;
+// import com.example.smartmoney.domain.repositories.UserIncomeRepository;
 import com.example.smartmoney.domain.services.SafeSpendingService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -41,7 +42,8 @@ public class CreateSubPersonalProjectUseCase {
     private final GroupRepository groupRepository;
     private final ProjectRepository projectRepository;
     private final ProjectTrackingRepository projectTrackingRepository;
-    private final UserIncomeRepository userIncomeRepository;
+    // Disabled: user_income table removed.
+    // private final UserIncomeRepository userIncomeRepository;
     private final SafeSpendingService safeSpendingService;
 
     @Transactional
@@ -72,6 +74,10 @@ public class CreateSubPersonalProjectUseCase {
                         "You are not a joined member of this group",
                         ProjectErrorCode.PROJECT_PERMISSION_DENIED));
 
+        // Disabled: income-based currency check and capacity recheck removed (user_income table removed).
+        // Fall back to the capacity snapshot committed at accept time.
+        // TODO: redefine currency & capacity validation now that user income is no longer tracked.
+        /*
         // Load current income once — reused for currency check, capacity, and obligation checks
         UserIncome income = userIncomeRepository.findByUserId(actorUuid)
                 .orElseThrow(() -> new ProjectException(
@@ -92,6 +98,8 @@ public class CreateSubPersonalProjectUseCase {
                     ProjectErrorCode.PROJECT_USABLE_INCOME_LIMIT_EXCEEDED);
         }
         BigDecimal effectiveCapacity = capacitySnapshot.min(currentCapacity);
+        */
+        BigDecimal effectiveCapacity = capacitySnapshot;
 
         List<Project> allProjects = projectRepository.findAllByUser(actor);
 
@@ -126,10 +134,14 @@ public class CreateSubPersonalProjectUseCase {
                     ProjectErrorCode.PROJECT_ACTIVE_PRIORITY_CONFLICT);
         }
 
+        // Disabled: 20% obligation check and safe-spending gate removed (user_income table removed).
+        // TODO: re-enable a capacity/affordability gate that does not depend on user income.
+        /*
         // 20% obligation check and safe-spending gate use effectiveCapacity
         List<Project> otherActive = MonthlyObligationPolicy.otherActiveOwned(allProjects, actor, null);
         MonthlyObligationPolicy.assertWithinLimit(income, otherActive, effectiveCapacity);
         safeSpendingService.requireCanAfford(actor, effectiveCapacity);
+        */
 
         // If income dropped, reduce the group project's target so auto-complete can still fire
         BigDecimal capacityGap = capacitySnapshot.subtract(effectiveCapacity);

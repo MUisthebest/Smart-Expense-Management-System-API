@@ -1,5 +1,6 @@
 package com.example.smartmoney.application.usecases.userprofile;
 
+/*
 import com.example.smartmoney.application.dtos.requests.userfinancialprofile.UpdateUserFinancialProfileRequest;
 import com.example.smartmoney.application.dtos.responses.UserFinancialProfileResponse;
 import com.example.smartmoney.domain.exceptions.DomainException;
@@ -53,3 +54,4 @@ public class UpdateUserFinancialProfileUseCase {
         return UserFinancialProfileResponse.fromDomain(saved);
     }
 }
+*/

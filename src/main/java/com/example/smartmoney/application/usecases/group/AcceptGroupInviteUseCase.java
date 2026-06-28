@@ -9,10 +9,11 @@ import com.example.smartmoney.domain.exceptions.ProjectException;
 import com.example.smartmoney.domain.models.group.Group;
 import com.example.smartmoney.domain.models.group.valueobjects.GroupId;
 import com.example.smartmoney.domain.models.project.valueobjects.UserId;
-import com.example.smartmoney.domain.models.user.UserIncome;
+// Disabled: user_income table removed.
+// import com.example.smartmoney.domain.models.user.UserIncome;
 import com.example.smartmoney.domain.repositories.GroupProjectRepository;
 import com.example.smartmoney.domain.repositories.GroupRepository;
-import com.example.smartmoney.domain.repositories.UserIncomeRepository;
+// import com.example.smartmoney.domain.repositories.UserIncomeRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -28,7 +29,8 @@ public class AcceptGroupInviteUseCase {
 
     private final GroupRepository groupRepository;
     private final GroupInviteTokenPort inviteTokenPort;
-    private final UserIncomeRepository userIncomeRepository;
+    // Disabled: user_income table removed.
+    // private final UserIncomeRepository userIncomeRepository;
     private final GroupProjectRepository groupProjectRepository;
 
     @Transactional
@@ -50,6 +52,10 @@ public class AcceptGroupInviteUseCase {
         UserId actor = UserId.of(actorId);
         UUID actorUuid = UUID.fromString(actorId);
 
+        // Disabled: income-based capacity / currency gating removed (user_income table removed).
+        // TODO: redefine capacity & currency validation now that user income is no longer tracked.
+        BigDecimal capacity = BigDecimal.ZERO; // Disabled: capacity gating removed
+        /*
         UserIncome income = userIncomeRepository.findByUserId(actorUuid)
                 .orElseThrow(() -> new ProjectException(
                         "You must set your income before accepting a group invite",
@@ -81,6 +87,7 @@ public class AcceptGroupInviteUseCase {
                         ProjectErrorCode.PROJECT_CURRENCY_MISMATCH);
             }
         });
+        */
 
         // NOTE: The 3-project cap is NOT checked here — accepting an invite does not
         // consume a project slot. The cap is enforced at sub-project creation time

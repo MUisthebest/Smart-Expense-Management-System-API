@@ -1,5 +1,6 @@
 package com.example.smartmoney.presentation.controllers;
 
+/*
 import com.example.smartmoney.application.dtos.requests.userfinancialprofile.CreateUserFinancialProfileRequest;
 import com.example.smartmoney.application.dtos.requests.userfinancialprofile.UpdateUserFinancialProfileRequest;
 import com.example.smartmoney.application.dtos.responses.UserFinancialProfileResponse;
@@ -136,3 +137,4 @@ public class UserFinancialProfileController {
     }
 
 }
+*/

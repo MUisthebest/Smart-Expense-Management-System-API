@@ -1,5 +1,6 @@
 package com.example.smartmoney.application.usecases.userprofile;
 
+/*
 import com.example.smartmoney.application.dtos.requests.userfinancialprofile.CreateUserFinancialProfileRequest;
 import com.example.smartmoney.application.dtos.responses.UserFinancialProfileResponse;
 import com.example.smartmoney.domain.exceptions.BusinessException;
@@ -57,3 +58,4 @@ public class CreateUserFinancialProfileUseCase {
         return UserFinancialProfileResponse.fromDomain(saved);
     }
 }
+*/

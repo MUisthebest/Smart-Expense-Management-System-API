@@ -1,29 +1,28 @@
 package com.example.smartmoney.application.usecases.userprofile;
 
+/*
 import com.example.smartmoney.application.dtos.responses.UserFinancialProfileMeResponse;
 import com.example.smartmoney.application.dtos.responses.UserFinancialProfileResponse;
 import com.example.smartmoney.domain.models.project.valueobjects.UserId;
-import com.example.smartmoney.domain.repositories.UserFinancialProfileRepository;
+import com.example.smartmoney.infrastructure.persistence.repositories.JpaUserFinancialProfileRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class GetUserFinancialProfileMeUseCase {
 
-    private final UserFinancialProfileRepository userFinancialProfileRepository;
+    private final JpaUserFinancialProfileRepository repository;
 
-    public GetUserFinancialProfileMeUseCase(
-            UserFinancialProfileRepository userFinancialProfileRepository
-    ) {
-        this.userFinancialProfileRepository = userFinancialProfileRepository;
+    public GetUserFinancialProfileMeUseCase(JpaUserFinancialProfileRepository repository) {
+        this.repository = repository;
     }
 
     @Transactional(readOnly = true)
     public UserFinancialProfileMeResponse execute(UserId userId) {
-        return userFinancialProfileRepository.findByUserId(userId.value())
-                .map(profile -> UserFinancialProfileMeResponse.builder()
+        return repository.findByUserId(userId.value())
+                .map(entity -> UserFinancialProfileMeResponse.builder()
                         .configured(true)
-                        .profile(UserFinancialProfileResponse.fromDomain(profile))
+                        .profile(UserFinancialProfileResponse.fromEntity(entity))
                         .build()
                 )
                 .orElseGet(() -> UserFinancialProfileMeResponse.builder()
@@ -33,3 +32,4 @@ public class GetUserFinancialProfileMeUseCase {
                 );
     }
 }
+*/

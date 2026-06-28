@@ -1,5 +1,6 @@
 package com.example.smartmoney.domain.models.userprofile.enums;
 
+/*
 public enum WorkStyle {
     HYBRID,
     NONE,
@@ -7,3 +8,4 @@ public enum WorkStyle {
     PART_TIME,
     REMOTE
 }
+*/
