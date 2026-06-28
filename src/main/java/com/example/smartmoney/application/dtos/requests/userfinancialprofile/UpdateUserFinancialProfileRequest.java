@@ -1,5 +1,6 @@
 package com.example.smartmoney.application.dtos.requests.userfinancialprofile;
 
+/*
 import com.example.smartmoney.domain.models.userprofile.enums.*;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotBlank;
@@ -46,3 +47,4 @@ public class UpdateUserFinancialProfileRequest {
     @JsonProperty("health_need")
     private HealthNeed healthNeed;
 }
+*/

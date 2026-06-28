@@ -1,5 +1,7 @@
 package com.example.smartmoney.application.dtos.responses;
 
+// Disabled: onboarding/income/financial setup flags removed from User (user_income / user_financial_profile tables removed).
+/*
 import com.example.smartmoney.domain.models.user.User;
 import com.example.smartmoney.domain.models.user.valueobjects.Email;
 import org.junit.jupiter.api.DisplayName;
@@ -55,3 +57,4 @@ class UserResponseTest {
                 .build();
     }
 }
+*/

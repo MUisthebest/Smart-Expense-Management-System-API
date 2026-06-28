@@ -1,4 +1,6 @@
 package com.example.smartmoney.infrastructure.persistence.mappers;
+// Disabled: user_financial_profile table removed.
+/*
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
@@ -13,3 +15,4 @@ import com.example.smartmoney.infrastructure.persistence.entities.UserFinancialP
 public interface UserFinancialProfileMapper {
     UserFinancialProfile toDomain(UserFinancialProfileEntity entity);
 }
+*/

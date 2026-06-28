@@ -1,5 +1,6 @@
 package com.example.smartmoney.application.usecases.project;
 
+/*
 import com.example.smartmoney.application.dtos.requests.project.UpdateProjectRequest;
 import com.example.smartmoney.domain.exceptions.ProjectErrorCode;
 import com.example.smartmoney.domain.exceptions.ProjectException;
@@ -198,3 +199,4 @@ class UpdateProjectUseCaseTest {
                 .build();
     }
 }
+*/

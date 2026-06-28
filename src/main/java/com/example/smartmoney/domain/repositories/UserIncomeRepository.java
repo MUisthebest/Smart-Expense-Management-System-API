@@ -1,5 +1,6 @@
 package com.example.smartmoney.domain.repositories;
 
+/*
 import com.example.smartmoney.domain.models.user.UserIncome;
 
 import java.util.Optional;
@@ -10,3 +11,4 @@ public interface UserIncomeRepository {
     Optional<UserIncome> findByUserId(UUID userId);
     void deleteByUserId(UUID userId);
 }
+*/

@@ -1,5 +1,8 @@
 package com.example.smartmoney.domain.models.user;
 
+import com.example.smartmoney.domain.models.user.enums.Focus_Mode;
+import com.example.smartmoney.domain.models.user.enums.Intervention_Level;
+import com.example.smartmoney.domain.models.user.enums.Saving_Pace;
 import com.example.smartmoney.domain.models.user.valueobjects.*;
 import com.example.smartmoney.domain.models.user.enums.Role;
 import com.example.smartmoney.domain.exceptions.DomainException;
@@ -34,8 +37,9 @@ public class User {
     private boolean active = true;
     private boolean emailVerified = false;  // Trạng thái xác minh email
     private boolean notificationEnabled = true;
-    private boolean incomeSetupCompleted = false;
-    private boolean financialSetupCompleted = false;
+    private Focus_Mode focusMode;    //New attributes
+    private Intervention_Level interventionLevel;   //New attributes
+    private Saving_Pace savingPace;  //New attributes.
     
     // Factory method for registration
     public static User create(
@@ -269,12 +273,6 @@ public class User {
     
     public boolean isEmailVerified() { return emailVerified; }
     public void setEmailVerified(boolean emailVerified) { this.emailVerified = emailVerified; }
-
-    public boolean isIncomeSetupCompleted() { return incomeSetupCompleted; }
-    public void setIncomeSetupCompleted(boolean incomeSetupCompleted) { this.incomeSetupCompleted = incomeSetupCompleted; }
-
-    public boolean isFinancialSetupCompleted() { return financialSetupCompleted; }
-    public void setFinancialSetupCompleted(boolean financialSetupCompleted) { this.financialSetupCompleted = financialSetupCompleted; }
 
     public void enableNotification() {
     this.notificationEnabled = true;

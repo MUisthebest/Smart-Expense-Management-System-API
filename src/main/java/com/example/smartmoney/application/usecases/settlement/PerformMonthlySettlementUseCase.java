@@ -1,49 +1,25 @@
 package com.example.smartmoney.application.usecases.settlement;
 
-import com.example.smartmoney.application.usecases.notification.CreateNotificationUseCase;
 import com.example.smartmoney.domain.models.project.Project;
-import com.example.smartmoney.domain.models.project.ProjectHistory;
-import com.example.smartmoney.domain.models.project.ProjectTracking;
 import com.example.smartmoney.domain.models.project.enums.ProjectStatus;
-import com.example.smartmoney.domain.models.project.valueobjects.ProjectId;
 import com.example.smartmoney.domain.models.project.valueobjects.UserId;
-import com.example.smartmoney.domain.models.transaction.Transaction;
-import com.example.smartmoney.domain.models.transaction.enums.TransactionType;
-import com.example.smartmoney.domain.models.user.UserIncome;
-import com.example.smartmoney.application.usecases.group.GroupProjectNotificationUseCase;
-import com.example.smartmoney.domain.models.group.GroupProject;
-import com.example.smartmoney.domain.models.group.enums.GroupProjectStatus;
-import com.example.smartmoney.domain.models.group.valueobjects.GroupProjectId;
-import com.example.smartmoney.domain.repositories.GroupProjectRepository;
 import com.example.smartmoney.domain.repositories.ProjectHistoryRepository;
 import com.example.smartmoney.domain.repositories.ProjectRepository;
 import com.example.smartmoney.domain.repositories.ProjectTrackingRepository;
 import com.example.smartmoney.domain.repositories.TransactionRepository;
-import com.example.smartmoney.domain.repositories.UserIncomeRepository;
 import com.example.smartmoney.domain.services.SafeSpendingService;
-import com.example.smartmoney.domain.services.SettlementEngine;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
-import java.math.RoundingMode;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.*;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
-/**
- * All-auto monthly settlement engine. Single owner of the project calendar,
- * debt accrual/repayment, freeze/unfreeze, completion and expiry.
- * See docs/project-tracking-all-auto-plan.md §4.
- *
- * <p>Processes ACTIVE and FROZEN projects: ACTIVE projects accrue savings and
- * may take overspend penalties (debt) up to a cap; FROZEN projects accrue no new
- * savings and no new penalty but keep being repaid from surplus and keep their
- * calendar advancing, so they can recover (auto-unfreeze) or eventually EXPIRE.
+/*
+ * Disabled: monthly settlement penalty/surplus logic depends on UserIncome data (user_income table removed).
+ * settleUserProjects is a no-op until user_income is restored.
  */
 @Slf4j
 @Service
@@ -53,27 +29,15 @@ public class PerformMonthlySettlementUseCase {
     private final ProjectRepository projectRepository;
     private final ProjectTrackingRepository projectTrackingRepository;
     private final TransactionRepository transactionRepository;
-    private final UserIncomeRepository userIncomeRepository;
+    // private final UserIncomeRepository userIncomeRepository;  // Disabled: user_income table removed
     private final ProjectHistoryRepository projectHistoryRepository;
     private final SafeSpendingService safeSpendingService;
-    private final GroupProjectRepository groupProjectRepository;
-    private final GroupProjectNotificationUseCase groupProjectNotification;
-    private final CreateNotificationUseCase createNotificationUseCase;
-
-    @Value("${app.project.freeze-mult:3}")
-    private int freezeMult;
-    @Value("${app.project.unfreeze-mult:0}")
-    private int unfreezeMult;
-    @Value("${app.project.max-frozen-months:3}")
-    private int maxFrozenMonths;
 
     public void execute() {
-        List<Project> live = new ArrayList<>();
-        live.addAll(projectRepository.findAllByStatus(ProjectStatus.ACTIVE));
-        live.addAll(projectRepository.findAllByStatus(ProjectStatus.FROZEN));
-        log.info("[Settlement] Starting monthly settlement for {} live project(s).", live.size());
+        List<Project> activeProjects = projectRepository.findAllByStatus(ProjectStatus.ACTIVE);
+        log.info("[Settlement] Starting monthly settlement for {} active project(s).", activeProjects.size());
 
-        Map<UserId, List<Project>> userProjects = live.stream()
+        Map<UserId, List<Project>> userProjects = activeProjects.stream()
                 .collect(Collectors.groupingBy(Project::getOwnerId));
 
         for (Map.Entry<UserId, List<Project>> entry : userProjects.entrySet()) {
@@ -86,309 +50,11 @@ public class PerformMonthlySettlementUseCase {
         }
 
         log.info("[Settlement] Monthly settlement complete.");
-
-        checkGroupProjectCompletion();
-    }
-
-    /**
-     * Auto-complete check for group projects: a group completes when the
-     * aggregate net savings of its still-participating members meets the
-     * required target of those same members. EXPIRED / ABANDONED sub-projects
-     * drop out of both sides (the goal shrinks so the rest can still finish).
-     * See docs/project-tracking-all-auto-plan.md §6.
-     */
-    private void checkGroupProjectCompletion() {
-        List<GroupProject> activeGroupProjects = groupProjectRepository.findAllByStatus(GroupProjectStatus.ACTIVE);
-        for (GroupProject gp : activeGroupProjects) {
-            try {
-                List<Project> subs = projectRepository.findAllByGroupProjectId(gp.getId().value());
-                List<Project> participating = subs.stream()
-                        .filter(p -> p.getStatus() != ProjectStatus.EXPIRED
-                                && p.getStatus() != ProjectStatus.ABANDONED)
-                        .toList();
-
-                BigDecimal required = participating.stream()
-                        .map(p -> p.getTargetAmount().amount())
-                        .reduce(BigDecimal.ZERO, BigDecimal::add);
-                BigDecimal aggregate = participating.stream()
-                        .map(Project::netSavedAmount)
-                        .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-                if (!subs.isEmpty() && participating.isEmpty()) {
-                    // Every member's sub-project dropped out — the goal can no longer be met.
-                    gp.markExpired();
-                    groupProjectRepository.save(gp);
-                    log.info("[Settlement] Group project {} marked EXPIRED — no participating members remain.",
-                            gp.getId().value());
-                    groupProjectNotification.notifyGroupExpired(gp);
-                } else if (required.compareTo(BigDecimal.ZERO) > 0 && aggregate.compareTo(required) >= 0) {
-                    gp.markCompleted();
-                    groupProjectRepository.save(gp);
-                    log.info("[Settlement] Group project {} marked COMPLETED (aggregate={} >= required={}).",
-                            gp.getId().value(), aggregate, required);
-                    groupProjectNotification.notifyCompleted(gp);
-                }
-            } catch (Exception ex) {
-                log.error("[Settlement] Failed completion check for group project {}: {}",
-                        gp.getId().value(), ex.getMessage(), ex);
-            }
-        }
     }
 
     @Transactional
     public void settleUserProjects(UserId ownerId, List<Project> projects) {
-        UUID ownerUuid = ownerId.value();
-
-        Optional<UserIncome> incomeOpt = userIncomeRepository.findByUserId(ownerUuid);
-        if (incomeOpt.isEmpty()) {
-            log.warn("[Settlement] No UserIncome found for owner {}. Skipping.", ownerUuid);
-            return;
-        }
-        UserIncome userIncome = incomeOpt.get();
-
-        Map<ProjectId, ProjectTracking> trackingMap = new HashMap<>();
-        for (Project p : projects) {
-            projectTrackingRepository.findByProjectId(p.getId())
-                    .ifPresent(t -> trackingMap.put(p.getId(), t));
-        }
-
-        List<Project> validProjects = projects.stream()
-                .filter(p -> trackingMap.containsKey(p.getId()))
-                .toList();
-
-        if (validProjects.isEmpty()) return;
-
-        LocalDate today = LocalDate.now();
-        LocalDate firstOfPrevMonth = today.minusMonths(1).withDayOfMonth(1);
-        LocalDate firstOfThisMonth = today.withDayOfMonth(1);
-
-        LocalDateTime startOfPrevMonth = firstOfPrevMonth.atStartOfDay();
-        LocalDateTime endOfPrevMonth   = firstOfThisMonth.atStartOfDay().minusNanos(1);
-
-        List<Transaction> expenses = transactionRepository.findByUserIdWithFilters(
-                ownerUuid, null, null, startOfPrevMonth, endOfPrevMonth, null, TransactionType.EXPENSE
-        );
-
-        BigDecimal actualExpenses = expenses.stream()
-                .map(t -> t.getAmount().getValue())
-                .reduce(BigDecimal.ZERO, BigDecimal::add)
-                .setScale(2, RoundingMode.HALF_UP);
-
-        // Base Safe Spending (BSS) = stored (already debt-penalized) safe spending + total debt.
-        BigDecimal totalDebt = validProjects.stream()
-                .map(p -> {
-                    ProjectTracking t = trackingMap.get(p.getId());
-                    return t.getMoneyOwed() != null ? t.getMoneyOwed() : BigDecimal.ZERO;
-                })
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        BigDecimal currentSafeSpending = userIncome.getSafeSpending() != null
-                ? BigDecimal.valueOf(userIncome.getSafeSpending())
-                : BigDecimal.ZERO;
-
-        BigDecimal baseSafeSpending = currentSafeSpending.add(totalDebt);
-
-        BigDecimal netPenalty = BigDecimal.ZERO;
-        BigDecimal netSurplus = BigDecimal.ZERO;
-
-        if (actualExpenses.compareTo(baseSafeSpending) > 0) {
-            netPenalty = actualExpenses.subtract(baseSafeSpending).setScale(2, RoundingMode.HALF_UP);
-        } else {
-            netSurplus = baseSafeSpending.subtract(actualExpenses).setScale(2, RoundingMode.HALF_UP);
-        }
-
-        Map<ProjectId, BigDecimal> finalMoneySaved = new HashMap<>();
-        Map<ProjectId, BigDecimal> finalMoneyOwed = new HashMap<>();
-        Map<ProjectId, BigDecimal> surplusInvestedMap = new HashMap<>();
-        Map<ProjectId, BigDecimal> penaltyAppliedMap = new HashMap<>();
-
-        // 1. Credit the monthly reservation to ACTIVE projects only; FROZEN projects
-        //    accrue no new savings. Cap gross at target.
-        for (Project p : validProjects) {
-            ProjectTracking t = trackingMap.get(p.getId());
-            BigDecimal newSaved = t.getMoneySaved();
-            if (p.getStatus() == ProjectStatus.ACTIVE) {
-                newSaved = newSaved.add(t.getMonthlySaving());
-                if (newSaved.compareTo(p.getTargetAmount().amount()) > 0) {
-                    newSaved = p.getTargetAmount().amount();
-                }
-            }
-            finalMoneySaved.put(p.getId(), newSaved);
-            finalMoneyOwed.put(p.getId(), t.getMoneyOwed() != null ? t.getMoneyOwed() : BigDecimal.ZERO);
-            surplusInvestedMap.put(p.getId(), BigDecimal.ZERO);
-            penaltyAppliedMap.put(p.getId(), BigDecimal.ZERO);
-        }
-
-        if (netSurplus.compareTo(BigDecimal.ZERO) > 0) {
-            // 2a. Repay debt across ALL live projects (incl. FROZEN) — this is how
-            //     frozen projects recover. Highest priority first.
-            List<Project> debtOrder = validProjects.stream()
-                    .sorted(Comparator.comparingInt(p -> -p.getPriority().ordinal()))
-                    .toList();
-            for (Project p : debtOrder) {
-                if (netSurplus.compareTo(BigDecimal.ZERO) <= 0) break;
-                BigDecimal currentOwed = finalMoneyOwed.get(p.getId());
-                if (currentOwed.compareTo(BigDecimal.ZERO) > 0) {
-                    BigDecimal toPay = netSurplus.min(currentOwed);
-                    finalMoneyOwed.put(p.getId(), currentOwed.subtract(toPay));
-                    netSurplus = netSurplus.subtract(toPay);
-                    log.info("[Settlement] Project {} debt reduced by {}.", p.getId().value(), toPay);
-                }
-            }
-
-            // 2b. Auto-invest remaining surplus into ACTIVE projects only.
-            if (netSurplus.compareTo(BigDecimal.ZERO) > 0 && Boolean.TRUE.equals(userIncome.getAutoInvestSurplus())) {
-                List<Project> surplusOrder = validProjects.stream()
-                        .filter(p -> p.getStatus() == ProjectStatus.ACTIVE)
-                        .sorted(Comparator.comparingInt(p -> -p.getPriority().ordinal()))
-                        .toList();
-                for (Project p : surplusOrder) {
-                    if (netSurplus.compareTo(BigDecimal.ZERO) <= 0) break;
-                    BigDecimal currentSaved = finalMoneySaved.get(p.getId());
-                    BigDecimal room = p.getTargetAmount().amount().subtract(currentSaved);
-                    if (room.compareTo(BigDecimal.ZERO) > 0) {
-                        BigDecimal toAdd = netSurplus.min(room);
-                        finalMoneySaved.put(p.getId(), currentSaved.add(toAdd));
-                        surplusInvestedMap.put(p.getId(), toAdd);
-                        netSurplus = netSurplus.subtract(toAdd);
-                    }
-                }
-            }
-        } else if (netPenalty.compareTo(BigDecimal.ZERO) > 0) {
-            // 3. Distribute penalty as debt to ACTIVE projects only, capped per project
-            //    at freezeMult × monthlySaving. Leftover with no room is discarded
-            //    (no real money; the cap + freeze is the consequence).
-            List<Project> penaltyOrder = validProjects.stream()
-                    .filter(p -> p.getStatus() == ProjectStatus.ACTIVE)
-                    .sorted(Comparator.comparingInt(p -> p.getPriority().ordinal()))
-                    .toList();
-
-            for (int i = 0; i < penaltyOrder.size(); i++) {
-                Project p = penaltyOrder.get(i);
-                if (netPenalty.compareTo(BigDecimal.ZERO) <= 0) break;
-
-                ProjectTracking t = trackingMap.get(p.getId());
-                BigDecimal monthlySaving = t.getMonthlySaving() != null ? t.getMonthlySaving() : BigDecimal.ZERO;
-                BigDecimal cap = monthlySaving.multiply(BigDecimal.valueOf(freezeMult));
-                BigDecimal currentOwed = finalMoneyOwed.get(p.getId());
-                BigDecimal room = cap.subtract(currentOwed).max(BigDecimal.ZERO);
-
-                BigDecimal share = (i == penaltyOrder.size() - 1) ? netPenalty : netPenalty.min(monthlySaving);
-                BigDecimal toAdd = share.min(room);
-
-                finalMoneyOwed.put(p.getId(), currentOwed.add(toAdd));
-                penaltyAppliedMap.put(p.getId(), toAdd);
-                netPenalty = netPenalty.subtract(toAdd);
-            }
-        }
-
-        // 4. Persist + advance calendar (ONCE) + transitions + history.
-        for (Project p : validProjects) {
-            ProjectTracking t = trackingMap.get(p.getId());
-            BigDecimal target = p.getTargetAmount().amount();
-            BigDecimal newSaved = finalMoneySaved.get(p.getId());
-            BigDecimal newOwed = finalMoneyOwed.get(p.getId());
-            BigDecimal monthlySaving = t.getMonthlySaving() != null ? t.getMonthlySaving() : BigDecimal.ZERO;
-
-            int newMonthLeft = SettlementEngine.recalculateMonthLeft(
-                    target, newSaved, monthlySaving, t.getMonthLeft());
-
-            BigDecimal moneySavedBefore = t.getMoneySaved();
-            int monthLeftBefore = t.getMonthLeft();
-
-            t.update(newSaved, t.getCurrentMonth() + 1, newMonthLeft, newOwed);
-
-            ProjectStatus before = p.getStatus();
-            int frozenMonths = t.getFrozenMonths();
-
-            BigDecimal freezeCap = monthlySaving.multiply(BigDecimal.valueOf(freezeMult));
-            BigDecimal unfreezeThreshold = monthlySaving.multiply(BigDecimal.valueOf(unfreezeMult));
-
-            // Freeze / unfreeze transition
-            if (before == ProjectStatus.ACTIVE && newOwed.compareTo(freezeCap) >= 0) {
-                p.systemFreeze();
-                frozenMonths = 0;
-                log.warn("[Settlement] Project {} frozen — debt {} >= cap {}.",
-                        p.getId().value(), newOwed, freezeCap);
-            } else if (before == ProjectStatus.FROZEN && newOwed.compareTo(unfreezeThreshold) <= 0) {
-                p.systemUnfreeze();
-                frozenMonths = 0;
-                log.info("[Settlement] Project {} unfrozen — debt {} <= threshold {}.",
-                        p.getId().value(), newOwed, unfreezeThreshold);
-            } else if (before == ProjectStatus.FROZEN) {
-                frozenMonths = frozenMonths + 1;
-            }
-
-            // Completion / expiry (net = gross − debt)
-            BigDecimal net = newSaved.subtract(newOwed);
-            boolean expiredNow = false;
-            if (net.compareTo(target) >= 0) {
-                p.complete();
-            } else if (newMonthLeft <= 0) {
-                p.expire();
-                expiredNow = true;
-            } else if (p.getStatus() == ProjectStatus.FROZEN && frozenMonths >= maxFrozenMonths) {
-                p.expire();
-                expiredNow = true;
-            }
-
-            // Frozen-months counter: only meaningful while FROZEN, else reset.
-            t.setFrozenMonths(p.getStatus() == ProjectStatus.FROZEN ? frozenMonths : 0);
-            projectTrackingRepository.save(t);
-
-            ProjectHistory snapshot = ProjectHistory.createSnapshot(
-                    p.getId(), ownerUuid, firstOfPrevMonth.getMonthValue(),
-                    firstOfPrevMonth.getYear(), moneySavedBefore, newSaved, monthlySaving,
-                    penaltyAppliedMap.get(p.getId()), surplusInvestedMap.get(p.getId()),
-                    monthLeftBefore, newMonthLeft
-            );
-            projectHistoryRepository.save(snapshot);
-
-            if (p.getStatus() != before) {
-                projectRepository.save(p);
-                log.info("[Settlement] Project {} status {} -> {}.",
-                        p.getId().value(), before, p.getStatus());
-            }
-
-            // Notify only after the status change has been persisted, so a failed save
-            // can never leave a project ACTIVE while its owner was told it expired.
-            if (expiredNow) {
-                notifyExpired(p);
-                notifyGroupMemberDropped(p);
-            }
-
-            log.info("[Settlement] Settled project {} | saved: {} -> {} | owed: {} -> {} | monthLeft: {} -> {}",
-                    p.getId().value(), moneySavedBefore, newSaved, totalDebt, newOwed, monthLeftBefore, newMonthLeft);
-        }
-
-        // Recalculate Safe Spending based on the new obligations/debt.
-        safeSpendingService.recalculateAndSaveSafeSpending(ownerId);
-    }
-
-    private void notifyExpired(Project p) {
-        try {
-            String body = "Your project \"" + p.getName() + "\" has expired before reaching its goal.";
-            String deepLink = "/projects/" + p.getId().value();
-            createNotificationUseCase.createNotification(p.getOwnerId().value(), body, deepLink);
-        } catch (Exception ex) {
-            log.warn("[Settlement] Expiry notification failed for project {}: {}",
-                    p.getId().value(), ex.getMessage());
-        }
-    }
-
-    /**
-     * When an expired sub-project belongs to a group, tell the rest of the group that this
-     * member dropped out (their share left the required target). Best-effort, never propagates.
-     */
-    private void notifyGroupMemberDropped(Project p) {
-        UUID groupProjectId = p.getGroupProjectId();
-        if (groupProjectId == null) return;
-        try {
-            groupProjectRepository.findById(new GroupProjectId(groupProjectId))
-                    .ifPresent(gp -> groupProjectNotification.notifyMemberDropped(gp, p.getOwnerId().value()));
-        } catch (Exception ex) {
-            log.warn("[Settlement] Member-dropped notification failed for project {}: {}",
-                    p.getId().value(), ex.getMessage());
-        }
+        // Disabled: settlement penalty/surplus logic depends on UserIncome (user_income table removed)
+        log.warn("[Settlement] Settlement skipped for user {} - user_income table removed.", ownerId.value());
     }
 }

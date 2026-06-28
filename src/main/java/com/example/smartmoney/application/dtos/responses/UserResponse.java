@@ -7,6 +7,9 @@ import lombok.*;
 import java.util.UUID;
 
 @Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class UserResponse {
     private UUID id;
     private String username;
@@ -36,9 +39,10 @@ public class UserResponse {
         response.setRole(user.getRole());
         response.setRate(user.getRate());
         response.setActive(user.isActive());
-        response.setIncomeSetupCompleted(user.isIncomeSetupCompleted());
-        response.setFinancialSetupCompleted(user.isFinancialSetupCompleted());
-        response.setOnboardingCompleted(user.isIncomeSetupCompleted() && user.isFinancialSetupCompleted());
+        // Disabled: income/financial setup flags removed from User (user_income / user_financial_profile tables removed).
+        // response.setIncomeSetupCompleted(user.isIncomeSetupCompleted());
+        // response.setFinancialSetupCompleted(user.isFinancialSetupCompleted());
+        // response.setOnboardingCompleted(user.isIncomeSetupCompleted() && user.isFinancialSetupCompleted());
         return response;
     }
 }

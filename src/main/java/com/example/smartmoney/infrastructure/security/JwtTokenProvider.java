@@ -1,10 +1,13 @@
 package com.example.smartmoney.infrastructure.security;
 
+import com.example.smartmoney.application.dtos.responses.UserResponse;
 import com.example.smartmoney.application.ports.auth.AuthPort;
 import com.example.smartmoney.domain.models.user.User;
 import com.example.smartmoney.domain.models.user.valueobjects.Email;
+import com.example.smartmoney.domain.models.user.valueobjects.Phone;
 import com.example.smartmoney.domain.models.user.valueobjects.RefreshToken;
 import com.example.smartmoney.domain.exceptions.AuthenticationException;
+import com.example.smartmoney.domain.models.user.enums.Role;
 import com.example.smartmoney.domain.repositories.UserRepository;
 
 import io.jsonwebtoken.*;
@@ -73,8 +76,11 @@ public class JwtTokenProvider implements AuthPort, UserDetailsService {
             .setSubject(user.getId().toString())
             .claim("email", user.getEmail().getValue())
             .claim("username", user.getUsername())
+                .claim("phone number", user.getPhone().getValue())
             .claim("role", user.getRole().name())
             .claim("authorities", authorities)
+                .claim("active", user.isActive())
+                .claim("coin", user.getCoin())
             .setIssuer(jwtConfig.getIssuer())
             .setAudience(jwtConfig.getAudience())
             .setIssuedAt(now)
@@ -222,6 +228,44 @@ public class JwtTokenProvider implements AuthPort, UserDetailsService {
             return UUID.fromString(claims.getSubject());
         } catch (JwtException | IllegalArgumentException ex) {
             throw new AuthenticationException("Invalid token");
+        }
+    }
+
+    // Get user profile from token
+    public UserResponse getUserByAccessToken(String authHeader) {
+        try {
+            String token = (authHeader != null && authHeader.startsWith("Bearer "))
+                    ? authHeader.substring(7)
+                    : authHeader;
+
+            Claims claims = Jwts.parserBuilder()
+                    .setSigningKey(signingKey)
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody();
+
+            UUID userId = UUID.fromString(claims.getSubject());
+            String email = claims.get("email", String.class);
+            String username = claims.get("username", String.class);
+            String phone = claims.get("phone number", String.class);
+            String roleStr = claims.get("role", String.class);
+            Integer coin = claims.get("coin", Integer.class);
+            Boolean active = claims.get("active", Boolean.class);
+
+            return UserResponse.builder()
+                    .id(userId)
+                    .email(email)
+                    .username(username)
+                    .phone(phone)
+                    .role(roleStr != null ? Role.valueOf(roleStr) : null)
+                    .coin(coin)
+                    .active(active)
+                    .build();
+
+        } catch (ExpiredJwtException ex) {
+            throw new AuthenticationException("Access token has expired");
+        } catch (JwtException | IllegalArgumentException ex) {
+            throw new AuthenticationException("Invalid access token");
         }
     }
     

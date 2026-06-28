@@ -6,13 +6,14 @@ import com.example.smartmoney.domain.models.project.valueobjects.Money;
 import com.example.smartmoney.domain.models.project.valueobjects.UserId;
 import com.example.smartmoney.domain.models.transaction.Transaction;
 import com.example.smartmoney.domain.models.transaction.enums.TransactionType;
-import com.example.smartmoney.domain.models.user.UserIncome;
-import com.example.smartmoney.domain.models.userprofile.UserFinancialProfile;
+// Disabled: user_income / user_financial_profile tables removed.
+// import com.example.smartmoney.domain.models.user.UserIncome;
+// import com.example.smartmoney.domain.models.userprofile.UserFinancialProfile;
 import com.example.smartmoney.domain.repositories.ProjectContributionRepository;
 import com.example.smartmoney.domain.repositories.ProjectRepository;
 import com.example.smartmoney.domain.repositories.TransactionRepository;
-import com.example.smartmoney.domain.repositories.UserFinancialProfileRepository;
-import com.example.smartmoney.domain.repositories.UserIncomeRepository;
+// import com.example.smartmoney.domain.repositories.UserFinancialProfileRepository;
+// import com.example.smartmoney.domain.repositories.UserIncomeRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -29,9 +30,10 @@ public class UserFinancialDataService {
 
     private final TransactionRepository transactionRepository;
     private final ProjectRepository projectRepository;
-    private final UserIncomeRepository userIncomeRepository;
-    private final UserFinancialProfileRepository profileRepository;
-    
+    // Disabled: user_income / user_financial_profile tables removed.
+    // private final UserIncomeRepository userIncomeRepository;
+    // private final UserFinancialProfileRepository profileRepository;
+
     public enum DataType {
         TRANSACTIONS, PROJECTS, INCOME, PROFILE
     }
@@ -61,20 +63,24 @@ public class UserFinancialDataService {
                 ? projectRepository.findAllByUser(UserId.of(userId.toString()))
                 : Collections.emptyList();
 
+        // Disabled: user_income / user_financial_profile tables removed.
+        // INCOME and PROFILE data types are no longer populated.
+        /*
         UserIncome income = dataTypes.contains(DataType.INCOME)
                 ? userIncomeRepository.findByUserId(userId).orElse(null)
                 : null;
 
-            
-
         UserFinancialProfile profile = dataTypes.contains(DataType.PROFILE)
                 ? profileRepository.findByUserId(userId).orElse(null)
                 : null;
+        */
 
         // Xây dựng chuỗi kết quả
         StringBuilder sb = new StringBuilder();
         sb.append("Thông tin tài chính của người dùng:\n");
 
+        // Disabled: user_income / user_financial_profile tables removed.
+        /*
         if (profile != null) {
             sb.append("- Tình trạng sống: ").append(profile.getLivingStatus()).append("\n");
             sb.append("- Mức thu nhập: ").append(profile.getIncomeLevel()).append("\n");
@@ -88,6 +94,7 @@ public class UserFinancialDataService {
             sb.append("- Thu nhập khả dụng: ").append(income.getUsableIncome()).append(" ").append(income.getCurrency()).append("\n");
             sb.append("- Chi tiêu an toàn: ").append(income.getSafeSpending()).append(" ").append(income.getCurrency()).append("\n");
         }
+        */
 
         if (!transactions.isEmpty()) {
             double totalIncome = transactions.stream()

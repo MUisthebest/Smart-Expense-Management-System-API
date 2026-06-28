@@ -1,5 +1,6 @@
 package com.example.smartmoney.infrastructure.persistence.entities;
 
+/*
 import com.example.smartmoney.domain.models.userprofile.enums.FamilyStatus;
 import com.example.smartmoney.domain.models.userprofile.enums.HealthNeed;
 import com.example.smartmoney.domain.models.userprofile.enums.IncomeLevel;
@@ -85,3 +86,4 @@ public class UserFinancialProfileEntity {
         this.updatedAt = Instant.now();
     }
 }
+*/

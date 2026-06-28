@@ -1,5 +1,7 @@
 package com.example.smartmoney.domain.repositories;
 
+// Disabled: user_financial_profile table removed.
+/*
 import com.example.smartmoney.domain.models.userprofile.UserFinancialProfile;
 
 import java.util.Optional;
@@ -15,3 +17,4 @@ public interface UserFinancialProfileRepository {
 
     void deleteByUserId(UUID userId);
 }
+*/
