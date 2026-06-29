@@ -1,16 +1,10 @@
 package com.example.smartmoney.application.usecases.project;
 
-// Disabled: tests removed UserIncomeRepository / ProjectBudgetAdvisorUseCase API (user_income table removed).
-/*
 import com.example.smartmoney.application.dtos.requests.project.ProjectBudgetAdvisorRequest;
 import com.example.smartmoney.application.dtos.responses.project.ProjectBudgetAdvisorResponse;
-import com.example.smartmoney.application.ports.llm.LlmPort;
-import com.example.smartmoney.domain.exceptions.ProjectErrorCode;
-import com.example.smartmoney.domain.exceptions.ProjectException;
 import com.example.smartmoney.domain.models.project.enums.ProjectType;
 import com.example.smartmoney.domain.models.user.User;
-import com.example.smartmoney.domain.models.user.UserIncome;
-import com.example.smartmoney.domain.repositories.UserIncomeRepository;
+import com.example.smartmoney.domain.models.user.enums.Saving_Pace;
 import com.example.smartmoney.domain.repositories.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -24,93 +18,83 @@ import java.time.LocalDate;
 import java.util.Optional;
 import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-@DisplayName("ProjectBudgetAdvisorUseCase onboarding validation")
+@DisplayName("ProjectBudgetAdvisorUseCase — pace from trait, advisory only")
 class ProjectBudgetAdvisorUseCaseTest {
-
-    @Mock
-    private UserIncomeRepository userIncomeRepository;
 
     @Mock
     private UserRepository userRepository;
 
-    @Mock
-    private LlmPort llmPort;
-
     private ProjectBudgetAdvisorUseCase useCase;
-    private UUID userId;
+
     private String actorId;
 
     @BeforeEach
     void setUp() {
-        useCase = new ProjectBudgetAdvisorUseCase(userIncomeRepository, userRepository, llmPort);
-        userId = UUID.randomUUID();
-        actorId = userId.toString();
+        useCase = new ProjectBudgetAdvisorUseCase(userRepository);
+        actorId = UUID.randomUUID().toString();
+    }
+
+    private ProjectBudgetAdvisorRequest req() {
+        ProjectBudgetAdvisorRequest r = new ProjectBudgetAdvisorRequest();
+        r.setName("Vacation");
+        r.setType(ProjectType.PERSONAL);
+        r.setTargetAmount(new BigDecimal("12000"));
+        r.setCurrency("VND");
+        r.setDeadline(LocalDate.now().plusMonths(12));
+        return r;
+    }
+
+    private void userWithPace(Saving_Pace pace) {
+        User u = User.builder().savingPace(pace).build();
+        when(userRepository.findById(any(UUID.class))).thenReturn(Optional.of(u));
     }
 
     @Test
-    @DisplayName("Reject when income setup is missing")
-    void rejectWhenIncomeSetupMissing() {
-        User user = user(false, true);
-        when(userRepository.findById(eq(userId))).thenReturn(Optional.of(user));
+    @DisplayName("BALANCED spreads evenly across the deadline horizon")
+    void balancedTracksDeadline() {
+        userWithPace(Saving_Pace.BALANCED);
 
-        ProjectException ex = assertThrows(ProjectException.class, () -> useCase.execute(actorId, request()));
+        ProjectBudgetAdvisorResponse res = useCase.execute(actorId, req());
 
-        assertEquals(ProjectErrorCode.INCOME_PROFILE_REQUIRED.name(), ex.getErrorCode());
+        assertEquals(12, res.getNumberOfMonths());
+        assertEquals(0, res.getMonthlySaving().compareTo(new BigDecimal("1000.00")));
     }
 
     @Test
-    @DisplayName("Reject when financial setup is missing")
-    void rejectWhenFinancialSetupMissing() {
-        User user = user(true, false);
-        when(userRepository.findById(eq(userId))).thenReturn(Optional.of(user));
+    @DisplayName("AGGRESIVE finishes sooner with a higher monthly saving")
+    void aggressiveFinishesSooner() {
+        userWithPace(Saving_Pace.AGGRESIVE);
 
-        ProjectException ex = assertThrows(ProjectException.class, () -> useCase.execute(actorId, request()));
+        ProjectBudgetAdvisorResponse res = useCase.execute(actorId, req());
 
-        assertEquals(ProjectErrorCode.FINANCIAL_PROFILE_REQUIRED.name(), ex.getErrorCode());
+        assertEquals(9, res.getNumberOfMonths());          // ceil(12 * 0.75)
+        assertTrue(res.getMonthlySaving().compareTo(new BigDecimal("1000.00")) > 0);
     }
 
     @Test
-    @DisplayName("Runs when both setup flags are complete")
-    void runsWhenBothFlagsComplete() {
-        User user = user(true, true);
-        when(userRepository.findById(eq(userId))).thenReturn(Optional.of(user));
-        when(userIncomeRepository.findByUserId(eq(userId)))
-                .thenReturn(Optional.of(UserIncome.createNew(userId, 2_000, 1_000, "VND", null, null)));
+    @DisplayName("RELAXED stretches one month past the deadline with a lower monthly saving")
+    void relaxedStretches() {
+        userWithPace(Saving_Pace.RELAXED);
 
-        ProjectBudgetAdvisorResponse response = useCase.execute(actorId, request());
+        ProjectBudgetAdvisorResponse res = useCase.execute(actorId, req());
 
-        assertNotNull(response);
-        assertEquals(new BigDecimal("200.00"), response.getMonthlySaving());
-        assertEquals(5, response.getNumberOfMonths());
+        assertEquals(13, res.getNumberOfMonths());
+        assertTrue(res.getMonthlySaving().compareTo(new BigDecimal("1000.00")) < 0);
     }
 
-    private ProjectBudgetAdvisorRequest request() {
-        ProjectBudgetAdvisorRequest req = new ProjectBudgetAdvisorRequest();
-        req.setName("Project");
-        req.setType(ProjectType.PERSONAL);
-        req.setTargetAmount(new BigDecimal("1000"));
-        req.setCurrency("VND");
-        req.setDeadline(LocalDate.now());
-        req.setMode(ProjectBudgetAdvisorRequest.Mode.URGENT);
-        return req;
-    }
+    @Test
+    @DisplayName("Defaults to BALANCED when the user has no trait set (cold start) — never throws")
+    void defaultsWhenNoTrait() {
+        when(userRepository.findById(any(UUID.class))).thenReturn(Optional.empty());
 
-    private User user(boolean incomeSetupCompleted, boolean financialSetupCompleted) {
-        return User.builder()
-                .id(userId)
-                .username("user")
-                .fullName("User")
-                .active(true)
-                .incomeSetupCompleted(incomeSetupCompleted)
-                .financialSetupCompleted(financialSetupCompleted)
-                .build();
+        ProjectBudgetAdvisorResponse res = useCase.execute(actorId, req());
+
+        assertEquals(12, res.getNumberOfMonths());
+        assertEquals(0, res.getMonthlySaving().compareTo(new BigDecimal("1000.00")));
     }
 }
-*/

@@ -38,6 +38,7 @@ public abstract class TransactionMapper {
             domain.setCategory(entity.getCategory());
             domain.setDescription(entity.getDescription());
             domain.setDate(entity.getDate());
+            domain.setProjectId(entity.getProjectId());
             domain.setCreatedAt(entity.getCreatedAt());
             domain.setUpdatedAt(entity.getUpdatedAt());
         }
@@ -52,6 +53,7 @@ public abstract class TransactionMapper {
             entity.setCategory(domain.getCategory());
             entity.setDescription(domain.getDescription());
             entity.setDate(domain.getDate());
+            entity.setProjectId(domain.getProjectId());
             entity.setCreatedAt(domain.getCreatedAt());
             entity.setUpdatedAt(domain.getUpdatedAt());
         }
