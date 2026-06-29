@@ -1,5 +1,8 @@
 package com.example.smartmoney.infrastructure.persistence.entities;
 
+import com.example.smartmoney.domain.models.user.enums.Focus_Mode;
+import com.example.smartmoney.domain.models.user.enums.Intervention_Level;
+import com.example.smartmoney.domain.models.user.enums.Saving_Pace;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -73,6 +76,19 @@ public class UserEntity {
 
     @Column(name = "financial_setup_completed", nullable = false)
     private boolean financialSetupCompleted = false;
+
+    // User traits (Pivot D — cold-start policy knobs). Nullable until onboarding sets them.
+    @Enumerated(EnumType.STRING)
+    @Column(name = "focus_mode", length = 20)
+    private Focus_Mode focusMode;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "intervention_level", length = 20)
+    private Intervention_Level interventionLevel;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "saving_pace", length = 20)
+    private Saving_Pace savingPace;
 
     // Enum phải là public để MapStruct truy cập được
     public enum Role {

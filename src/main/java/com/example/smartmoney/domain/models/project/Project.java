@@ -179,20 +179,22 @@ public class Project {
 
 
     /**
-     * Net savings = money_saved − money_owed, floored at zero. This is the single
-     * source of truth for progress and completion in the all-auto model: a project
-     * only counts what it has actually put away net of overspend debt.
-     * See docs/project-tracking-all-auto-plan.md §2.
+     * Total contributed = sum of the {@code contributions} list. This is the single
+     * source of truth for progress and completion under the press-to-contribute model:
+     * pressing "contribute" appends a {@link ProjectContribution}, and the progress bar
+     * tracks exactly that. Settlement {@code tracking} (moneySaved/moneyOwed) no longer
+     * feeds progress — see docs/redesign-technical-implementation.md §5.1.
      */
-    public BigDecimal netSavedAmount() {
-        if (tracking == null) return BigDecimal.ZERO;
-        BigDecimal saved = tracking.getMoneySaved() != null ? tracking.getMoneySaved() : BigDecimal.ZERO;
-        BigDecimal owed = tracking.getMoneyOwed() != null ? tracking.getMoneyOwed() : BigDecimal.ZERO;
-        return saved.subtract(owed).max(BigDecimal.ZERO);
+    public Money totalContributed() {
+        BigDecimal sum = contributions.stream()
+                .map(c -> c.getMoney().amount())
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        return new Money(sum, targetAmount.currency());
     }
 
-    public Money totalContributed() {
-        return new Money(netSavedAmount(), targetAmount.currency());
+    /** Backwards-compatible alias; progress now derives from contributions, not tracking. */
+    public BigDecimal netSavedAmount() {
+        return totalContributed().amount();
     }
 
     public Money remaining() {
@@ -301,6 +303,23 @@ public class Project {
         if (status == ProjectStatus.ACTIVE || status == ProjectStatus.FROZEN) {
             this.status = ProjectStatus.EXPIRED;
         }
+    }
+
+    /**
+     * Lazy-on-read expiry: a still-live project whose deadline has passed without
+     * reaching its target transitions to EXPIRED. Returns {@code true} when the status
+     * actually changed, so callers can persist it. Replaces the settlement cron's expiry
+     * pass — evaluated whenever a project is read/accessed.
+     * See docs/redesign-technical-implementation.md §5.3.
+     */
+    public boolean expireIfDeadlinePassed() {
+        boolean shouldExpire = (status == ProjectStatus.ACTIVE || status == ProjectStatus.FROZEN)
+                && deadline.isBefore(LocalDate.now())
+                && progressPercent().compareTo(new BigDecimal("100")) < 0;
+        if (shouldExpire) {
+            expire();
+        }
+        return shouldExpire;
     }
 
     public boolean isTerminal() {

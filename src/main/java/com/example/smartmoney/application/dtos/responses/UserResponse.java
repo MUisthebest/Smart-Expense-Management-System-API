@@ -2,6 +2,9 @@ package com.example.smartmoney.application.dtos.responses;
 
 import com.example.smartmoney.domain.models.user.User;
 import com.example.smartmoney.domain.models.user.enums.Role;
+import com.example.smartmoney.domain.models.user.enums.Focus_Mode;
+import com.example.smartmoney.domain.models.user.enums.Intervention_Level;
+import com.example.smartmoney.domain.models.user.enums.Saving_Pace;
 import lombok.Data;
 import lombok.*;
 import java.util.UUID;
@@ -26,6 +29,11 @@ public class UserResponse {
     private boolean financialSetupCompleted;
     private boolean onboardingCompleted;
 
+    // User traits (Pivot D); null until onboarding sets them.
+    private Saving_Pace savingPace;
+    private Intervention_Level interventionLevel;
+    private Focus_Mode focusMode;
+
     public static UserResponse fromDomain(User user) {
         UserResponse response = new UserResponse();
         response.setId(user.getId());
@@ -39,6 +47,9 @@ public class UserResponse {
         response.setRole(user.getRole());
         response.setRate(user.getRate());
         response.setActive(user.isActive());
+        response.setSavingPace(user.getSavingPace());
+        response.setInterventionLevel(user.getInterventionLevel());
+        response.setFocusMode(user.getFocusMode());
         // Disabled: income/financial setup flags removed from User (user_income / user_financial_profile tables removed).
         // response.setIncomeSetupCompleted(user.isIncomeSetupCompleted());
         // response.setFinancialSetupCompleted(user.isFinancialSetupCompleted());

@@ -9,8 +9,9 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 
 /**
- * Request to get an AI-generated budget split advice for a project.
- * Same fields as {@link CreateProjectRequest} plus a {@code mode} field.
+ * Request to get a monthly-saving plan for a project. The savings pace is no longer
+ * supplied here — it is read from the user's {@code savingPace} trait (Pivot D /
+ * redesign §5.5), so the per-request {@code Mode} (URGENT/RELAXED) was removed.
  */
 @Data
 public class ProjectBudgetAdvisorRequest {
@@ -36,12 +37,4 @@ public class ProjectBudgetAdvisorRequest {
 
     @NotNull(message = "Deadline is required")
     private LocalDate deadline;
-
-    /**
-     * Savings mode: {@code URGENT} → minimise months, {@code RELAXED} → add 1 month to deadline.
-     */
-    @NotNull(message = "mode is required (URGENT or RELAXED)")
-    private Mode mode;
-
-    public enum Mode { URGENT, RELAXED }
 }

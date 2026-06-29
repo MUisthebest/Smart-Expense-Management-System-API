@@ -118,6 +118,9 @@ public abstract class UserMapper {
             user.setUpdatedAt(entity.getUpdatedAt());
             user.setActive(entity.isActive());
             user.setNotificationEnabled(entity.isNotificationEnabled());
+            user.setFocusMode(entity.getFocusMode());
+            user.setInterventionLevel(entity.getInterventionLevel());
+            user.setSavingPace(entity.getSavingPace());
             // Disabled: income/financial setup flags removed from User domain (user_income / user_financial_profile tables removed).
             // user.setIncomeSetupCompleted(entity.isIncomeSetupCompleted());
             // user.setFinancialSetupCompleted(entity.isFinancialSetupCompleted());
@@ -136,6 +139,9 @@ public abstract class UserMapper {
             entity.setUpdatedAt(domain.getUpdatedAt());
             entity.setActive(domain.isActive());
             entity.setNotificationEnabled(domain.isNotificationEnabled());
+            entity.setFocusMode(domain.getFocusMode());
+            entity.setInterventionLevel(domain.getInterventionLevel());
+            entity.setSavingPace(domain.getSavingPace());
             // Disabled: income/financial setup flags removed from User domain (user_income / user_financial_profile tables removed).
             // entity.setIncomeSetupCompleted(domain.isIncomeSetupCompleted());
             // entity.setFinancialSetupCompleted(domain.isFinancialSetupCompleted());

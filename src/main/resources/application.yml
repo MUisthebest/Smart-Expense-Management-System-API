@@ -86,6 +86,12 @@ app:
   # Set BYPASS_DATE_GATE=true in .env to skip the days 1-7 creation window (dev/testing only)
   bypass-date-gate: ${BYPASS_DATE_GATE:false}
 
+  # Settlement engine (DEPRECATED by redesign Pivot B — press-to-contribute).
+  # Disabled by default: the monthly settlement cron (MonthlySettlementScheduler) only
+  # runs when enabled=true. Left as a reversible flag during the transition.
+  settlement:
+    enabled: ${SETTLEMENT_ENABLED:false}
+
   # All-auto project tracking tunables (see docs/project-tracking-all-auto-plan.md §10)
   project:
     # Freeze + per-project debt cap = freeze-mult × monthly_saving
