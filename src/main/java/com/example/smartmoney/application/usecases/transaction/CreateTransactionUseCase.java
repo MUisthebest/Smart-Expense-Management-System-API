@@ -2,6 +2,7 @@ package com.example.smartmoney.application.usecases.transaction;
 
 import com.example.smartmoney.application.dtos.requests.transactions.CreateTransactionRequest;
 import com.example.smartmoney.application.dtos.responses.TransactionResponse;
+import com.example.smartmoney.application.usecases.insight.SuggestionProducer;
 import com.example.smartmoney.application.usecases.notification.CreateNotificationUseCase;
 import com.example.smartmoney.domain.exceptions.DomainException;
 import com.example.smartmoney.domain.models.transaction.Transaction;
@@ -23,6 +24,7 @@ public class CreateTransactionUseCase {
     private final TransactionRepository transactionRepository;
     private final CreateNotificationUseCase createNotificationUseCase;
     private final BudgetRepository budgetRepository;
+    private final SuggestionProducer suggestionProducer;
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
 
     public TransactionResponse execute(UUID userId, CreateTransactionRequest request) {
@@ -60,6 +62,10 @@ public class CreateTransactionUseCase {
                 budget.updateSpent(currentSpent.add(amount.getValue()));
                 budgetRepository.save(budget);
             });
+
+            // Proactive insight → suggestion (workstream C). Best-effort: gated by the user's
+            // interventionLevel trait and never allowed to break the transaction-create flow.
+            suggestionProducer.maybeProduce(userId, request.getCategory(), transactionDate.toLocalDate());
         }
 
         String content = buildNotificationContent(request);
