@@ -29,6 +29,16 @@ public class SuggestionPayload {
 
     private ProposedAction proposedAction;
 
+    /**
+     * The resolved action a suggestion proposes — a concrete number the user consents to, never
+     * a recompute recipe. The shape is polymorphic across {@code SuggestionType}; each accept
+     * branch validates only the fields it needs:
+     * <ul>
+     *   <li>RAISE_BUDGET — {@code budgetId} + {@code resolvedValue} (new limit)</li>
+     *   <li>CREATE_BUDGET — {@code category} + {@code month}/{@code year} + {@code resolvedValue} (limit)</li>
+     *   <li>CONTRIBUTE_TO_PROJECT — {@code projectId} + {@code resolvedValue} (contribution amount)</li>
+     * </ul>
+     */
     @Data
     @Builder
     @NoArgsConstructor
@@ -37,7 +47,15 @@ public class SuggestionPayload {
     public static class ProposedAction {
         private Category category;
         private UUID budgetId;
-        /** The exact new budget limit the user is consenting to (for RAISE_BUDGET). */
+        /** Target month/year for a CREATE_BUDGET action. */
+        private Integer month;
+        private Integer year;
+        /** Target project for a CONTRIBUTE_TO_PROJECT action. */
+        private UUID projectId;
+        /**
+         * The exact number the user is consenting to: the new budget limit (RAISE_BUDGET /
+         * CREATE_BUDGET) or the contribution amount (CONTRIBUTE_TO_PROJECT).
+         */
         private BigDecimal resolvedValue;
     }
 }

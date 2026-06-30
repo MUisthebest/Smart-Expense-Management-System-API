@@ -92,6 +92,12 @@ app:
   settlement:
     enabled: ${SETTLEMENT_ENABLED:false}
 
+  # Weekly insight digest (redesign Phase 2 P2-F). Disabled by default: the digest cron
+  # (WeeklyInsightDigestScheduler) only runs when enabled=true. Keep off until the digest
+  # path is validated against a live DB.
+  digest:
+    enabled: ${DIGEST_ENABLED:false}
+
   # All-auto project tracking tunables (see docs/project-tracking-all-auto-plan.md §10)
   project:
     # Freeze + per-project debt cap = freeze-mult × monthly_saving

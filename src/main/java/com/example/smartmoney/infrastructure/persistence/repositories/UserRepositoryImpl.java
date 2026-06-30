@@ -1,6 +1,7 @@
 package com.example.smartmoney.infrastructure.persistence.repositories;
 
 import com.example.smartmoney.domain.models.user.User;
+import com.example.smartmoney.domain.models.user.enums.Focus_Mode;
 import com.example.smartmoney.domain.models.user.valueobjects.Email;
 import com.example.smartmoney.domain.models.user.valueobjects.Phone;
 import com.example.smartmoney.domain.repositories.UserRepository;
@@ -92,6 +93,15 @@ public class UserRepositoryImpl implements UserRepository {
     @Override
     public boolean existsByPhoneAndIdNot(Phone phone, UUID id) {
         return jpaUserRepository.existsByPhoneAndIdNot(phone.getValue(), id);
+    }
+
+    @Override
+    public List<User> findAllForDigest() {
+        // Low-interruption focus modes prefer a batched digest over per-event pushes.
+        return jpaUserRepository.findForDigest(
+                        List.of(Focus_Mode.SAVE_MORE, Focus_Mode.TRACK_ONLY)).stream()
+                .map(userMapper::toDomain)
+                .toList();
     }
 //
 //    @Override
