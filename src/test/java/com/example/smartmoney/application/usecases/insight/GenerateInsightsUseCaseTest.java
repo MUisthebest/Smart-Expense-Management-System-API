@@ -46,8 +46,10 @@ class GenerateInsightsUseCaseTest {
 
     @BeforeEach
     void setUp() {
+        // Narration disabled → narrate() returns null; insights carry no narrative (Phase-1 behaviour).
+        InsightNarrator narrator = new InsightNarrator(prompt -> { throw new IllegalStateException("no LLM"); }, false);
         useCase = new GenerateInsightsUseCase(
-                transactionRepository, budgetRepository, userRepository, new SpendingInsightAnalyzer());
+                transactionRepository, budgetRepository, userRepository, new SpendingInsightAnalyzer(), narrator);
     }
 
     private Transaction expense(Category category, int month, BigDecimal amount) {

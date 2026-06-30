@@ -32,6 +32,9 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
@@ -54,9 +57,10 @@ import java.util.UUID;
  * </ul>
  *
  * <p>Best-effort: every failure here is swallowed so a producer hiccup never affects the user's
- * transaction. Fatigue is controlled by (a) NOTIFY users getting zero pushes, (b) the severity
- * gate, (c) one open ask per topic via dedup, and (d) dismissal suppression (P2-A): a topic the
- * user keeps dismissing is held back unless its severity escalates to CRITICAL.
+ * transaction. Fatigue is controlled in layers: (a) NOTIFY users get zero pushes, (b) the severity
+ * gate, (c) one open ask per topic via dedup, (d) dismissal suppression (P2-A), (e) a per-topic
+ * cooldown, and (f) a per-user daily push cap (P3-A). The P2-A/P3-A controls (d–f) are all bypassed
+ * by a CRITICAL escalation, so a genuine emergency is never silenced by the fatigue ceiling.
  */
 @Service
 @Slf4j
@@ -75,6 +79,9 @@ public class SuggestionProducer {
     private final SuggestionTopicStatRepository topicStatRepository;
     private final CreateNotificationUseCase createNotificationUseCase;
     private final ObjectMapper objectMapper;
+    private final SuggestionFatigueProperties fatigue;
+    private final Clock clock;
+    private final InsightNarrator narrator;
 
     /**
      * Evaluate the affected category after an expense create and maybe raise a budget-related
@@ -180,7 +187,7 @@ public class SuggestionProducer {
                 .severity(insight.getSeverity())
                 .dedupKey("RAISE_BUDGET:" + category.name() + ":" + period)
                 .payloadJson(payloadJson(insight, action))
-                .notificationContent("notification.suggestion.raise_budget|" + category.name())
+                .notificationContent(pushText(insight, "notification.suggestion.raise_budget|" + category.name()))
                 .build();
     }
 
@@ -208,7 +215,7 @@ public class SuggestionProducer {
                 .severity(insight.getSeverity())
                 .dedupKey("CREATE_BUDGET:" + category.name() + ":" + period)
                 .payloadJson(payloadJson(insight, action))
-                .notificationContent("notification.suggestion.create_budget|" + category.name())
+                .notificationContent(pushText(insight, "notification.suggestion.create_budget|" + category.name()))
                 .build();
     }
 
@@ -224,7 +231,7 @@ public class SuggestionProducer {
                 .severity(insight.getSeverity())
                 .dedupKey("CONTRIBUTE_TO_PROJECT:" + target.getId().value() + ":" + period)
                 .payloadJson(payloadJson(insight, action))
-                .notificationContent("notification.suggestion.contribute_to_project|" + target.getName())
+                .notificationContent(pushText(insight, "notification.suggestion.contribute_to_project|" + target.getName()))
                 .build();
     }
 
@@ -239,10 +246,23 @@ public class SuggestionProducer {
             log.debug("[Suggestion] skip — open ask already exists for {}", candidate.dedupKey);
             return;
         }
-        // P2-A: back off on a topic the user keeps dismissing, unless severity escalated to CRITICAL.
-        if (isSuppressed(userId, candidate.dedupKey, candidate.severity)) {
-            log.debug("[Suggestion] suppressed (dismissal fatigue) for {}", candidate.dedupKey);
-            return;
+        // Fatigue ceiling (P2-A dismissal suppression + P3-A cooldown / daily cap). A CRITICAL
+        // escalation bypasses all of it so a genuine emergency is never silenced.
+        if (candidate.severity != Severity.CRITICAL) {
+            Instant now = clock.instant();
+            SuggestionTopicStat stat = topicStatRepository.find(userId, candidate.dedupKey).orElse(null);
+            if (isSuppressed(stat)) {
+                log.debug("[Suggestion] suppressed (dismissal fatigue) for {}", candidate.dedupKey);
+                return;
+            }
+            if (isInCooldown(stat, now)) {
+                log.debug("[Suggestion] in cooldown ({}h) for {}", fatigue.getCooldownHours(), candidate.dedupKey);
+                return;
+            }
+            if (dailyCapReached(userId, now)) {
+                log.debug("[Suggestion] daily push cap {} reached for user {}", fatigue.getDailyCap(), userId);
+                return;
+            }
         }
 
         Suggestion suggestion = Suggestion.create(
@@ -259,20 +279,45 @@ public class SuggestionProducer {
 
         createNotificationUseCase.createNotification(
                 userId, candidate.notificationContent, "app://suggestions/" + saved.getId());
+        recordPush(userId, candidate.dedupKey); // P3-A: stamp the topic so the cooldown can space repeats
 
         log.info("[Suggestion] raised {} id={} for user={} dedupKey={}",
                 candidate.type, saved.getId(), userId, candidate.dedupKey);
     }
 
-    /** True when the topic has been dismissed enough times and this ask is not a CRITICAL escalation. */
-    private boolean isSuppressed(UUID userId, String dedupKey, Severity severity) {
-        if (severity == Severity.CRITICAL) {
-            return false; // an escalation always breaks through
+    /** True when the topic has been dismissed enough times to back off (CRITICAL handled by caller). */
+    private boolean isSuppressed(SuggestionTopicStat stat) {
+        return stat != null && stat.getDismissCount() >= SUPPRESS_AFTER_DISMISSALS;
+    }
+
+    /** P3-A: still inside the per-topic cooldown window since the last push? */
+    private boolean isInCooldown(SuggestionTopicStat stat, Instant now) {
+        if (stat == null || stat.getLastPushedAt() == null || fatigue.getCooldownHours() <= 0) {
+            return false;
         }
-        return topicStatRepository.find(userId, dedupKey)
-                .map(SuggestionTopicStat::getDismissCount)
-                .map(count -> count >= SUPPRESS_AFTER_DISMISSALS)
-                .orElse(false);
+        Instant readyAt = stat.getLastPushedAt().plus(Duration.ofHours(fatigue.getCooldownHours()));
+        return now.isBefore(readyAt);
+    }
+
+    /** P3-A: has the user already hit the per-day push cap (suggestions created since day start)? */
+    private boolean dailyCapReached(UUID userId, Instant now) {
+        if (fatigue.getDailyCap() <= 0) {
+            return false; // non-positive cap = unlimited
+        }
+        Instant dayStart = LocalDate.ofInstant(now, clock.getZone()).atStartOfDay(clock.getZone()).toInstant();
+        return suggestionRepository.countByUserIdAndCreatedAtAfter(userId, dayStart) >= fatigue.getDailyCap();
+    }
+
+    /** Best-effort: stamp the topic's last-pushed time so the P3-A cooldown can space out repeats. */
+    private void recordPush(UUID userId, String dedupKey) {
+        try {
+            SuggestionTopicStat stat = topicStatRepository.find(userId, dedupKey)
+                    .orElseGet(() -> SuggestionTopicStat.start(userId, dedupKey));
+            stat.recordPush(clock.instant());
+            topicStatRepository.save(stat);
+        } catch (Exception e) {
+            log.warn("[Suggestion] could not stamp last-pushed for topic {}: {}", dedupKey, e.getMessage());
+        }
     }
 
     // ---- helpers -------------------------------------------------------------------------
@@ -326,6 +371,15 @@ public class SuggestionProducer {
             case AGGRESIVE -> new BigDecimal("0.30");
         };
         return disposable.multiply(fraction);
+    }
+
+    /**
+     * P3-C: human-readable push body from the insight, best-effort. Falls back to the raw i18n
+     * {@code code} when narration is off/unavailable — the FE localizes that key as before.
+     */
+    private String pushText(Insight insight, String fallbackCode) {
+        String narrative = narrator.narrate(insight);
+        return narrative != null ? narrative : fallbackCode;
     }
 
     private String payloadJson(Insight insight, SuggestionPayload.ProposedAction action) {

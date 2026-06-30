@@ -48,6 +48,11 @@ public class SuggestionRepositoryImpl implements SuggestionRepository {
     }
 
     @Override
+    public int countByUserIdAndCreatedAtAfter(UUID userId, Instant since) {
+        return jpaSuggestionRepository.countByUserIdAndCreatedAtGreaterThanEqual(userId, since);
+    }
+
+    @Override
     public int markDecidedIfPending(UUID id, UUID userId, SuggestionStatus newStatus, Instant decidedAt) {
         return jpaSuggestionRepository.markDecidedIfPending(id, userId, newStatus, decidedAt);
     }

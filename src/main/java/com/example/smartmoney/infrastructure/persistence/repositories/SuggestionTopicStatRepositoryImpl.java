@@ -32,6 +32,7 @@ public class SuggestionTopicStatRepositoryImpl implements SuggestionTopicStatRep
         entity.setDedupKey(domain.getDedupKey());
         entity.setDismissCount(domain.getDismissCount());
         entity.setLastDismissedAt(domain.getLastDismissedAt());
+        entity.setLastPushedAt(domain.getLastPushedAt());
         return entity;
     }
 
@@ -42,6 +43,7 @@ public class SuggestionTopicStatRepositoryImpl implements SuggestionTopicStatRep
                 .dedupKey(entity.getDedupKey())
                 .dismissCount(entity.getDismissCount())
                 .lastDismissedAt(entity.getLastDismissedAt())
+                .lastPushedAt(entity.getLastPushedAt())
                 .build();
     }
 }

@@ -21,6 +21,9 @@ public interface JpaSuggestionRepository extends JpaRepository<SuggestionEntity,
 
     List<SuggestionEntity> findByUserIdAndStatusOrderByCreatedAtDesc(UUID userId, SuggestionStatus status);
 
+    /** Count of this user's suggestions created at/after {@code since} — backs the P3-A daily cap. */
+    int countByUserIdAndCreatedAtGreaterThanEqual(UUID userId, Instant since);
+
     /**
      * Conditional, lock-free transition out of PENDING. The WHERE clause makes this
      * idempotent: a second concurrent or repeated call updates 0 rows.

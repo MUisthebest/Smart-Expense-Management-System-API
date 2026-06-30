@@ -182,21 +182,79 @@ until validated.
 
 # PHASE 3 — Polish
 
-## P3-A — Cooldown / daily cap (global fatigue ceiling)
+## P3-A — Cooldown / daily cap (global fatigue ceiling)  ✅ IMPLEMENTED (2026-06-30)
+
+> Shipped the third fatigue layer on top of dedup (P1) + dismissal suppression (P2-A): a per-user
+> **daily push cap** and a **per-topic cooldown**, both enforced in `SuggestionProducer.persistAndPush`
+> before insert and both **bypassed by a CRITICAL escalation** (same escalation-always-breaks-through
+> rule as P2-A). Pieces:
+> - **`V24__add_topic_stats_last_pushed_at.sql`** adds `last_pushed_at timestamptz` to
+>   `suggestion_topic_stats`. Domain `SuggestionTopicStat` gained `lastPushedAt` + `recordPush(at)`;
+>   entity + repo impl map the new column. (Migration dir is gitignored — left in place on disk.)
+> - **Cooldown:** `isInCooldown(stat, now)` — skip while `now < lastPushedAt + cooldownHours`. The
+>   topic stat is now created/updated on a successful push too (`recordPush`, best-effort), not just
+>   on dismissal.
+> - **Daily cap:** `dailyCapReached(userId, now)` counts the user's suggestions created since
+>   start-of-day via new `SuggestionRepository.countByUserIdAndCreatedAtAfter` (each push = one row);
+>   `>= dailyCap` → skip. Non-positive cap = unlimited.
+> - **Tunables:** `app.suggestion.daily-cap` (default 3) / `app.suggestion.cooldown-hours` (default 24),
+>   bound via `SuggestionFatigueProperties`. A `Clock` bean (`DomainServiceConfig`) is injected so the
+>   time-sensitive rules stay deterministic in tests.
+> - **Tests:** +5 in `SuggestionProducerTest` (cooldown blocks within window / allows after it; daily
+>   cap blocks; CRITICAL bypasses both; a successful push stamps `lastPushedAt`). Full suite 242/0/0
+>   (1 skipped = the DB-context boot). Live-DB caveat: V24 column validate is unproven (Phase-1.5 V1).
 
 On top of dedup (P1) + dismissal suppression (P2-A): a per-user **daily push cap** and a
 **per-topic cooldown** (min time between asks on the same topic). Store last-push timestamps
 (reuse the P2-A topic-stats table). Enforce in the producer before insert. Tunable via
 `application.yml` (`app.suggestion.daily-cap`, `app.suggestion.cooldown-hours`).
 
-## P3-B — Exponential-smoothing forecast
+## P3-B — Exponential-smoothing forecast  ✅ IMPLEMENTED (2026-06-30)
+
+> Augmented `detectBudgetPace` with an exponentially-smoothed forecast as an alternative to the
+> linear projection, selectable by flag (the analyzer stays pure + `asOf`-driven).
+> - **`ForecastMethod` enum** `{LINEAR, EXP_SMOOTHING}` (new `domain/services`). `SpendingInsightAnalyzer`
+>   gained a `forecastMethod` field with a no-arg ctor defaulting to `LINEAR` (so every existing caller /
+>   test is unchanged) plus a `ForecastMethod` ctor. `DomainServiceConfig` reads
+>   `app.insight.forecast-method` (default `LINEAR`) and passes it in.
+> - **EXP_SMOOTHING:** builds a per-day spend series for the category from `history` (so
+>   `detectBudgetPace` now takes `history`), runs simple exponential smoothing (α=0.5, includes
+>   zero-spend days) to get an EWMA daily burn rate, then `projected = spent + rate × remainingDays`.
+>   An isolated early spike decays away instead of being linearly extrapolated; sustained spend tracks
+>   the linear figure. **Falls back to LINEAR when no daily series is available** (budget-only spend,
+>   e.g. the producer path) and labels the method honestly in `metrics.forecastMethod`
+>   (+`metrics.smoothedDailyRate` when smoothing actually ran).
+> - **Default LINEAR** = no live behaviour change (decision: the live DB/insight path is still
+>   unproven, so EXP_SMOOTHING is opt-in and studied against the linear control rather than silently
+>   swapped in). `projectedEndOfMonth` key/shape unchanged, so the producer's RAISE_BUDGET resolved
+>   value is unaffected.
+> - **Tests:** +4 in `SpendingInsightAnalyzerTest` (early spike → exp emits nothing while linear WARNs;
+>   sustained spend → exp ≈ linear 1200 + rate 40; budget-only → exp falls back to LINEAR; linear is
+>   labelled). Full suite 246/0/0 (1 skipped). Live path unproven (Phase-1.5 V1) as ever.
 
 Replace/augment the linear `BUDGET_PACE` projection with exponential smoothing (or
 seasonally-naive) for a smoother end-of-month estimate that reacts to recent days without
 overshooting on a single spike. Keep the linear version behind a flag for comparison; the analyzer
 stays pure and `asOf`-driven. Unit-test against the same fixtures as the linear method.
 
-## P3-C — LLM narration layer (the only place the LLM enters)
+## P3-C — LLM narration layer (the only place the LLM enters)  ✅ IMPLEMENTED (2026-06-30)
+
+> Shipped `InsightNarrator` (`application/usecases/insight`) — the single LLM touch-point. Reuses the
+> existing `LlmPort` (Gemini adapter). `narrate(Insight[, language])`:
+> - **Gated + best-effort:** `app.insight.narration.enabled` (default **false**). Disabled / null insight
+>   → returns `null`; any LLM failure or blank reply → `null`; **never throws**. Callers fall back to the
+>   i18n `code` (Phase-1 behaviour), so narration is never on the critical path.
+> - **LLM phrases, never computes:** `buildPrompt` (package-visible for the guardrail test) embeds the
+>   exact `metrics` figures + `code` and instructs the model to *use only the numbers given; do not
+>   invent, recompute, convert, round, or add any figure.* The deterministic facts stay authoritative.
+> - **Wiring (both optional):** `InsightResponse` gained a nullable `narrative` field, set per-insight in
+>   `GenerateInsightsUseCase.toResponse` (best-effort). `SuggestionProducer.pushText` narrates the push
+>   body, falling back to the raw i18n key — this finally gives the notification human text (closes the
+>   [[suggestion-notification-ux]] push-body gap). Both no-op when the flag is off.
+> - **Tests:** new `InsightNarratorTest` (5): disabled → never calls LLM; LLM failure → null; blank → null;
+>   success → trimmed; **guardrail** — the captured prompt carries the computed figures + code and the
+>   "do not invent" instruction (the "feed fixed metrics, check the template path" check). Existing
+>   producer/insight tests pass a disabled/mock narrator (push stays the i18n key). Full suite 251/0/0.
 
 **Goal:** phrase the already-computed insights/suggestions in natural language; the LLM **never**
 computes a number.
@@ -208,7 +266,22 @@ computes a number.
 - **Guardrail tests:** narrator is bypassed when the port fails; the numbers in the prose match the
   `metrics` (assert the LLM didn't invent figures — feed fixed metrics, check the template path).
 
-## P3-D — Trait onboarding endpoint (D2, skipped in Phase 1)
+## P3-D — Trait onboarding endpoint (D2, skipped in Phase 1)  ✅ ALREADY DONE (verified 2026-06-30)
+
+> Satisfied by the **V22 "financial setup" merge** — no Phase-3 code needed. `AuthController`
+> (`/api/v1/auth`) already exposes `GET /me/financial-setup` (`GetFinancialSetupUseCase`) and
+> `PUT /me/financial-setup` (`UpdateFinancialSetupUseCase` → `User.updateFinancialSetup(income,
+> savingPace, interventionLevel, focusMode)`), with `User.hasCompletedFinancialSetup()` for cold-start
+> detection and `FinancialSetupResponse` (covered by `AuthControllerTest`). This is a superset of the
+> D2 ask (also captures `income`).
+>
+> The only literal gap — *persisting* default trait values (`BALANCED`/`NOTIFY`/`TRACK_ONLY`) at
+> registration — is intentionally left unbuilt: the least-spammy defaults are already the effective
+> cold-start behaviour via null-handling (`interventionLevel == null` → no push = NOTIFY;
+> `savingPace == null` → BALANCED in `scaleByPace`/`ProjectBudgetAdvisorUseCase`; `focusMode == null`
+> → severity-only ordering = TRACK_ONLY). Storing explicit defaults would also make
+> `hasCompletedFinancialSetup()` ambiguous (defaulted vs chosen). Kept null-driven. **Polish, not a
+> blocker — and already covered.**
 
 Add the cold-start onboarding endpoint that sets `UserTraits {savingPace, interventionLevel,
 focusMode}` and sensible defaults (`BALANCED` / `NOTIFY` / `TRACK_ONLY` — least-spammy until the

@@ -46,11 +46,26 @@ public class SpendingInsightAnalyzer {
     private static final BigDecimal Z_WARN = BigDecimal.valueOf(2);
     private static final BigDecimal Z_CRITICAL = BigDecimal.valueOf(3);
     private static final double PACE_CRITICAL_RATIO = 1.25d;
+    /** Smoothing factor for the EXP_SMOOTHING budget-pace forecast (weight on the most recent day). */
+    private static final double EXP_SMOOTHING_ALPHA = 0.5d;
     /** Monthly growth rate (slope / mean) thresholds for an upward category trend. */
     private static final double TREND_WARN_RATE = 0.10d;
     private static final double TREND_CRITICAL_RATE = 0.25d;
     /** A recurring charge's monthly amounts must all sit within ±this fraction of their median. */
     private static final double RECURRING_TOLERANCE = 0.15d;
+
+    /** Which end-of-month projection the budget-pace rule uses (P3-B). */
+    private final ForecastMethod forecastMethod;
+
+    /** Default analyzer — uses the {@link ForecastMethod#LINEAR} pace projection (the control). */
+    public SpendingInsightAnalyzer() {
+        this(ForecastMethod.LINEAR);
+    }
+
+    /** @param forecastMethod which budget-pace projection to use; {@code null} → {@code LINEAR}. */
+    public SpendingInsightAnalyzer(ForecastMethod forecastMethod) {
+        this.forecastMethod = forecastMethod == null ? ForecastMethod.LINEAR : forecastMethod;
+    }
 
     /**
      * @param history expense (and other) transactions covering at least the trailing window
@@ -61,7 +76,7 @@ public class SpendingInsightAnalyzer {
     public List<Insight> analyze(List<Transaction> history, List<Budget> budgets, LocalDate asOf) {
         List<Insight> insights = new ArrayList<>();
         insights.addAll(detectOverspendAnomalies(history, asOf));
-        insights.addAll(detectBudgetPace(budgets, asOf));
+        insights.addAll(detectBudgetPace(budgets, history, asOf));
         insights.addAll(detectCategoryTrends(history, asOf));
         insights.addAll(detectRecurring(history, asOf));
         detectSavingsCapacity(history, budgets, asOf).ifPresent(insights::add);
@@ -126,9 +141,9 @@ public class SpendingInsightAnalyzer {
         return Severity.INFO;
     }
 
-    // ---- Method B: budget pace projection (linear) ---------------------------------------
+    // ---- Method B: budget pace projection (linear or exp-smoothing, P3-B) ----------------
 
-    private List<Insight> detectBudgetPace(List<Budget> budgets, LocalDate asOf) {
+    private List<Insight> detectBudgetPace(List<Budget> budgets, List<Transaction> history, LocalDate asOf) {
         if (budgets == null) {
             return List.of();
         }
@@ -144,8 +159,9 @@ public class SpendingInsightAnalyzer {
             }
             BigDecimal spent = budget.getSpent() != null ? budget.getSpent() : BigDecimal.ZERO;
 
-            // projected = spent / dayOfMonth * daysInMonth
-            double projected = spent.doubleValue() / dayOfMonth * daysInMonth;
+            Projection projection = projectEndOfMonth(
+                    history, budget.getCategory(), period, spent.doubleValue(), dayOfMonth, daysInMonth);
+            double projected = projection.projectedEndOfMonth();
             double limit = budget.getAmountLimit().doubleValue();
             if (projected <= limit) {
                 continue; // on track — nothing actionable to surface
@@ -160,6 +176,10 @@ public class SpendingInsightAnalyzer {
             metrics.put("daysInMonth", daysInMonth);
             metrics.put("projectedEndOfMonth", round(BigDecimal.valueOf(projected)));
             metrics.put("overshootRatio", round2(overshootRatio));
+            metrics.put("forecastMethod", projection.method().name());
+            if (projection.smoothedDailyRate() != null) {
+                metrics.put("smoothedDailyRate", round(BigDecimal.valueOf(projection.smoothedDailyRate())));
+            }
 
             insights.add(Insight.builder()
                     .type(InsightType.BUDGET_PACE)
@@ -171,6 +191,66 @@ public class SpendingInsightAnalyzer {
                     .build());
         }
         return insights;
+    }
+
+    /**
+     * Project a category's end-of-month spend by the configured {@link #forecastMethod}.
+     * EXP_SMOOTHING needs a daily series; when none is available (the spend is only on the budget),
+     * it degrades to the LINEAR projection so a budget-only caller still gets a forecast.
+     */
+    private Projection projectEndOfMonth(List<Transaction> history, Category category, YearMonth period,
+                                         double spent, int dayOfMonth, int daysInMonth) {
+        if (forecastMethod == ForecastMethod.EXP_SMOOTHING) {
+            double[] daily = dailyExpenseSeries(history, category, period, dayOfMonth);
+            double observed = 0d;
+            for (double d : daily) {
+                observed += d;
+            }
+            if (observed > 0d) {
+                double rate = exponentiallySmoothedRate(daily);
+                double projected = spent + rate * (daysInMonth - dayOfMonth);
+                return new Projection(projected, ForecastMethod.EXP_SMOOTHING, rate);
+            }
+            // No daily granularity → fall back to the linear projection (still labelled honestly).
+        }
+        double projected = spent / dayOfMonth * daysInMonth;
+        return new Projection(projected, ForecastMethod.LINEAR, null);
+    }
+
+    /** Per-day expense totals for {@code category} in {@code period}, for days 1..{@code upToDay}. */
+    private static double[] dailyExpenseSeries(List<Transaction> history, Category category,
+                                               YearMonth period, int upToDay) {
+        double[] series = new double[upToDay];
+        if (history == null) {
+            return series;
+        }
+        for (Transaction tx : history) {
+            if (tx == null || tx.getType() != TransactionType.EXPENSE
+                    || tx.getCategory() != category || tx.getAmount() == null || tx.getDate() == null) {
+                continue;
+            }
+            if (!YearMonth.from(tx.getDate()).equals(period)) {
+                continue;
+            }
+            int dom = tx.getDate().getDayOfMonth();
+            if (dom >= 1 && dom <= upToDay) {
+                series[dom - 1] += tx.getAmount().getValue().doubleValue();
+            }
+        }
+        return series;
+    }
+
+    /**
+     * Simple exponential smoothing of a daily-spend series (including zero-spend days): the final
+     * level is an EWMA of the daily burn rate, so an isolated spike decays away over later days
+     * rather than dominating the forecast the way the linear rate does.
+     */
+    private static double exponentiallySmoothedRate(double[] daily) {
+        double level = daily[0];
+        for (int i = 1; i < daily.length; i++) {
+            level = EXP_SMOOTHING_ALPHA * daily[i] + (1 - EXP_SMOOTHING_ALPHA) * level;
+        }
+        return level;
     }
 
     // ---- C1.4: trailing-median helper (robust resolved value for RAISE_BUDGET) -----------
@@ -486,6 +566,14 @@ public class SpendingInsightAnalyzer {
 
     /** A detected recurring charge and its stable monthly amount. */
     private record RecurringCharge(Category category, String description, BigDecimal monthlyAmount, int monthsObserved) {
+    }
+
+    /**
+     * Result of a budget-pace projection: the figure, the method that actually produced it (which
+     * may be LINEAR even under EXP_SMOOTHING if it fell back), and the smoothed daily rate when one
+     * was used ({@code null} for the linear path).
+     */
+    private record Projection(double projectedEndOfMonth, ForecastMethod method, Double smoothedDailyRate) {
     }
 
     private static String code(String typeKey, Category category) {
