@@ -1,0 +1,117 @@
+package com.example.smartmoney.application.services;
+
+import com.example.smartmoney.domain.models.user.User;
+import com.example.smartmoney.domain.models.user.enums.Focus_Mode;
+import com.example.smartmoney.domain.models.user.enums.Intervention_Level;
+import com.example.smartmoney.domain.models.user.enums.Saving_Pace;
+import org.springframework.stereotype.Service;
+
+/**
+ * UC3 — Personalised Tone:
+ * Builds the OpenRouter system prompt by injecting the user's onboarding
+ * preferences (savingPace, interventionLevel, focusMode) so that the same
+ * financial data is presented in a tone that matches who the user is.
+ *
+ * Examples:
+ *  RELAXED + NOTIFY  → calm summary, no numbers pressure
+ *  AGGRESSIVE + HARD → direct numbers, consequences named explicitly
+ */
+@Service
+public class ChatbotPromptBuilder {
+
+    // Base instructions apply to every user regardless of their preferences
+    private static final String BASE_PROMPT = """
+            Bạn là SmartMoney AI — trợ lý tài chính cá nhân thông minh, trả lời bằng tiếng Việt.
+
+            Nguyên tắc cốt lõi:
+            - Tối đa 800 chữ mỗi câu trả lời.
+            - Trả lời chính xác câu hỏi của người dùng, không thêm thắt không cần thiết.
+            - Khi phân tích ngân sách: nêu con số cụ thể (VND), tỉ lệ phần trăm, và tác động thực tế.
+            - Khi đề xuất điều chỉnh ngân sách: luôn giải thích lý do và kết quả kỳ vọng.
+            - Khi mô phỏng kịch bản: tính toán rõ ràng, nêu rủi ro và ảnh hưởng cụ thể đến từng dự án.
+            - Không phỏng đoán số liệu — chỉ sử dụng dữ liệu được cung cấp trong prompt.
+            """;
+
+    /**
+     * Builds the full system prompt, appending a personalised tone block derived
+     * from the user's onboarding choices.
+     *
+     * @param user the authenticated user; null falls back to base prompt (safe default)
+     * @return complete system prompt string ready to send to the LLM
+     */
+    public String build(User user) {
+        if (user == null) {
+            // Null guard: new users or profile-missing edge cases get the neutral default
+            return BASE_PROMPT;
+        }
+
+        // UC3: append tone instructions specific to this user's preferences
+        StringBuilder sb = new StringBuilder(BASE_PROMPT);
+        sb.append("\n=== Phong cách giao tiếp dành riêng cho người dùng này ===\n");
+        sb.append(buildToneBlock(user));
+        return sb.toString();
+    }
+
+    /**
+     * UC3 core mapping: translates each onboarding enum value into concrete
+     * writing-style instructions the LLM must follow.
+     *
+     * Saving_Pace  controls how direct / pressure-filled the language is.
+     * Intervention_Level controls how proactively the chatbot surfaces bad news.
+     * Focus_Mode   controls which financial lens to apply when analysing data.
+     */
+    private String buildToneBlock(User user) {
+        Saving_Pace pace = user.getSavingPace();
+        Intervention_Level intervention = user.getInterventionLevel();
+        Focus_Mode focus = user.getFocusMode();
+
+        StringBuilder tone = new StringBuilder();
+
+        // --- Saving Pace ---
+        if (pace == Saving_Pace.RELAXED) {
+            // RELAXED: encourage without pressure; prioritise long-term comfort
+            tone.append("- Tốc độ tiết kiệm: RELAXED. Giọng nhẹ nhàng, khích lệ, không tạo áp lực. ")
+                .append("Ưu tiên sự thoải mái và bền vững dài hạn hơn là tốc độ tích lũy.\n");
+        } else if (pace == Saving_Pace.AGGRESIVE) {
+            // AGGRESIVE: direct numbers, name consequences, no sugarcoating
+            tone.append("- Tốc độ tiết kiệm: AGGRESSIVE. Giọng thẳng thắn, tập trung vào con số cụ thể. ")
+                .append("Nêu rõ hậu quả nếu không hành động ngay. Dùng ngôn ngữ quyết đoán, ngắn gọn.\n");
+        } else {
+            // BALANCED default: mix of encouragement and facts
+            tone.append("- Tốc độ tiết kiệm: BALANCED. Kết hợp khích lệ và số liệu thực tế. ")
+                .append("Trình bày cả hai mặt của mỗi quyết định tài chính.\n");
+        }
+
+        // --- Intervention Level ---
+        if (intervention == Intervention_Level.HARD) {
+            // HARD: clear warnings, don't soften bad news, name every affected project
+            tone.append("- Mức can thiệp: HARD. Cảnh báo rõ ràng khi ngân sách vượt mức. ")
+                .append("Không làm nhẹ tin xấu. Nêu cụ thể: bao nhiêu tiền, tháng nào bị trễ, dự án nào bị ảnh hưởng.\n");
+        } else if (intervention == Intervention_Level.NOTIFY) {
+            // NOTIFY: light touch — inform only, do not push for action
+            tone.append("- Mức can thiệp: NOTIFY. Chỉ thông báo tình trạng tổng quan. ")
+                .append("Không phân tích sâu trừ khi người dùng hỏi cụ thể.\n");
+        } else {
+            // GENTLE default: soft suggestions, leave decisions to the user
+            tone.append("- Mức can thiệp: GENTLE. Gợi ý nhẹ nhàng, không áp đặt. ")
+                .append("Cung cấp số liệu nhưng để người dùng tự quyết định hành động.\n");
+        }
+
+        // --- Focus Mode ---
+        if (focus == Focus_Mode.REDUCE_SPENDING) {
+            // REDUCE_SPENDING: spotlight overspending categories
+            tone.append("- Chế độ tập trung: GIẢM CHI TIÊU. Ưu tiên phân tích danh mục nào đang chi quá mức. ")
+                .append("Luôn gợi ý cắt giảm cụ thể khi có danh mục vượt giới hạn ngân sách.\n");
+        } else if (focus == Focus_Mode.SAVE_MORE) {
+            // SAVE_MORE: spotlight project progress and saving opportunities
+            tone.append("- Chế độ tập trung: TIẾT KIỆM NHIỀU HƠN. Ưu tiên gợi ý tăng tiết kiệm ")
+                .append("và theo dõi tiến độ dự án. So sánh tiến độ thực tế với kế hoạch.\n");
+        } else if (focus == Focus_Mode.TRACK_ONLY) {
+            // TRACK_ONLY: passive summary, no unsolicited advice
+            tone.append("- Chế độ tập trung: CHỈ THEO DÕI. Cung cấp tóm tắt dữ liệu trung thực. ")
+                .append("Không đưa ra lời khuyên chủ động trừ khi người dùng hỏi trực tiếp.\n");
+        }
+
+        return tone.toString();
+    }
+}
