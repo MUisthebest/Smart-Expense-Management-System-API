@@ -6,6 +6,10 @@ import com.example.smartmoney.domain.models.user.enums.Saving_Pace;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -46,6 +50,27 @@ public class UserEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "role", nullable = false, length = 10)
     private Role role = Role.USER;
+
+    @Column(name = "income", precision = 19, scale = 2)
+    private BigDecimal income;
+
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(name = "focus", columnDefinition = "focus")
+    private Focus_Mode focusMode;
+
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(
+            name = "intervention_level",
+            columnDefinition = "intervention_level"
+    )
+    private Intervention_Level interventionLevel;
+
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(name = "pace", columnDefinition = "pace")
+    private Saving_Pace savingPace;
     
     @Column(name = "refresh_token", length = 500)
     private String refreshToken;
@@ -70,25 +95,6 @@ public class UserEntity {
     
     @Column(name = "notification_enabled", nullable = false)
     private boolean notificationEnabled = true;
-
-    @Column(name = "income_setup_completed", nullable = false)
-    private boolean incomeSetupCompleted = false;
-
-    @Column(name = "financial_setup_completed", nullable = false)
-    private boolean financialSetupCompleted = false;
-
-    // User traits (Pivot D — cold-start policy knobs). Nullable until onboarding sets them.
-    @Enumerated(EnumType.STRING)
-    @Column(name = "focus_mode", length = 20)
-    private Focus_Mode focusMode;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "intervention_level", length = 20)
-    private Intervention_Level interventionLevel;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "saving_pace", length = 20)
-    private Saving_Pace savingPace;
 
     // Enum phải là public để MapStruct truy cập được
     public enum Role {

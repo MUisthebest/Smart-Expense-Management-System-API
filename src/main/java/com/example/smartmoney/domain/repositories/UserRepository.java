@@ -21,6 +21,6 @@ public interface UserRepository {
     boolean existsByUsername(String username);
     boolean existsByPhone(Phone phone);
     boolean existsByPhoneAndIdNot(Phone phone, UUID id);
-    void markIncomeSetupCompleted(UUID userId, boolean completed);
-    void markFinancialSetupCompleted(UUID userId, boolean completed);
+//    void markIncomeSetupCompleted(UUID userId, boolean completed);
+//    void markFinancialSetupCompleted(UUID userId, boolean completed);
 }

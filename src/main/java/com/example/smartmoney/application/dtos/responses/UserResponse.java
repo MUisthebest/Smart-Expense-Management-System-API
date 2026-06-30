@@ -25,9 +25,12 @@ public class UserResponse {
     private Role role;
     private Double rate;
     private boolean active;
-    private boolean incomeSetupCompleted;
+
     private boolean financialSetupCompleted;
-    private boolean onboardingCompleted;
+
+//    private boolean incomeSetupCompleted;
+//    private boolean financialSetupCompleted;
+//    private boolean onboardingCompleted;
 
     // User traits (Pivot D); null until onboarding sets them.
     private Saving_Pace savingPace;
@@ -47,9 +50,11 @@ public class UserResponse {
         response.setRole(user.getRole());
         response.setRate(user.getRate());
         response.setActive(user.isActive());
-        response.setSavingPace(user.getSavingPace());
-        response.setInterventionLevel(user.getInterventionLevel());
-        response.setFocusMode(user.getFocusMode());
+
+        response.setFinancialSetupCompleted(
+                user.hasCompletedFinancialSetup()
+        );
+
         // Disabled: income/financial setup flags removed from User (user_income / user_financial_profile tables removed).
         // response.setIncomeSetupCompleted(user.isIncomeSetupCompleted());
         // response.setFinancialSetupCompleted(user.isFinancialSetupCompleted());
