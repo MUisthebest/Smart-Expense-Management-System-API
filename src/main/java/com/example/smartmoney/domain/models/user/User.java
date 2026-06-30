@@ -314,4 +314,12 @@ public class User {
                 && interventionLevel != null
                 && focusMode != null;
     }
+
+    public void clearFinancialSetup() {
+        this.income = null;
+        this.savingPace = null;
+        this.interventionLevel = null;
+        this.focusMode = null;
+        this.updatedAt = LocalDateTime.now();
+    }
 }

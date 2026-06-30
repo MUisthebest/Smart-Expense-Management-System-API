@@ -75,6 +75,9 @@ public class LoginUseCase {
         response.setRole(user.getRole());
         response.setRate(user.getRate());
         response.setActive(user.isActive());
+        response.setFinancialSetupCompleted(
+                user.hasCompletedFinancialSetup()
+        );
         // Disabled: income/financial setup flags removed from User (user_income / user_financial_profile tables removed).
         // response.setIncomeSetupCompleted(user.isIncomeSetupCompleted());
         // response.setFinancialSetupCompleted(user.isFinancialSetupCompleted());
