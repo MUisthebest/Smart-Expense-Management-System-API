@@ -37,6 +37,16 @@ class SpendingInsightAnalyzerTest {
                 "test", LocalDateTime.of(year, month, 10, 12, 0));
     }
 
+    private Transaction expense(Category category, int year, int month, BigDecimal amount, String description) {
+        return Transaction.create(userId, new Amount(amount), TransactionType.EXPENSE, category,
+                description, LocalDateTime.of(year, month, 10, 12, 0));
+    }
+
+    private Transaction income(int year, int month, BigDecimal amount) {
+        return Transaction.create(userId, new Amount(amount), TransactionType.INCOME, Category.OTHER,
+                "salary", LocalDateTime.of(year, month, 5, 12, 0));
+    }
+
     /** Four trailing months [80,120,80,120] → mean 100, population stddev 20. */
     private List<Transaction> trailingBaseline(Category category) {
         List<Transaction> history = new ArrayList<>();
@@ -191,5 +201,172 @@ class SpendingInsightAnalyzerTest {
     void medianNoData() {
         assertEquals(0, BigDecimal.ZERO.compareTo(
                 analyzer.trailing3MonthMedian(List.of(), Category.FOOD, PERIOD)));
+    }
+
+    // ---- P2-C: category trend ------------------------------------------------------------
+
+    private Optional<Insight> trend(List<Transaction> history) {
+        return analyzer.analyze(history, List.of(), AS_OF).stream()
+                .filter(i -> i.getType() == InsightType.CATEGORY_TREND)
+                .findFirst();
+    }
+
+    @Test
+    @DisplayName("steadily rising category (~13%/mo) → WARN trend")
+    void risingTrendIsWarn() {
+        List<Transaction> history = new ArrayList<>();
+        int[] amounts = {100, 120, 140, 160, 180, 200}; // Jan..Jun, slope 20 / mean 150 = 0.133
+        for (int i = 0; i < amounts.length; i++) {
+            history.add(expense(Category.FOOD, 2026, i + 1, new BigDecimal(amounts[i])));
+        }
+        Insight insight = trend(history).orElseThrow();
+        assertEquals(Severity.WARN, insight.getSeverity());
+        assertEquals("insight.category_trend.food", insight.getCode());
+    }
+
+    @Test
+    @DisplayName("sharply rising category (~40%/mo) → CRITICAL trend")
+    void sharpTrendIsCritical() {
+        List<Transaction> history = new ArrayList<>();
+        int[] amounts = {100, 200, 300, 400}; // Mar..Jun, slope 100 / mean 250 = 0.4
+        for (int i = 0; i < amounts.length; i++) {
+            history.add(expense(Category.FOOD, 2026, i + 3, new BigDecimal(amounts[i])));
+        }
+        assertEquals(Severity.CRITICAL, trend(history).orElseThrow().getSeverity());
+    }
+
+    @Test
+    @DisplayName("flat category → no trend")
+    void flatTrendNone() {
+        List<Transaction> history = new ArrayList<>();
+        for (int m = 3; m <= 6; m++) {
+            history.add(expense(Category.FOOD, 2026, m, new BigDecimal("100")));
+        }
+        assertTrue(trend(history).isEmpty());
+    }
+
+    @Test
+    @DisplayName("declining category → no trend (only upward creep is surfaced)")
+    void decliningTrendNone() {
+        List<Transaction> history = new ArrayList<>();
+        history.add(expense(Category.FOOD, 2026, 4, new BigDecimal("300")));
+        history.add(expense(Category.FOOD, 2026, 5, new BigDecimal("200")));
+        history.add(expense(Category.FOOD, 2026, 6, new BigDecimal("100")));
+        assertTrue(trend(history).isEmpty());
+    }
+
+    @Test
+    @DisplayName("fewer than 3 months → no trend")
+    void shortSeriesNoTrend() {
+        List<Transaction> history = new ArrayList<>();
+        history.add(expense(Category.FOOD, 2026, 5, new BigDecimal("100")));
+        history.add(expense(Category.FOOD, 2026, 6, new BigDecimal("300")));
+        assertTrue(trend(history).isEmpty());
+    }
+
+    // ---- P2-C: recurring -----------------------------------------------------------------
+
+    private List<Insight> recurring(List<Transaction> history) {
+        return analyzer.analyze(history, List.of(), AS_OF).stream()
+                .filter(i -> i.getType() == InsightType.RECURRING)
+                .toList();
+    }
+
+    @Test
+    @DisplayName("near-equal charge across 3 months → recurring (INFO)")
+    void recurringDetected() {
+        List<Transaction> history = new ArrayList<>();
+        history.add(expense(Category.ENTERTAINMENT, 2026, 4, new BigDecimal("200"), "Netflix"));
+        history.add(expense(Category.ENTERTAINMENT, 2026, 5, new BigDecimal("210"), "Netflix"));
+        history.add(expense(Category.ENTERTAINMENT, 2026, 6, new BigDecimal("190"), "Netflix"));
+
+        List<Insight> found = recurring(history);
+        assertEquals(1, found.size());
+        Insight insight = found.get(0);
+        assertEquals(Severity.INFO, insight.getSeverity());
+        assertEquals(Category.ENTERTAINMENT, insight.getCategory());
+        assertEquals(3, insight.getMetrics().get("monthsObserved"));
+        // median of 200/210/190 = 200
+        assertEquals(0, new BigDecimal("200.00").compareTo(
+                (BigDecimal) insight.getMetrics().get("monthlyAmount")));
+    }
+
+    @Test
+    @DisplayName("widely varying amounts → not recurring")
+    void varyingAmountsNotRecurring() {
+        List<Transaction> history = new ArrayList<>();
+        history.add(expense(Category.SHOPPING, 2026, 4, new BigDecimal("100"), "Amazon"));
+        history.add(expense(Category.SHOPPING, 2026, 5, new BigDecimal("200"), "Amazon"));
+        history.add(expense(Category.SHOPPING, 2026, 6, new BigDecimal("400"), "Amazon"));
+        assertTrue(recurring(history).isEmpty());
+    }
+
+    @Test
+    @DisplayName("charges without a description cannot be identified as recurring")
+    void blankDescriptionNotRecurring() {
+        List<Transaction> history = new ArrayList<>();
+        for (int m = 4; m <= 6; m++) {
+            history.add(Transaction.create(userId, new Amount(new BigDecimal("200")),
+                    TransactionType.EXPENSE, Category.ENTERTAINMENT, "  ",
+                    LocalDateTime.of(2026, m, 10, 12, 0)));
+        }
+        assertTrue(recurring(history).isEmpty());
+    }
+
+    @Test
+    @DisplayName("estimatedMonthlyRecurringCost sums every detected recurring charge")
+    void estimatedRecurringCostSums() {
+        List<Transaction> history = new ArrayList<>();
+        for (int m = 4; m <= 6; m++) {
+            history.add(expense(Category.ENTERTAINMENT, 2026, m, new BigDecimal("200"), "Netflix"));
+            history.add(expense(Category.HEALTH, 2026, m, new BigDecimal("50"), "Gym"));
+        }
+        assertEquals(0, new BigDecimal("250.00").compareTo(
+                analyzer.estimatedMonthlyRecurringCost(history, PERIOD)));
+    }
+
+    // ---- P2-C: savings capacity ----------------------------------------------------------
+
+    private Optional<Insight> capacity(List<Transaction> history, List<Budget> budgets) {
+        return analyzer.analyze(history, budgets, AS_OF).stream()
+                .filter(i -> i.getType() == InsightType.SAVINGS_CAPACITY)
+                .findFirst();
+    }
+
+    @Test
+    @DisplayName("income beyond recurring + budgets → positive savings capacity (INFO)")
+    void positiveCapacity() {
+        List<Transaction> history = new ArrayList<>();
+        for (int m = 4; m <= 6; m++) {
+            history.add(income(2026, m, new BigDecimal("5000")));
+            history.add(expense(Category.ENTERTAINMENT, 2026, m, new BigDecimal("200"), "Netflix"));
+        }
+        List<Budget> budgets = List.of(Budget.builder().id(UUID.randomUUID()).userId(userId)
+                .category(Category.FOOD).amountLimit(new BigDecimal("1000")).month(6).year(2026).build());
+
+        Insight insight = capacity(history, budgets).orElseThrow();
+        assertEquals(Severity.INFO, insight.getSeverity());
+        assertNull(insight.getCategory());
+        // disposable = 5000 - 200 (recurring) - 1000 (budget) = 3800
+        assertEquals(0, new BigDecimal("3800.00").compareTo(
+                (BigDecimal) insight.getMetrics().get("disposable")));
+    }
+
+    @Test
+    @DisplayName("no income signal → no savings capacity")
+    void noIncomeNoCapacity() {
+        List<Transaction> history = new ArrayList<>();
+        history.add(expense(Category.FOOD, 2026, 6, new BigDecimal("100")));
+        assertTrue(capacity(history, List.of()).isEmpty());
+    }
+
+    @Test
+    @DisplayName("committed beyond income → no capacity")
+    void overCommittedNoCapacity() {
+        List<Transaction> history = new ArrayList<>();
+        history.add(income(2026, 6, new BigDecimal("1000")));
+        List<Budget> budgets = List.of(Budget.builder().id(UUID.randomUUID()).userId(userId)
+                .category(Category.FOOD).amountLimit(new BigDecimal("2000")).month(6).year(2026).build());
+        assertTrue(capacity(history, budgets).isEmpty());
     }
 }

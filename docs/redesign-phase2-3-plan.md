@@ -86,7 +86,18 @@ Add to `SuggestionType` (code-only) + a new whitelist branch in `RespondToSugges
 - **Tests:** each new type — producer builds the right payload; accept executes the right use case;
   unknown/missing fields rejected.
 
-## P2-C — More insight types (analyzer extensions, still pure)
+## P2-C — More insight types (analyzer extensions, still pure)  ✅ IMPLEMENTED (2026-06-29)
+
+> Shipped: `InsightType` gained `CATEGORY_TREND`, `RECURRING`, `SAVINGS_CAPACITY`; all three
+> detectors live in `SpendingInsightAnalyzer` (still pure, `asOf`-driven). `GenerateInsightsUseCase.focusRank`
+> extended so `REDUCE_SPENDING` ranks spending-control first and `SAVE_MODE` ranks saving/recurring
+> first. +12 analyzer tests (25 total in `SpendingInsightAnalyzerTest`); full suite 221/0/0.
+> Decisions made: CATEGORY_TREND emits only **upward** trends (slope>0) with growthRate (slope/mean)
+> ≥0.10 WARN / ≥0.25 CRITICAL, min 3 months; RECURRING needs a **non-blank description**, ≥3 distinct
+> months, all monthly amounts within ±15% of their median (INFO); SAVINGS_CAPACITY derives net income
+> from INCOME rows in `history` (avg over months with income in the window) — **no P2-D plumbing needed
+> yet** — `disposable = avgIncome − estimatedMonthlyRecurringCost − Σ budget.amountLimit`, emits INFO
+> only when positive. Public `estimatedMonthlyRecurringCost(history, period)` exposed for P2-D reuse.
 
 All in `SpendingInsightAnalyzer`; add to `InsightType`; keep `asOf`-driven & unit-tested.
 
