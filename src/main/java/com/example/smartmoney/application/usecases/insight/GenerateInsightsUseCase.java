@@ -87,12 +87,25 @@ public class GenerateInsightsUseCase {
 
     private int focusRank(InsightType type, Focus_Mode focus) {
         if (focus == Focus_Mode.REDUCE_SPENDING) {
-            // Prioritize the spending-control insights for users who asked to cut waste.
+            // Cut-waste users: spending-control insights first, savings/info last.
             return switch (type) {
                 case OVERSPEND_ANOMALY -> 0;
                 case BUDGET_PACE -> 1;
+                case CATEGORY_TREND -> 2;
+                case RECURRING -> 3;
+                case SAVINGS_CAPACITY -> 4;
             };
         }
-        return 0; // SAVE_MODE / TRACK_ONLY / cold-start: no type prioritization in Phase 1
+        if (focus == Focus_Mode.SAVE_MORE) {
+            // Save-mode users: surface saving opportunities and committed costs first.
+            return switch (type) {
+                case SAVINGS_CAPACITY -> 0;
+                case RECURRING -> 1;
+                case CATEGORY_TREND -> 2;
+                case OVERSPEND_ANOMALY -> 3;
+                case BUDGET_PACE -> 4;
+            };
+        }
+        return 0; // TRACK_ONLY / cold-start: no type prioritization, severity order only
     }
 }
