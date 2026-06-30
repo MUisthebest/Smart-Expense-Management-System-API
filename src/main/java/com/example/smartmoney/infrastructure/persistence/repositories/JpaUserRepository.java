@@ -21,25 +21,25 @@ public interface JpaUserRepository extends JpaRepository<UserEntity, UUID> {
     boolean existsByPhone(String phone);
     boolean existsByPhoneAndIdNot(String phone, UUID id);
 
-    @Modifying(clearAutomatically = true, flushAutomatically = true)
-    @Query("""
-    UPDATE UserEntity u
-    SET u.incomeSetupCompleted = :completed
-    WHERE u.id = :userId
-""")
-    int markIncomeSetupCompleted(
-            @Param("userId") UUID userId,
-            @Param("completed") boolean completed
-    );
+//    @Modifying(clearAutomatically = true, flushAutomatically = true)
+//    @Query("""
+//    UPDATE UserEntity u
+//    SET u.incomeSetupCompleted = :completed
+//    WHERE u.id = :userId
+//""")
+//    int markIncomeSetupCompleted(
+//            @Param("userId") UUID userId,
+//            @Param("completed") boolean completed
+//    );
 
-    @Modifying(clearAutomatically = true, flushAutomatically = true)
-    @Query("""
-    UPDATE UserEntity u
-    SET u.financialSetupCompleted = :completed
-    WHERE u.id = :userId
-""")
-    int markFinancialSetupCompleted(
-            @Param("userId") UUID userId,
-            @Param("completed") boolean completed
-    );
+//    @Modifying(clearAutomatically = true, flushAutomatically = true)
+//    @Query("""
+//    UPDATE UserEntity u
+//    SET u.financialSetupCompleted = :completed
+//    WHERE u.id = :userId
+//""")
+//    int markFinancialSetupCompleted(
+//            @Param("userId") UUID userId,
+//            @Param("completed") boolean completed
+//    );
 }

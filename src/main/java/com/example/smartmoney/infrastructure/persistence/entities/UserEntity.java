@@ -1,8 +1,15 @@
 package com.example.smartmoney.infrastructure.persistence.entities;
 
+import com.example.smartmoney.domain.models.user.enums.Focus_Mode;
+import com.example.smartmoney.domain.models.user.enums.Intervention_Level;
+import com.example.smartmoney.domain.models.user.enums.Saving_Pace;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -43,6 +50,27 @@ public class UserEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "role", nullable = false, length = 10)
     private Role role = Role.USER;
+
+    @Column(name = "income", precision = 19, scale = 2)
+    private BigDecimal income;
+
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(name = "focus", columnDefinition = "focus")
+    private Focus_Mode focusMode;
+
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(
+            name = "intervention_level",
+            columnDefinition = "intervention_level"
+    )
+    private Intervention_Level interventionLevel;
+
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(name = "pace", columnDefinition = "pace")
+    private Saving_Pace savingPace;
     
     @Column(name = "refresh_token", length = 500)
     private String refreshToken;
@@ -68,11 +96,11 @@ public class UserEntity {
     @Column(name = "notification_enabled", nullable = false)
     private boolean notificationEnabled = true;
 
-    @Column(name = "income_setup_completed", nullable = false)
-    private boolean incomeSetupCompleted = false;
-
-    @Column(name = "financial_setup_completed", nullable = false)
-    private boolean financialSetupCompleted = false;
+//    @Column(name = "income_setup_completed", nullable = false)
+//    private boolean incomeSetupCompleted = false;
+//
+//    @Column(name = "financial_setup_completed", nullable = false)
+//    private boolean financialSetupCompleted = false;
 
     // Enum phải là public để MapStruct truy cập được
     public enum Role {
