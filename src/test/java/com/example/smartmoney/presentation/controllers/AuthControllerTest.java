@@ -3,6 +3,7 @@ package com.example.smartmoney.presentation.controllers;
 import com.example.smartmoney.application.dtos.requests.auth.*;
 import com.example.smartmoney.application.dtos.responses.*;
 import com.example.smartmoney.application.usecases.auth.*;
+import com.example.smartmoney.application.usecases.user.DeleteFinancialSetupUseCase;
 import com.example.smartmoney.domain.exceptions.AuthenticationException;
 import com.example.smartmoney.domain.exceptions.DomainException;
 import com.example.smartmoney.infrastructure.security.JwtTokenProvider;
@@ -51,6 +52,7 @@ class AuthControllerTest {
     @Mock private GetCurrentUserUseCase getCurrentUserUseCase;
     @Mock private GetFinancialSetupUseCase getFinancialSetupUseCase;
     @Mock private UpdateFinancialSetupUseCase updateFinancialSetupUseCase;
+    @Mock private DeleteFinancialSetupUseCase deleteFinancialSetupUseCase;
     private AuthController controller;
     private Validator validator;
 
@@ -76,7 +78,8 @@ class AuthControllerTest {
             notificationUseCase,
             jwtTokenProvider,
             getFinancialSetupUseCase,
-            updateFinancialSetupUseCase
+            updateFinancialSetupUseCase,
+            deleteFinancialSetupUseCase
         );
 
         ValidatorFactory factory = Validation.buildDefaultValidatorFactory();
@@ -362,7 +365,7 @@ class AuthControllerTest {
                     googleLoginUseCase, Optional.empty(), getCurrentUserUseCase,
                     verifyEmailUseCase, updateUserUseCase, sendResetPasswordOtpUseCase,
                     resetPasswordUseCase, verifyOtpUseCase, notificationUseCase, jwtTokenProvider, getFinancialSetupUseCase,
-                    updateFinancialSetupUseCase);
+                    updateFinancialSetupUseCase, deleteFinancialSetupUseCase);
 
             FacebookLoginRequest req = new FacebookLoginRequest();
             req.setAccessToken("any-token");
