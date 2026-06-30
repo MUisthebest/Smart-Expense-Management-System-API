@@ -93,14 +93,14 @@ public class UserRepositoryImpl implements UserRepository {
     public boolean existsByPhoneAndIdNot(Phone phone, UUID id) {
         return jpaUserRepository.existsByPhoneAndIdNot(phone.getValue(), id);
     }
-
-    @Override
-    public void markIncomeSetupCompleted(UUID userId, boolean completed) {
-        jpaUserRepository.markIncomeSetupCompleted(userId, completed);
-    }
-
-    @Override
-    public void markFinancialSetupCompleted(UUID userId, boolean completed) {
-        jpaUserRepository.markFinancialSetupCompleted(userId, completed);
-    }
+//
+//    @Override
+//    public void markIncomeSetupCompleted(UUID userId, boolean completed) {
+//        jpaUserRepository.markIncomeSetupCompleted(userId, completed);
+//    }
+//
+//    @Override
+//    public void markFinancialSetupCompleted(UUID userId, boolean completed) {
+//        jpaUserRepository.markFinancialSetupCompleted(userId, completed);
+//    }
 }
