@@ -7,11 +7,13 @@ import com.example.smartmoney.domain.models.user.valueobjects.*;
 import com.example.smartmoney.domain.models.user.enums.Role;
 import com.example.smartmoney.domain.exceptions.DomainException;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.UUID;
 
+import jdk.jshell.spi.ExecutionControl;
 import lombok.*;
 
 @Builder(toBuilder = true)
@@ -37,6 +39,7 @@ public class User {
     private boolean active = true;
     private boolean emailVerified = false;  // Trạng thái xác minh email
     private boolean notificationEnabled = true;
+    private BigDecimal income;
     private Focus_Mode focusMode;    //New attributes
     private Intervention_Level interventionLevel;   //New attributes
     private Saving_Pace savingPace;  //New attributes.
@@ -282,5 +285,33 @@ public class User {
     public void disableNotification() {
         this.notificationEnabled = false;
         this.updatedAt = LocalDateTime.now();
+    }
+
+    public void updateFinancialSetup(
+            BigDecimal income,
+            Saving_Pace savingPace,
+            Intervention_Level interventionLevel,
+            Focus_Mode focusMode
+    ) {
+        if (income == null || income.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new DomainException("Income must be greater than zero");
+        }
+
+        if (savingPace == null || interventionLevel == null || focusMode == null) {
+            throw new DomainException("Financial setup information is required");
+        }
+
+        this.income = income;
+        this.savingPace = savingPace;
+        this.interventionLevel = interventionLevel;
+        this.focusMode = focusMode;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public boolean hasCompletedFinancialSetup() {
+        return income != null
+                && savingPace != null
+                && interventionLevel != null
+                && focusMode != null;
     }
 }

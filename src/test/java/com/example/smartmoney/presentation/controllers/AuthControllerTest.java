@@ -6,6 +6,8 @@ import com.example.smartmoney.application.usecases.auth.*;
 import com.example.smartmoney.domain.exceptions.AuthenticationException;
 import com.example.smartmoney.domain.exceptions.DomainException;
 import com.example.smartmoney.infrastructure.security.JwtTokenProvider;
+import com.example.smartmoney.application.usecases.user.GetFinancialSetupUseCase;
+import com.example.smartmoney.application.usecases.user.UpdateFinancialSetupUseCase;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
@@ -47,6 +49,8 @@ class AuthControllerTest {
     @Mock private UserNotificationUseCase notificationUseCase;
     @Mock private JwtTokenProvider jwtTokenProvider;
     @Mock private GetCurrentUserUseCase getCurrentUserUseCase;
+    @Mock private GetFinancialSetupUseCase getFinancialSetupUseCase;
+    @Mock private UpdateFinancialSetupUseCase updateFinancialSetupUseCase;
     private AuthController controller;
     private Validator validator;
 
@@ -70,7 +74,9 @@ class AuthControllerTest {
             resetPasswordUseCase,
             verifyOtpUseCase,
             notificationUseCase,
-            jwtTokenProvider
+            jwtTokenProvider,
+            getFinancialSetupUseCase,
+            updateFinancialSetupUseCase
         );
 
         ValidatorFactory factory = Validation.buildDefaultValidatorFactory();
@@ -355,7 +361,8 @@ class AuthControllerTest {
                     registerUseCase, loginUseCase, refreshTokenUseCase, logoutUseCase,
                     googleLoginUseCase, Optional.empty(), getCurrentUserUseCase,
                     verifyEmailUseCase, updateUserUseCase, sendResetPasswordOtpUseCase,
-                    resetPasswordUseCase, verifyOtpUseCase, notificationUseCase, jwtTokenProvider);
+                    resetPasswordUseCase, verifyOtpUseCase, notificationUseCase, jwtTokenProvider, getFinancialSetupUseCase,
+                    updateFinancialSetupUseCase);
 
             FacebookLoginRequest req = new FacebookLoginRequest();
             req.setAccessToken("any-token");
