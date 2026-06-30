@@ -16,9 +16,9 @@ import java.math.BigDecimal;
 public class FinancialSetupResponse {
 
     private BigDecimal income;
-    private Saving_Pace pace;
+    private Saving_Pace savingPace;
     private Intervention_Level interventionLevel;
-    private Focus_Mode focus;
+    private Focus_Mode focusMode;
     private boolean financialSetupCompleted;
 
     public static FinancialSetupResponse fromDomain(User user) {

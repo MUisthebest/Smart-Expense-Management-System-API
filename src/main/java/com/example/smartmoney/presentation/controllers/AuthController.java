@@ -21,6 +21,7 @@ import com.example.smartmoney.application.usecases.auth.FacebookLoginUseCase;
 import com.example.smartmoney.application.usecases.auth.GetCurrentUserUseCase;
 import com.example.smartmoney.application.usecases.auth.VerifyEmailUseCase;
 import com.example.smartmoney.application.usecases.auth.VerifyOtpUseCase;
+import com.example.smartmoney.application.usecases.user.DeleteFinancialSetupUseCase;
 import com.example.smartmoney.application.usecases.user.GetFinancialSetupUseCase;
 import com.example.smartmoney.application.usecases.user.UpdateFinancialSetupUseCase;
 import com.example.smartmoney.domain.exceptions.DomainException;
@@ -75,7 +76,7 @@ public class AuthController {
     private final JwtTokenProvider jwtTokenProvider;
     private final GetFinancialSetupUseCase getFinancialSetupUseCase;
     private final UpdateFinancialSetupUseCase updateFinancialSetupUseCase;
-
+    private final DeleteFinancialSetupUseCase deleteFinancialSetupUseCase;
     
     @InitBinder
     public void initBinder(WebDataBinder binder) {
@@ -833,6 +834,36 @@ public class AuthController {
                 CheckResponse.<FinancialSetupResponse>builder()
                         .success(true)
                         .message("Financial setup updated successfully")
+                        .data(financialSetup)
+                        .build();
+
+        return ResponseEntity.ok(response);
+    }
+    @Operation(
+            summary = "Delete financial setup",
+            description = "Clear financial setup information of currently authenticated user"
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Financial setup deleted successfully"
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Unauthorized"
+            )
+    })
+    @DeleteMapping("/me/financial-setup")
+    public ResponseEntity<CheckResponse<FinancialSetupResponse>> deleteFinancialSetup(
+            @Parameter(hidden = true) @CurrentUser UUID userId
+    ) {
+        FinancialSetupResponse financialSetup =
+                deleteFinancialSetupUseCase.execute(userId);
+
+        CheckResponse<FinancialSetupResponse> response =
+                CheckResponse.<FinancialSetupResponse>builder()
+                        .success(true)
+                        .message("Financial setup deleted successfully")
                         .data(financialSetup)
                         .build();
 
