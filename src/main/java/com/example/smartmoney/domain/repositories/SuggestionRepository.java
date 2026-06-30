@@ -19,6 +19,12 @@ public interface SuggestionRepository {
     List<Suggestion> findByUserIdAndStatus(UUID userId, SuggestionStatus status);
 
     /**
+     * How many suggestions this user has had created since {@code since}. Each pushed suggestion is
+     * one row, so this backs the P3-A per-user daily push cap (count rows created today).
+     */
+    int countByUserIdAndCreatedAtAfter(UUID userId, Instant since);
+
+    /**
      * Idempotent, lock-free decision transition: flips a PENDING row to {@code newStatus}.
      * Returns the number of rows affected — 0 means already decided / not owner (no-op).
      */

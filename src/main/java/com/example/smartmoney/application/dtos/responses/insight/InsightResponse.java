@@ -26,6 +26,8 @@ public class InsightResponse {
     private String period;
     private String code;
     private Map<String, Object> metrics;
+    /** Optional LLM-narrated sentence (P3-C). Null when narration is off/unavailable — FE uses {@code code}. */
+    private String narrative;
 
     public static InsightResponse fromDomain(Insight insight) {
         return InsightResponse.builder()

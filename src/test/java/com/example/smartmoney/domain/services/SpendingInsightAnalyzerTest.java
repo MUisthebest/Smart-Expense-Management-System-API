@@ -162,6 +162,73 @@ class SpendingInsightAnalyzerTest {
         assertEquals(3000.0, ((BigDecimal) insight.getMetrics().get("projectedEndOfMonth")).doubleValue(), 0.001);
     }
 
+    // ---- P3-B: exponential-smoothing forecast --------------------------------------------
+
+    private final SpendingInsightAnalyzer expAnalyzer =
+            new SpendingInsightAnalyzer(ForecastMethod.EXP_SMOOTHING);
+
+    private Transaction expenseOn(Category category, int year, int month, int day, BigDecimal amount) {
+        return Transaction.create(userId, new Amount(amount), TransactionType.EXPENSE, category,
+                "test", LocalDateTime.of(year, month, day, 12, 0));
+    }
+
+    private Optional<Insight> expPace(List<Transaction> history, Budget budget) {
+        return expAnalyzer.analyze(history, List.of(budget), AS_OF).stream()
+                .filter(i -> i.getType() == InsightType.BUDGET_PACE)
+                .findFirst();
+    }
+
+    @Test
+    @DisplayName("exp-smoothing: a single early spike no longer projects an overshoot (linear would WARN)")
+    void expSmoothingDampensEarlySpike() {
+        // 600 spent, all on day 2 of a 30-day month; nothing since. By day 15 the burn rate has decayed.
+        Budget budget = budget(Category.FOOD, new BigDecimal("1000"), new BigDecimal("600"));
+        List<Transaction> history = new ArrayList<>();
+        history.add(expenseOn(Category.FOOD, 2026, 6, 2, new BigDecimal("600")));
+
+        // Control: the linear method extrapolates the spike to 1200 → WARN.
+        assertEquals(Severity.WARN, pace(budget).orElseThrow().getSeverity());
+        // Treatment: exp-smoothing sees the spike as a one-off → no overshoot, no insight.
+        assertTrue(expPace(history, budget).isEmpty());
+    }
+
+    @Test
+    @DisplayName("exp-smoothing: sustained daily spend still projects the overshoot (~matches linear)")
+    void expSmoothingTracksSustainedSpend() {
+        // 40/day for the first 15 days = 600 spent; smoothed rate 40 → projected 600 + 40×15 = 1200.
+        Budget budget = budget(Category.FOOD, new BigDecimal("1000"), new BigDecimal("600"));
+        List<Transaction> history = new ArrayList<>();
+        for (int day = 1; day <= 15; day++) {
+            history.add(expenseOn(Category.FOOD, 2026, 6, day, new BigDecimal("40")));
+        }
+
+        Insight insight = expPace(history, budget).orElseThrow();
+        assertEquals(Severity.WARN, insight.getSeverity());
+        assertEquals("EXP_SMOOTHING", insight.getMetrics().get("forecastMethod"));
+        assertEquals(1200.0, ((BigDecimal) insight.getMetrics().get("projectedEndOfMonth")).doubleValue(), 0.001);
+        assertEquals(40.0, ((BigDecimal) insight.getMetrics().get("smoothedDailyRate")).doubleValue(), 0.001);
+    }
+
+    @Test
+    @DisplayName("exp-smoothing falls back to linear when there is no daily series (budget-only spend)")
+    void expSmoothingFallsBackWithoutDailyData() {
+        // spent tracked only on the budget; no transactions to derive a daily rate from.
+        Insight insight = expPace(List.of(),
+                budget(Category.FOOD, new BigDecimal("1000"), new BigDecimal("600"))).orElseThrow();
+        assertEquals(Severity.WARN, insight.getSeverity());
+        // projected = 600/15×30 = 1200, and the method is honestly reported as LINEAR.
+        assertEquals(1200.0, ((BigDecimal) insight.getMetrics().get("projectedEndOfMonth")).doubleValue(), 0.001);
+        assertEquals("LINEAR", insight.getMetrics().get("forecastMethod"));
+        assertNull(insight.getMetrics().get("smoothedDailyRate"));
+    }
+
+    @Test
+    @DisplayName("linear method labels its forecast LINEAR in the metrics")
+    void linearForecastIsLabelled() {
+        Insight insight = pace(budget(Category.FOOD, new BigDecimal("1000"), new BigDecimal("600"))).orElseThrow();
+        assertEquals("LINEAR", insight.getMetrics().get("forecastMethod"));
+    }
+
     // ---- trailing-3-month median ---------------------------------------------------------
 
     @Test

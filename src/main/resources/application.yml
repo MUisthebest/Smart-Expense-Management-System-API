@@ -98,6 +98,26 @@ app:
   digest:
     enabled: ${DIGEST_ENABLED:false}
 
+  # Budget-pace forecast method (redesign Phase 3 P3-B). LINEAR = the original naive
+  # spent/day × daysInMonth projection (kept as the control). EXP_SMOOTHING = an exponentially
+  # smoothed daily burn rate carried over the remaining days — steadier and far less sensitive to a
+  # single early spike. Pure analyzer choice; defaults to LINEAR so live behaviour is unchanged.
+  insight:
+    forecast-method: ${INSIGHT_FORECAST_METHOD:LINEAR}
+    # LLM narration (redesign Phase 3 P3-C). When on, insights/suggestions get a human sentence
+    # (InsightResponse.narrative, push body) via Gemini; the LLM only phrases the pre-computed
+    # facts, never a number. Best-effort: a model outage falls back to the i18n code. OFF by
+    # default (network + cost + the live insight path is still unproven).
+    narration:
+      enabled: ${INSIGHT_NARRATION_ENABLED:false}
+
+  # Suggestion fatigue ceiling (redesign Phase 3 P3-A). Layered on top of dedup (P1) and dismissal
+  # suppression (P2-A): a per-user daily push cap and a per-topic cooldown (minimum hours between
+  # pushes on the same topic). A CRITICAL escalation bypasses both. Tune down to nudge less.
+  suggestion:
+    daily-cap: ${SUGGESTION_DAILY_CAP:3}
+    cooldown-hours: ${SUGGESTION_COOLDOWN_HOURS:24}
+
   # All-auto project tracking tunables (see docs/project-tracking-all-auto-plan.md §10)
   project:
     # Freeze + per-project debt cap = freeze-mult × monthly_saving

@@ -35,7 +35,11 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -55,18 +59,24 @@ class SuggestionProducerTest {
     @Mock private SuggestionRepository suggestionRepository;
     @Mock private SuggestionTopicStatRepository topicStatRepository;
     @Mock private CreateNotificationUseCase createNotificationUseCase;
+    @Mock private InsightNarrator narrator; // narrate() returns null by default → push uses the i18n code
 
     private SuggestionProducer producer;
     private final ObjectMapper objectMapper = JsonMapper.builder().findAndAddModules().build();
     private final UUID userId = UUID.randomUUID();
     private final UUID budgetId = UUID.randomUUID();
     private static final LocalDate AS_OF = LocalDate.of(2026, 6, 15);
+    // Fixed "now" (noon UTC on AS_OF) so the P3-A cooldown / daily-cap rules are deterministic.
+    private static final Instant NOW = AS_OF.atTime(12, 0).toInstant(ZoneOffset.UTC);
+    private final Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
+    // Generous defaults so the pre-existing tests aren't throttled; tuned per-test where it matters.
+    private final SuggestionFatigueProperties fatigue = new SuggestionFatigueProperties(3, 24);
 
     @BeforeEach
     void setUp() {
         producer = new SuggestionProducer(new SpendingInsightAnalyzer(), transactionRepository,
                 budgetRepository, userRepository, projectRepository, suggestionRepository,
-                topicStatRepository, createNotificationUseCase, objectMapper);
+                topicStatRepository, createNotificationUseCase, objectMapper, fatigue, clock, narrator);
     }
 
     /** FOOD budget projected to overshoot (600 by day 15 of 30 → 1200 vs 1000 limit) → WARN pace. */
@@ -174,6 +184,99 @@ class SuggestionProducerTest {
 
         verify(suggestionRepository).save(any(Suggestion.class));
         verify(createNotificationUseCase).createNotification(eq(userId), anyString(), startsWith("app://suggestions/"));
+    }
+
+    // ---- P3-A: cooldown / daily cap ------------------------------------------------------
+
+    @Test
+    @DisplayName("P3-A: a topic pushed within the cooldown window is held back (no second push)")
+    void cooldownBlocksRepeatTopic() {
+        stubUser(Intervention_Level.GENTLE);
+        stubAnalysisData(); // WARN pace
+        when(suggestionRepository.findOpenByUserIdAndDedupKey(eq(userId), anyString()))
+                .thenReturn(Optional.empty());
+        // Last pushed 1h ago, cooldown is 24h → still cooling down.
+        when(topicStatRepository.find(eq(userId), anyString()))
+                .thenReturn(Optional.of(pushedTopicStat(NOW.minus(Duration.ofHours(1)))));
+
+        producer.maybeProduce(userId, Category.FOOD, AS_OF);
+
+        verify(suggestionRepository, never()).save(any());
+        verify(createNotificationUseCase, never()).createNotification(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("P3-A: once the cooldown has elapsed the topic can be pushed again")
+    void cooldownExpiredAllowsRepeat() {
+        stubUser(Intervention_Level.GENTLE);
+        stubAnalysisData(); // WARN pace
+        when(suggestionRepository.findOpenByUserIdAndDedupKey(eq(userId), anyString()))
+                .thenReturn(Optional.empty());
+        // Last pushed 25h ago, cooldown is 24h → window elapsed.
+        when(topicStatRepository.find(eq(userId), anyString()))
+                .thenReturn(Optional.of(pushedTopicStat(NOW.minus(Duration.ofHours(25)))));
+        when(suggestionRepository.save(any(Suggestion.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        producer.maybeProduce(userId, Category.FOOD, AS_OF);
+
+        verify(suggestionRepository).save(any(Suggestion.class));
+        verify(createNotificationUseCase).createNotification(eq(userId), anyString(), startsWith("app://suggestions/"));
+    }
+
+    @Test
+    @DisplayName("P3-A: once the per-user daily cap is reached, no further suggestion is pushed")
+    void dailyCapBlocks() {
+        stubUser(Intervention_Level.GENTLE);
+        stubAnalysisData(); // WARN pace
+        when(suggestionRepository.findOpenByUserIdAndDedupKey(eq(userId), anyString()))
+                .thenReturn(Optional.empty());
+        when(suggestionRepository.countByUserIdAndCreatedAtAfter(eq(userId), any()))
+                .thenReturn(3); // cap is 3 → already reached
+
+        producer.maybeProduce(userId, Category.FOOD, AS_OF);
+
+        verify(suggestionRepository, never()).save(any());
+        verify(createNotificationUseCase, never()).createNotification(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("P3-A: a CRITICAL escalation bypasses both the cooldown and the daily cap")
+    void criticalBypassesCooldownAndDailyCap() {
+        stubUser(Intervention_Level.HARD);
+        when(transactionRepository.findByUserIdWithFilters(any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(List.of());
+        when(budgetRepository.findByUserIdMonthYear(eq(userId), eq(6), eq(2026)))
+                .thenReturn(List.of(criticalPaceBudget())); // ratio 1.4 → CRITICAL
+        when(suggestionRepository.findOpenByUserIdAndDedupKey(eq(userId), anyString()))
+                .thenReturn(Optional.empty());
+        // Cooldown active + cap exceeded — both should be ignored for a CRITICAL ask (lenient: skipped).
+        lenient().when(topicStatRepository.find(eq(userId), anyString()))
+                .thenReturn(Optional.of(pushedTopicStat(NOW.minus(Duration.ofMinutes(1)))));
+        lenient().when(suggestionRepository.countByUserIdAndCreatedAtAfter(eq(userId), any())).thenReturn(99);
+        when(suggestionRepository.save(any(Suggestion.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        producer.maybeProduce(userId, Category.FOOD, AS_OF);
+
+        verify(suggestionRepository).save(any(Suggestion.class));
+        verify(createNotificationUseCase).createNotification(eq(userId), anyString(), startsWith("app://suggestions/"));
+    }
+
+    @Test
+    @DisplayName("P3-A: a successful push stamps the topic's last-pushed time (drives the next cooldown)")
+    void successfulPushStampsLastPushedAt() {
+        stubUser(Intervention_Level.GENTLE);
+        stubAnalysisData(); // WARN pace
+        when(suggestionRepository.findOpenByUserIdAndDedupKey(eq(userId), anyString()))
+                .thenReturn(Optional.empty());
+        when(suggestionRepository.save(any(Suggestion.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        producer.maybeProduce(userId, Category.FOOD, AS_OF);
+
+        ArgumentCaptor<SuggestionTopicStat> captor = ArgumentCaptor.forClass(SuggestionTopicStat.class);
+        verify(topicStatRepository).save(captor.capture());
+        SuggestionTopicStat stamped = captor.getValue();
+        assertEquals(NOW, stamped.getLastPushedAt());
+        assertEquals("RAISE_BUDGET:FOOD:2026-06", stamped.getDedupKey());
     }
 
     // ---- P2-B: CREATE_BUDGET (overspend anomaly, no budget) ------------------------------
@@ -304,6 +407,13 @@ class SuggestionProducerTest {
     private SuggestionTopicStat topicStat(String dedupKey, int dismissCount) {
         return SuggestionTopicStat.builder()
                 .id(UUID.randomUUID()).userId(userId).dedupKey(dedupKey).dismissCount(dismissCount).build();
+    }
+
+    /** A topic stat last pushed at {@code lastPushedAt}, with no dismissals (so only cooldown applies). */
+    private SuggestionTopicStat pushedTopicStat(Instant lastPushedAt) {
+        return SuggestionTopicStat.builder()
+                .id(UUID.randomUUID()).userId(userId).dedupKey("RAISE_BUDGET:FOOD:2026-06")
+                .dismissCount(0).lastPushedAt(lastPushedAt).build();
     }
 
     private Transaction expense(Category category, int year, int month, String amount) {

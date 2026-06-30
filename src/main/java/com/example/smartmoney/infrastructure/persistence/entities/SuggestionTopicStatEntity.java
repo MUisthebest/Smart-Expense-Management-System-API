@@ -26,4 +26,7 @@ public class SuggestionTopicStatEntity {
 
     @Column(name = "last_dismissed_at")
     private Instant lastDismissedAt;
+
+    @Column(name = "last_pushed_at")
+    private Instant lastPushedAt;
 }

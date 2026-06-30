@@ -12,11 +12,15 @@ import java.time.Instant;
 import java.util.UUID;
 
 /**
- * Per-(user, topic) memory of how often the user has dismissed a suggestion topic (P2-A).
- * Keyed by the suggestion {@code dedupKey} — the <em>topic</em>, not a single suggestion row —
- * because dismissals accumulate across successive instances of the same ask. The producer reads
- * {@code dismissCount} to back off on topics the user keeps saying "no" to. See
- * docs/redesign-phase2-3-plan.md §P2-A.
+ * Per-(user, topic) memory for a suggestion topic, keyed by the suggestion {@code dedupKey} — the
+ * <em>topic</em>, not a single suggestion row — because both dismissals and pushes accumulate across
+ * successive instances of the same ask.
+ * <ul>
+ *   <li>P2-A: {@code dismissCount} lets the producer back off on topics the user keeps saying "no" to.</li>
+ *   <li>P3-A: {@code lastPushedAt} lets the producer enforce a per-topic cooldown (a minimum spacing
+ *       between pushes on the same topic) on top of dedup and dismissal suppression.</li>
+ * </ul>
+ * See docs/redesign-phase2-3-plan.md §P2-A / §P3-A.
  */
 @Builder(toBuilder = true)
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -29,6 +33,7 @@ public class SuggestionTopicStat {
     private String dedupKey;
     private int dismissCount;
     private Instant lastDismissedAt;
+    private Instant lastPushedAt;
 
     /** A fresh, zero-count topic stat for a (user, topic) pair. */
     public static SuggestionTopicStat start(UUID userId, String dedupKey) {
@@ -50,5 +55,10 @@ public class SuggestionTopicStat {
     public void recordDismissal(Instant at) {
         this.dismissCount++;
         this.lastDismissedAt = at;
+    }
+
+    /** Stamp the moment this topic was last pushed to the user (drives the P3-A cooldown). */
+    public void recordPush(Instant at) {
+        this.lastPushedAt = at;
     }
 }

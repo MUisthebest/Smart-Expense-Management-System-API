@@ -39,6 +39,7 @@ public class GenerateInsightsUseCase {
     private final BudgetRepository budgetRepository;
     private final UserRepository userRepository;
     private final SpendingInsightAnalyzer analyzer;
+    private final InsightNarrator narrator;
 
     /** Generate insights for the user's current month (as of {@code LocalDate.now()}). */
     @Transactional(readOnly = true)
@@ -70,7 +71,14 @@ public class GenerateInsightsUseCase {
         Focus_Mode focus = userRepository.findById(userId).map(User::getFocusMode).orElse(null);
         insights.sort(orderingFor(focus));
 
-        return insights.stream().map(InsightResponse::fromDomain).toList();
+        return insights.stream().map(this::toResponse).toList();
+    }
+
+    /** Map to the FE DTO, attaching a best-effort LLM narrative (P3-C; null when narration is off). */
+    private InsightResponse toResponse(Insight insight) {
+        InsightResponse response = InsightResponse.fromDomain(insight);
+        response.setNarrative(narrator.narrate(insight));
+        return response;
     }
 
     /**
