@@ -6,23 +6,32 @@ import com.example.smartmoney.domain.models.budget.Budget;
 import com.example.smartmoney.domain.models.insight.Insight;
 import com.example.smartmoney.domain.models.insight.InsightType;
 import com.example.smartmoney.domain.models.insight.Severity;
+import com.example.smartmoney.domain.models.project.Project;
+import com.example.smartmoney.domain.models.project.enums.ProjectStatus;
+import com.example.smartmoney.domain.models.project.valueobjects.UserId;
 import com.example.smartmoney.domain.models.suggestion.Suggestion;
+import com.example.smartmoney.domain.models.suggestion.SuggestionTopicStat;
 import com.example.smartmoney.domain.models.suggestion.SuggestionType;
 import com.example.smartmoney.domain.models.transaction.Transaction;
 import com.example.smartmoney.domain.models.transaction.enums.Category;
 import com.example.smartmoney.domain.models.user.User;
 import com.example.smartmoney.domain.models.user.enums.Intervention_Level;
+import com.example.smartmoney.domain.models.user.enums.Saving_Pace;
 import com.example.smartmoney.domain.repositories.BudgetRepository;
+import com.example.smartmoney.domain.repositories.ProjectRepository;
 import com.example.smartmoney.domain.repositories.SuggestionRepository;
+import com.example.smartmoney.domain.repositories.SuggestionTopicStatRepository;
 import com.example.smartmoney.domain.repositories.TransactionRepository;
 import com.example.smartmoney.domain.repositories.UserRepository;
 import com.example.smartmoney.domain.services.SpendingInsightAnalyzer;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.Builder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
@@ -34,30 +43,42 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Proactive half of workstream C: on an expense create it runs the analyzer for the
- * affected category and — gated by the user's {@code interventionLevel} trait — may persist
- * a RAISE_BUDGET {@link Suggestion} and push a notification deep-linking to it.
+ * Proactive half of workstream C, extended for Phase 2. On a transaction create it runs the
+ * analyzer and — gated by the user's {@code interventionLevel} trait — may persist a
+ * {@link Suggestion} and push a deep-linked notification:
+ * <ul>
+ *   <li>EXPENSE → {@code RAISE_BUDGET} (BUDGET_PACE overshoot, category has a budget) or
+ *       {@code CREATE_BUDGET} (OVERSPEND_ANOMALY, category has no budget) — P2-B.</li>
+ *   <li>INCOME → {@code CONTRIBUTE_TO_PROJECT} (SAVINGS_CAPACITY headroom toward an active
+ *       saving project, amount scaled by {@code savingPace}) — P2-B/D/E.</li>
+ * </ul>
  *
- * <p>Best-effort: every failure here is swallowed so a producer hiccup never affects the
- * user's transaction. Fatigue is controlled by (a) NOTIFY users getting zero pushes,
- * (b) the severity gate, and (c) one open ask per (category, period) via dedup.
+ * <p>Best-effort: every failure here is swallowed so a producer hiccup never affects the user's
+ * transaction. Fatigue is controlled by (a) NOTIFY users getting zero pushes, (b) the severity
+ * gate, (c) one open ask per topic via dedup, and (d) dismissal suppression (P2-A): a topic the
+ * user keeps dismissing is held back unless its severity escalates to CRITICAL.
  */
 @Service
 @Slf4j
 @RequiredArgsConstructor
 public class SuggestionProducer {
 
+    /** Dismissals of a topic at/above this count suppress it unless severity escalates to CRITICAL. */
+    static final int SUPPRESS_AFTER_DISMISSALS = 2;
+
     private final SpendingInsightAnalyzer analyzer;
     private final TransactionRepository transactionRepository;
     private final BudgetRepository budgetRepository;
     private final UserRepository userRepository;
+    private final ProjectRepository projectRepository;
     private final SuggestionRepository suggestionRepository;
+    private final SuggestionTopicStatRepository topicStatRepository;
     private final CreateNotificationUseCase createNotificationUseCase;
     private final ObjectMapper objectMapper;
 
     /**
-     * Evaluate the affected category after an expense create and maybe raise a suggestion.
-     * Never throws.
+     * Evaluate the affected category after an expense create and maybe raise a budget-related
+     * suggestion (RAISE_BUDGET if the category has a budget, else CREATE_BUDGET). Never throws.
      */
     public void maybeProduce(UUID userId, Category affectedCategory, LocalDate asOf) {
         try {
@@ -68,69 +89,221 @@ public class SuggestionProducer {
             }
 
             YearMonth period = YearMonth.from(asOf);
-            LocalDateTime windowStart = period.minusMonths(SpendingInsightAnalyzer.TRAILING_WINDOW)
-                    .atDay(1).atStartOfDay();
-            LocalDateTime windowEnd = asOf.atTime(23, 59, 59);
-
-            List<Transaction> history = transactionRepository.findByUserIdWithFilters(
-                    userId, null, null, windowStart, windowEnd, null, null);
+            List<Transaction> history = loadHistory(userId, asOf, period);
             List<Budget> budgets = budgetRepository.findByUserIdMonthYear(
                     userId, period.getMonthValue(), period.getYear());
-
             List<Insight> insights = analyzer.analyze(history, budgets, asOf);
-
-            // Only a budget-tied insight maps to RAISE_BUDGET; keep the worst one that clears the gate.
-            Optional<Insight> qualifying = insights.stream()
-                    .filter(i -> i.getType() == InsightType.BUDGET_PACE)
-                    .filter(i -> i.getCategory() == affectedCategory)
-                    .filter(i -> i.getSeverity().atLeast(gate))
-                    .max(Comparator.comparingInt(i -> i.getSeverity().ordinal()));
-            if (qualifying.isEmpty()) {
-                return;
-            }
-            Insight insight = qualifying.get();
 
             Budget budget = budgets.stream()
                     .filter(b -> b.getCategory() == affectedCategory)
                     .findFirst().orElse(null);
-            if (budget == null || budget.getId() == null) {
-                return; // no budget to raise
-            }
 
-            String dedupKey = "RAISE_BUDGET:" + affectedCategory.name() + ":" + period;
-            // Pre-check: one open ask per topic. The partial-unique index is the hard backstop.
-            if (suggestionRepository.findOpenByUserIdAndDedupKey(userId, dedupKey).isPresent()) {
-                log.debug("[Suggestion] skip — open ask already exists for {}", dedupKey);
-                return;
-            }
+            Candidate candidate = (budget != null && budget.getId() != null)
+                    ? raiseBudgetCandidate(insights, affectedCategory, budget, gate, history, period)
+                    : createBudgetCandidate(insights, affectedCategory, gate, history, period);
 
-            BigDecimal resolvedValue = resolveNewLimit(history, insight, affectedCategory, period);
-            String payloadJson = objectMapper.writeValueAsString(buildPayload(insight, affectedCategory, budget, resolvedValue));
-
-            Suggestion suggestion = Suggestion.create(userId, SuggestionType.RAISE_BUDGET,
-                    payloadJson, dedupKey, null);
-
-            Suggestion saved;
-            try {
-                saved = suggestionRepository.save(suggestion);
-            } catch (Exception insertEx) {
-                // A concurrent insert won the dedup race — treat as already asked.
-                log.debug("[Suggestion] dedup insert conflict for {}: {}", dedupKey, insertEx.getMessage());
-                return;
-            }
-
-            createNotificationUseCase.createNotification(
-                    userId,
-                    notificationContent(affectedCategory),
-                    "app://suggestions/" + saved.getId());
-
-            log.info("[Suggestion] raised RAISE_BUDGET id={} for user={} category={} resolvedValue={}",
-                    saved.getId(), userId, affectedCategory, resolvedValue);
-
+            persistAndPush(userId, candidate);
         } catch (Exception e) {
-            // Never let suggestion production break the transaction-create flow.
-            log.warn("[Suggestion] producer failed for user {} / {}: {}", userId, affectedCategory, e.getMessage());
+            log.warn("[Suggestion] expense producer failed for user {} / {}: {}",
+                    userId, affectedCategory, e.getMessage());
         }
+    }
+
+    /**
+     * Evaluate savings headroom after an income create and maybe suggest contributing to an
+     * active saving project (P2-B/D/E). Never throws. SAVINGS_CAPACITY is an INFO insight, so the
+     * gate here is presence-of-push (GENTLE/HARD), not severity.
+     */
+    public void maybeProduceSavingsContribution(UUID userId, LocalDate asOf) {
+        try {
+            User user = userRepository.findById(userId).orElse(null);
+            if (user == null || pushGateFor(user.getInterventionLevel()) == null) {
+                return; // pull-only / unset → no push
+            }
+
+            YearMonth period = YearMonth.from(asOf);
+            List<Transaction> history = loadHistory(userId, asOf, period);
+            List<Budget> budgets = budgetRepository.findByUserIdMonthYear(
+                    userId, period.getMonthValue(), period.getYear());
+            List<Insight> insights = analyzer.analyze(history, budgets, asOf);
+
+            Insight capacity = insights.stream()
+                    .filter(i -> i.getType() == InsightType.SAVINGS_CAPACITY)
+                    .findFirst().orElse(null);
+            if (capacity == null) {
+                return;
+            }
+            BigDecimal disposable = toBigDecimal(capacity.getMetrics().get("disposable"));
+            if (disposable.compareTo(BigDecimal.ZERO) <= 0) {
+                return;
+            }
+
+            Project target = pickContributionTarget(userId);
+            if (target == null) {
+                return; // no active saving project with room to receive
+            }
+
+            // P2-E: scale the share of disposable by savingPace, then cap at what the project needs.
+            BigDecimal amount = scaleByPace(disposable, user.getSavingPace())
+                    .min(target.remaining().amount())
+                    .setScale(2, RoundingMode.HALF_UP);
+            if (amount.compareTo(BigDecimal.ZERO) <= 0) {
+                return;
+            }
+
+            persistAndPush(userId, contributeCandidate(capacity, target, amount, period));
+        } catch (Exception e) {
+            log.warn("[Suggestion] savings producer failed for user {}: {}", userId, e.getMessage());
+        }
+    }
+
+    // ---- candidate builders --------------------------------------------------------------
+
+    /** RAISE_BUDGET: BUDGET_PACE overshoot on a category that already has a budget. */
+    private Candidate raiseBudgetCandidate(List<Insight> insights, Category category, Budget budget,
+                                           Severity gate, List<Transaction> history, YearMonth period) {
+        Insight insight = bestQualifying(insights, InsightType.BUDGET_PACE, category, gate);
+        if (insight == null) {
+            return null;
+        }
+        BigDecimal resolvedValue = analyzer.trailing3MonthMedian(history, category, period)
+                .max(toBigDecimal(insight.getMetrics().get("projectedEndOfMonth")));
+
+        SuggestionPayload.ProposedAction action = SuggestionPayload.ProposedAction.builder()
+                .category(category)
+                .budgetId(budget.getId())
+                .resolvedValue(resolvedValue)
+                .build();
+
+        return Candidate.builder()
+                .type(SuggestionType.RAISE_BUDGET)
+                .severity(insight.getSeverity())
+                .dedupKey("RAISE_BUDGET:" + category.name() + ":" + period)
+                .payloadJson(payloadJson(insight, action))
+                .notificationContent("notification.suggestion.raise_budget|" + category.name())
+                .build();
+    }
+
+    /** CREATE_BUDGET: OVERSPEND_ANOMALY on a category with no budget to anchor spending. */
+    private Candidate createBudgetCandidate(List<Insight> insights, Category category,
+                                            Severity gate, List<Transaction> history, YearMonth period) {
+        Insight insight = bestQualifying(insights, InsightType.OVERSPEND_ANOMALY, category, gate);
+        if (insight == null) {
+            return null;
+        }
+        BigDecimal resolvedValue = analyzer.trailing3MonthMedian(history, category, period);
+        if (resolvedValue.compareTo(BigDecimal.ZERO) <= 0) {
+            return null; // no robust baseline to propose a limit from
+        }
+
+        SuggestionPayload.ProposedAction action = SuggestionPayload.ProposedAction.builder()
+                .category(category)
+                .month(period.getMonthValue())
+                .year(period.getYear())
+                .resolvedValue(resolvedValue)
+                .build();
+
+        return Candidate.builder()
+                .type(SuggestionType.CREATE_BUDGET)
+                .severity(insight.getSeverity())
+                .dedupKey("CREATE_BUDGET:" + category.name() + ":" + period)
+                .payloadJson(payloadJson(insight, action))
+                .notificationContent("notification.suggestion.create_budget|" + category.name())
+                .build();
+    }
+
+    /** CONTRIBUTE_TO_PROJECT: SAVINGS_CAPACITY headroom toward a specific active project. */
+    private Candidate contributeCandidate(Insight insight, Project target, BigDecimal amount, YearMonth period) {
+        SuggestionPayload.ProposedAction action = SuggestionPayload.ProposedAction.builder()
+                .projectId(target.getId().value())
+                .resolvedValue(amount)
+                .build();
+
+        return Candidate.builder()
+                .type(SuggestionType.CONTRIBUTE_TO_PROJECT)
+                .severity(insight.getSeverity())
+                .dedupKey("CONTRIBUTE_TO_PROJECT:" + target.getId().value() + ":" + period)
+                .payloadJson(payloadJson(insight, action))
+                .notificationContent("notification.suggestion.contribute_to_project|" + target.getName())
+                .build();
+    }
+
+    // ---- shared persist + push -----------------------------------------------------------
+
+    private void persistAndPush(UUID userId, Candidate candidate) throws Exception {
+        if (candidate == null) {
+            return;
+        }
+        // Pre-check: one open ask per topic. The partial-unique index is the hard backstop.
+        if (suggestionRepository.findOpenByUserIdAndDedupKey(userId, candidate.dedupKey).isPresent()) {
+            log.debug("[Suggestion] skip — open ask already exists for {}", candidate.dedupKey);
+            return;
+        }
+        // P2-A: back off on a topic the user keeps dismissing, unless severity escalated to CRITICAL.
+        if (isSuppressed(userId, candidate.dedupKey, candidate.severity)) {
+            log.debug("[Suggestion] suppressed (dismissal fatigue) for {}", candidate.dedupKey);
+            return;
+        }
+
+        Suggestion suggestion = Suggestion.create(
+                userId, candidate.type, candidate.payloadJson, candidate.dedupKey, null);
+
+        Suggestion saved;
+        try {
+            saved = suggestionRepository.save(suggestion);
+        } catch (Exception insertEx) {
+            // A concurrent insert won the dedup race — treat as already asked.
+            log.debug("[Suggestion] dedup insert conflict for {}: {}", candidate.dedupKey, insertEx.getMessage());
+            return;
+        }
+
+        createNotificationUseCase.createNotification(
+                userId, candidate.notificationContent, "app://suggestions/" + saved.getId());
+
+        log.info("[Suggestion] raised {} id={} for user={} dedupKey={}",
+                candidate.type, saved.getId(), userId, candidate.dedupKey);
+    }
+
+    /** True when the topic has been dismissed enough times and this ask is not a CRITICAL escalation. */
+    private boolean isSuppressed(UUID userId, String dedupKey, Severity severity) {
+        if (severity == Severity.CRITICAL) {
+            return false; // an escalation always breaks through
+        }
+        return topicStatRepository.find(userId, dedupKey)
+                .map(SuggestionTopicStat::getDismissCount)
+                .map(count -> count >= SUPPRESS_AFTER_DISMISSALS)
+                .orElse(false);
+    }
+
+    // ---- helpers -------------------------------------------------------------------------
+
+    private List<Transaction> loadHistory(UUID userId, LocalDate asOf, YearMonth period) {
+        LocalDateTime windowStart = period.minusMonths(SpendingInsightAnalyzer.TRAILING_WINDOW)
+                .atDay(1).atStartOfDay();
+        LocalDateTime windowEnd = asOf.atTime(23, 59, 59);
+        return transactionRepository.findByUserIdWithFilters(
+                userId, null, null, windowStart, windowEnd, null, null);
+    }
+
+    /** The worst insight of a type+category that clears the push gate, if any. */
+    private Insight bestQualifying(List<Insight> insights, InsightType type, Category category, Severity gate) {
+        return insights.stream()
+                .filter(i -> i.getType() == type)
+                .filter(i -> i.getCategory() == category)
+                .filter(i -> i.getSeverity().atLeast(gate))
+                .max(Comparator.comparingInt(i -> i.getSeverity().ordinal()))
+                .orElse(null);
+    }
+
+    /** Active, non-group saving project with the nearest deadline that still has room to receive. */
+    private Project pickContributionTarget(UUID userId) {
+        return projectRepository.findAllByUser(new UserId(userId)).stream()
+                .filter(p -> p.getStatus() == ProjectStatus.ACTIVE)
+                .filter(p -> !p.isSubPersonal())
+                .filter(p -> p.remaining().amount().compareTo(BigDecimal.ZERO) > 0)
+                .min(Comparator.comparing(Project::getDeadline,
+                        Comparator.nullsLast(Comparator.naturalOrder())))
+                .orElse(null);
     }
 
     /** Maps the intervention trait to a push severity gate (null = no push). */
@@ -145,15 +318,17 @@ public class SuggestionProducer {
         };
     }
 
-    /** Resolved new limit = max(robust trailing median, projected end-of-month). */
-    private BigDecimal resolveNewLimit(List<Transaction> history, Insight insight,
-                                       Category category, YearMonth period) {
-        BigDecimal median = analyzer.trailing3MonthMedian(history, category, period);
-        BigDecimal projected = toBigDecimal(insight.getMetrics().get("projectedEndOfMonth"));
-        return median.max(projected);
+    /** P2-E: share of disposable to suggest saving, by pace. Cold-start (null) → BALANCED. */
+    private BigDecimal scaleByPace(BigDecimal disposable, Saving_Pace pace) {
+        BigDecimal fraction = switch (pace == null ? Saving_Pace.BALANCED : pace) {
+            case RELAXED -> new BigDecimal("0.10");
+            case BALANCED -> new BigDecimal("0.20");
+            case AGGRESIVE -> new BigDecimal("0.30");
+        };
+        return disposable.multiply(fraction);
     }
 
-    private SuggestionPayload buildPayload(Insight insight, Category category, Budget budget, BigDecimal resolvedValue) {
+    private String payloadJson(Insight insight, SuggestionPayload.ProposedAction action) {
         Map<String, Object> snapshot = new LinkedHashMap<>();
         snapshot.put("type", insight.getType().name());
         snapshot.put("severity", insight.getSeverity().name());
@@ -161,21 +336,15 @@ public class SuggestionProducer {
         snapshot.put("period", insight.getPeriod() != null ? insight.getPeriod().toString() : null);
         snapshot.put("metrics", insight.getMetrics());
 
-        SuggestionPayload.ProposedAction action = SuggestionPayload.ProposedAction.builder()
-                .category(category)
-                .budgetId(budget.getId())
-                .resolvedValue(resolvedValue)
-                .build();
-
-        return SuggestionPayload.builder()
+        SuggestionPayload payload = SuggestionPayload.builder()
                 .insightSnapshot(snapshot)
                 .proposedAction(action)
                 .build();
-    }
-
-    private String notificationContent(Category category) {
-        // Pipe-delimited i18n key, consistent with CreateTransactionUseCase content style.
-        return "notification.suggestion.raise_budget|" + category.name();
+        try {
+            return objectMapper.writeValueAsString(payload);
+        } catch (Exception e) {
+            throw new IllegalStateException("Could not serialize suggestion payload", e);
+        }
     }
 
     private static BigDecimal toBigDecimal(Object value) {
@@ -186,5 +355,15 @@ public class SuggestionProducer {
             return bd;
         }
         return new BigDecimal(value.toString());
+    }
+
+    /** Internal carrier for a fully-resolved suggestion ready to persist + push. */
+    @Builder
+    private static class Candidate {
+        private final SuggestionType type;
+        private final Severity severity;
+        private final String dedupKey;
+        private final String payloadJson;
+        private final String notificationContent;
     }
 }

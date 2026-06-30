@@ -66,6 +66,10 @@ public class CreateTransactionUseCase {
             // Proactive insight → suggestion (workstream C). Best-effort: gated by the user's
             // interventionLevel trait and never allowed to break the transaction-create flow.
             suggestionProducer.maybeProduce(userId, request.getCategory(), transactionDate.toLocalDate());
+        } else if (request.getType() == TransactionType.INCOME) {
+            // P2-B/D/E: getting paid is the natural moment to surface savings headroom toward a
+            // saving project. Best-effort, gated by interventionLevel like the expense path.
+            suggestionProducer.maybeProduceSavingsContribution(userId, transactionDate.toLocalDate());
         }
 
         String content = buildNotificationContent(request);

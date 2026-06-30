@@ -52,7 +52,16 @@ These are the known gaps from `redesign-workstream-c-implementation.md` §"Verif
 
 # PHASE 2 — Adaptivity
 
-## P2-A — Dismissal-suppression learning loop
+## P2-A — Dismissal-suppression learning loop  ✅ IMPLEMENTED (2026-06-30)
+
+> Shipped the **topic-stats table** (open decision #1, recommended option). New `suggestion_topic_stats`
+> table (`V23`, surrogate `id` + unique `(user_id, dedup_key)`); domain `SuggestionTopicStat`
+> (`start` / `recordDismissal`) + `SuggestionTopicStatRepository` (+ entity / Jpa / impl, manual mapping).
+> `RespondToSuggestionUseCase` now increments the topic counter on a *real* dismissal (only when the
+> PENDING→DISMISSED flip actually happened, in the same `@Transactional`; best-effort, never fails the
+> dismissal). `SuggestionProducer.isSuppressed` holds back a topic once `dismissCount >= SUPPRESS_AFTER_DISMISSALS`
+> (=2) **unless** the ask is CRITICAL (escalation always breaks through). Tests: dismiss increments, no-op
+> respond doesn't, producer suppresses past threshold, CRITICAL breaks through.
 
 **Goal:** stop re-asking what the user keeps saying no to (the #1 long-term fatigue risk).
 
@@ -69,7 +78,17 @@ These are the known gaps from `redesign-workstream-c-implementation.md` §"Verif
 - **Tests:** dismiss increments the topic counter; producer suppresses a topic past the threshold;
   a `CRITICAL` escalation still breaks through.
 
-## P2-B — More action types
+## P2-B — More action types  ✅ IMPLEMENTED (2026-06-30)
+
+> `SuggestionType` gained `CREATE_BUDGET` + `CONTRIBUTE_TO_PROJECT` (code-only, varchar). `ProposedAction`
+> is now polymorphic (`category`/`budgetId`/`month`/`year`/`projectId`/`resolvedValue`); each accept branch
+> validates only its own fields. `RespondToSuggestionUseCase.executeAction` switch extended:
+> `CREATE_BUDGET → CreateBudgetUseCase`, `CONTRIBUTE_TO_PROJECT → AddProjectContributionUseCase`.
+> **Producer triggers:** CREATE_BUDGET on an expense when `OVERSPEND_ANOMALY` fires for a category with
+> **no** budget (resolvedValue = `trailing3MonthMedian`); CONTRIBUTE_TO_PROJECT on an **income** create
+> (the natural "got paid → save?" moment) when `SAVINGS_CAPACITY` shows headroom and the user has an active
+> non-group saving project with room. `CreateTransactionUseCase` now calls `maybeProduceSavingsContribution`
+> on INCOME. Tests: each type's producer payload + accept-side use-case call + null-field guards.
 
 Add to `SuggestionType` (code-only) + a new whitelist branch in `RespondToSuggestionUseCase.executeAction`.
 
@@ -111,7 +130,14 @@ All in `SpendingInsightAnalyzer`; add to `InsightType`; keep `asOf`-driven & uni
 - **Tests:** trend up/down/flat; recurring detected vs one-off ignored; capacity positive/negative
   edges. This is the next chunk of "defensible core" for the thesis.
 
-## P2-D — Recurring-cost detector → Pivot A `disposable` (net-income-only)
+## P2-D — Recurring-cost detector → Pivot A `disposable` (net-income-only)  ✅ IMPLEMENTED (2026-06-30)
+
+> Largely satisfied by P2-C: `disposable = avgMonthlyIncome − estimatedMonthlyRecurringCost − Σ committed
+> budgets` is computed in `SpendingInsightAnalyzer.detectSavingsCapacity`, with income derived from INCOME
+> ledger rows (no `usableIncome`/`safeSpending` resurrected — Workstream A's gutted fields stay vestigial).
+> P2-B's CONTRIBUTE producer consumes that `disposable` (read from the SAVINGS_CAPACITY insight's metrics)
+> as the basis for the suggested amount. Cold-start (no income signal) → no SAVINGS_CAPACITY insight →
+> no contribution ask (degrades to silence rather than a bad number). The 20% rule stays advisory (D3).
 
 **Goal:** finish Pivot A — replace any remaining declared-obligation thinking with **learned**
 recurring costs, yielding a `disposable` figure used by `SAVINGS_CAPACITY`.
@@ -124,16 +150,29 @@ recurring costs, yielding a `disposable` figure used by `SAVINGS_CAPACITY`.
 - **Tests:** disposable = income − recurring − budgets across a few fixtures; cold-start (no
   recurring history) degrades gracefully to a conservative capacity.
 
-## P2-E — `savingPace` (goalPush) scales savings amounts
+## P2-E — `savingPace` (goalPush) scales savings amounts  ✅ IMPLEMENTED (2026-06-30)
+
+> `SuggestionProducer.scaleByPace` multiplies `disposable` by the pace tier (RELAXED 0.10 / BALANCED 0.20 /
+> AGGRESIVE 0.30; cold-start null → BALANCED), then caps the result at the project's `remaining()` so a
+> suggestion never overshoots the goal. Unit-tested across all three tiers + the cap.
 
 `User.getSavingPace()` (`RELAXED | BALANCED | AGGRESIVE`) already drives `ProjectBudgetAdvisorUseCase`
 (D3). Extend it to scale the **suggested contribution amount** in `CONTRIBUTE_TO_PROJECT`
 (P2-B): e.g. AGGRESIVE = larger share of `disposable`, RELAXED = smaller. Pure multiplier in the
 producer; unit-test the three tiers + cold-start default `BALANCED`.
 
-## P2-F — Scheduled digest producer (for SAVE_MODE / TRACK_ONLY)
+## P2-F — Scheduled digest producer (for SAVE_MORE / TRACK_ONLY)  ✅ IMPLEMENTED (2026-06-30)
 
-`focusMode` `SAVE_MODE`/`TRACK_ONLY` users want fewer interruptions. Add a scheduled job
+> `SendInsightDigestUseCase.sendFor(userId, asOf)` reuses `GenerateInsightsUseCase`, counts the `>= WARN`
+> insights, and (if any) sends one digest notification `notification.digest.weekly|<count>` deep-linking
+> `app://insights`. `WeeklyInsightDigestScheduler` (`@Scheduled` `0 0 9 * * MON`, gated by
+> `@ConditionalOnProperty app.digest.enabled` — **off by default**, mirroring `MonthlySettlementScheduler`)
+> fans out over `UserRepository.findAllForDigest()` (active + notification-enabled users whose focus is
+> SAVE_MORE/TRACK_ONLY; new `JpaUserRepository.findForDigest` JPQL). Per-user failures are isolated. Pure
+> per-user logic is unit-tested; the JPQL native-enum query + fan-out share the live-DB caveat (kept off).
+> NOTE: plan referenced `SAVE_MODE` — the V22 merge renamed it `SAVE_MORE`.
+
+`focusMode` `SAVE_MORE`/`TRACK_ONLY` users want fewer interruptions. Add a scheduled job
 (`@Scheduled`, gated by `@ConditionalOnProperty` like `MonthlySettlementScheduler`) that, on a
 cadence (weekly?), batches that period's `>= WARN` insights into a single digest notification
 instead of per-event pushes. Reuses `GenerateInsightsUseCase` for the data. Default the flag **off**

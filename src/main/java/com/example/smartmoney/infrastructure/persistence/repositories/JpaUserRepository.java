@@ -1,11 +1,14 @@
 package com.example.smartmoney.infrastructure.persistence.repositories;
 
+import com.example.smartmoney.domain.models.user.enums.Focus_Mode;
 import com.example.smartmoney.infrastructure.persistence.entities.UserEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -20,6 +23,11 @@ public interface JpaUserRepository extends JpaRepository<UserEntity, UUID> {
     boolean existsByUsername(String username);
     boolean existsByPhone(String phone);
     boolean existsByPhoneAndIdNot(String phone, UUID id);
+
+    /** Active, notification-enabled users whose focus trait is one of the digest-friendly modes (P2-F). */
+    @Query("SELECT u FROM UserEntity u WHERE u.active = true AND u.notificationEnabled = true "
+            + "AND u.focusMode IN :modes")
+    List<UserEntity> findForDigest(@Param("modes") Collection<Focus_Mode> modes);
 
 //    @Modifying(clearAutomatically = true, flushAutomatically = true)
 //    @Query("""
