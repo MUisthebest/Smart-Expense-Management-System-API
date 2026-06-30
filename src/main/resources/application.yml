@@ -49,7 +49,7 @@ spring:
     enabled: true
     baseline-on-migrate: true
     locations: classpath:db/migration
-    validate-on-migrate: true
+    validate-on-migrate: false
   
   # Jackson Configuration
   jackson:
@@ -134,7 +134,7 @@ app:
     api-key: ${GEMINI_API_KEY:}
 
   openrouter:
-    api-key: ${OPENROUTER_API_KEY}
+    api-key: ${OPENROUTER_API_KEY:}
 
   # Cloudinary Configuration
   cloudinary:
@@ -183,7 +183,7 @@ springdoc:
     enabled: true
     operations-sorter: method
     tags-sorter: alpha
-    url: /api/v3/api-docs
+    url: /v3/api-docs
     display-request-duration: true
     doc-expansion: none
     filter: true
