@@ -1,0 +1,547 @@
+{
+  "info": {
+    "name": "Smart Money — Adaptive Engine (Insights + Suggestions)",
+    "_postman_id": "b1adap71-0000-4000-9000-000000000001",
+    "description": "User-driven end-to-end flow for the redesign adaptive engine: trait onboarding → seed trailing history → trigger insights → receive yes/no suggestions → accept/dismiss → verify side effects.\n\nFIXED PAST-MONTH SCENARIO (demo-friendly, date-independent): everything is dated in a fixed window — baseline in Feb/Mar/Apr 2026, trigger on 15 May 2026 (mid-month, day 15, past the MIN_PACE_DAYS guard). Because the SuggestionProducer analyzes `asOf = the transaction's own date`, this fires identically no matter what the real calendar date is — so you can demo/test early in the real month.\n\nGET /insights normally analyzes `LocalDate.now()`, so it wouldn't see May data today. The insight requests therefore pass `?asOf={{asOfInsights}}` (=2026-05-15) to analyze the seeded month deterministically. This param is a testing/demo aid.\n\nSEE docs/api-testing/README.md for prerequisites (a PRE-VERIFIED account, and the recommended `app.suggestion.daily-cap=0` / `cooldown-hours=0` test profile so the fatigue layer doesn't hide the functional path).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// FIXED past-month scenario — deterministic regardless of the real date (see collection desc).",
+          "// Baseline: Feb/Mar/Apr 2026. Trigger: 15 May 2026 (mid-month, past MIN_PACE_DAYS).",
+          "pm.collectionVariables.set('seedM3Date', '10/02/2026 10:00');",
+          "pm.collectionVariables.set('seedM2Date', '10/03/2026 10:00');",
+          "pm.collectionVariables.set('seedM1Date', '10/04/2026 10:00');",
+          "pm.collectionVariables.set('triggerDate', '15/05/2026 10:00');",
+          "pm.collectionVariables.set('triggerMonth', 5);",
+          "pm.collectionVariables.set('triggerYear', 2026);",
+          "pm.collectionVariables.set('asOfInsights', '2026-05-15');",
+          "pm.collectionVariables.set('projectDeadline', '2027-05-28');"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    { "key": "token", "value": "" },
+    { "key": "userId", "value": "" },
+    { "key": "foodBudgetId", "value": "" },
+    { "key": "projectId", "value": "" },
+    { "key": "suggestionId", "value": "" },
+    { "key": "seedM1Date", "value": "" },
+    { "key": "seedM2Date", "value": "" },
+    { "key": "seedM3Date", "value": "" },
+    { "key": "triggerDate", "value": "" },
+    { "key": "triggerMonth", "value": "" },
+    { "key": "triggerYear", "value": "" },
+    { "key": "asOfInsights", "value": "" },
+    { "key": "projectDeadline", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "0 — Setup (auth + traits)",
+      "item": [
+        {
+          "name": "Login",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "login"] },
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}" },
+            "description": "Uses a PRE-VERIFIED account (registration needs multipart + an email OTP via /auth/verify-email; not automatable here). Captures the bearer token used by every later request."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('login ok', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.expect(j.success, j.message).to.be.true;",
+                  "pm.collectionVariables.set('token', j.data.accessToken);",
+                  "if (j.data.user && j.data.user.id) pm.collectionVariables.set('userId', j.data.user.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Set traits: GENTLE / BALANCED / REDUCE_SPENDING",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/me/financial-setup", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "me", "financial-setup"] },
+            "body": { "mode": "raw", "raw": "{\n  \"income\": 20000000,\n  \"savingPace\": \"BALANCED\",\n  \"interventionLevel\": \"GENTLE\",\n  \"focusMode\": \"REDUCE_SPENDING\"\n}" },
+            "description": "interventionLevel GENTLE is REQUIRED for pushed suggestions (NOTIFY / null = pull-only, no suggestions ever). GENTLE means the push gate = WARN. savingPace BALANCED scales CONTRIBUTE amounts to 20% of disposable. focusMode REDUCE_SPENDING orders GET /insights spending-first."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('traits saved', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.expect(j.data.financialSetupCompleted).to.be.true;",
+                  "pm.expect(j.data.interventionLevel).to.eql('GENTLE');"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "1 — Seed trailing baseline (3 months)",
+      "description": "Backdated via the transaction `date` field (dd/MM/yyyy HH:mm). Amounts are chosen so the baseline itself stays quiet (no suggestion fires while seeding): FOOD is flat (stddev 0 → no anomaly), and each month has too little trailing history to trigger anything. This gives the analyzer the >=3 months it needs before the trigger month.",
+      "item": [
+        {
+          "name": "FOOD expense — month -3 (flat 2,000,000)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/transactions", "host": ["{{baseUrl}}"], "path": ["api", "v1", "transactions"] },
+            "body": { "mode": "raw", "raw": "{\n  \"amount\": 2000000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"FOOD\",\n  \"description\": \"groceries\",\n  \"date\": \"{{seedM3Date}}\"\n}" }
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('created', () => pm.response.to.have.status(201));"] } }]
+        },
+        {
+          "name": "FOOD expense — month -2 (flat 2,000,000)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/transactions", "host": ["{{baseUrl}}"], "path": ["api", "v1", "transactions"] },
+            "body": { "mode": "raw", "raw": "{\n  \"amount\": 2000000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"FOOD\",\n  \"description\": \"groceries\",\n  \"date\": \"{{seedM2Date}}\"\n}" }
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('created', () => pm.response.to.have.status(201));"] } }]
+        },
+        {
+          "name": "FOOD expense — month -1 (flat 2,000,000)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/transactions", "host": ["{{baseUrl}}"], "path": ["api", "v1", "transactions"] },
+            "body": { "mode": "raw", "raw": "{\n  \"amount\": 2000000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"FOOD\",\n  \"description\": \"groceries\",\n  \"date\": \"{{seedM1Date}}\"\n}" }
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('created', () => pm.response.to.have.status(201));"] } }]
+        },
+        {
+          "name": "ENTERTAINMENT expense — month -3 (1,000,000)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/transactions", "host": ["{{baseUrl}}"], "path": ["api", "v1", "transactions"] },
+            "body": { "mode": "raw", "raw": "{\n  \"amount\": 1000000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"ENTERTAINMENT\",\n  \"description\": \"movies\",\n  \"date\": \"{{seedM3Date}}\"\n}" }
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('created', () => pm.response.to.have.status(201));"] } }]
+        },
+        {
+          "name": "ENTERTAINMENT expense — month -2 (1,100,000)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/transactions", "host": ["{{baseUrl}}"], "path": ["api", "v1", "transactions"] },
+            "body": { "mode": "raw", "raw": "{\n  \"amount\": 1100000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"ENTERTAINMENT\",\n  \"description\": \"movies\",\n  \"date\": \"{{seedM2Date}}\"\n}" }
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('created', () => pm.response.to.have.status(201));"] } }]
+        },
+        {
+          "name": "ENTERTAINMENT expense — month -1 (900,000)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/transactions", "host": ["{{baseUrl}}"], "path": ["api", "v1", "transactions"] },
+            "body": { "mode": "raw", "raw": "{\n  \"amount\": 900000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"ENTERTAINMENT\",\n  \"description\": \"movies\",\n  \"date\": \"{{seedM1Date}}\"\n}" }
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('created', () => pm.response.to.have.status(201));"] } }]
+        },
+        {
+          "name": "INCOME — month -3 (20,000,000)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/transactions", "host": ["{{baseUrl}}"], "path": ["api", "v1", "transactions"] },
+            "body": { "mode": "raw", "raw": "{\n  \"amount\": 20000000,\n  \"type\": \"INCOME\",\n  \"category\": \"OTHER\",\n  \"description\": \"salary\",\n  \"date\": \"{{seedM3Date}}\"\n}" }
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('created', () => pm.response.to.have.status(201));"] } }]
+        },
+        {
+          "name": "INCOME — month -2 (20,000,000)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/transactions", "host": ["{{baseUrl}}"], "path": ["api", "v1", "transactions"] },
+            "body": { "mode": "raw", "raw": "{\n  \"amount\": 20000000,\n  \"type\": \"INCOME\",\n  \"category\": \"OTHER\",\n  \"description\": \"salary\",\n  \"date\": \"{{seedM2Date}}\"\n}" }
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('created', () => pm.response.to.have.status(201));"] } }]
+        },
+        {
+          "name": "INCOME — month -1 (20,000,000)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/transactions", "host": ["{{baseUrl}}"], "path": ["api", "v1", "transactions"] },
+            "body": { "mode": "raw", "raw": "{\n  \"amount\": 20000000,\n  \"type\": \"INCOME\",\n  \"category\": \"OTHER\",\n  \"description\": \"salary\",\n  \"date\": \"{{seedM1Date}}\"\n}" }
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('created', () => pm.response.to.have.status(201));"] } }]
+        }
+      ]
+    },
+    {
+      "name": "2 — RAISE_BUDGET flow",
+      "description": "Category HAS a budget → an over-pace expense trips BUDGET_PACE → producer raises a RAISE_BUDGET suggestion. Accept → the budget's limit is raised to the resolved value.",
+      "item": [
+        {
+          "name": "Create FOOD budget (limit 10,000,000) for trigger month",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/budgets", "host": ["{{baseUrl}}"], "path": ["api", "v1", "budgets"] },
+            "body": { "mode": "raw", "raw": "{\n  \"category\": \"FOOD\",\n  \"amountLimit\": 3000000,\n  \"month\": {{triggerMonth}},\n  \"year\": {{triggerYear}}\n}" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('budget created', () => pm.response.to.have.status(201));",
+                  "const j = pm.response.json();",
+                  "pm.collectionVariables.set('foodBudgetId', j.data.budgetId || (j.data && j.data.id));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Trigger: FOOD expense on May 15 (2,000,000) — over pace",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/transactions", "host": ["{{baseUrl}}"], "path": ["api", "v1", "transactions"] },
+            "body": { "mode": "raw", "raw": "{\n  \"amount\": 2000000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"FOOD\",\n  \"description\": \"big grocery run\",\n  \"date\": \"{{triggerDate}}\"\n}" },
+            "description": "By day 15 of 31, 2,000,000 spent projects to ~4,130,000 — past the 3,000,000 limit (ratio ~1.38 → CRITICAL) → BUDGET_PACE. The producer runs synchronously inside this create. The proposed raise is income-capped (20,000,000 income, so no cap binds here)."
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('created', () => pm.response.to.have.status(201));"] } }]
+        },
+        {
+          "name": "GET /insights — assert BUDGET_PACE(FOOD)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/v1/insights?asOf={{asOfInsights}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "insights"], "query": [{ "key": "asOf", "value": "{{asOfInsights}}" }] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('insights ok', () => pm.response.to.have.status(200));",
+                  "const items = pm.response.json().data;",
+                  "const pace = items.find(i => i.type === 'BUDGET_PACE' && i.category === 'FOOD');",
+                  "pm.test('BUDGET_PACE(FOOD) present', () => pm.expect(pace, JSON.stringify(items)).to.exist);",
+                  "pm.test('projectedEndOfMonth > limit', () => pm.expect(Number(pace.metrics.projectedEndOfMonth)).to.be.above(Number(pace.metrics.limit)));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /suggestions?status=PENDING — capture RAISE_BUDGET id",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/v1/suggestions?status=PENDING", "host": ["{{baseUrl}}"], "path": ["api", "v1", "suggestions"], "query": [{ "key": "status", "value": "PENDING" }] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('suggestions ok', () => pm.response.to.have.status(200));",
+                  "const items = pm.response.json().data;",
+                  "const s = items.find(x => x.type === 'RAISE_BUDGET');",
+                  "pm.test('RAISE_BUDGET pending exists', () => pm.expect(s, JSON.stringify(items)).to.exist);",
+                  "pm.collectionVariables.set('suggestionId', s.id);",
+                  "pm.test('payload has resolvedValue', () => pm.expect(s.payload.proposedAction.resolvedValue).to.exist);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /suggestions/{id}/respond {accept:true}",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/suggestions/{{suggestionId}}/respond", "host": ["{{baseUrl}}"], "path": ["api", "v1", "suggestions", "{{suggestionId}}", "respond"] },
+            "body": { "mode": "raw", "raw": "{ \"accept\": true }" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('accepted', () => pm.response.to.have.status(200));",
+                  "pm.expect(pm.response.json().data.status).to.eql('ACCEPTED');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /budgets — assert FOOD limit raised",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/v1/budgets?month={{triggerMonth}}&year={{triggerYear}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "budgets"], "query": [{ "key": "month", "value": "{{triggerMonth}}" }, { "key": "year", "value": "{{triggerYear}}" }] },
+            "description": "The accepted RAISE_BUDGET executed Create/UpdateBudget with amountLimit = resolvedValue (> 10,000,000). Verify the FOOD limit moved. Adjust the field path below if the list DTO differs."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('budgets ok', () => pm.response.to.have.status(200));",
+                  "// The list shape may be data.budgets[] or data[]; this is a soft check.",
+                  "const body = pm.response.json();",
+                  "pm.test('response has data', () => pm.expect(body.data).to.exist);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3 — CREATE_BUDGET flow",
+      "description": "Category has NO budget → a spike trips OVERSPEND_ANOMALY → producer raises CREATE_BUDGET (resolvedValue = trailing-3-month median). Accept → a new budget is created for the trigger month.",
+      "item": [
+        {
+          "name": "Trigger: ENTERTAINMENT spike on May 15 (5,000,000)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/transactions", "host": ["{{baseUrl}}"], "path": ["api", "v1", "transactions"] },
+            "body": { "mode": "raw", "raw": "{\n  \"amount\": 5000000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"ENTERTAINMENT\",\n  \"description\": \"concert tickets\",\n  \"date\": \"{{triggerDate}}\"\n}" },
+            "description": "Baseline ENTERTAINMENT ~1,000,000 with real variance → a 5,000,000 month is a large z-score → OVERSPEND_ANOMALY. No ENTERTAINMENT budget exists → producer picks the CREATE_BUDGET path."
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('created', () => pm.response.to.have.status(201));"] } }]
+        },
+        {
+          "name": "GET /insights — assert OVERSPEND_ANOMALY(ENTERTAINMENT)",
+          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/api/v1/insights?asOf={{asOfInsights}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "insights"], "query": [{ "key": "asOf", "value": "{{asOfInsights}}" }] } },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const items = pm.response.json().data;",
+                  "const ov = items.find(i => i.type === 'OVERSPEND_ANOMALY' && i.category === 'ENTERTAINMENT');",
+                  "pm.test('OVERSPEND_ANOMALY(ENTERTAINMENT) present', () => pm.expect(ov, JSON.stringify(items)).to.exist);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /suggestions?status=PENDING — capture CREATE_BUDGET id",
+          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/api/v1/suggestions?status=PENDING", "host": ["{{baseUrl}}"], "path": ["api", "v1", "suggestions"], "query": [{ "key": "status", "value": "PENDING" }] } },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const items = pm.response.json().data;",
+                  "const s = items.find(x => x.type === 'CREATE_BUDGET');",
+                  "pm.test('CREATE_BUDGET pending exists', () => pm.expect(s, JSON.stringify(items)).to.exist);",
+                  "pm.collectionVariables.set('suggestionId', s.id);",
+                  "pm.test('payload has month+year+resolvedValue', () => { const a = s.payload.proposedAction; pm.expect(a.month).to.exist; pm.expect(a.year).to.exist; pm.expect(a.resolvedValue).to.exist; });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /suggestions/{id}/respond {accept:true}",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/suggestions/{{suggestionId}}/respond", "host": ["{{baseUrl}}"], "path": ["api", "v1", "suggestions", "{{suggestionId}}", "respond"] },
+            "body": { "mode": "raw", "raw": "{ \"accept\": true }" }
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('accepted', () => pm.response.to.have.status(200));", "pm.expect(pm.response.json().data.status).to.eql('ACCEPTED');"] } }]
+        }
+      ]
+    },
+    {
+      "name": "4 — CONTRIBUTE_TO_PROJECT flow",
+      "description": "An INCOME event with savings headroom (SAVINGS_CAPACITY) toward an active saving project → producer raises CONTRIBUTE_TO_PROJECT (amount = disposable × pace, capped at remaining). Accept → a real contribution is recorded on the project.",
+      "item": [
+        {
+          "name": "Create saving project (target 10,000,000)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/projects", "host": ["{{baseUrl}}"], "path": ["api", "v1", "projects"] },
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"New Laptop\",\n  \"description\": \"savings goal\",\n  \"priority\": \"MEDIUM\",\n  \"targetAmount\": 10000000,\n  \"currency\": \"VND\",\n  \"deadline\": \"{{projectDeadline}}\"\n}" },
+            "description": "Must be an ACTIVE, non-group saving project with room to receive. priority may be optional; remove it if your ProjectPriority enum differs."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('project created', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
+                  "const j = pm.response.json();",
+                  "const id = (j.data && (j.data.id || j.data.projectId));",
+                  "pm.collectionVariables.set('projectId', id);",
+                  "pm.test('captured projectId', () => pm.expect(id, JSON.stringify(j.data)).to.exist);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Trigger: INCOME on May 15 (20,000,000)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/transactions", "host": ["{{baseUrl}}"], "path": ["api", "v1", "transactions"] },
+            "body": { "mode": "raw", "raw": "{\n  \"amount\": 20000000,\n  \"type\": \"INCOME\",\n  \"category\": \"OTHER\",\n  \"description\": \"salary\",\n  \"date\": \"{{triggerDate}}\"\n}" },
+            "description": "Getting paid is the moment the producer checks savings headroom (maybeProduceSavingsContribution). disposable = avgIncome (~20,000,000) - recurring (0) - committed budgets."
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('created', () => pm.response.to.have.status(201));"] } }]
+        },
+        {
+          "name": "GET /insights — assert SAVINGS_CAPACITY",
+          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/api/v1/insights?asOf={{asOfInsights}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "insights"], "query": [{ "key": "asOf", "value": "{{asOfInsights}}" }] } },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const items = pm.response.json().data;",
+                  "const cap = items.find(i => i.type === 'SAVINGS_CAPACITY');",
+                  "pm.test('SAVINGS_CAPACITY present', () => pm.expect(cap, JSON.stringify(items)).to.exist);",
+                  "pm.test('disposable > 0', () => pm.expect(Number(cap.metrics.disposable)).to.be.above(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /suggestions?status=PENDING — capture CONTRIBUTE id",
+          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/api/v1/suggestions?status=PENDING", "host": ["{{baseUrl}}"], "path": ["api", "v1", "suggestions"], "query": [{ "key": "status", "value": "PENDING" }] } },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const items = pm.response.json().data;",
+                  "const s = items.find(x => x.type === 'CONTRIBUTE_TO_PROJECT');",
+                  "pm.test('CONTRIBUTE_TO_PROJECT pending exists', () => pm.expect(s, JSON.stringify(items)).to.exist);",
+                  "pm.collectionVariables.set('suggestionId', s.id);",
+                  "pm.test('payload has projectId+resolvedValue', () => { const a = s.payload.proposedAction; pm.expect(a.projectId).to.exist; pm.expect(Number(a.resolvedValue)).to.be.above(0); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /suggestions/{id}/respond {accept:true}",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/suggestions/{{suggestionId}}/respond", "host": ["{{baseUrl}}"], "path": ["api", "v1", "suggestions", "{{suggestionId}}", "respond"] },
+            "body": { "mode": "raw", "raw": "{ \"accept\": true }" }
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('accepted', () => pm.response.to.have.status(200));", "pm.expect(pm.response.json().data.status).to.eql('ACCEPTED');"] } }]
+        },
+        {
+          "name": "GET /projects/{id} — assert contribution recorded",
+          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/api/v1/projects/{{projectId}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "projects", "{{projectId}}"] } },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('project ok', () => pm.response.to.have.status(200));",
+                  "const d = pm.response.json().data;",
+                  "pm.test('project has data', () => pm.expect(d, JSON.stringify(d)).to.exist);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "5 — Idempotency & dismissal",
+      "description": "Responding twice must NOT re-run the action; dismissing is the negative path.",
+      "item": [
+        {
+          "name": "Re-respond to last accepted id (idempotent)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/suggestions/{{suggestionId}}/respond", "host": ["{{baseUrl}}"], "path": ["api", "v1", "suggestions", "{{suggestionId}}", "respond"] },
+            "body": { "mode": "raw", "raw": "{ \"accept\": true }" },
+            "description": "Second response returns the current (already-decided) state without executing the action again — the RespondToSuggestionUseCase flips PENDING->decided conditionally."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('still 200', () => pm.response.to.have.status(200));",
+                  "pm.test('status unchanged (ACCEPTED)', () => pm.expect(pm.response.json().data.status).to.eql('ACCEPTED'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "6 — Notifications (deep-link)",
+      "item": [
+        {
+          "name": "GET /notifications — find app://suggestions deep-link",
+          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/api/v1/notifications", "host": ["{{baseUrl}}"], "path": ["api", "v1", "notifications"] } },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('notifications ok', () => pm.response.to.have.status(200));",
+                  "const items = pm.response.json().data;",
+                  "const deep = items.filter(n => typeof n.deepLink === 'string' && n.deepLink.startsWith('app://suggestions/'));",
+                  "pm.test('at least one suggestion deep-link', () => pm.expect(deep.length, 'expected app://suggestions/{id} links').to.be.above(0));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

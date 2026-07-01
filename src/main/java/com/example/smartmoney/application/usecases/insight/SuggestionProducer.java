@@ -59,8 +59,11 @@ import java.util.UUID;
  * <p>Best-effort: every failure here is swallowed so a producer hiccup never affects the user's
  * transaction. Fatigue is controlled in layers: (a) NOTIFY users get zero pushes, (b) the severity
  * gate, (c) one open ask per topic via dedup, (d) dismissal suppression (P2-A), (e) a per-topic
- * cooldown, and (f) a per-user daily push cap (P3-A). The P2-A/P3-A controls (d–f) are all bypassed
- * by a CRITICAL escalation, so a genuine emergency is never silenced by the fatigue ceiling.
+ * cooldown, and (f) a per-user daily push cap (P3-A). Controls (d) and (e) fully skip the ask; the
+ * daily cap (f) instead <em>demotes</em> the push — the suggestion card is still created (actionable
+ * in-app) but a single daily roll-up ping replaces the individual push, so overflow is never silently
+ * lost. Accepted suggestions don't count toward the cap (engagement isn't fatigue). A CRITICAL
+ * escalation bypasses (d)–(f) entirely, so a genuine emergency is never silenced.
  */
 @Service
 @Slf4j
@@ -106,8 +109,8 @@ public class SuggestionProducer {
                     .findFirst().orElse(null);
 
             Candidate candidate = (budget != null && budget.getId() != null)
-                    ? raiseBudgetCandidate(insights, affectedCategory, budget, gate, history, period)
-                    : createBudgetCandidate(insights, affectedCategory, gate, history, period);
+                    ? raiseBudgetCandidate(insights, affectedCategory, budget, gate, history, period, user.getIncome())
+                    : createBudgetCandidate(insights, affectedCategory, gate, history, period, user.getIncome());
 
             persistAndPush(userId, candidate);
         } catch (Exception e) {
@@ -168,13 +171,20 @@ public class SuggestionProducer {
 
     /** RAISE_BUDGET: BUDGET_PACE overshoot on a category that already has a budget. */
     private Candidate raiseBudgetCandidate(List<Insight> insights, Category category, Budget budget,
-                                           Severity gate, List<Transaction> history, YearMonth period) {
+                                           Severity gate, List<Transaction> history, YearMonth period,
+                                           BigDecimal income) {
         Insight insight = bestQualifying(insights, InsightType.BUDGET_PACE, category, gate);
         if (insight == null) {
             return null;
         }
-        BigDecimal resolvedValue = analyzer.trailing3MonthMedian(history, category, period)
-                .max(toBigDecimal(insight.getMetrics().get("projectedEndOfMonth")));
+        BigDecimal resolvedValue = capByIncome(
+                analyzer.trailing3MonthMedian(history, category, period)
+                        .max(toBigDecimal(insight.getMetrics().get("projectedEndOfMonth"))),
+                income);
+        // After capping, a "raise" that isn't above the current limit is meaningless — don't ask.
+        if (resolvedValue.compareTo(budget.getAmountLimit()) <= 0) {
+            return null;
+        }
 
         SuggestionPayload.ProposedAction action = SuggestionPayload.ProposedAction.builder()
                 .category(category)
@@ -193,12 +203,14 @@ public class SuggestionProducer {
 
     /** CREATE_BUDGET: OVERSPEND_ANOMALY on a category with no budget to anchor spending. */
     private Candidate createBudgetCandidate(List<Insight> insights, Category category,
-                                            Severity gate, List<Transaction> history, YearMonth period) {
+                                            Severity gate, List<Transaction> history, YearMonth period,
+                                            BigDecimal income) {
         Insight insight = bestQualifying(insights, InsightType.OVERSPEND_ANOMALY, category, gate);
         if (insight == null) {
             return null;
         }
-        BigDecimal resolvedValue = analyzer.trailing3MonthMedian(history, category, period);
+        BigDecimal resolvedValue = capByIncome(
+                analyzer.trailing3MonthMedian(history, category, period), income);
         if (resolvedValue.compareTo(BigDecimal.ZERO) <= 0) {
             return null; // no robust baseline to propose a limit from
         }
@@ -246,8 +258,13 @@ public class SuggestionProducer {
             log.debug("[Suggestion] skip — open ask already exists for {}", candidate.dedupKey);
             return;
         }
-        // Fatigue ceiling (P2-A dismissal suppression + P3-A cooldown / daily cap). A CRITICAL
-        // escalation bypasses all of it so a genuine emergency is never silenced.
+        // Fatigue ceiling. A CRITICAL escalation bypasses all of it. For non-CRITICAL asks:
+        //  - dismissal suppression and the per-topic cooldown fully skip the ask;
+        //  - the daily cap only DEMOTES the push — the card is still created (so it stays actionable
+        //    in the in-app list) but a single daily roll-up ping replaces the per-suggestion push,
+        //    so nothing is silently lost. See docs/redesign-phase2-3-plan.md §P3-A.
+        boolean overflow = false;           // over the daily cap → create the card, no individual push
+        boolean firstOverflowToday = false; // only the first crossing sends the one roll-up ping
         if (candidate.severity != Severity.CRITICAL) {
             Instant now = clock.instant();
             SuggestionTopicStat stat = topicStatRepository.find(userId, candidate.dedupKey).orElse(null);
@@ -259,9 +276,13 @@ public class SuggestionProducer {
                 log.debug("[Suggestion] in cooldown ({}h) for {}", fatigue.getCooldownHours(), candidate.dedupKey);
                 return;
             }
-            if (dailyCapReached(userId, now)) {
-                log.debug("[Suggestion] daily push cap {} reached for user {}", fatigue.getDailyCap(), userId);
-                return;
+            int cap = fatigue.getDailyCap();
+            if (cap > 0) {
+                int used = suggestionRepository.countTowardDailyCap(userId, startOfDay(now));
+                if (used >= cap) {
+                    overflow = true;
+                    firstOverflowToday = (used == cap); // exactly at the boundary = first over today
+                }
             }
         }
 
@@ -274,6 +295,18 @@ public class SuggestionProducer {
         } catch (Exception insertEx) {
             // A concurrent insert won the dedup race — treat as already asked.
             log.debug("[Suggestion] dedup insert conflict for {}: {}", candidate.dedupKey, insertEx.getMessage());
+            return;
+        }
+
+        if (overflow) {
+            // Daily-cap overflow: the card is in the in-app list; don't ping per-suggestion. Send one
+            // roll-up notification per day (the digest pattern) so the user knows there's more to review.
+            if (firstOverflowToday) {
+                createNotificationUseCase.createNotification(
+                        userId, "notification.digest.pending_suggestions", "app://suggestions");
+            }
+            log.info("[Suggestion] {} id={} created without push (daily cap {} reached — rolled into digest)",
+                    candidate.type, saved.getId(), fatigue.getDailyCap());
             return;
         }
 
@@ -299,13 +332,9 @@ public class SuggestionProducer {
         return now.isBefore(readyAt);
     }
 
-    /** P3-A: has the user already hit the per-day push cap (suggestions created since day start)? */
-    private boolean dailyCapReached(UUID userId, Instant now) {
-        if (fatigue.getDailyCap() <= 0) {
-            return false; // non-positive cap = unlimited
-        }
-        Instant dayStart = LocalDate.ofInstant(now, clock.getZone()).atStartOfDay(clock.getZone()).toInstant();
-        return suggestionRepository.countByUserIdAndCreatedAtAfter(userId, dayStart) >= fatigue.getDailyCap();
+    /** Start-of-day instant in the producer's clock zone — the window for the P3-A daily cap. */
+    private Instant startOfDay(Instant now) {
+        return LocalDate.ofInstant(now, clock.getZone()).atStartOfDay(clock.getZone()).toInstant();
     }
 
     /** Best-effort: stamp the topic's last-pushed time so the P3-A cooldown can space out repeats. */
@@ -361,6 +390,18 @@ public class SuggestionProducer {
             case GENTLE -> Severity.WARN; // WARN/CRITICAL become pushed suggestions
             case HARD -> Severity.CRITICAL;
         };
+    }
+
+    /**
+     * Sanity ceiling for a proposed budget limit: never suggest a monthly limit larger than the
+     * user's stated monthly income — you can't spend money you don't have. When income is unset
+     * (cold-start), the value passes through unbounded (the trailing-median anchor still applies).
+     */
+    private BigDecimal capByIncome(BigDecimal value, BigDecimal income) {
+        if (income != null && income.compareTo(BigDecimal.ZERO) > 0) {
+            return value.min(income);
+        }
+        return value;
     }
 
     /** P2-E: share of disposable to suggest saving, by pace. Cold-start (null) → BALANCED. */

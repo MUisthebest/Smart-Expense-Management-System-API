@@ -42,6 +42,12 @@ public class SpendingInsightAnalyzer {
     static final int MIN_TREND_SAMPLE = 3;
     /** Minimum distinct months a charge must appear in to count as recurring. */
     static final int RECURRING_MIN_MONTHS = 3;
+    /**
+     * Minimum elapsed days in the month before a budget-pace projection is trusted. A single
+     * purchase on day 1–2 would otherwise extrapolate to an absurd month-end figure
+     * (e.g. 2M spent on day 1 → 62M projected). Below this, pace is treated as too-early-to-tell.
+     */
+    static final int MIN_PACE_DAYS = 3;
 
     private static final BigDecimal Z_WARN = BigDecimal.valueOf(2);
     private static final BigDecimal Z_CRITICAL = BigDecimal.valueOf(3);
@@ -150,6 +156,10 @@ public class SpendingInsightAnalyzer {
         YearMonth period = YearMonth.from(asOf);
         int dayOfMonth = Math.max(1, asOf.getDayOfMonth());
         int daysInMonth = period.lengthOfMonth();
+        // Too early in the month to project a month-end figure from — one day's spend is not a trend.
+        if (dayOfMonth < MIN_PACE_DAYS) {
+            return List.of();
+        }
 
         List<Insight> insights = new ArrayList<>();
         for (Budget budget : budgets) {

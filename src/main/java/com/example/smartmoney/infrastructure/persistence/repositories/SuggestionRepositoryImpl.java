@@ -48,8 +48,10 @@ public class SuggestionRepositoryImpl implements SuggestionRepository {
     }
 
     @Override
-    public int countByUserIdAndCreatedAtAfter(UUID userId, Instant since) {
-        return jpaSuggestionRepository.countByUserIdAndCreatedAtGreaterThanEqual(userId, since);
+    public int countTowardDailyCap(UUID userId, Instant since) {
+        // Exclude ACCEPTED: acting on a suggestion is engagement, not fatigue.
+        return jpaSuggestionRepository.countByUserIdAndCreatedAtGreaterThanEqualAndStatusNot(
+                userId, since, SuggestionStatus.ACCEPTED);
     }
 
     @Override

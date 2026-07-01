@@ -150,16 +150,31 @@ class SpendingInsightAnalyzerTest {
                 pace(budget(Category.FOOD, new BigDecimal("1000"), new BigDecimal("700"))).orElseThrow().getSeverity());
     }
 
+    private Optional<Insight> paceOn(Budget budget, LocalDate asOf) {
+        return analyzer.analyze(List.of(), List.of(budget), asOf).stream()
+                .filter(i -> i.getType() == InsightType.BUDGET_PACE).findFirst();
+    }
+
     @Test
-    @DisplayName("day-1 projection does not divide by zero")
-    void dayOneEdge() {
-        Insight insight = analyzer.analyze(List.of(),
-                        List.of(budget(Category.FOOD, new BigDecimal("1000"), new BigDecimal("100"))),
-                        LocalDate.of(2026, 6, 1)).stream()
-                .filter(i -> i.getType() == InsightType.BUDGET_PACE).findFirst().orElseThrow();
-        // projected = 100/1*30 = 3000 → CRITICAL
+    @DisplayName("early-month guard: days 1–2 produce no pace insight (one purchase is not a trend)")
+    void earlyMonthNoPace() {
+        // 100 spent on day 1 would linearly project to 3000 (>> 1000 limit) — the exact day-1 blowup
+        // the guard exists to suppress. It must stay silent on days 1 and 2.
+        Budget b = budget(Category.FOOD, new BigDecimal("1000"), new BigDecimal("100"));
+        assertTrue(paceOn(b, LocalDate.of(2026, 6, 1)).isEmpty());
+        assertTrue(paceOn(b, LocalDate.of(2026, 6, 2)).isEmpty());
+    }
+
+    @Test
+    @DisplayName("early-month guard: on day 3 the projection is trusted again (and still no divide-by-zero)")
+    void paceResumesOnMinDay() {
+        // day 3 of 30: projected = 100/3*30 = 1000 → exactly at the limit → not over → no insight,
+        // but a clear overshoot does surface, proving the guard opened rather than the math breaking.
+        Insight insight = paceOn(budget(Category.FOOD, new BigDecimal("1000"), new BigDecimal("200")),
+                LocalDate.of(2026, 6, 3)).orElseThrow();
+        // projected = 200/3*30 = 2000 → ratio 2.0 → CRITICAL
         assertEquals(Severity.CRITICAL, insight.getSeverity());
-        assertEquals(3000.0, ((BigDecimal) insight.getMetrics().get("projectedEndOfMonth")).doubleValue(), 0.001);
+        assertEquals(2000.0, ((BigDecimal) insight.getMetrics().get("projectedEndOfMonth")).doubleValue(), 0.001);
     }
 
     // ---- P3-B: exponential-smoothing forecast --------------------------------------------
