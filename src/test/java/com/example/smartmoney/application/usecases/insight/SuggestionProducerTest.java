@@ -149,6 +149,42 @@ class SuggestionProducerTest {
         verify(createNotificationUseCase, never()).createNotification(any(), any(), any());
     }
 
+    // ---- affordability cap: a budget limit never exceeds income --------------------------
+
+    @Test
+    @DisplayName("RAISE_BUDGET: the proposed limit is capped at the user's monthly income")
+    void raiseBudgetCappedAtIncome() throws Exception {
+        // projected 1200 (600 by day 15 of 30) would be the raw raise; income 1100 clamps it.
+        stubUserWithIncome(Intervention_Level.GENTLE, "1100");
+        stubAnalysisData();
+        when(suggestionRepository.findOpenByUserIdAndDedupKey(eq(userId), anyString()))
+                .thenReturn(Optional.empty());
+        when(suggestionRepository.save(any(Suggestion.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        producer.maybeProduce(userId, Category.FOOD, AS_OF);
+
+        ArgumentCaptor<Suggestion> captor = ArgumentCaptor.forClass(Suggestion.class);
+        verify(suggestionRepository).save(captor.capture());
+        SuggestionPayload payload = objectMapper.readValue(captor.getValue().getPayloadJson(), SuggestionPayload.class);
+        // raw 1200 → capped to income 1100
+        assertEquals(0, new BigDecimal("1100").compareTo(payload.getProposedAction().getResolvedValue()));
+    }
+
+    @Test
+    @DisplayName("RAISE_BUDGET: if the income cap leaves nothing above the current limit, no ask is raised")
+    void raiseBudgetSuppressedWhenCapNotAboveLimit() {
+        // income 1000 == the current limit → capping the raise to 1000 is no raise at all → skip.
+        stubUserWithIncome(Intervention_Level.GENTLE, "1000");
+        stubAnalysisData();
+        lenient().when(suggestionRepository.findOpenByUserIdAndDedupKey(eq(userId), anyString()))
+                .thenReturn(Optional.empty());
+
+        producer.maybeProduce(userId, Category.FOOD, AS_OF);
+
+        verify(suggestionRepository, never()).save(any());
+        verify(createNotificationUseCase, never()).createNotification(any(), any(), any());
+    }
+
     // ---- P2-A: dismissal suppression -----------------------------------------------------
 
     @Test
@@ -224,18 +260,43 @@ class SuggestionProducerTest {
     }
 
     @Test
-    @DisplayName("P3-A: once the per-user daily cap is reached, no further suggestion is pushed")
-    void dailyCapBlocks() {
+    @DisplayName("P3-A overflow: at the daily cap the card is still created, but a single roll-up ping replaces the per-suggestion push")
+    void dailyCapOverflowCreatesCardWithRollup() {
         stubUser(Intervention_Level.GENTLE);
         stubAnalysisData(); // WARN pace
         when(suggestionRepository.findOpenByUserIdAndDedupKey(eq(userId), anyString()))
                 .thenReturn(Optional.empty());
-        when(suggestionRepository.countByUserIdAndCreatedAtAfter(eq(userId), any()))
-                .thenReturn(3); // cap is 3 → already reached
+        when(suggestionRepository.countTowardDailyCap(eq(userId), any()))
+                .thenReturn(3); // exactly at the cap → first overflow today
+        when(suggestionRepository.save(any(Suggestion.class))).thenAnswer(inv -> inv.getArgument(0));
 
         producer.maybeProduce(userId, Category.FOOD, AS_OF);
 
-        verify(suggestionRepository, never()).save(any());
+        // The actionable card is still persisted — nothing is silently lost.
+        verify(suggestionRepository).save(any(Suggestion.class));
+        // The ping is the single roll-up to the list, NOT a per-suggestion deep link.
+        verify(createNotificationUseCase).createNotification(eq(userId),
+                eq("notification.digest.pending_suggestions"), eq("app://suggestions"));
+        verify(createNotificationUseCase, never()).createNotification(eq(userId), anyString(),
+                startsWith("app://suggestions/"));
+        // No individual push happened → the topic's last-pushed time is not stamped.
+        verify(topicStatRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("P3-A overflow: past the first crossing the card is created but NO ping is sent (one roll-up per day)")
+    void dailyCapOverflowBeyondFirstSendsNoPing() {
+        stubUser(Intervention_Level.GENTLE);
+        stubAnalysisData(); // WARN pace
+        when(suggestionRepository.findOpenByUserIdAndDedupKey(eq(userId), anyString()))
+                .thenReturn(Optional.empty());
+        when(suggestionRepository.countTowardDailyCap(eq(userId), any()))
+                .thenReturn(4); // already past the cap → not the first overflow
+        when(suggestionRepository.save(any(Suggestion.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        producer.maybeProduce(userId, Category.FOOD, AS_OF);
+
+        verify(suggestionRepository).save(any(Suggestion.class));
         verify(createNotificationUseCase, never()).createNotification(any(), any(), any());
     }
 
@@ -252,7 +313,7 @@ class SuggestionProducerTest {
         // Cooldown active + cap exceeded — both should be ignored for a CRITICAL ask (lenient: skipped).
         lenient().when(topicStatRepository.find(eq(userId), anyString()))
                 .thenReturn(Optional.of(pushedTopicStat(NOW.minus(Duration.ofMinutes(1)))));
-        lenient().when(suggestionRepository.countByUserIdAndCreatedAtAfter(eq(userId), any())).thenReturn(99);
+        lenient().when(suggestionRepository.countTowardDailyCap(eq(userId), any())).thenReturn(99);
         when(suggestionRepository.save(any(Suggestion.class))).thenAnswer(inv -> inv.getArgument(0));
 
         producer.maybeProduce(userId, Category.FOOD, AS_OF);
@@ -397,6 +458,11 @@ class SuggestionProducerTest {
     private Budget criticalPaceBudget() {
         return Budget.builder().id(budgetId).userId(userId).category(Category.FOOD)
                 .amountLimit(new BigDecimal("1000")).spent(new BigDecimal("700")).month(6).year(2026).build();
+    }
+
+    private void stubUserWithIncome(Intervention_Level level, String income) {
+        when(userRepository.findById(userId)).thenReturn(Optional.of(
+                User.builder().id(userId).interventionLevel(level).income(new BigDecimal(income)).build()));
     }
 
     private void stubUser(Intervention_Level level, Saving_Pace pace) {

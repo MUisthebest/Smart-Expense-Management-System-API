@@ -19,10 +19,11 @@ public interface SuggestionRepository {
     List<Suggestion> findByUserIdAndStatus(UUID userId, SuggestionStatus status);
 
     /**
-     * How many suggestions this user has had created since {@code since}. Each pushed suggestion is
-     * one row, so this backs the P3-A per-user daily push cap (count rows created today).
+     * How many of this user's suggestions created since {@code since} count toward the P3-A daily
+     * push cap. Excludes ACCEPTED suggestions: acting on a nudge is engagement, not fatigue, so it
+     * should not consume the day's push budget (unlike ignored/dismissed/expired ones).
      */
-    int countByUserIdAndCreatedAtAfter(UUID userId, Instant since);
+    int countTowardDailyCap(UUID userId, Instant since);
 
     /**
      * Idempotent, lock-free decision transition: flips a PENDING row to {@code newStatus}.

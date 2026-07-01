@@ -12,11 +12,14 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
@@ -34,16 +37,22 @@ public class InsightController {
     @Operation(
             summary = "Get current-month spending insights",
             description = "Returns deterministic insights (overspend anomalies, budget-pace projections) "
-                    + "for the authenticated user's current month, ordered by their focus trait. Pull-only; no mutation."
+                    + "for the authenticated user's current month, ordered by their focus trait. Pull-only; no mutation. "
+                    + "The optional `asOf` (YYYY-MM-DD) analyzes the month of that date instead of today — "
+                    + "intended for testing and demos so seeded past-month data can be viewed deterministically."
     )
     @GetMapping
     public ResponseEntity<CheckResponse<List<InsightResponse>>> getInsights(
             @Parameter(description = "Bearer token", required = true, hidden = true)
-            @RequestHeader("Authorization") String authHeader) {
+            @RequestHeader("Authorization") String authHeader,
+            @Parameter(description = "Reference date (YYYY-MM-DD); analyzes that month. Defaults to today. Testing/demo aid.")
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate asOf) {
 
         try {
             UUID userId = extractUserIdFromToken(authHeader);
-            List<InsightResponse> insights = generateInsightsUseCase.execute(userId);
+            List<InsightResponse> insights = asOf != null
+                    ? generateInsightsUseCase.execute(userId, asOf)
+                    : generateInsightsUseCase.execute(userId);
 
             return ResponseEntity.ok(CheckResponse.<List<InsightResponse>>builder()
                     .success(true)
