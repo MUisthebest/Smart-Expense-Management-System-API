@@ -670,4 +670,138 @@ class SuggestionProducerTest {
         verify(createNotificationUseCase, never()).createNotification(any(), any(), any());
         verify(suggestionRepository, never()).save(any());
     }
+
+    // ---- Wave 2: REBALANCE_BUDGETS (budget write pushes committed total over income) ------
+
+    private Budget monthBudget(UUID id, Category category, String limit) {
+        return Budget.builder().id(id).userId(userId).category(category)
+                .amountLimit(new BigDecimal(limit)).spent(BigDecimal.ZERO).month(6).year(2026).build();
+    }
+
+    @Test
+    @DisplayName("Wave 2: committed budgets over declared income → REBALANCE_BUDGETS with a proportional per-budget snapshot")
+    void overCommittedProducesRebalance() throws Exception {
+        UUID foodId = UUID.randomUUID();
+        UUID shoppingId = UUID.randomUUID();
+        stubUserWithIncome(Intervention_Level.GENTLE, "1000"); // committed 1500 > income 1000
+        when(budgetRepository.findByUserIdMonthYear(eq(userId), eq(6), eq(2026)))
+                .thenReturn(List.of(monthBudget(foodId, Category.FOOD, "900"),
+                        monthBudget(shoppingId, Category.SHOPPING, "600")));
+        when(suggestionRepository.findOpenByUserIdAndDedupKey(eq(userId), anyString()))
+                .thenReturn(Optional.empty());
+        when(suggestionRepository.save(any(Suggestion.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        producer.maybeProduceRebalance(userId, 6, 2026);
+
+        ArgumentCaptor<Suggestion> captor = ArgumentCaptor.forClass(Suggestion.class);
+        verify(suggestionRepository).save(captor.capture());
+        Suggestion saved = captor.getValue();
+        assertEquals(SuggestionType.REBALANCE_BUDGETS, saved.getType());
+        assertEquals("REBALANCE_BUDGETS:2026-06", saved.getDedupKey());
+
+        SuggestionPayload payload = objectMapper.readValue(saved.getPayloadJson(), SuggestionPayload.class);
+        SuggestionPayload.ProposedAction action = payload.getProposedAction();
+        assertEquals(6, action.getMonth());
+        assertEquals(2026, action.getYear());
+        // factor = 1000/1500 = 0.666666 (rounded DOWN): 900 → 599.99, 600 → 399.99; total 999.98 ≤ income.
+        assertEquals(2, action.getBudgetAdjustments().size());
+        SuggestionPayload.BudgetAdjustment food = action.getBudgetAdjustments().stream()
+                .filter(a -> foodId.equals(a.getBudgetId())).findFirst().orElseThrow();
+        assertEquals(Category.FOOD, food.getCategory());
+        assertEquals(0, new BigDecimal("900").compareTo(food.getCurrentLimit()));
+        assertEquals(0, new BigDecimal("599.99").compareTo(food.getNewLimit()));
+        SuggestionPayload.BudgetAdjustment shopping = action.getBudgetAdjustments().stream()
+                .filter(a -> shoppingId.equals(a.getBudgetId())).findFirst().orElseThrow();
+        assertEquals(0, new BigDecimal("399.99").compareTo(shopping.getNewLimit()));
+        // resolvedValue = the new committed total, for display.
+        assertEquals(0, new BigDecimal("999.98").compareTo(action.getResolvedValue()));
+
+        verify(createNotificationUseCase).createNotification(eq(userId),
+                eq("notification.suggestion.rebalance_budgets"), startsWith("app://suggestions/"));
+    }
+
+    @Test
+    @DisplayName("Wave 2: committed budgets within income → no rebalance ask")
+    void withinIncomeNoRebalance() {
+        stubUserWithIncome(Intervention_Level.GENTLE, "2000"); // committed 1500 ≤ income 2000
+        when(budgetRepository.findByUserIdMonthYear(eq(userId), eq(6), eq(2026)))
+                .thenReturn(List.of(monthBudget(UUID.randomUUID(), Category.FOOD, "900"),
+                        monthBudget(UUID.randomUUID(), Category.SHOPPING, "600")));
+
+        producer.maybeProduceRebalance(userId, 6, 2026);
+
+        verify(suggestionRepository, never()).save(any());
+        verify(createNotificationUseCase, never()).createNotification(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("Wave 2: a HARD (CRITICAL-only) user doesn't get the WARN-level rebalance ask")
+    void hardUserNoRebalance() {
+        stubUserWithIncome(Intervention_Level.HARD, "1000");
+        when(budgetRepository.findByUserIdMonthYear(eq(userId), eq(6), eq(2026)))
+                .thenReturn(List.of(monthBudget(UUID.randomUUID(), Category.FOOD, "1500")));
+
+        producer.maybeProduceRebalance(userId, 6, 2026);
+
+        verify(suggestionRepository, never()).save(any());
+        verify(createNotificationUseCase, never()).createNotification(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("Wave 2: a NOTIFY (pull-only) user gets no rebalance ask")
+    void notifyUserNoRebalance() {
+        stubUser(Intervention_Level.NOTIFY);
+
+        producer.maybeProduceRebalance(userId, 6, 2026);
+
+        verify(suggestionRepository, never()).save(any());
+        verify(createNotificationUseCase, never()).createNotification(any(), any(), any());
+    }
+
+    // ---- Wave 2: REVIEW_SUBSCRIPTION (price hike on the expense-create path) --------------
+
+    /** A stable "Netflix Premium" charge (200 × Mar–May) that posts at 260 in June: a +30% hike. */
+    private List<Transaction> hikedSubscriptionHistory() {
+        List<Transaction> history = new java.util.ArrayList<>();
+        for (int m = 3; m <= 5; m++) {
+            history.add(describedExpense(Category.ENTERTAINMENT, m, "200", "Netflix Premium"));
+        }
+        history.add(describedExpense(Category.ENTERTAINMENT, 6, "260", "Netflix Premium"));
+        return history;
+    }
+
+    private Transaction describedExpense(Category category, int month, String amount, String description) {
+        return Transaction.create(userId, new Amount(new BigDecimal(amount)), TransactionType.EXPENSE,
+                category, description, java.time.LocalDateTime.of(2026, month, 10, 12, 0));
+    }
+
+    @Test
+    @DisplayName("Wave 2: a hiked subscription charge → acknowledge-only REVIEW_SUBSCRIPTION (no proposed action)")
+    void priceHikeProducesReviewSubscription() throws Exception {
+        stubUser(Intervention_Level.GENTLE);
+        when(transactionRepository.findByUserIdWithFilters(any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(hikedSubscriptionHistory());
+        when(budgetRepository.findByUserIdMonthYear(eq(userId), eq(6), eq(2026)))
+                .thenReturn(List.of()); // no ENTERTAINMENT budget; no anomaly/trend fires on this series
+        when(suggestionRepository.findOpenByUserIdAndDedupKey(eq(userId), anyString()))
+                .thenReturn(Optional.empty());
+        when(suggestionRepository.save(any(Suggestion.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        producer.maybeProduce(userId, Category.ENTERTAINMENT, AS_OF);
+
+        ArgumentCaptor<Suggestion> captor = ArgumentCaptor.forClass(Suggestion.class);
+        verify(suggestionRepository).save(captor.capture());
+        Suggestion saved = captor.getValue();
+        assertEquals(SuggestionType.REVIEW_SUBSCRIPTION, saved.getType());
+        // The subscription's description is part of the topic, slugged for key-safety.
+        assertEquals("REVIEW_SUBSCRIPTION:ENTERTAINMENT:netflix-premium:2026-06", saved.getDedupKey());
+
+        SuggestionPayload payload = objectMapper.readValue(saved.getPayloadJson(), SuggestionPayload.class);
+        assertNull(payload.getProposedAction()); // acknowledge-only: nothing to execute
+        assertEquals("SUBSCRIPTION_PRICE_HIKE", payload.getInsightSnapshot().get("type"));
+
+        verify(createNotificationUseCase).createNotification(eq(userId),
+                eq("notification.suggestion.review_subscription|netflix premium"),
+                startsWith("app://suggestions/"));
+    }
 }

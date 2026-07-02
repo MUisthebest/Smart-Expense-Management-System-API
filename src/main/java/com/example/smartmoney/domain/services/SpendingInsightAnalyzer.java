@@ -95,6 +95,7 @@ public class SpendingInsightAnalyzer {
         insights.addAll(detectBudgetUnderspend(budgets, history, asOf));
         insights.addAll(detectCategoryTrends(history, asOf));
         insights.addAll(detectRecurring(history, asOf));
+        insights.addAll(detectSubscriptionPriceHikes(history, asOf));
         detectSavingsCapacity(history, budgets, asOf).ifPresent(insights::add);
         return insights;
     }
@@ -551,6 +552,62 @@ public class SpendingInsightAnalyzer {
         return insights;
     }
 
+    // ---- Wave 2: subscription price hike (recurring group breaks its tolerance band) ------
+
+    /**
+     * A charge that was a stable recurring cost — at least {@value #RECURRING_MIN_MONTHS} prior
+     * months all within ±{@code RECURRING_TOLERANCE} of their median — whose current-month amount
+     * breaks that band <em>upward</em>: the subscription's price went up. WARN (actionable: review
+     * or cancel it). Such a group no longer qualifies as RECURRING for the month (the hiked amount
+     * fails the all-months tolerance check), so this insight replaces it rather than duplicating it.
+     */
+    private List<Insight> detectSubscriptionPriceHikes(List<Transaction> history, LocalDate asOf) {
+        YearMonth period = YearMonth.from(asOf);
+        List<Insight> insights = new ArrayList<>();
+        for (Map.Entry<RecurringKey, Map<YearMonth, BigDecimal>> entry : recurringGroups(history, period).entrySet()) {
+            Map<YearMonth, BigDecimal> monthly = entry.getValue();
+            BigDecimal current = monthly.get(period);
+            if (current == null) {
+                continue; // the charge hasn't posted this month — nothing new to judge
+            }
+            // The group must have been a stable recurring charge BEFORE this month.
+            List<BigDecimal> prior = new ArrayList<>();
+            for (Map.Entry<YearMonth, BigDecimal> m : monthly.entrySet()) {
+                if (m.getKey().isBefore(period)) {
+                    prior.add(m.getValue());
+                }
+            }
+            if (prior.size() < RECURRING_MIN_MONTHS) {
+                continue;
+            }
+            BigDecimal priorMedian = median(prior);
+            if (priorMedian.compareTo(BigDecimal.ZERO) <= 0 || !allWithinTolerance(prior, priorMedian)) {
+                continue; // never was a stable subscription — a jump means nothing
+            }
+            // Only an upward break of the tolerance band is a hike (a drop is good news, not an ask).
+            if (current.doubleValue() <= priorMedian.doubleValue() * (1 + RECURRING_TOLERANCE)) {
+                continue;
+            }
+
+            Map<String, Object> metrics = new LinkedHashMap<>();
+            metrics.put("description", entry.getKey().description());
+            metrics.put("previousAmount", round(priorMedian));
+            metrics.put("newAmount", round(current));
+            metrics.put("increaseRatio", round2(current.doubleValue() / priorMedian.doubleValue() - 1d));
+            metrics.put("monthsObserved", prior.size());
+
+            insights.add(Insight.builder()
+                    .type(InsightType.SUBSCRIPTION_PRICE_HIKE)
+                    .category(entry.getKey().category())
+                    .severity(Severity.WARN) // a price change worth acting on, not an emergency
+                    .period(period)
+                    .metrics(metrics)
+                    .code(code("subscription_price_hike", entry.getKey().category()))
+                    .build());
+        }
+        return insights;
+    }
+
     /**
      * Total estimated monthly recurring cost — sum of every detected recurring charge.
      * Public so the savings-capacity calc (and future Pivot-A {@code disposable}) can reuse it.
@@ -561,12 +618,15 @@ public class SpendingInsightAnalyzer {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
-    private List<RecurringCharge> findRecurringCharges(List<Transaction> history, YearMonth period) {
-        if (history == null) {
-            return List.of();
-        }
-        // Group identifiable charges by (category, normalized description); sum per month.
+    /**
+     * Identifiable charges grouped by (category, normalized description), summed per month over
+     * [period - window, period]. Shared by the recurring detector and the price-hike detector.
+     */
+    private Map<RecurringKey, Map<YearMonth, BigDecimal>> recurringGroups(List<Transaction> history, YearMonth period) {
         Map<RecurringKey, Map<YearMonth, BigDecimal>> groups = new LinkedHashMap<>();
+        if (history == null) {
+            return groups;
+        }
         for (Transaction tx : history) {
             if (tx == null || tx.getType() != TransactionType.EXPENSE
                     || tx.getCategory() == null || tx.getAmount() == null || tx.getDate() == null
@@ -582,9 +642,12 @@ public class SpendingInsightAnalyzer {
             groups.computeIfAbsent(key, k -> new TreeMap<>())
                     .merge(month, tx.getAmount().getValue(), BigDecimal::add);
         }
+        return groups;
+    }
 
+    private List<RecurringCharge> findRecurringCharges(List<Transaction> history, YearMonth period) {
         List<RecurringCharge> charges = new ArrayList<>();
-        for (Map.Entry<RecurringKey, Map<YearMonth, BigDecimal>> entry : groups.entrySet()) {
+        for (Map.Entry<RecurringKey, Map<YearMonth, BigDecimal>> entry : recurringGroups(history, period).entrySet()) {
             Map<YearMonth, BigDecimal> monthly = entry.getValue();
             if (monthly.size() < RECURRING_MIN_MONTHS) {
                 continue;

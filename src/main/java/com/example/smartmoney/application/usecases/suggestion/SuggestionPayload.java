@@ -8,6 +8,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -37,6 +38,10 @@ public class SuggestionPayload {
      *   <li>RAISE_BUDGET — {@code budgetId} + {@code resolvedValue} (new limit)</li>
      *   <li>CREATE_BUDGET — {@code category} + {@code month}/{@code year} + {@code resolvedValue} (limit)</li>
      *   <li>CONTRIBUTE_TO_PROJECT — {@code projectId} + {@code resolvedValue} (contribution amount)</li>
+     *   <li>REBALANCE_BUDGETS — {@code budgetAdjustments} (per-budget new limits) + {@code month}/
+     *       {@code year}; {@code resolvedValue} is the new committed total, for display</li>
+     *   <li>REVIEW_SUBSCRIPTION — no proposed action (acknowledge-only; the card renders from the
+     *       insight snapshot)</li>
      * </ul>
      */
     @Data
@@ -57,5 +62,27 @@ public class SuggestionPayload {
          * CREATE_BUDGET) or the contribution amount (CONTRIBUTE_TO_PROJECT).
          */
         private BigDecimal resolvedValue;
+        /**
+         * REBALANCE_BUDGETS only (null for every other type): the per-budget limits the user is
+         * consenting to, snapshotted at ask time. Accept honors this snapshot verbatim — it never
+         * recomputes, and a budget deleted since the ask is simply skipped.
+         */
+        private List<BudgetAdjustment> budgetAdjustments;
+    }
+
+    /** One budget's consented new limit inside a REBALANCE_BUDGETS ask. */
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class BudgetAdjustment {
+        private UUID budgetId;
+        /** For display on the card — not used by the executor. */
+        private Category category;
+        /** The limit at ask time, for a before → after rendering. */
+        private BigDecimal currentLimit;
+        /** The consented new limit the executor applies. */
+        private BigDecimal newLimit;
     }
 }

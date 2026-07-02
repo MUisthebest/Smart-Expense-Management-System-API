@@ -22,5 +22,17 @@ public enum SuggestionType {
      * Lower an over-provisioned budget's limit to the consented value (BUDGET_UNDERSPEND). Executes
      * the same update-budget action as {@link #RAISE_BUDGET}, in the opposite direction.
      */
-    REDUCE_BUDGET
+    REDUCE_BUDGET,
+    /**
+     * Scale all of the month's budget limits proportionally so their total fits the user's declared
+     * income (BUDGET_OVER_INCOME). The consented numbers are the per-budget snapshot in
+     * {@code proposedAction.budgetAdjustments}; accept applies exactly that snapshot (Wave 2 item 5).
+     */
+    REBALANCE_BUDGETS,
+    /**
+     * A recurring charge's price jumped (SUBSCRIPTION_PRICE_HIKE) — ask the user to review it.
+     * Acknowledge-only: accepting marks it reviewed; the real action (cancelling or renegotiating
+     * the subscription) happens outside the app, so accept executes nothing (Wave 2 item 4).
+     */
+    REVIEW_SUBSCRIPTION
 }

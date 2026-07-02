@@ -886,6 +886,196 @@
           ]
         }
       ]
+    },
+    {
+      "name": "11 — REBALANCE_BUDGETS flow (Wave 2)",
+      "description": "Creating/raising a budget that pushes the month's committed total over the DECLARED income (20,000,000 from folder 0) fires BUDGET_OVER_INCOME and — on the budget WRITE itself, not on an expense — a REBALANCE_BUDGETS suggestion: a per-budget snapshot of proportionally scaled-down limits. Accept applies that snapshot verbatim to every listed budget. Run folders 0–8 first so several budgets exist; the 20,000,000 HEALTH budget here pushes the total decisively over income.",
+      "item": [
+        {
+          "name": "Trigger: create HEALTH budget (20,000,000) — total now over income",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/budgets", "host": ["{{baseUrl}}"], "path": ["api", "v1", "budgets"] },
+            "body": { "mode": "raw", "raw": "{\n  \"category\": \"HEALTH\",\n  \"amountLimit\": 20000000,\n  \"month\": {{triggerMonth}},\n  \"year\": {{triggerYear}}\n}" },
+            "description": "CreateBudgetUseCase runs maybeProduceRebalance after the save: committed limits (this 20M + the FOOD/ENTERTAINMENT/TRANSPORTATION/CLOTHING budgets from earlier folders) now exceed the declared 20M income → BUDGET_OVER_INCOME (WARN, passes the GENTLE gate) → REBALANCE_BUDGETS suggestion with dedupKey REBALANCE_BUDGETS:<period>."
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('budget created', () => pm.response.to.have.status(201));"] } }]
+        },
+        {
+          "name": "GET /insights — assert BUDGET_OVER_INCOME",
+          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/api/v1/insights?asOf={{asOfInsights}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "insights"], "query": [{ "key": "asOf", "value": "{{asOfInsights}}" }] } },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('insights ok', () => pm.response.to.have.status(200));",
+                  "const items = pm.response.json().data;",
+                  "const over = items.find(i => i.type === 'BUDGET_OVER_INCOME');",
+                  "pm.test('BUDGET_OVER_INCOME present', () => pm.expect(over, JSON.stringify(items)).to.exist);",
+                  "pm.test('committedBudgets > income', () => pm.expect(Number(over.metrics.committedBudgets)).to.be.above(Number(over.metrics.income)));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /suggestions?status=PENDING — capture REBALANCE_BUDGETS id",
+          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/api/v1/suggestions?status=PENDING", "host": ["{{baseUrl}}"], "path": ["api", "v1", "suggestions"], "query": [{ "key": "status", "value": "PENDING" }] } },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const items = pm.response.json().data;",
+                  "const s = items.find(x => x.type === 'REBALANCE_BUDGETS');",
+                  "pm.test('REBALANCE_BUDGETS pending exists', () => pm.expect(s, JSON.stringify(items)).to.exist);",
+                  "pm.collectionVariables.set('suggestionId', s.id);",
+                  "pm.test('payload: budgetAdjustments snapshot (budgetId + currentLimit + newLimit each)', () => {",
+                  "  const adj = s.payload.proposedAction.budgetAdjustments;",
+                  "  pm.expect(adj, 'budgetAdjustments').to.be.an('array').that.is.not.empty;",
+                  "  adj.forEach(a => { pm.expect(a.budgetId).to.exist; pm.expect(Number(a.newLimit)).to.be.above(0); pm.expect(Number(a.newLimit)).to.be.below(Number(a.currentLimit)); });",
+                  "});",
+                  "pm.test('resolvedValue (new committed total) fits the 20M income', () => pm.expect(Number(s.payload.proposedAction.resolvedValue)).to.be.at.most(20000000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /suggestions/{id}/respond {accept:true}",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/suggestions/{{suggestionId}}/respond", "host": ["{{baseUrl}}"], "path": ["api", "v1", "suggestions", "{{suggestionId}}", "respond"] },
+            "body": { "mode": "raw", "raw": "{ \"accept\": true }" },
+            "description": "Applies the consented snapshot: every listed budget is set to its newLimit (a budget deleted since the ask would be skipped). The numbers are honored verbatim — never recomputed at accept time."
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('accepted', () => pm.response.to.have.status(200));", "pm.expect(pm.response.json().data.status).to.eql('ACCEPTED');"] } }]
+        },
+        {
+          "name": "GET /budgets — assert limits scaled down to fit income",
+          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/api/v1/budgets?month={{triggerMonth}}&year={{triggerYear}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "budgets"], "query": [{ "key": "month", "value": "{{triggerMonth}}" }, { "key": "year", "value": "{{triggerYear}}" }] } },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('budgets ok', () => pm.response.to.have.status(200));",
+                  "const d = pm.response.json().data;",
+                  "const items = (d && d.items) || d || [];",
+                  "if (Array.isArray(items) && items.length) {",
+                  "  const total = items.reduce((sum, b) => sum + Number(b.amountLimit || 0), 0);",
+                  "  pm.test('committed total now <= 20M income', () => pm.expect(total).to.be.at.most(20000000));",
+                  "} else { pm.test('response has data', () => pm.expect(d).to.exist); }"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "12 — REVIEW_SUBSCRIPTION flow (Wave 2, acknowledge-only)",
+      "description": "A stable recurring charge (EDUCATION 'online course' at 500,000 for 3 months) posts at 700,000 (+40%, past the ±15% tolerance band) → SUBSCRIPTION_PRICE_HIKE (WARN) → REVIEW_SUBSCRIPTION suggestion on the expense-create path. Acknowledge-only: the payload has NO proposedAction, and accepting executes nothing — Yes just marks the hike reviewed. EDUCATION must have no budget and the series is chosen so neither OVERSPEND_ANOMALY (flat baseline, stddev 0) nor CATEGORY_TREND (growth < 10%/mo) steals the branch.",
+      "item": [
+        {
+          "name": "EDUCATION 'online course' — month -3 (500,000)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/transactions", "host": ["{{baseUrl}}"], "path": ["api", "v1", "transactions"] },
+            "body": { "mode": "raw", "raw": "{\n  \"amount\": 500000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"EDUCATION\",\n  \"description\": \"online course\",\n  \"date\": \"{{seedM3Date}}\"\n}" }
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('created', () => pm.response.to.have.status(201));"] } }]
+        },
+        {
+          "name": "EDUCATION 'online course' — month -2 (500,000)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/transactions", "host": ["{{baseUrl}}"], "path": ["api", "v1", "transactions"] },
+            "body": { "mode": "raw", "raw": "{\n  \"amount\": 500000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"EDUCATION\",\n  \"description\": \"online course\",\n  \"date\": \"{{seedM2Date}}\"\n}" }
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('created', () => pm.response.to.have.status(201));"] } }]
+        },
+        {
+          "name": "EDUCATION 'online course' — month -1 (500,000)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/transactions", "host": ["{{baseUrl}}"], "path": ["api", "v1", "transactions"] },
+            "body": { "mode": "raw", "raw": "{\n  \"amount\": 500000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"EDUCATION\",\n  \"description\": \"online course\",\n  \"date\": \"{{seedM1Date}}\"\n}" }
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('created', () => pm.response.to.have.status(201));"] } }]
+        },
+        {
+          "name": "Trigger: EDUCATION 'online course' at 700,000 (+40%)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/transactions", "host": ["{{baseUrl}}"], "path": ["api", "v1", "transactions"] },
+            "body": { "mode": "raw", "raw": "{\n  \"amount\": 700000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"EDUCATION\",\n  \"description\": \"online course\",\n  \"date\": \"{{triggerDate}}\"\n}" },
+            "description": "Prior months [500k,500k,500k] are a stable recurring group (median 500k, all within ±15%); 700k breaks the band upward (+40%) → SUBSCRIPTION_PRICE_HIKE (WARN, passes the GENTLE gate) → REVIEW_SUBSCRIPTION. Different amount from the seeds → no DUPLICATE_CHARGE; stddev 0 per-charge history → no LARGE_TRANSACTION."
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('created', () => pm.response.to.have.status(201));"] } }]
+        },
+        {
+          "name": "GET /insights — assert SUBSCRIPTION_PRICE_HIKE(EDUCATION)",
+          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/api/v1/insights?asOf={{asOfInsights}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "insights"], "query": [{ "key": "asOf", "value": "{{asOfInsights}}" }] } },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const items = pm.response.json().data;",
+                  "const hike = items.find(i => i.type === 'SUBSCRIPTION_PRICE_HIKE' && i.category === 'EDUCATION');",
+                  "pm.test('SUBSCRIPTION_PRICE_HIKE(EDUCATION) present', () => pm.expect(hike, JSON.stringify(items)).to.exist);",
+                  "pm.test('previousAmount 500k → newAmount 700k', () => { pm.expect(Number(hike.metrics.previousAmount)).to.eql(500000); pm.expect(Number(hike.metrics.newAmount)).to.eql(700000); });",
+                  "pm.test('the hiked group is NOT also RECURRING', () => pm.expect(items.find(i => i.type === 'RECURRING' && i.category === 'EDUCATION')).to.not.exist);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /suggestions?status=PENDING — capture REVIEW_SUBSCRIPTION id",
+          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/api/v1/suggestions?status=PENDING", "host": ["{{baseUrl}}"], "path": ["api", "v1", "suggestions"], "query": [{ "key": "status", "value": "PENDING" }] } },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const items = pm.response.json().data;",
+                  "const s = items.find(x => x.type === 'REVIEW_SUBSCRIPTION');",
+                  "pm.test('REVIEW_SUBSCRIPTION pending exists', () => pm.expect(s, JSON.stringify(items)).to.exist);",
+                  "pm.collectionVariables.set('suggestionId', s.id);",
+                  "pm.test('acknowledge-only: NO proposedAction in the payload', () => pm.expect(s.payload.proposedAction == null, JSON.stringify(s.payload)).to.be.true);",
+                  "pm.test('insightSnapshot carries the display numbers', () => { const m = s.payload.insightSnapshot.metrics; pm.expect(m.description).to.exist; pm.expect(m.previousAmount).to.exist; pm.expect(m.newAmount).to.exist; });",
+                  "pm.test('dedupKey scopes to the specific subscription', () => pm.expect(s.dedupKey).to.include('REVIEW_SUBSCRIPTION:EDUCATION:online-course'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /suggestions/{id}/respond {accept:true} — no side effect",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/suggestions/{{suggestionId}}/respond", "host": ["{{baseUrl}}"], "path": ["api", "v1", "suggestions", "{{suggestionId}}", "respond"] },
+            "body": { "mode": "raw", "raw": "{ \"accept\": true }" },
+            "description": "Acknowledge-only by design: accepting flips the card to ACCEPTED and executes nothing — no budget or transaction changes. The real action (cancelling/renegotiating the subscription) happens outside the app."
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('accepted', () => pm.response.to.have.status(200));", "pm.expect(pm.response.json().data.status).to.eql('ACCEPTED');"] } }]
+        }
+      ]
     }
   ]
 }

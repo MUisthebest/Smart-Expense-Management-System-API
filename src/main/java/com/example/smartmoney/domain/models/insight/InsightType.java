@@ -39,5 +39,11 @@ public enum InsightType {
      * A near-immediate repeat of the same category + exact amount + normalized description within a
      * short window — a likely double-charge. Notification-only, like {@link #LARGE_TRANSACTION}.
      */
-    DUPLICATE_CHARGE
+    DUPLICATE_CHARGE,
+    /**
+     * A learned recurring charge (see {@link #RECURRING}) whose current-month amount breaks the
+     * group's upward tolerance band — the subscription's price went up. Backs the acknowledge-only
+     * REVIEW_SUBSCRIPTION suggestion (Wave 2, docs/insight-suggestion-expansion-plan.md).
+     */
+    SUBSCRIPTION_PRICE_HIKE
 }

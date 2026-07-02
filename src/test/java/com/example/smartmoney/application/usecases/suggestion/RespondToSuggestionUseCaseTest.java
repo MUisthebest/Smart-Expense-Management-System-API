@@ -12,6 +12,7 @@ import com.example.smartmoney.domain.models.suggestion.SuggestionStatus;
 import com.example.smartmoney.domain.models.suggestion.SuggestionTopicStat;
 import com.example.smartmoney.domain.models.suggestion.SuggestionType;
 import com.example.smartmoney.domain.models.transaction.enums.Category;
+import com.example.smartmoney.domain.repositories.BudgetRepository;
 import com.example.smartmoney.domain.repositories.SuggestionRepository;
 import com.example.smartmoney.domain.repositories.SuggestionTopicStatRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -25,6 +26,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -38,6 +40,7 @@ class RespondToSuggestionUseCaseTest {
 
     @Mock private SuggestionRepository suggestionRepository;
     @Mock private SuggestionTopicStatRepository topicStatRepository;
+    @Mock private BudgetRepository budgetRepository;
     @Mock private UpdateBudgetUseCase updateBudgetUseCase;
     @Mock private CreateBudgetUseCase createBudgetUseCase;
     @Mock private AddProjectContributionUseCase addProjectContributionUseCase;
@@ -52,7 +55,7 @@ class RespondToSuggestionUseCaseTest {
     @BeforeEach
     void setUp() {
         useCase = new RespondToSuggestionUseCase(
-                suggestionRepository, topicStatRepository, updateBudgetUseCase,
+                suggestionRepository, topicStatRepository, budgetRepository, updateBudgetUseCase,
                 createBudgetUseCase, addProjectContributionUseCase,
                 new SuggestionResponseAssembler(objectMapper), objectMapper);
         suggestion = raiseBudgetSuggestion(userId);
@@ -255,6 +258,102 @@ class RespondToSuggestionUseCaseTest {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+    // ---- Wave 2: REBALANCE_BUDGETS (multi-budget snapshot) + REVIEW_SUBSCRIPTION ----------
+
+    private Suggestion rebalanceSuggestion(UUID owner, UUID foodBudgetId, UUID shoppingBudgetId) {
+        SuggestionPayload payload = SuggestionPayload.builder()
+                .proposedAction(SuggestionPayload.ProposedAction.builder()
+                        .month(6).year(2026)
+                        .resolvedValue(new BigDecimal("999.98"))
+                        .budgetAdjustments(List.of(
+                                SuggestionPayload.BudgetAdjustment.builder()
+                                        .budgetId(foodBudgetId).category(Category.FOOD)
+                                        .currentLimit(new BigDecimal("900"))
+                                        .newLimit(new BigDecimal("599.99")).build(),
+                                SuggestionPayload.BudgetAdjustment.builder()
+                                        .budgetId(shoppingBudgetId).category(Category.SHOPPING)
+                                        .currentLimit(new BigDecimal("600"))
+                                        .newLimit(new BigDecimal("399.99")).build()))
+                        .build())
+                .build();
+        return suggestionOf(owner, SuggestionType.REBALANCE_BUDGETS, payload, "REBALANCE_BUDGETS:2026-06");
+    }
+
+    @Test
+    @DisplayName("Wave 2: accepting a REBALANCE_BUDGETS applies every snapshotted limit, without mid-loop rebalance re-checks")
+    void acceptRebalanceAppliesSnapshot() {
+        UUID foodBudgetId = UUID.randomUUID();
+        UUID shoppingBudgetId = UUID.randomUUID();
+        Suggestion s = rebalanceSuggestion(userId, foodBudgetId, shoppingBudgetId);
+        when(suggestionRepository.findById(s.getId())).thenReturn(Optional.of(s));
+        when(suggestionRepository.markDecidedIfPending(eq(s.getId()), eq(userId),
+                eq(SuggestionStatus.ACCEPTED), any())).thenReturn(1);
+        when(budgetRepository.findById(any())).thenReturn(
+                Optional.of(mock(com.example.smartmoney.domain.models.budget.Budget.class)));
+
+        useCase.execute(userId, s.getId(), true);
+
+        ArgumentCaptor<UpdateBudgetRequest> captor = ArgumentCaptor.forClass(UpdateBudgetRequest.class);
+        verify(updateBudgetUseCase).execute(eq(foodBudgetId), eq(userId), captor.capture(), eq(false));
+        assertEquals(0, new BigDecimal("599.99").compareTo(captor.getValue().getAmountLimit()));
+        verify(updateBudgetUseCase).execute(eq(shoppingBudgetId), eq(userId), captor.capture(), eq(false));
+        assertEquals(0, new BigDecimal("399.99").compareTo(captor.getValue().getAmountLimit()));
+    }
+
+    @Test
+    @DisplayName("Wave 2: a budget deleted after the ask is skipped; the rest of the snapshot still applies")
+    void rebalanceSkipsDeletedBudget() {
+        UUID foodBudgetId = UUID.randomUUID();
+        UUID shoppingBudgetId = UUID.randomUUID();
+        Suggestion s = rebalanceSuggestion(userId, foodBudgetId, shoppingBudgetId);
+        when(suggestionRepository.findById(s.getId())).thenReturn(Optional.of(s));
+        when(suggestionRepository.markDecidedIfPending(eq(s.getId()), eq(userId),
+                eq(SuggestionStatus.ACCEPTED), any())).thenReturn(1);
+        when(budgetRepository.findById(foodBudgetId)).thenReturn(Optional.empty()); // deleted since ask
+        when(budgetRepository.findById(shoppingBudgetId)).thenReturn(
+                Optional.of(mock(com.example.smartmoney.domain.models.budget.Budget.class)));
+
+        useCase.execute(userId, s.getId(), true);
+
+        verify(updateBudgetUseCase, never()).execute(eq(foodBudgetId), any(), any(), anyBoolean());
+        verify(updateBudgetUseCase).execute(eq(shoppingBudgetId), eq(userId),
+                any(UpdateBudgetRequest.class), eq(false));
+    }
+
+    @Test
+    @DisplayName("Wave 2: a REBALANCE_BUDGETS payload without adjustments is rejected")
+    void rebalanceWithoutAdjustmentsRejected() {
+        SuggestionPayload payload = SuggestionPayload.builder()
+                .proposedAction(SuggestionPayload.ProposedAction.builder().month(6).year(2026).build())
+                .build();
+        Suggestion s = suggestionOf(userId, SuggestionType.REBALANCE_BUDGETS, payload, "REBALANCE_BUDGETS:2026-06");
+        when(suggestionRepository.findById(s.getId())).thenReturn(Optional.of(s));
+        when(suggestionRepository.markDecidedIfPending(eq(s.getId()), eq(userId),
+                eq(SuggestionStatus.ACCEPTED), any())).thenReturn(1);
+
+        assertThrows(DomainException.class, () -> useCase.execute(userId, s.getId(), true));
+
+        verify(updateBudgetUseCase, never()).execute(any(), any(), any(), anyBoolean());
+    }
+
+    @Test
+    @DisplayName("Wave 2: accepting a REVIEW_SUBSCRIPTION is acknowledge-only — the flip is the entire effect")
+    void acceptReviewSubscriptionExecutesNothing() {
+        SuggestionPayload payload = SuggestionPayload.builder().build(); // no proposed action by design
+        Suggestion s = suggestionOf(userId, SuggestionType.REVIEW_SUBSCRIPTION, payload,
+                "REVIEW_SUBSCRIPTION:ENTERTAINMENT:netflix-premium:2026-06");
+        when(suggestionRepository.findById(s.getId())).thenReturn(Optional.of(s));
+        when(suggestionRepository.markDecidedIfPending(eq(s.getId()), eq(userId),
+                eq(SuggestionStatus.ACCEPTED), any())).thenReturn(1);
+
+        useCase.execute(userId, s.getId(), true);
+
+        verify(updateBudgetUseCase, never()).execute(any(), any(), any());
+        verify(updateBudgetUseCase, never()).execute(any(), any(), any(), anyBoolean());
+        verify(createBudgetUseCase, never()).execute(any(), any());
+        verify(addProjectContributionUseCase, never()).execute(any(), any(), any());
     }
 
     @Test
