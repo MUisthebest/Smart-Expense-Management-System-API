@@ -544,4 +544,130 @@ class SuggestionProducerTest {
             throw new RuntimeException(e);
         }
     }
+
+    // ---- Wave 1: SET_CATEGORY_LIMIT (category trend, no budget, no anomaly) ---------------
+
+    /** FOOD climbing 100→190 over Jan–Jun: an upward trend, but June's z-score stays below WARN. */
+    private List<Transaction> risingFoodTrendHistory() {
+        List<Transaction> history = new java.util.ArrayList<>();
+        int[] amounts = {100, 120, 140, 160, 180, 190};
+        for (int i = 0; i < amounts.length; i++) {
+            history.add(expense(Category.FOOD, 2026, i + 1, String.valueOf(amounts[i])));
+        }
+        return history;
+    }
+
+    @Test
+    @DisplayName("Wave 1: CATEGORY_TREND on a budgetless category (no anomaly) → SET_CATEGORY_LIMIT at the trailing median")
+    void trendWithoutBudgetSetsCategoryLimit() throws Exception {
+        stubUser(Intervention_Level.GENTLE);
+        when(transactionRepository.findByUserIdWithFilters(any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(risingFoodTrendHistory());
+        when(budgetRepository.findByUserIdMonthYear(eq(userId), eq(6), eq(2026)))
+                .thenReturn(List.of()); // no FOOD budget
+        when(suggestionRepository.findOpenByUserIdAndDedupKey(eq(userId), anyString()))
+                .thenReturn(Optional.empty());
+        when(suggestionRepository.save(any(Suggestion.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        producer.maybeProduce(userId, Category.FOOD, AS_OF);
+
+        ArgumentCaptor<Suggestion> captor = ArgumentCaptor.forClass(Suggestion.class);
+        verify(suggestionRepository).save(captor.capture());
+        Suggestion saved = captor.getValue();
+        assertEquals(SuggestionType.SET_CATEGORY_LIMIT, saved.getType());
+        assertEquals("SET_CATEGORY_LIMIT:FOOD:2026-06", saved.getDedupKey());
+
+        SuggestionPayload payload = objectMapper.readValue(saved.getPayloadJson(), SuggestionPayload.class);
+        SuggestionPayload.ProposedAction action = payload.getProposedAction();
+        assertEquals(Category.FOOD, action.getCategory());
+        assertEquals(6, action.getMonth());
+        assertEquals(2026, action.getYear());
+        assertNull(action.getBudgetId());
+        // trailing-3 median [180,160,140] = 160
+        assertEquals(0, new BigDecimal("160").compareTo(action.getResolvedValue()));
+
+        verify(createNotificationUseCase).createNotification(eq(userId),
+                eq("notification.suggestion.set_category_limit|FOOD"), startsWith("app://suggestions/"));
+    }
+
+    // ---- Wave 1: REDUCE_BUDGET (budget consistently underspent) --------------------------
+
+    /** FOOD budget with a low, healthy spend: limit 1000, spent 100 (projected 200). */
+    private Budget underspentBudget() {
+        return Budget.builder().id(budgetId).userId(userId).category(Category.FOOD)
+                .amountLimit(new BigDecimal("1000")).spent(new BigDecimal("100")).month(6).year(2026).build();
+    }
+
+    private List<Transaction> lowFoodHistory() {
+        List<Transaction> history = new java.util.ArrayList<>();
+        history.add(expense(Category.FOOD, 2026, 5, "100"));
+        history.add(expense(Category.FOOD, 2026, 4, "120"));
+        history.add(expense(Category.FOOD, 2026, 3, "80"));
+        return history;
+    }
+
+    @Test
+    @DisplayName("Wave 1: a budgeted category spent well under its limit → REDUCE_BUDGET at median + headroom")
+    void underspentBudgetProducesReduce() throws Exception {
+        stubUser(Intervention_Level.GENTLE);
+        when(transactionRepository.findByUserIdWithFilters(any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(lowFoodHistory());
+        when(budgetRepository.findByUserIdMonthYear(eq(userId), eq(6), eq(2026)))
+                .thenReturn(List.of(underspentBudget()));
+        when(suggestionRepository.findOpenByUserIdAndDedupKey(eq(userId), anyString()))
+                .thenReturn(Optional.empty());
+        when(suggestionRepository.save(any(Suggestion.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        producer.maybeProduce(userId, Category.FOOD, AS_OF);
+
+        ArgumentCaptor<Suggestion> captor = ArgumentCaptor.forClass(Suggestion.class);
+        verify(suggestionRepository).save(captor.capture());
+        Suggestion saved = captor.getValue();
+        assertEquals(SuggestionType.REDUCE_BUDGET, saved.getType());
+        assertEquals("REDUCE_BUDGET:FOOD:2026-06", saved.getDedupKey());
+
+        SuggestionPayload payload = objectMapper.readValue(saved.getPayloadJson(), SuggestionPayload.class);
+        assertEquals(budgetId, payload.getProposedAction().getBudgetId());
+        // median actual 100 × 1.15 headroom = 115.00
+        assertEquals(0, new BigDecimal("115.00").compareTo(payload.getProposedAction().getResolvedValue()));
+
+        verify(createNotificationUseCase).createNotification(eq(userId),
+                eq("notification.suggestion.reduce_budget|FOOD"), startsWith("app://suggestions/"));
+    }
+
+    // ---- Wave 1: notification-only per-transaction anomalies -----------------------------
+
+    private List<Transaction> typicalShoppingHistory() {
+        List<Transaction> history = new java.util.ArrayList<>();
+        history.add(expense(Category.SHOPPING, 2026, 5, "100"));
+        history.add(expense(Category.SHOPPING, 2026, 4, "110"));
+        history.add(expense(Category.SHOPPING, 2026, 3, "90"));
+        history.add(expense(Category.SHOPPING, 2026, 2, "100"));
+        return history;
+    }
+
+    @Test
+    @DisplayName("Wave 1: a large expense fires a notification-only LARGE_TRANSACTION ping (no suggestion)")
+    void largeTransactionNotifies() {
+        stubUser(Intervention_Level.GENTLE);
+        when(transactionRepository.findByUserIdWithFilters(any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(typicalShoppingHistory());
+
+        producer.maybeNotifyTransactionAnomalies(userId, expense(Category.SHOPPING, 2026, 6, "1000"));
+
+        verify(createNotificationUseCase).createNotification(eq(userId),
+                eq("notification.insight.large_transaction|SHOPPING"), eq("app://transactions"));
+        verify(suggestionRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Wave 1: a NOTIFY (pull-only) user gets no per-transaction anomaly ping")
+    void notifyUserGetsNoAnomalyPing() {
+        stubUser(Intervention_Level.NOTIFY);
+
+        producer.maybeNotifyTransactionAnomalies(userId, expense(Category.SHOPPING, 2026, 6, "1000"));
+
+        verify(createNotificationUseCase, never()).createNotification(any(), any(), any());
+        verify(suggestionRepository, never()).save(any());
+    }
 }

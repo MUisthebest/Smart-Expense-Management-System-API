@@ -10,6 +10,7 @@ import com.example.smartmoney.domain.models.transaction.enums.TransactionType;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.ArrayList;
@@ -59,6 +60,14 @@ public class SpendingInsightAnalyzer {
     private static final double TREND_CRITICAL_RATE = 0.25d;
     /** A recurring charge's monthly amounts must all sit within ±this fraction of their median. */
     private static final double RECURRING_TOLERANCE = 0.15d;
+    /**
+     * A budgeted category is "under-provisioned" (REDUCE_BUDGET-worthy) only when both its trailing
+     * median actual and its current-month projection sit at/below this fraction of the limit — a
+     * comfortable margin so a normal-variance month never triggers a cut.
+     */
+    private static final double UNDERSPEND_RATIO = 0.60d;
+    /** How close together two identical charges must fall to look like a double-charge. */
+    static final int DUPLICATE_WINDOW_HOURS = 72;
 
     /** Which end-of-month projection the budget-pace rule uses (P3-B). */
     private final ForecastMethod forecastMethod;
@@ -83,6 +92,7 @@ public class SpendingInsightAnalyzer {
         List<Insight> insights = new ArrayList<>();
         insights.addAll(detectOverspendAnomalies(history, asOf));
         insights.addAll(detectBudgetPace(budgets, history, asOf));
+        insights.addAll(detectBudgetUnderspend(budgets, history, asOf));
         insights.addAll(detectCategoryTrends(history, asOf));
         insights.addAll(detectRecurring(history, asOf));
         detectSavingsCapacity(history, budgets, asOf).ifPresent(insights::add);
@@ -261,6 +271,186 @@ public class SpendingInsightAnalyzer {
             level = EXP_SMOOTHING_ALPHA * daily[i] + (1 - EXP_SMOOTHING_ALPHA) * level;
         }
         return level;
+    }
+
+    // ---- Wave 1: budget underspend (inverse of budget pace) ------------------------------
+
+    /**
+     * A budgeted category the user is consistently spending well under: the trailing-median actual
+     * is at/below {@value #UNDERSPEND_RATIO}× the limit <em>and</em> the current-month pace confirms
+     * it (so a month that's merely started slow but about to catch up is not flagged). INFO — it
+     * backs a REDUCE_BUDGET nudge, never a warning. The early-month guard mirrors {@code detectBudgetPace}.
+     */
+    private List<Insight> detectBudgetUnderspend(List<Budget> budgets, List<Transaction> history, LocalDate asOf) {
+        if (budgets == null) {
+            return List.of();
+        }
+        YearMonth period = YearMonth.from(asOf);
+        int dayOfMonth = Math.max(1, asOf.getDayOfMonth());
+        int daysInMonth = period.lengthOfMonth();
+        if (dayOfMonth < MIN_PACE_DAYS) {
+            return List.of(); // too early to trust a pace read
+        }
+
+        List<Insight> insights = new ArrayList<>();
+        for (Budget budget : budgets) {
+            if (budget == null || budget.getCategory() == null || budget.getAmountLimit() == null
+                    || budget.getAmountLimit().compareTo(BigDecimal.ZERO) <= 0) {
+                continue;
+            }
+            Category category = budget.getCategory();
+            BigDecimal limit = budget.getAmountLimit();
+            double threshold = limit.doubleValue() * UNDERSPEND_RATIO;
+
+            // Historical signal: a real, robust spend history that sits well under the limit. Require
+            // a positive median so we never propose trimming a budget the user simply hasn't used yet.
+            BigDecimal median = trailing3MonthMedian(history, category, period);
+            if (median.compareTo(BigDecimal.ZERO) <= 0 || median.doubleValue() > threshold) {
+                continue;
+            }
+
+            // Pace confirmation: this month must also be tracking under the limit — don't suggest a
+            // cut in a month that's on pace to use the budget after all.
+            BigDecimal spent = budget.getSpent() != null ? budget.getSpent() : BigDecimal.ZERO;
+            double projected = spent.doubleValue() / dayOfMonth * daysInMonth;
+            if (projected > threshold) {
+                continue;
+            }
+
+            Map<String, Object> metrics = new LinkedHashMap<>();
+            metrics.put("limit", round(limit));
+            metrics.put("medianActual", round(median));
+            metrics.put("projectedEndOfMonth", round(BigDecimal.valueOf(projected)));
+            metrics.put("underspendRatio", round2(median.doubleValue() / limit.doubleValue()));
+
+            insights.add(Insight.builder()
+                    .type(InsightType.BUDGET_UNDERSPEND)
+                    .category(category)
+                    .severity(Severity.INFO) // a saving opportunity, not a problem
+                    .period(period)
+                    .metrics(metrics)
+                    .code(code("budget_underspend", category))
+                    .build());
+        }
+        return insights;
+    }
+
+    // ---- Wave 1: per-transaction anomalies (notification-only, evaluated on create) ------
+
+    /**
+     * A single expense that is an outlier versus that category's typical <em>per-transaction</em>
+     * size. Judged with the same z-score bands as the monthly overspend rule, but over prior
+     * per-charge amounts in the category (the candidate excluded). Empty when there's too little
+     * history, no variance, or the charge isn't notable (below the WARN band). Evaluated
+     * synchronously on create and pushed directly — never added to {@code analyze()}.
+     */
+    public Optional<Insight> detectLargeTransaction(List<Transaction> history, Transaction candidate) {
+        if (candidate == null || candidate.getType() != TransactionType.EXPENSE
+                || candidate.getCategory() == null || candidate.getAmount() == null) {
+            return Optional.empty();
+        }
+        List<BigDecimal> prior = new ArrayList<>();
+        if (history != null) {
+            for (Transaction tx : history) {
+                if (tx == null || tx.getType() != TransactionType.EXPENSE
+                        || tx.getCategory() != candidate.getCategory() || tx.getAmount() == null) {
+                    continue;
+                }
+                if (isSameTransaction(tx, candidate)) {
+                    continue;
+                }
+                prior.add(tx.getAmount().getValue());
+            }
+        }
+        if (prior.size() < MIN_SAMPLE) {
+            return Optional.empty(); // not enough charges to know what "typical" is
+        }
+        double mean = mean(prior);
+        double stddev = populationStddev(prior, mean);
+        if (stddev == 0d) {
+            return Optional.empty(); // every prior charge identical — can't call this an outlier
+        }
+        double amount = candidate.getAmount().getValue().doubleValue();
+        double zScore = (amount - mean) / stddev;
+        Severity severity = severityForZ(zScore);
+        if (severity == Severity.INFO) {
+            return Optional.empty(); // within the normal band — not worth a ping
+        }
+
+        Map<String, Object> metrics = new LinkedHashMap<>();
+        metrics.put("amount", round(candidate.getAmount().getValue()));
+        metrics.put("typical", round(BigDecimal.valueOf(mean)));
+        metrics.put("zScore", round2(zScore));
+        metrics.put("sampleSize", prior.size());
+
+        return Optional.of(Insight.builder()
+                .type(InsightType.LARGE_TRANSACTION)
+                .category(candidate.getCategory())
+                .severity(severity)
+                .period(YearMonth.from(candidate.getDate() != null ? candidate.getDate().toLocalDate() : LocalDate.now()))
+                .metrics(metrics)
+                .code(code("large_transaction", candidate.getCategory()))
+                .build());
+    }
+
+    /**
+     * A likely double-charge: another expense with the same category, exact amount, and normalized
+     * description as {@code candidate} within {@value #DUPLICATE_WINDOW_HOURS} hours. Reuses the
+     * recurring-detector's description normalization; requires an exact amount match and a
+     * non-blank description to keep false positives near zero. INFO severity. Notification-only.
+     */
+    public Optional<Insight> detectDuplicateCharge(List<Transaction> history, Transaction candidate) {
+        if (candidate == null || candidate.getType() != TransactionType.EXPENSE
+                || candidate.getCategory() == null || candidate.getAmount() == null
+                || candidate.getDate() == null
+                || candidate.getDescription() == null || candidate.getDescription().isBlank()) {
+            return Optional.empty();
+        }
+        if (history == null) {
+            return Optional.empty();
+        }
+        String normDesc = candidate.getDescription().trim().toLowerCase(Locale.ROOT);
+        BigDecimal amount = candidate.getAmount().getValue();
+        for (Transaction tx : history) {
+            if (tx == null || tx.getType() != TransactionType.EXPENSE
+                    || tx.getCategory() != candidate.getCategory() || tx.getAmount() == null
+                    || tx.getDate() == null || tx.getDescription() == null || tx.getDescription().isBlank()) {
+                continue;
+            }
+            if (isSameTransaction(tx, candidate)) {
+                continue;
+            }
+            if (amount.compareTo(tx.getAmount().getValue()) != 0) {
+                continue; // exact-amount match only
+            }
+            if (!normDesc.equals(tx.getDescription().trim().toLowerCase(Locale.ROOT))) {
+                continue;
+            }
+            long hours = Math.abs(Duration.between(tx.getDate(), candidate.getDate()).toHours());
+            if (hours > DUPLICATE_WINDOW_HOURS) {
+                continue;
+            }
+
+            Map<String, Object> metrics = new LinkedHashMap<>();
+            metrics.put("amount", round(amount));
+            metrics.put("description", candidate.getDescription().trim());
+            metrics.put("withinHours", hours);
+
+            return Optional.of(Insight.builder()
+                    .type(InsightType.DUPLICATE_CHARGE)
+                    .category(candidate.getCategory())
+                    .severity(Severity.INFO) // a heads-up, not a verdict — could be intentional
+                    .period(YearMonth.from(candidate.getDate().toLocalDate()))
+                    .metrics(metrics)
+                    .code(code("duplicate_charge", candidate.getCategory()))
+                    .build());
+        }
+        return Optional.empty();
+    }
+
+    /** Same persisted transaction? Compares ids when both are present (the candidate is already saved). */
+    private static boolean isSameTransaction(Transaction a, Transaction b) {
+        return a.getId() != null && b.getId() != null && a.getId().equals(b.getId());
     }
 
     // ---- C1.4: trailing-median helper (robust resolved value for RAISE_BUDGET) -----------

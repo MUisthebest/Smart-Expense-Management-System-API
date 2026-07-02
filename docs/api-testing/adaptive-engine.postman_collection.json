@@ -17,14 +17,14 @@
         "exec": [
           "// FIXED past-month scenario — deterministic regardless of the real date (see collection desc).",
           "// Baseline: Feb/Mar/Apr 2026. Trigger: 15 May 2026 (mid-month, past MIN_PACE_DAYS).",
-          "pm.collectionVariables.set('seedM3Date', '10/02/2026 10:00');",
-          "pm.collectionVariables.set('seedM2Date', '10/03/2026 10:00');",
-          "pm.collectionVariables.set('seedM1Date', '10/04/2026 10:00');",
-          "pm.collectionVariables.set('triggerDate', '15/05/2026 10:00');",
-          "pm.collectionVariables.set('triggerMonth', 5);",
+          "pm.collectionVariables.set('seedM3Date', '10/04/2026 10:00');",
+          "pm.collectionVariables.set('seedM2Date', '10/05/2026 10:00');",
+          "pm.collectionVariables.set('seedM1Date', '10/06/2026 10:00');",
+          "pm.collectionVariables.set('triggerDate', '15/07/2026 10:00');",
+          "pm.collectionVariables.set('triggerMonth', 7);",
           "pm.collectionVariables.set('triggerYear', 2026);",
-          "pm.collectionVariables.set('asOfInsights', '2026-05-15');",
-          "pm.collectionVariables.set('projectDeadline', '2027-05-28');"
+          "pm.collectionVariables.set('asOfInsights', '2026-07-15');",
+          "pm.collectionVariables.set('projectDeadline', '2027-07-28');"
         ]
       }
     }
@@ -33,6 +33,7 @@
     { "key": "token", "value": "" },
     { "key": "userId", "value": "" },
     { "key": "foodBudgetId", "value": "" },
+    { "key": "clothingBudgetId", "value": "" },
     { "key": "projectId", "value": "" },
     { "key": "suggestionId", "value": "" },
     { "key": "seedM1Date", "value": "" },
@@ -536,6 +537,349 @@
                   "const items = pm.response.json().data;",
                   "const deep = items.filter(n => typeof n.deepLink === 'string' && n.deepLink.startsWith('app://suggestions/'));",
                   "pm.test('at least one suggestion deep-link', () => pm.expect(deep.length, 'expected app://suggestions/{id} links').to.be.above(0));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "7 — SET_CATEGORY_LIMIT flow",
+      "description": "A budgetless category trending UP (CATEGORY_TREND) but NOT a monthly anomaly → producer raises SET_CATEGORY_LIMIT (resolvedValue = trailing-3-month median). Accept → a first budget is created for the trigger month. TRANSPORTATION climbs 1.0M → 1.5M → 3.0M → 3.2M: the 4-month slope is a clear upward trend, but the trigger month's z-score stays below WARN so OVERSPEND_ANOMALY does NOT steal the branch (CREATE_BUDGET only wins when the anomaly qualifies).",
+      "item": [
+        {
+          "name": "TRANSPORTATION — month -3 (1,000,000)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/transactions", "host": ["{{baseUrl}}"], "path": ["api", "v1", "transactions"] },
+            "body": { "mode": "raw", "raw": "{\n  \"amount\": 1000000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"TRANSPORTATION\",\n  \"description\": \"bus pass\",\n  \"date\": \"{{seedM3Date}}\"\n}" }
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('created', () => pm.response.to.have.status(201));"] } }]
+        },
+        {
+          "name": "TRANSPORTATION — month -2 (1,500,000)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/transactions", "host": ["{{baseUrl}}"], "path": ["api", "v1", "transactions"] },
+            "body": { "mode": "raw", "raw": "{\n  \"amount\": 1500000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"TRANSPORTATION\",\n  \"description\": \"bus pass\",\n  \"date\": \"{{seedM2Date}}\"\n}" }
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('created', () => pm.response.to.have.status(201));"] } }]
+        },
+        {
+          "name": "TRANSPORTATION — month -1 (3,000,000)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/transactions", "host": ["{{baseUrl}}"], "path": ["api", "v1", "transactions"] },
+            "body": { "mode": "raw", "raw": "{\n  \"amount\": 3000000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"TRANSPORTATION\",\n  \"description\": \"bus pass\",\n  \"date\": \"{{seedM1Date}}\"\n}" }
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('created', () => pm.response.to.have.status(201));"] } }]
+        },
+        {
+          "name": "Trigger: TRANSPORTATION on trigger day (3,200,000)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/transactions", "host": ["{{baseUrl}}"], "path": ["api", "v1", "transactions"] },
+            "body": { "mode": "raw", "raw": "{\n  \"amount\": 3200000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"TRANSPORTATION\",\n  \"description\": \"bus pass\",\n  \"date\": \"{{triggerDate}}\"\n}" },
+            "description": "Trailing [1.0M,1.5M,3.0M] mean ~1.83M, stddev ~0.85M → trigger 3.2M is z~1.6 (< 2 → below WARN, no anomaly), while the 4-point slope is strongly positive → CATEGORY_TREND. No TRANSPORTATION budget exists → producer falls through CREATE_BUDGET to SET_CATEGORY_LIMIT."
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('created', () => pm.response.to.have.status(201));"] } }]
+        },
+        {
+          "name": "GET /insights — assert CATEGORY_TREND(TRANSPORTATION)",
+          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/api/v1/insights?asOf={{asOfInsights}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "insights"], "query": [{ "key": "asOf", "value": "{{asOfInsights}}" }] } },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const items = pm.response.json().data;",
+                  "const tr = items.find(i => i.type === 'CATEGORY_TREND' && i.category === 'TRANSPORTATION');",
+                  "pm.test('CATEGORY_TREND(TRANSPORTATION) present', () => pm.expect(tr, JSON.stringify(items)).to.exist);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /suggestions?status=PENDING — capture SET_CATEGORY_LIMIT id",
+          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/api/v1/suggestions?status=PENDING", "host": ["{{baseUrl}}"], "path": ["api", "v1", "suggestions"], "query": [{ "key": "status", "value": "PENDING" }] } },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const items = pm.response.json().data;",
+                  "const s = items.find(x => x.type === 'SET_CATEGORY_LIMIT');",
+                  "pm.test('SET_CATEGORY_LIMIT pending exists', () => pm.expect(s, JSON.stringify(items)).to.exist);",
+                  "pm.collectionVariables.set('suggestionId', s.id);",
+                  "pm.test('payload: TRANSPORTATION + month/year + resolvedValue, no budgetId', () => { const a = s.payload.proposedAction; pm.expect(a.category).to.eql('TRANSPORTATION'); pm.expect(Number(a.month)).to.eql(Number(pm.collectionVariables.get('triggerMonth'))); pm.expect(Number(a.year)).to.eql(Number(pm.collectionVariables.get('triggerYear'))); pm.expect(Number(a.resolvedValue)).to.be.above(0); pm.expect(a.budgetId == null, 'budgetId should be null for a create').to.be.true; });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /suggestions/{id}/respond {accept:true}",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/suggestions/{{suggestionId}}/respond", "host": ["{{baseUrl}}"], "path": ["api", "v1", "suggestions", "{{suggestionId}}", "respond"] },
+            "body": { "mode": "raw", "raw": "{ \"accept\": true }" }
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('accepted', () => pm.response.to.have.status(200));", "pm.expect(pm.response.json().data.status).to.eql('ACCEPTED');"] } }]
+        },
+        {
+          "name": "GET /budgets — assert TRANSPORTATION budget created",
+          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/api/v1/budgets?month={{triggerMonth}}&year={{triggerYear}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "budgets"], "query": [{ "key": "month", "value": "{{triggerMonth}}" }, { "key": "year", "value": "{{triggerYear}}" }] } },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('budgets ok', () => pm.response.to.have.status(200));", "pm.test('response has data', () => pm.expect(pm.response.json().data).to.exist);"] } }]
+        }
+      ]
+    },
+    {
+      "name": "8 — REDUCE_BUDGET flow",
+      "description": "A budgeted category consistently used well under its limit (BUDGET_UNDERSPEND) → producer raises REDUCE_BUDGET (resolvedValue = median actual + 15% headroom). Accept → the budget limit is lowered. CLOTHING history is a flat ~1.0M/mo against a 5.0M limit; the trigger is a small 0.5M expense so the current-month pace also stays well under the limit (both the historical median and the projection must sit <= 60% of the limit).",
+      "item": [
+        {
+          "name": "CLOTHING — month -3 (1,000,000)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/transactions", "host": ["{{baseUrl}}"], "path": ["api", "v1", "transactions"] },
+            "body": { "mode": "raw", "raw": "{\n  \"amount\": 1000000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"CLOTHING\",\n  \"description\": \"jacket\",\n  \"date\": \"{{seedM3Date}}\"\n}" }
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('created', () => pm.response.to.have.status(201));"] } }]
+        },
+        {
+          "name": "CLOTHING — month -2 (1,000,000)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/transactions", "host": ["{{baseUrl}}"], "path": ["api", "v1", "transactions"] },
+            "body": { "mode": "raw", "raw": "{\n  \"amount\": 1000000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"CLOTHING\",\n  \"description\": \"jacket\",\n  \"date\": \"{{seedM2Date}}\"\n}" }
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('created', () => pm.response.to.have.status(201));"] } }]
+        },
+        {
+          "name": "CLOTHING — month -1 (1,000,000)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/transactions", "host": ["{{baseUrl}}"], "path": ["api", "v1", "transactions"] },
+            "body": { "mode": "raw", "raw": "{\n  \"amount\": 1000000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"CLOTHING\",\n  \"description\": \"jacket\",\n  \"date\": \"{{seedM1Date}}\"\n}" }
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('created', () => pm.response.to.have.status(201));"] } }]
+        },
+        {
+          "name": "Create CLOTHING budget (limit 5,000,000) for trigger month",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/budgets", "host": ["{{baseUrl}}"], "path": ["api", "v1", "budgets"] },
+            "body": { "mode": "raw", "raw": "{\n  \"category\": \"CLOTHING\",\n  \"amountLimit\": 5000000,\n  \"month\": {{triggerMonth}},\n  \"year\": {{triggerYear}}\n}" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('budget created', () => pm.response.to.have.status(201));",
+                  "const j = pm.response.json();",
+                  "pm.collectionVariables.set('clothingBudgetId', j.data.budgetId || (j.data && j.data.id));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Trigger: CLOTHING on trigger day (500,000) — well under pace",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/transactions", "host": ["{{baseUrl}}"], "path": ["api", "v1", "transactions"] },
+            "body": { "mode": "raw", "raw": "{\n  \"amount\": 500000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"CLOTHING\",\n  \"description\": \"socks\",\n  \"date\": \"{{triggerDate}}\"\n}" },
+            "description": "500,000 by mid-month projects to ~1.0M, far under the 5.0M limit (<= 60% threshold). Trailing median 1.0M is likewise under → BUDGET_UNDERSPEND. No BUDGET_PACE fires (projection under limit), so the producer's reduce branch runs."
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('created', () => pm.response.to.have.status(201));"] } }]
+        },
+        {
+          "name": "GET /insights — assert BUDGET_UNDERSPEND(CLOTHING)",
+          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/api/v1/insights?asOf={{asOfInsights}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "insights"], "query": [{ "key": "asOf", "value": "{{asOfInsights}}" }] } },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const items = pm.response.json().data;",
+                  "const us = items.find(i => i.type === 'BUDGET_UNDERSPEND' && i.category === 'CLOTHING');",
+                  "pm.test('BUDGET_UNDERSPEND(CLOTHING) present', () => pm.expect(us, JSON.stringify(items)).to.exist);",
+                  "pm.test('medianActual <= limit', () => pm.expect(Number(us.metrics.medianActual)).to.be.at.most(Number(us.metrics.limit)));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /suggestions?status=PENDING — capture REDUCE_BUDGET id",
+          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/api/v1/suggestions?status=PENDING", "host": ["{{baseUrl}}"], "path": ["api", "v1", "suggestions"], "query": [{ "key": "status", "value": "PENDING" }] } },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const items = pm.response.json().data;",
+                  "const s = items.find(x => x.type === 'REDUCE_BUDGET');",
+                  "pm.test('REDUCE_BUDGET pending exists', () => pm.expect(s, JSON.stringify(items)).to.exist);",
+                  "pm.collectionVariables.set('suggestionId', s.id);",
+                  "pm.test('payload: budgetId + resolvedValue below current limit', () => { const a = s.payload.proposedAction; pm.expect(a.budgetId).to.exist; pm.expect(Number(a.resolvedValue)).to.be.above(0); pm.expect(Number(a.resolvedValue)).to.be.below(5000000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /suggestions/{id}/respond {accept:true}",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/suggestions/{{suggestionId}}/respond", "host": ["{{baseUrl}}"], "path": ["api", "v1", "suggestions", "{{suggestionId}}", "respond"] },
+            "body": { "mode": "raw", "raw": "{ \"accept\": true }" }
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('accepted', () => pm.response.to.have.status(200));", "pm.expect(pm.response.json().data.status).to.eql('ACCEPTED');"] } }]
+        },
+        {
+          "name": "GET /budgets — assert CLOTHING limit lowered",
+          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/api/v1/budgets?month={{triggerMonth}}&year={{triggerYear}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "budgets"], "query": [{ "key": "month", "value": "{{triggerMonth}}" }, { "key": "year", "value": "{{triggerYear}}" }] } },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('budgets ok', () => pm.response.to.have.status(200));", "pm.test('response has data', () => pm.expect(pm.response.json().data).to.exist);"] } }]
+        }
+      ]
+    },
+    {
+      "name": "9 — LARGE_TRANSACTION (notification-only)",
+      "description": "A single expense far larger than the category's typical per-charge size → a synchronous, notification-only LARGE_TRANSACTION ping (NO suggestion, no accept action). Four typical SHOPPING charges (0.4M–0.6M, all in the trigger month so there is no prior-month monthly baseline → no OVERSPEND_ANOMALY) establish the per-charge norm; the 10M trigger is the per-charge outlier. The ping arrives as a notification with deepLink app://transactions; its content is the raw i18n key (notification.insight.large_transaction|SHOPPING) when server narration is off.",
+      "item": [
+        {
+          "name": "SHOPPING charge #1 (400,000)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/transactions", "host": ["{{baseUrl}}"], "path": ["api", "v1", "transactions"] },
+            "body": { "mode": "raw", "raw": "{\n  \"amount\": 400000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"SHOPPING\",\n  \"description\": \"socks\",\n  \"date\": \"05/07/2026 10:00\"\n}" }
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('created', () => pm.response.to.have.status(201));"] } }]
+        },
+        {
+          "name": "SHOPPING charge #2 (500,000)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/transactions", "host": ["{{baseUrl}}"], "path": ["api", "v1", "transactions"] },
+            "body": { "mode": "raw", "raw": "{\n  \"amount\": 500000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"SHOPPING\",\n  \"description\": \"shirt\",\n  \"date\": \"08/07/2026 10:00\"\n}" }
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('created', () => pm.response.to.have.status(201));"] } }]
+        },
+        {
+          "name": "SHOPPING charge #3 (600,000)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/transactions", "host": ["{{baseUrl}}"], "path": ["api", "v1", "transactions"] },
+            "body": { "mode": "raw", "raw": "{\n  \"amount\": 600000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"SHOPPING\",\n  \"description\": \"cap\",\n  \"date\": \"11/07/2026 10:00\"\n}" }
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('created', () => pm.response.to.have.status(201));"] } }]
+        },
+        {
+          "name": "SHOPPING charge #4 (500,000)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/transactions", "host": ["{{baseUrl}}"], "path": ["api", "v1", "transactions"] },
+            "body": { "mode": "raw", "raw": "{\n  \"amount\": 500000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"SHOPPING\",\n  \"description\": \"belt\",\n  \"date\": \"13/07/2026 10:00\"\n}" }
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('created', () => pm.response.to.have.status(201));"] } }]
+        },
+        {
+          "name": "Trigger: SHOPPING outlier (10,000,000)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/transactions", "host": ["{{baseUrl}}"], "path": ["api", "v1", "transactions"] },
+            "body": { "mode": "raw", "raw": "{\n  \"amount\": 10000000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"SHOPPING\",\n  \"description\": \"television\",\n  \"date\": \"{{triggerDate}}\"\n}" },
+            "description": "Prior SHOPPING per-charge amounts ~0.5M with real variance → 10M is a huge per-charge z-score → LARGE_TRANSACTION notification fired inside CreateTransaction (maybeNotifyTransactionAnomalies), gated by interventionLevel."
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('created', () => pm.response.to.have.status(201));"] } }]
+        },
+        {
+          "name": "GET /notifications — assert LARGE_TRANSACTION ping",
+          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/api/v1/notifications", "host": ["{{baseUrl}}"], "path": ["api", "v1", "notifications"] } },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('notifications ok', () => pm.response.to.have.status(200));",
+                  "const items = pm.response.json().data;",
+                  "const pings = items.filter(n => typeof n.deepLink === 'string' && n.deepLink === 'app://transactions');",
+                  "pm.test('a transaction-anomaly ping exists (deepLink app://transactions)', () => pm.expect(pings.length, JSON.stringify(items.map(n => n.deepLink))).to.be.above(0));",
+                  "const large = pings.find(n => typeof n.content === 'string' && n.content.indexOf('large_transaction') >= 0);",
+                  "pm.test('LARGE_TRANSACTION ping present (assumes server narration off → raw i18n key)', () => pm.expect(large, JSON.stringify(pings.map(n => n.content))).to.exist);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "10 — DUPLICATE_CHARGE (notification-only)",
+      "description": "The same category + exact amount + normalized description within 72h → a synchronous, notification-only DUPLICATE_CHARGE ping (NO suggestion). A UTILITIES 350,000 'internet bill' on 14 Jul, then an identical one on 15 Jul (~24h later). The ping arrives as a notification with deepLink app://transactions; content is the raw i18n key (notification.insight.duplicate_charge|UTILITIES) when narration is off.",
+      "item": [
+        {
+          "name": "UTILITIES 'internet bill' (350,000) — first charge",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/transactions", "host": ["{{baseUrl}}"], "path": ["api", "v1", "transactions"] },
+            "body": { "mode": "raw", "raw": "{\n  \"amount\": 350000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"UTILITIES\",\n  \"description\": \"internet bill\",\n  \"date\": \"14/07/2026 10:00\"\n}" }
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('created', () => pm.response.to.have.status(201));"] } }]
+        },
+        {
+          "name": "Trigger: identical UTILITIES 'internet bill' (350,000) ~24h later",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/transactions", "host": ["{{baseUrl}}"], "path": ["api", "v1", "transactions"] },
+            "body": { "mode": "raw", "raw": "{\n  \"amount\": 350000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"UTILITIES\",\n  \"description\": \"internet bill\",\n  \"date\": \"{{triggerDate}}\"\n}" },
+            "description": "Same category + exact amount + normalized description as the 14 Jul charge, ~24h apart (<= 72h window) → DUPLICATE_CHARGE notification fired inside CreateTransaction."
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('created', () => pm.response.to.have.status(201));"] } }]
+        },
+        {
+          "name": "GET /notifications — assert DUPLICATE_CHARGE ping",
+          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/api/v1/notifications", "host": ["{{baseUrl}}"], "path": ["api", "v1", "notifications"] } },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('notifications ok', () => pm.response.to.have.status(200));",
+                  "const items = pm.response.json().data;",
+                  "const pings = items.filter(n => typeof n.deepLink === 'string' && n.deepLink === 'app://transactions');",
+                  "pm.test('a transaction-anomaly ping exists (deepLink app://transactions)', () => pm.expect(pings.length, JSON.stringify(items.map(n => n.deepLink))).to.be.above(0));",
+                  "const dup = pings.find(n => typeof n.content === 'string' && n.content.indexOf('duplicate_charge') >= 0);",
+                  "pm.test('DUPLICATE_CHARGE ping present (assumes server narration off → raw i18n key)', () => pm.expect(dup, JSON.stringify(pings.map(n => n.content))).to.exist);"
                 ]
               }
             }

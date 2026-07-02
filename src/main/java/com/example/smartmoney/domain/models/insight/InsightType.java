@@ -21,5 +21,23 @@ public enum InsightType {
      * informational "soft envelope" warning. Never enforced (budgets stay independent); it only
      * surfaces the over-commitment so the user can rebalance. See docs/redesign-what-and-why.md.
      */
-    BUDGET_OVER_INCOME
+    BUDGET_OVER_INCOME,
+    /**
+     * The inverse of {@link #BUDGET_PACE}: a budgeted category whose trailing-median actual sits
+     * consistently well below its limit and whose current-month pace confirms it — the budget is
+     * over-provisioned and can be trimmed. Informational; backs a REDUCE_BUDGET suggestion
+     * (Wave 1, docs/insight-suggestion-expansion-plan.md).
+     */
+    BUDGET_UNDERSPEND,
+    /**
+     * A single expense that is a statistical outlier versus that category's typical per-transaction
+     * size (per-charge z-score). Notification-only — evaluated synchronously on transaction create,
+     * never routed through the suggestion machinery. Not emitted by {@code analyze()}.
+     */
+    LARGE_TRANSACTION,
+    /**
+     * A near-immediate repeat of the same category + exact amount + normalized description within a
+     * short window — a likely double-charge. Notification-only, like {@link #LARGE_TRANSACTION}.
+     */
+    DUPLICATE_CHARGE
 }

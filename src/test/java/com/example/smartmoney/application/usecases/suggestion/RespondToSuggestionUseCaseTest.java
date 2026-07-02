@@ -197,6 +197,58 @@ class RespondToSuggestionUseCaseTest {
                 "CONTRIBUTE_TO_PROJECT:" + projectId + ":2026-06");
     }
 
+    @Test
+    @DisplayName("Wave 1: accepting a SET_CATEGORY_LIMIT creates the budget at the consented limit")
+    void acceptSetCategoryLimit() {
+        Suggestion s = setCategoryLimitSuggestion(userId);
+        when(suggestionRepository.findById(s.getId())).thenReturn(Optional.of(s));
+        when(suggestionRepository.markDecidedIfPending(eq(s.getId()), eq(userId),
+                eq(SuggestionStatus.ACCEPTED), any())).thenReturn(1);
+
+        useCase.execute(userId, s.getId(), true);
+
+        ArgumentCaptor<CreateBudgetRequest> captor = ArgumentCaptor.forClass(CreateBudgetRequest.class);
+        verify(createBudgetUseCase).execute(eq(userId), captor.capture());
+        CreateBudgetRequest req = captor.getValue();
+        assertEquals(Category.FOOD, req.getCategory());
+        assertEquals(6, req.getMonth());
+        assertEquals(2026, req.getYear());
+        assertEquals(0, new BigDecimal("160").compareTo(req.getAmountLimit()));
+    }
+
+    @Test
+    @DisplayName("Wave 1: accepting a REDUCE_BUDGET lowers the budget to the consented value")
+    void acceptReduceBudget() {
+        Suggestion s = reduceBudgetSuggestion(userId);
+        when(suggestionRepository.findById(s.getId())).thenReturn(Optional.of(s));
+        when(suggestionRepository.markDecidedIfPending(eq(s.getId()), eq(userId),
+                eq(SuggestionStatus.ACCEPTED), any())).thenReturn(1);
+
+        useCase.execute(userId, s.getId(), true);
+
+        ArgumentCaptor<UpdateBudgetRequest> captor = ArgumentCaptor.forClass(UpdateBudgetRequest.class);
+        verify(updateBudgetUseCase).execute(eq(budgetId), eq(userId), captor.capture());
+        assertEquals(0, new BigDecimal("115").compareTo(captor.getValue().getAmountLimit()));
+    }
+
+    private Suggestion setCategoryLimitSuggestion(UUID owner) {
+        SuggestionPayload payload = SuggestionPayload.builder()
+                .proposedAction(SuggestionPayload.ProposedAction.builder()
+                        .category(Category.FOOD).month(6).year(2026)
+                        .resolvedValue(new BigDecimal("160")).build())
+                .build();
+        return suggestionOf(owner, SuggestionType.SET_CATEGORY_LIMIT, payload, "SET_CATEGORY_LIMIT:FOOD:2026-06");
+    }
+
+    private Suggestion reduceBudgetSuggestion(UUID owner) {
+        SuggestionPayload payload = SuggestionPayload.builder()
+                .proposedAction(SuggestionPayload.ProposedAction.builder()
+                        .category(Category.FOOD).budgetId(budgetId)
+                        .resolvedValue(new BigDecimal("115")).build())
+                .build();
+        return suggestionOf(owner, SuggestionType.REDUCE_BUDGET, payload, "REDUCE_BUDGET:FOOD:2026-06");
+    }
+
     private Suggestion suggestionOf(UUID owner, SuggestionType type, SuggestionPayload payload, String dedupKey) {
         try {
             return Suggestion.create(owner, type, objectMapper.writeValueAsString(payload), dedupKey, null);

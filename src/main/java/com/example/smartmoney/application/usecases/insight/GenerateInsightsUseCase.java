@@ -105,21 +105,27 @@ public class GenerateInsightsUseCase {
             return switch (type) {
                 case OVERSPEND_ANOMALY -> 0;
                 case BUDGET_PACE -> 1;
-                case BUDGET_OVER_INCOME -> 2;
-                case CATEGORY_TREND -> 3;
-                case RECURRING -> 4;
-                case SAVINGS_CAPACITY -> 5;
+                case LARGE_TRANSACTION -> 2;
+                case BUDGET_OVER_INCOME -> 3;
+                case CATEGORY_TREND -> 4;
+                case DUPLICATE_CHARGE -> 5;
+                case RECURRING -> 6;
+                case BUDGET_UNDERSPEND -> 7;
+                case SAVINGS_CAPACITY -> 8;
             };
         }
         if (focus == Focus_Mode.SAVE_MORE) {
             // Save-mode users: surface saving opportunities and committed costs first.
             return switch (type) {
                 case SAVINGS_CAPACITY -> 0;
-                case BUDGET_OVER_INCOME -> 1;
-                case RECURRING -> 2;
-                case CATEGORY_TREND -> 3;
-                case OVERSPEND_ANOMALY -> 4;
-                case BUDGET_PACE -> 5;
+                case BUDGET_UNDERSPEND -> 1;
+                case BUDGET_OVER_INCOME -> 2;
+                case RECURRING -> 3;
+                case CATEGORY_TREND -> 4;
+                case DUPLICATE_CHARGE -> 5;
+                case LARGE_TRANSACTION -> 6;
+                case OVERSPEND_ANOMALY -> 7;
+                case BUDGET_PACE -> 8;
             };
         }
         return 0; // TRACK_ONLY / cold-start: no type prioritization, severity order only
