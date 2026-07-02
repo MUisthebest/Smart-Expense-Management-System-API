@@ -67,6 +67,17 @@ state from the previous one:
 | `4 — CONTRIBUTE_TO_PROJECT` | income + headroom → `SAVINGS_CAPACITY` → `CONTRIBUTE_TO_PROJECT` → accept records a contribution |
 | `5 — Idempotency & dismissal` | re-responding does not re-run the action |
 | `6 — Notifications` | a push row carries the `app://suggestions/{id}` deep-link |
+| `7 — SET_CATEGORY_LIMIT` | un-budgeted category trending up (not an anomaly) → `CATEGORY_TREND` → `SET_CATEGORY_LIMIT` → accept creates a first budget |
+| `8 — REDUCE_BUDGET` | budgeted category consistently under limit → `BUDGET_UNDERSPEND` → `REDUCE_BUDGET` → accept lowers the limit |
+| `9 — LARGE_TRANSACTION` | a per-charge outlier expense → notification-only ping (`app://transactions`), no suggestion |
+| `10 — DUPLICATE_CHARGE` | same category+amount+description within 72h → notification-only ping (`app://transactions`), no suggestion |
+
+Folders 7–10 (Wave 1 of the expansion plan) each **seed their own disjoint categories** (TRANSPORTATION,
+CLOTHING, SHOPPING, UTILITIES), so they don't collide with the FOOD/ENTERTAINMENT state from folders 1–4.
+Folders 9 and 10 are **notification-only** — there is no suggestion card or accept step; they assert the
+push landed. Their content is the raw i18n key (e.g. `notification.insight.large_transaction|SHOPPING`)
+**only when server narration is off** — with narration on, assert on the `app://transactions` deep-link
+instead of the key substring.
 
 Because the scenario is pinned to **May 2026**, re-running on the same account hits the
 one-open-ask-per-topic **dedup** (a 2nd PENDING for the same topic is refused) and the accepted

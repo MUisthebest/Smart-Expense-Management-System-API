@@ -14,6 +14,7 @@ import com.example.smartmoney.domain.models.suggestion.SuggestionTopicStat;
 import com.example.smartmoney.domain.models.suggestion.SuggestionType;
 import com.example.smartmoney.domain.models.transaction.Transaction;
 import com.example.smartmoney.domain.models.transaction.enums.Category;
+import com.example.smartmoney.domain.models.transaction.enums.TransactionType;
 import com.example.smartmoney.domain.models.user.User;
 import com.example.smartmoney.domain.models.user.enums.Intervention_Level;
 import com.example.smartmoney.domain.models.user.enums.Saving_Pace;
@@ -72,6 +73,8 @@ public class SuggestionProducer {
 
     /** Dismissals of a topic at/above this count suppress it unless severity escalates to CRITICAL. */
     static final int SUPPRESS_AFTER_DISMISSALS = 2;
+    /** Headroom over the median actual when proposing a reduced budget limit (REDUCE_BUDGET). */
+    private static final BigDecimal REDUCE_HEADROOM = new BigDecimal("1.15");
 
     private final SpendingInsightAnalyzer analyzer;
     private final TransactionRepository transactionRepository;
@@ -108,9 +111,20 @@ public class SuggestionProducer {
                     .filter(b -> b.getCategory() == affectedCategory)
                     .findFirst().orElse(null);
 
-            Candidate candidate = (budget != null && budget.getId() != null)
-                    ? raiseBudgetCandidate(insights, affectedCategory, budget, gate, history, period, user.getIncome())
-                    : createBudgetCandidate(insights, affectedCategory, gate, history, period, user.getIncome());
+            Candidate candidate;
+            if (budget != null && budget.getId() != null) {
+                // Overshoot wins; on a healthy budget a persistent underspend can suggest trimming it.
+                candidate = raiseBudgetCandidate(insights, affectedCategory, budget, gate, history, period, user.getIncome());
+                if (candidate == null) {
+                    candidate = reduceBudgetCandidate(insights, affectedCategory, budget, period);
+                }
+            } else {
+                // Anomaly (already overspending) wins; else a rising trend can suggest a first limit.
+                candidate = createBudgetCandidate(insights, affectedCategory, gate, history, period, user.getIncome());
+                if (candidate == null) {
+                    candidate = setCategoryLimitCandidate(insights, affectedCategory, gate, history, period, user.getIncome());
+                }
+            }
 
             persistAndPush(userId, candidate);
         } catch (Exception e) {
@@ -165,6 +179,40 @@ public class SuggestionProducer {
         } catch (Exception e) {
             log.warn("[Suggestion] savings producer failed for user {}: {}", userId, e.getMessage());
         }
+    }
+
+    /**
+     * Wave 1: on an expense create, synchronously check the just-saved transaction for two
+     * per-transaction anomalies — a {@code LARGE_TRANSACTION} outlier and a {@code DUPLICATE_CHARGE} —
+     * and push an informational notification for each (no suggestion, no accept action). Gated by
+     * push presence (any non-NOTIFY user), best-effort, never throws. Immediacy is the point, so it
+     * runs on the create path rather than a schedule.
+     */
+    public void maybeNotifyTransactionAnomalies(UUID userId, Transaction saved) {
+        try {
+            if (saved == null || saved.getType() != TransactionType.EXPENSE || saved.getDate() == null) {
+                return;
+            }
+            User user = userRepository.findById(userId).orElse(null);
+            if (user == null || pushGateFor(user.getInterventionLevel()) == null) {
+                return; // pull-only / unset → no push
+            }
+
+            LocalDate asOf = saved.getDate().toLocalDate();
+            List<Transaction> history = loadHistory(userId, asOf, YearMonth.from(asOf));
+
+            analyzer.detectDuplicateCharge(history, saved).ifPresent(insight ->
+                    notifyInsight(userId, insight, "notification.insight.duplicate_charge|" + insight.getCategory().name()));
+            analyzer.detectLargeTransaction(history, saved).ifPresent(insight ->
+                    notifyInsight(userId, insight, "notification.insight.large_transaction|" + insight.getCategory().name()));
+        } catch (Exception e) {
+            log.warn("[Suggestion] transaction-anomaly notify failed for user {}: {}", userId, e.getMessage());
+        }
+    }
+
+    /** Push a notification-only insight (no suggestion card), narrated when available. */
+    private void notifyInsight(UUID userId, Insight insight, String fallbackCode) {
+        createNotificationUseCase.createNotification(userId, pushText(insight, fallbackCode), "app://transactions");
     }
 
     // ---- candidate builders --------------------------------------------------------------
@@ -234,6 +282,70 @@ public class SuggestionProducer {
                 .dedupKey("CREATE_BUDGET:" + category.name() + ":" + period)
                 .payloadJson(payloadJson(insight, action))
                 .notificationContent(pushText(insight, "notification.suggestion.create_budget|" + category.name()))
+                .build();
+    }
+
+    /** SET_CATEGORY_LIMIT: CATEGORY_TREND on a budgetless category — set a first anchoring limit. */
+    private Candidate setCategoryLimitCandidate(List<Insight> insights, Category category, Severity gate,
+                                                List<Transaction> history, YearMonth period, BigDecimal income) {
+        Insight insight = bestQualifying(insights, InsightType.CATEGORY_TREND, category, gate);
+        if (insight == null) {
+            return null;
+        }
+        // Anchor the first limit on the trailing norm (robust to a one-off), capped by income.
+        BigDecimal resolvedValue = capByIncome(analyzer.trailing3MonthMedian(history, category, period), income);
+        if (resolvedValue.compareTo(BigDecimal.ZERO) <= 0) {
+            return null; // no robust baseline to propose a limit from
+        }
+
+        SuggestionPayload.ProposedAction action = SuggestionPayload.ProposedAction.builder()
+                .category(category)
+                .month(period.getMonthValue())
+                .year(period.getYear())
+                .resolvedValue(resolvedValue)
+                .build();
+
+        return Candidate.builder()
+                .type(SuggestionType.SET_CATEGORY_LIMIT)
+                .severity(insight.getSeverity())
+                .dedupKey("SET_CATEGORY_LIMIT:" + category.name() + ":" + period)
+                .payloadJson(payloadJson(insight, action))
+                .notificationContent(pushText(insight, "notification.suggestion.set_category_limit|" + category.name()))
+                .build();
+    }
+
+    /**
+     * REDUCE_BUDGET: BUDGET_UNDERSPEND on a budgeted category. INFO by nature, so it isn't gated by
+     * severity (the caller already confirmed the user gets pushes) — it mirrors the savings nudge.
+     */
+    private Candidate reduceBudgetCandidate(List<Insight> insights, Category category, Budget budget, YearMonth period) {
+        Insight insight = insights.stream()
+                .filter(i -> i.getType() == InsightType.BUDGET_UNDERSPEND)
+                .filter(i -> i.getCategory() == category)
+                .findFirst().orElse(null);
+        if (insight == null) {
+            return null;
+        }
+        // Trim to the median actual plus a little headroom, so the tighter limit still breathes.
+        BigDecimal resolvedValue = toBigDecimal(insight.getMetrics().get("medianActual"))
+                .multiply(REDUCE_HEADROOM).setScale(2, RoundingMode.HALF_UP);
+        // A "reduce" that isn't below the current limit is meaningless — don't ask.
+        if (resolvedValue.compareTo(BigDecimal.ZERO) <= 0 || resolvedValue.compareTo(budget.getAmountLimit()) >= 0) {
+            return null;
+        }
+
+        SuggestionPayload.ProposedAction action = SuggestionPayload.ProposedAction.builder()
+                .category(category)
+                .budgetId(budget.getId())
+                .resolvedValue(resolvedValue)
+                .build();
+
+        return Candidate.builder()
+                .type(SuggestionType.REDUCE_BUDGET)
+                .severity(insight.getSeverity())
+                .dedupKey("REDUCE_BUDGET:" + category.name() + ":" + period)
+                .payloadJson(payloadJson(insight, action))
+                .notificationContent(pushText(insight, "notification.suggestion.reduce_budget|" + category.name()))
                 .build();
     }
 

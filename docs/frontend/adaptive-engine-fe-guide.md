@@ -7,6 +7,15 @@ trait **onboarding**, and the **notification deep-link** that ties them together
 **Executable companion:** [`docs/api-testing/`](../api-testing/README.md) — a Postman/Bruno
 collection that runs this exact flow end-to-end. Every request/response below is drawn from it.
 
+**Sibling artifacts in this folder:**
+- [`i18n.en.reference.json`](i18n.en.reference.json) — starter English copy for every key in
+  Appendix B, placeholders named after the real metric/payload fields.
+- `openapi.json` — the full API spec (`/v3/api-docs` export) for everything outside this guide's
+  scope (transactions, budgets, projects, auth). Regenerate: `scripts/capture-fe-handoff.ps1`.
+- `fixtures/` — real captured responses from a seeded run; use as mock data. Same script.
+- Product rationale (the "why" behind every rule here): [`../redesign-what-and-why.md`](../redesign-what-and-why.md).
+  Ignore the `project-tracking-*` docs — superseded, see [`../README.md`](../README.md).
+
 ---
 
 ## Mental model the UI must teach
@@ -28,6 +37,20 @@ collection that runs this exact flow end-to-end. Every request/response below is
 The user will *not* be spammed, because the backend already enforces: one open ask per topic;
 back-off on topics they keep dismissing; a per-topic cooldown; and a daily push cap. The FE doesn't
 implement any of this — just don't build UI that assumes a suggestion always appears after an event.
+
+### Settled decisions — don't re-open these
+
+These look like open UX questions but were explicitly decided; build to them as stated:
+
+1. **No Yes/No buttons in the push banner.** Tapping a notification always lands on the in-app
+   card; the card is the *only* surface where a decision is made.
+2. **The app never moves money or changes budgets on its own.** Every action is gated on an
+   explicit Yes. Don't add "auto-accept" conveniences.
+3. **The user consents to the exact `resolvedValue` shown.** Never recompute, round for display
+   only, and never let an edited number silently replace it (a different amount = the user acts
+   manually via the normal budget/project screens, not via the suggestion).
+4. **Insights alone must be a complete experience** for `NOTIFY` users — don't design the insights
+   screen as a teaser that pushes people toward enabling suggestions.
 
 ---
 
@@ -132,8 +155,16 @@ Render rules:
 | `CATEGORY_TREND` | A category is steadily creeping up over recent months | `slope`, `meanMonthly`, `growthRatePerMonth`, `sampleMonths` |
 | `RECURRING` | A stable repeating charge was detected (feeds savings math) | `monthlyAmount`, `monthsObserved`, `description` |
 | `SAVINGS_CAPACITY` | There's spare money to save this month | `avgMonthlyIncome`, `recurringCosts`, `committedBudgets`, `disposable` |
+| `BUDGET_OVER_INCOME` | This month's budget limits add up to more than declared income (account-wide, `category:null`) — a **soft**, never-enforced warning to rebalance | `committedBudgets`, `income`, `overBy`, `overshootRatio` |
+| `BUDGET_UNDERSPEND` | A budgeted category is consistently used well under its limit — the budget can be trimmed (backs `REDUCE_BUDGET`) | `limit`, `medianActual`, `projectedEndOfMonth`, `underspendRatio` |
 
 `metrics` is an open map — treat unknown keys as ignorable, so new metrics never break your render.
+
+**Notification-only insights** (`LARGE_TRANSACTION`, `DUPLICATE_CHARGE`) are **not** returned by
+`GET /insights` and never become suggestion cards. They are evaluated synchronously when you create an
+expense and, for push-enabled users, arrive purely as a notification (Screen 4) — a large single
+charge vs. that category's typical size, or a likely double-charge (same category + exact amount +
+description within 72h). There's no accept action; they're informational pings only.
 
 ---
 
@@ -190,6 +221,8 @@ the user is consenting to** — never recompute it.
 |---|---|---|---|
 | `RAISE_BUDGET` | "Raise your {category} budget to {resolvedValue}?" | `category`, `budgetId`, `resolvedValue` | updates that budget's limit |
 | `CREATE_BUDGET` | "Set a {category} budget of {resolvedValue} for this month?" | `category`, `month`, `year`, `resolvedValue` | creates the budget |
+| `SET_CATEGORY_LIMIT` | "Set a {category} budget of {resolvedValue} for this month?" | `category`, `month`, `year`, `resolvedValue` | creates the budget (first limit for a trending, budgetless category) |
+| `REDUCE_BUDGET` | "Lower your {category} budget to {resolvedValue}?" | `category`, `budgetId`, `resolvedValue` | updates that budget's limit (downward) |
 | `CONTRIBUTE_TO_PROJECT` | "Put {resolvedValue} toward {project}?" | `projectId`, `resolvedValue` | records a contribution (an EXPENSE ledger entry) |
 
 `insightSnapshot` is the frozen reason ("why are you asking?") — use it to show the supporting
@@ -235,7 +268,12 @@ Routing contract:
     the daily push cap, extra suggestions are still created as cards but their individual pings are
     replaced by this one "you have more to review" notification. So the list may contain PENDING
     cards the user was never individually pinged about — that's expected, not a bug.
-  - `null` (plain receipts like `notification.expense`) → route to their normal place / no-op.
+  - `app://insights` → open the **Insights list** (Screen 2). Carried by the **weekly digest**
+    (`content = notification.digest.weekly|<count>`, count = actionable ≥WARN insights) — a Monday
+    batch ping for low-interruption users. Backend feature-flagged (`app.digest.enabled`, off by
+    default), but wire the route so it works when enabled.
+  - `null` (plain transaction receipts, key `notification.notification_done|…`) → route to their
+    normal place / no-op.
 - **Mark read:** `PATCH /api/v1/notifications/read` with `{ "notificationIds": ["…","…"] }`.
 
 > This matches the agreed UX: the push has **no in-banner Yes/No buttons** — tapping it always lands
@@ -251,10 +289,10 @@ Routing contract:
 | `Saving_Pace` | `RELAXED`, `BALANCED`, `AGGRESIVE` *(sic — one S)* |
 | `Focus_Mode` | `SAVE_MORE`, `REDUCE_SPENDING`, `TRACK_ONLY` |
 | `Severity` | `INFO`, `WARN`, `CRITICAL` |
-| `InsightType` | `OVERSPEND_ANOMALY`, `BUDGET_PACE`, `CATEGORY_TREND`, `RECURRING`, `SAVINGS_CAPACITY` |
-| `SuggestionType` | `RAISE_BUDGET`, `CREATE_BUDGET`, `CONTRIBUTE_TO_PROJECT` |
+| `InsightType` | `OVERSPEND_ANOMALY`, `BUDGET_PACE`, `CATEGORY_TREND`, `RECURRING`, `SAVINGS_CAPACITY`, `BUDGET_OVER_INCOME`, `BUDGET_UNDERSPEND` (+ notification-only `LARGE_TRANSACTION`, `DUPLICATE_CHARGE` — never in `GET /insights`) |
+| `SuggestionType` | `RAISE_BUDGET`, `CREATE_BUDGET`, `SET_CATEGORY_LIMIT`, `REDUCE_BUDGET`, `CONTRIBUTE_TO_PROJECT` |
 | `SuggestionStatus` | `PENDING`, `ACCEPTED`, `DISMISSED`, `EXPIRED` |
-| `Category` (transactions) | `FOOD`, `TRANSPORTATION`, `CLOTHING`, `UTILITIES`, `ENTERTAINMENT`, `HEALTH`, `EDUCATION`, `SHOPPING`, `OTHER`, … |
+| `Category` (transactions) | `FOOD`, `TRANSPORTATION`, `CLOTHING`, `UTILITIES`, `ENTERTAINMENT`, `HEALTH`, `EDUCATION`, `SHOPPING`, `OTHER`, `PROJECT_REFUND`, `PROJECT_CONTRIBUTION` — the last two are system-generated ledger entries (accepting `CONTRIBUTE_TO_PROJECT` writes a `PROJECT_CONTRIBUTION` expense; abandoning a project writes `PROJECT_REFUND` income), so localize them in transaction lists |
 | `TransactionType` | `EXPENSE`, `INCOME` |
 
 ## Appendix B — i18n keys the FE must provide
@@ -266,6 +304,7 @@ insight.budget_pace.<category>
 insight.category_trend.<category>
 insight.recurring.<category>
 insight.savings_capacity
+insight.budget_over_income
 ```
 Notification `content` keys (may carry `|<ARG>`):
 ```
@@ -273,7 +312,10 @@ notification.suggestion.raise_budget|<CATEGORY>
 notification.suggestion.create_budget|<CATEGORY>
 notification.suggestion.contribute_to_project|<PROJECT_NAME>
 notification.digest.pending_suggestions      # daily roll-up → deep-links to app://suggestions
-notification.expense        notification.income
+notification.digest.weekly|<COUNT>           # weekly digest (opt-in flag) → deep-links to app://insights
+notification.notification_done|<notification.expense OR notification.income>|<AMOUNT>|<CATEGORY>
+                                             # transaction receipt — 3 pipe args, no deepLink
+
 ```
 Provide one localized template per key; interpolate numbers from the insight `metrics` /
 suggestion `proposedAction`.
@@ -290,11 +332,42 @@ suggestion `proposedAction`.
 - [ ] **Empty/gated states** — NOTIFY user sees insights but never a push; no history yet → empty
       insights (this is normal, not an error).
 
-## Appendix D — Open items to confirm with backend
+## Appendix D — "Verify it changed" DTOs + open items
+
+After a **Yes**, these are the reads that show the effect (pinned from the actual DTOs; the full
+spec is in `openapi.json`):
+
+**`GET /api/v1/budgets?month={m}&year={y}`** → `data`:
+```json
+{ "month": 5, "year": 2026, "items": [
+  { "budgetId": "…-uuid", "userId": "…-uuid", "category": "FOOD",
+    "amountLimit": 12400000.00, "month": 5, "year": 2026,
+    "spent": 2000000.00, "remaining": 10400000.00, "progressPercent": 16.13,
+    "alertLevel": "SAFE", "createdAt": "…", "updatedAt": "…" }
+]}
+```
+- After `RAISE_BUDGET` accept: the item's **`amountLimit`** equals the consented `resolvedValue`.
+- After `CREATE_BUDGET` accept: a **new item** for that category appears (note: `spent` is
+  backfilled from the month's existing expenses, so it may start non-zero).
+- `alertLevel`: `SAFE` · `WARNING` · `EXCEEDED`.
+
+**`GET /api/v1/projects/{projectId}`** → `data` (fields relevant to the contribute flow):
+```json
+{ "projectId": "…", "name": "Trip", "targetAmount": 30000000, "currency": "VND",
+  "totalContributed": 5000000, "remaining": 25000000, "progressPercent": 16.67,
+  "netSaved": 5000000, "deadline": "2026-12-31", "status": "ONGOING",
+  "statusReason": "ON_TRACK", "monthsLeft": 7, "paceStatus": "ON_TRACK" }
+```
+- After `CONTRIBUTE_TO_PROJECT` accept: **`totalContributed`** / **`netSaved`** grow by
+  `resolvedValue`; `remaining` / `progressPercent` move accordingly. This is also where you fetch
+  the **project name** for the ask sentence (the payload carries only `projectId`).
+- `status` is a display status (`ONGOING` · `OVERDUE` · `COMPLETED` · or a lifecycle state like
+  `FROZEN`/`EXPIRED`/`ABANDONED`/`CANCELLED`); a contribution reaching the target flips it to
+  `COMPLETED` synchronously.
+
+### Still open
 
 1. No `GET /suggestions/{id}` today — deep-link handler must fetch the list and filter. Add a
    by-id endpoint if the FE prefers.
 2. Per-user **locale** for `narrative` isn't plumbed yet (defaults to English). i18n via `code` is
    the reliable path.
-3. Budget list / project detail DTO field names weren't pinned in this doc — confirm against
-   `BudgetListResponse` / `ProjectDetailResponse` when wiring the "verify it changed" screens.

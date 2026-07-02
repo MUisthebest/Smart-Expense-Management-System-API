@@ -494,4 +494,135 @@ class SpendingInsightAnalyzerTest {
         assertTrue(analyzer.detectBudgetOverIncome(budgets, null, PERIOD).isEmpty());
         assertTrue(analyzer.detectBudgetOverIncome(budgets, BigDecimal.ZERO, PERIOD).isEmpty());
     }
+
+    // ---- Wave 1: budget underspend -------------------------------------------------------
+
+    private Optional<Insight> underspend(List<Transaction> history, Budget budget) {
+        return analyzer.analyze(history, List.of(budget), AS_OF).stream()
+                .filter(i -> i.getType() == InsightType.BUDGET_UNDERSPEND)
+                .findFirst();
+    }
+
+    /** Prior months [100,120,80] → trailing-3 median 100 (well under a 1000 limit). */
+    private List<Transaction> lowFoodHistory() {
+        List<Transaction> history = new ArrayList<>();
+        history.add(expense(Category.FOOD, 2026, 5, new BigDecimal("100")));
+        history.add(expense(Category.FOOD, 2026, 4, new BigDecimal("120")));
+        history.add(expense(Category.FOOD, 2026, 3, new BigDecimal("80")));
+        return history;
+    }
+
+    @Test
+    @DisplayName("history + pace both well under the limit → INFO underspend with median metric")
+    void underspendDetected() {
+        // spent 100 by day 15 of 30 → projected 200; threshold 0.6×1000 = 600.
+        Budget b = budget(Category.FOOD, new BigDecimal("1000"), new BigDecimal("100"));
+        Insight insight = underspend(lowFoodHistory(), b).orElseThrow();
+        assertEquals(Severity.INFO, insight.getSeverity());
+        assertEquals(Category.FOOD, insight.getCategory());
+        assertEquals("insight.budget_underspend.food", insight.getCode());
+        // median of [100,120,80] = 100
+        assertEquals(0, new BigDecimal("100.00").compareTo(
+                (BigDecimal) insight.getMetrics().get("medianActual")));
+    }
+
+    @Test
+    @DisplayName("trailing spend near the limit → no underspend")
+    void underspendNotWhenHistoryNearLimit() {
+        List<Transaction> history = new ArrayList<>();
+        for (int m = 3; m <= 5; m++) {
+            history.add(expense(Category.FOOD, 2026, m, new BigDecimal("700"))); // median 700 > 600
+        }
+        assertTrue(underspend(history, budget(Category.FOOD, new BigDecimal("1000"), new BigDecimal("100"))).isEmpty());
+    }
+
+    @Test
+    @DisplayName("this month is on pace to use the budget → no underspend even with a low history")
+    void underspendNotWhenPaceCatchesUp() {
+        // spent 400 by day 15 → projected 800 > 600 threshold, despite the low trailing median.
+        assertTrue(underspend(lowFoodHistory(), budget(Category.FOOD, new BigDecimal("1000"), new BigDecimal("400"))).isEmpty());
+    }
+
+    @Test
+    @DisplayName("no spend history → no underspend (never trim a budget the user hasn't used)")
+    void underspendNoHistoryNone() {
+        assertTrue(underspend(List.of(), budget(Category.FOOD, new BigDecimal("1000"), new BigDecimal("100"))).isEmpty());
+    }
+
+    // ---- Wave 1: large transaction (per-charge outlier) ----------------------------------
+
+    private Transaction expenseAmt(Category category, String amount) {
+        return Transaction.create(userId, new Amount(new BigDecimal(amount)), TransactionType.EXPENSE, category,
+                "charge", LocalDateTime.of(2026, 6, 10, 12, 0));
+    }
+
+    /** Four typical ~100 SHOPPING charges (mean 100, non-zero variance). */
+    private List<Transaction> typicalShoppingCharges() {
+        List<Transaction> history = new ArrayList<>();
+        history.add(expenseAmt(Category.SHOPPING, "100"));
+        history.add(expenseAmt(Category.SHOPPING, "110"));
+        history.add(expenseAmt(Category.SHOPPING, "90"));
+        history.add(expenseAmt(Category.SHOPPING, "100"));
+        return history;
+    }
+
+    @Test
+    @DisplayName("an expense far above the category's typical charge → LARGE_TRANSACTION")
+    void largeTransactionDetected() {
+        Insight insight = analyzer.detectLargeTransaction(typicalShoppingCharges(),
+                expenseAmt(Category.SHOPPING, "1000")).orElseThrow();
+        assertEquals(InsightType.LARGE_TRANSACTION, insight.getType());
+        assertEquals(Category.SHOPPING, insight.getCategory());
+        assertEquals("insight.large_transaction.shopping", insight.getCode());
+        assertEquals(0, new BigDecimal("1000.00").compareTo((BigDecimal) insight.getMetrics().get("amount")));
+    }
+
+    @Test
+    @DisplayName("too few prior charges → no large-transaction call")
+    void largeTransactionNeedsHistory() {
+        List<Transaction> history = List.of(
+                expenseAmt(Category.SHOPPING, "100"), expenseAmt(Category.SHOPPING, "110"));
+        assertTrue(analyzer.detectLargeTransaction(history, expenseAmt(Category.SHOPPING, "1000")).isEmpty());
+    }
+
+    @Test
+    @DisplayName("a normal-sized charge within the usual band → no large-transaction call")
+    void normalChargeNotLarge() {
+        assertTrue(analyzer.detectLargeTransaction(typicalShoppingCharges(),
+                expenseAmt(Category.SHOPPING, "105")).isEmpty());
+    }
+
+    // ---- Wave 1: duplicate charge --------------------------------------------------------
+
+    private Transaction expenseAt(Category category, int day, int hour, String amount, String description) {
+        return Transaction.create(userId, new Amount(new BigDecimal(amount)), TransactionType.EXPENSE, category,
+                description, LocalDateTime.of(2026, 6, day, hour, 0));
+    }
+
+    @Test
+    @DisplayName("same category + amount + description within the window → DUPLICATE_CHARGE (INFO)")
+    void duplicateChargeDetected() {
+        Transaction earlier = expenseAt(Category.FOOD, 10, 9, "50", "Coffee");
+        Transaction candidate = expenseAt(Category.FOOD, 10, 11, "50", "Coffee"); // 2h later
+        Insight insight = analyzer.detectDuplicateCharge(List.of(earlier), candidate).orElseThrow();
+        assertEquals(InsightType.DUPLICATE_CHARGE, insight.getType());
+        assertEquals(Severity.INFO, insight.getSeverity());
+        assertEquals("insight.duplicate_charge.food", insight.getCode());
+    }
+
+    @Test
+    @DisplayName("a different amount is not a duplicate")
+    void differentAmountNotDuplicate() {
+        Transaction earlier = expenseAt(Category.FOOD, 10, 9, "50", "Coffee");
+        Transaction candidate = expenseAt(Category.FOOD, 10, 11, "60", "Coffee");
+        assertTrue(analyzer.detectDuplicateCharge(List.of(earlier), candidate).isEmpty());
+    }
+
+    @Test
+    @DisplayName("an identical charge outside the window is not a duplicate")
+    void outsideWindowNotDuplicate() {
+        Transaction earlier = expenseAt(Category.FOOD, 5, 12, "50", "Coffee"); // 5 days = 120h > 72h
+        Transaction candidate = expenseAt(Category.FOOD, 10, 12, "50", "Coffee");
+        assertTrue(analyzer.detectDuplicateCharge(List.of(earlier), candidate).isEmpty());
+    }
 }

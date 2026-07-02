@@ -90,16 +90,17 @@ public class RespondToSuggestionUseCase {
     private void executeAction(Suggestion suggestion, UUID userId) {
         SuggestionPayload payload = parsePayload(suggestion);
         switch (suggestion.getType()) {
-            case RAISE_BUDGET -> raiseBudget(payload, userId);
-            case CREATE_BUDGET -> createBudget(payload, userId);
+            case RAISE_BUDGET, REDUCE_BUDGET -> resizeBudget(payload, userId);
+            case CREATE_BUDGET, SET_CATEGORY_LIMIT -> createBudget(payload, userId);
             case CONTRIBUTE_TO_PROJECT -> contributeToProject(payload, userId);
         }
     }
 
-    private void raiseBudget(SuggestionPayload payload, UUID userId) {
+    /** Set an existing budget's limit to the consented value — shared by RAISE_BUDGET and REDUCE_BUDGET. */
+    private void resizeBudget(SuggestionPayload payload, UUID userId) {
         SuggestionPayload.ProposedAction action = requireAction(payload);
         if (action.getBudgetId() == null || action.getResolvedValue() == null) {
-            throw new DomainException("RAISE_BUDGET suggestion is missing budgetId or resolvedValue");
+            throw new DomainException("Budget-resize suggestion is missing budgetId or resolvedValue");
         }
         UpdateBudgetRequest request = new UpdateBudgetRequest();
         request.setAmountLimit(action.getResolvedValue()); // honor the consented number

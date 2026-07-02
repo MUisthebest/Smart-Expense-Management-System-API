@@ -12,5 +12,15 @@ public enum SuggestionType {
     /** Create a budget for a category that has none, at the consented limit (OVERSPEND_ANOMALY). */
     CREATE_BUDGET,
     /** Contribute the consented amount to an active saving project (SAVINGS_CAPACITY headroom). */
-    CONTRIBUTE_TO_PROJECT
+    CONTRIBUTE_TO_PROJECT,
+    /**
+     * Set a first budget for a budgetless category that is trending up, at the consented limit
+     * (CATEGORY_TREND). Executes the same create-budget action as {@link #CREATE_BUDGET}.
+     */
+    SET_CATEGORY_LIMIT,
+    /**
+     * Lower an over-provisioned budget's limit to the consented value (BUDGET_UNDERSPEND). Executes
+     * the same update-budget action as {@link #RAISE_BUDGET}, in the opposite direction.
+     */
+    REDUCE_BUDGET
 }
