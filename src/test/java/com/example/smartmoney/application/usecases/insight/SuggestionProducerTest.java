@@ -368,8 +368,9 @@ class SuggestionProducerTest {
         assertEquals(6, action.getMonth());
         assertEquals(2026, action.getYear());
         assertNull(action.getBudgetId());
-        // median of trailing 3 months [80,120,80] = 80
-        assertEquals(0, new BigDecimal("80").compareTo(action.getResolvedValue()));
+        // Trailing-3-month median [80,120,80] = 80, but never below this month's actual (145) — a
+        // limit under the overspend would be born already-EXCEEDED once CreateBudget backfills spent.
+        assertEquals(0, new BigDecimal("145").compareTo(action.getResolvedValue()));
 
         verify(createNotificationUseCase).createNotification(eq(userId),
                 eq("notification.suggestion.create_budget|FOOD"), startsWith("app://suggestions/"));

@@ -107,4 +107,25 @@ class GenerateInsightsUseCaseTest {
         assertEquals(InsightType.BUDGET_PACE, insights.get(0).getType());
         assertEquals(InsightType.OVERSPEND_ANOMALY, insights.get(1).getType());
     }
+
+    @Test
+    @DisplayName("Soft budget envelope: budget limits over declared income surface a BUDGET_OVER_INCOME insight")
+    void budgetOverIncomeSurfacedFromDeclaredIncome() {
+        when(transactionRepository.findByUserIdWithFilters(any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(List.of()); // no history → only the envelope insight is possible
+        when(budgetRepository.findByUserIdMonthYear(eq(userId), eq(6), eq(2026)))
+                .thenReturn(List.of(warnPaceBudget())); // limit 1000
+        User user = User.builder().id(userId).focusMode(Focus_Mode.TRACK_ONLY)
+                .income(new BigDecimal("500")).build(); // declared income below the committed 1000
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+
+        List<InsightResponse> insights = useCase.execute(userId, AS_OF);
+
+        InsightResponse envelope = insights.stream()
+                .filter(i -> i.getType() == InsightType.BUDGET_OVER_INCOME)
+                .findFirst().orElseThrow();
+        assertNull(envelope.getCategory());
+        assertEquals(0, new BigDecimal("500.00").compareTo(
+                (BigDecimal) envelope.getMetrics().get("overBy")));
+    }
 }

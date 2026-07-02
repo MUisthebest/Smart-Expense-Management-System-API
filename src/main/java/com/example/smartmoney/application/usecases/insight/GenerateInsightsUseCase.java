@@ -68,7 +68,13 @@ public class GenerateInsightsUseCase {
 
         List<Insight> insights = analyzer.analyze(history, budgets, asOf);
 
-        Focus_Mode focus = userRepository.findById(userId).map(User::getFocusMode).orElse(null);
+        User user = userRepository.findById(userId).orElse(null);
+        // Soft budget envelope (account-wide): the pure analyzer doesn't load the User, so income is
+        // supplied here. Informational only — nothing enforces it on the budget write paths.
+        analyzer.detectBudgetOverIncome(budgets, user == null ? null : user.getIncome(), period)
+                .ifPresent(insights::add);
+
+        Focus_Mode focus = user == null ? null : user.getFocusMode();
         insights.sort(orderingFor(focus));
 
         return insights.stream().map(this::toResponse).toList();
@@ -99,19 +105,21 @@ public class GenerateInsightsUseCase {
             return switch (type) {
                 case OVERSPEND_ANOMALY -> 0;
                 case BUDGET_PACE -> 1;
-                case CATEGORY_TREND -> 2;
-                case RECURRING -> 3;
-                case SAVINGS_CAPACITY -> 4;
+                case BUDGET_OVER_INCOME -> 2;
+                case CATEGORY_TREND -> 3;
+                case RECURRING -> 4;
+                case SAVINGS_CAPACITY -> 5;
             };
         }
         if (focus == Focus_Mode.SAVE_MORE) {
             // Save-mode users: surface saving opportunities and committed costs first.
             return switch (type) {
                 case SAVINGS_CAPACITY -> 0;
-                case RECURRING -> 1;
-                case CATEGORY_TREND -> 2;
-                case OVERSPEND_ANOMALY -> 3;
-                case BUDGET_PACE -> 4;
+                case BUDGET_OVER_INCOME -> 1;
+                case RECURRING -> 2;
+                case CATEGORY_TREND -> 3;
+                case OVERSPEND_ANOMALY -> 4;
+                case BUDGET_PACE -> 5;
             };
         }
         return 0; // TRACK_ONLY / cold-start: no type prioritization, severity order only

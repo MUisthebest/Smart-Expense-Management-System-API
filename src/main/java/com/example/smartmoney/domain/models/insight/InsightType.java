@@ -15,5 +15,11 @@ public enum InsightType {
     /** A near-equal charge repeats across several months — a learned recurring cost. */
     RECURRING,
     /** Estimated monthly room to save: income − recurring costs − committed budgets. */
-    SAVINGS_CAPACITY
+    SAVINGS_CAPACITY,
+    /**
+     * The sum of this month's budget limits exceeds the user's declared income — an account-wide,
+     * informational "soft envelope" warning. Never enforced (budgets stay independent); it only
+     * surfaces the over-commitment so the user can rebalance. See docs/redesign-what-and-why.md.
+     */
+    BUDGET_OVER_INCOME
 }
