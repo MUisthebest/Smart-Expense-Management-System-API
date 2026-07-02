@@ -39,9 +39,11 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -75,6 +77,8 @@ public class SuggestionProducer {
     static final int SUPPRESS_AFTER_DISMISSALS = 2;
     /** Headroom over the median actual when proposing a reduced budget limit (REDUCE_BUDGET). */
     private static final BigDecimal REDUCE_HEADROOM = new BigDecimal("1.15");
+    /** Floor for a rebalanced budget limit — never propose scaling a limit below one cent. */
+    private static final BigDecimal MIN_LIMIT = new BigDecimal("0.01");
 
     private final SpendingInsightAnalyzer analyzer;
     private final TransactionRepository transactionRepository;
@@ -124,6 +128,10 @@ public class SuggestionProducer {
                 if (candidate == null) {
                     candidate = setCategoryLimitCandidate(insights, affectedCategory, gate, history, period, user.getIncome());
                 }
+            }
+            if (candidate == null) {
+                // Wave 2: a recurring charge in this category just posted at a hiked price.
+                candidate = reviewSubscriptionCandidate(insights, affectedCategory, gate, period);
             }
 
             persistAndPush(userId, candidate);
@@ -178,6 +186,37 @@ public class SuggestionProducer {
             persistAndPush(userId, contributeCandidate(capacity, target, amount, period));
         } catch (Exception e) {
             log.warn("[Suggestion] savings producer failed for user {}: {}", userId, e.getMessage());
+        }
+    }
+
+    /**
+     * Wave 2 (item 5): after a budget create or limit update, check whether the month's committed
+     * budget total now exceeds the user's declared income and maybe ask to rebalance — scale every
+     * limit proportionally so the total fits the income envelope. The consented numbers are
+     * snapshotted per budget at ask time. Best-effort, never throws. BUDGET_OVER_INCOME is WARN,
+     * so GENTLE users get the ask and HARD (CRITICAL-only) users don't — same gate as the
+     * expense-path candidates.
+     */
+    public void maybeProduceRebalance(UUID userId, int month, int year) {
+        try {
+            User user = userRepository.findById(userId).orElse(null);
+            Severity gate = pushGateFor(user == null ? null : user.getInterventionLevel());
+            if (gate == null) {
+                return; // pull-only / unset → no push
+            }
+
+            YearMonth period = YearMonth.of(year, month);
+            List<Budget> budgets = budgetRepository.findByUserIdMonthYear(userId, month, year);
+            Insight insight = analyzer.detectBudgetOverIncome(budgets, user.getIncome(), period)
+                    .orElse(null);
+            if (insight == null || !insight.getSeverity().atLeast(gate)) {
+                return; // within the envelope, or not severe enough for this user's gate
+            }
+
+            persistAndPush(userId, rebalanceCandidate(insight, budgets, user.getIncome(), period));
+        } catch (Exception e) {
+            log.warn("[Suggestion] rebalance producer failed for user {} / {}-{}: {}",
+                    userId, year, month, e.getMessage());
         }
     }
 
@@ -363,6 +402,94 @@ public class SuggestionProducer {
                 .payloadJson(payloadJson(insight, action))
                 .notificationContent(pushText(insight, "notification.suggestion.contribute_to_project|" + target.getName()))
                 .build();
+    }
+
+    /**
+     * REBALANCE_BUDGETS: BUDGET_OVER_INCOME on the month — propose scaling every budget's limit by
+     * income ÷ committed so the total fits the envelope. Per-budget limits are rounded DOWN to the
+     * cent so the rebalanced total can never exceed income. The full per-budget snapshot rides in
+     * the payload: consent is to those concrete numbers, not a recompute recipe.
+     */
+    private Candidate rebalanceCandidate(Insight insight, List<Budget> budgets, BigDecimal income, YearMonth period) {
+        BigDecimal committed = budgets.stream()
+                .filter(b -> b != null && b.getAmountLimit() != null)
+                .map(Budget::getAmountLimit)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        if (committed.compareTo(BigDecimal.ZERO) <= 0) {
+            return null;
+        }
+        BigDecimal factor = income.divide(committed, 6, RoundingMode.DOWN);
+
+        List<SuggestionPayload.BudgetAdjustment> adjustments = new ArrayList<>();
+        BigDecimal newTotal = BigDecimal.ZERO;
+        for (Budget budget : budgets) {
+            if (budget == null || budget.getId() == null || budget.getAmountLimit() == null
+                    || budget.getAmountLimit().compareTo(BigDecimal.ZERO) <= 0) {
+                continue;
+            }
+            BigDecimal newLimit = budget.getAmountLimit().multiply(factor)
+                    .setScale(2, RoundingMode.DOWN)
+                    .max(MIN_LIMIT); // a limit scaled below one cent is meaningless
+            if (newLimit.compareTo(budget.getAmountLimit()) >= 0) {
+                continue; // not a reduction (tiny limit floored at the minimum) — nothing to consent to
+            }
+            adjustments.add(SuggestionPayload.BudgetAdjustment.builder()
+                    .budgetId(budget.getId())
+                    .category(budget.getCategory())
+                    .currentLimit(budget.getAmountLimit())
+                    .newLimit(newLimit)
+                    .build());
+            newTotal = newTotal.add(newLimit);
+        }
+        if (adjustments.isEmpty()) {
+            return null;
+        }
+
+        SuggestionPayload.ProposedAction action = SuggestionPayload.ProposedAction.builder()
+                .month(period.getMonthValue())
+                .year(period.getYear())
+                .resolvedValue(newTotal) // the new committed total, for display
+                .budgetAdjustments(adjustments)
+                .build();
+
+        return Candidate.builder()
+                .type(SuggestionType.REBALANCE_BUDGETS)
+                .severity(insight.getSeverity())
+                .dedupKey("REBALANCE_BUDGETS:" + period)
+                .payloadJson(payloadJson(insight, action))
+                .notificationContent(pushText(insight, "notification.suggestion.rebalance_budgets"))
+                .build();
+    }
+
+    /**
+     * REVIEW_SUBSCRIPTION: SUBSCRIPTION_PRICE_HIKE on the affected category. Acknowledge-only —
+     * accepting marks the hike reviewed and executes nothing (the real action happens outside the
+     * app), so the payload carries no proposed action; the card renders from the insight snapshot.
+     * The subscription's description is part of the dedup key so two different subscriptions in
+     * one category are separate topics.
+     */
+    private Candidate reviewSubscriptionCandidate(List<Insight> insights, Category category,
+                                                  Severity gate, YearMonth period) {
+        Insight insight = bestQualifying(insights, InsightType.SUBSCRIPTION_PRICE_HIKE, category, gate);
+        if (insight == null) {
+            return null;
+        }
+        String description = String.valueOf(insight.getMetrics().getOrDefault("description", ""));
+
+        return Candidate.builder()
+                .type(SuggestionType.REVIEW_SUBSCRIPTION)
+                .severity(insight.getSeverity())
+                .dedupKey("REVIEW_SUBSCRIPTION:" + category.name() + ":" + slug(description) + ":" + period)
+                .payloadJson(payloadJson(insight, null))
+                .notificationContent(pushText(insight, "notification.suggestion.review_subscription|" + description))
+                .build();
+    }
+
+    /** Compact, key-safe form of a free-text description for use inside a dedup key. */
+    private static String slug(String text) {
+        String slug = text.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]+", "-")
+                .replaceAll("^-+|-+$", "");
+        return slug.length() > 40 ? slug.substring(0, 40) : slug;
     }
 
     // ---- shared persist + push -----------------------------------------------------------

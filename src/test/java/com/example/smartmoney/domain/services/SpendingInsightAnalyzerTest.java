@@ -625,4 +625,86 @@ class SpendingInsightAnalyzerTest {
         Transaction candidate = expenseAt(Category.FOOD, 10, 12, "50", "Coffee");
         assertTrue(analyzer.detectDuplicateCharge(List.of(earlier), candidate).isEmpty());
     }
+
+    // ---- Wave 2: subscription price hike ---------------------------------------------------
+
+    private List<Insight> hikes(List<Transaction> history) {
+        return analyzer.analyze(history, List.of(), AS_OF).stream()
+                .filter(i -> i.getType() == InsightType.SUBSCRIPTION_PRICE_HIKE)
+                .toList();
+    }
+
+    /** A stable "Netflix" charge of 200 for {@code months}, then {@code current} this month (June). */
+    private List<Transaction> subscriptionHistory(String current) {
+        List<Transaction> history = new ArrayList<>();
+        for (int m = 3; m <= 5; m++) {
+            history.add(expense(Category.ENTERTAINMENT, 2026, m, new BigDecimal("200"), "Netflix"));
+        }
+        if (current != null) {
+            history.add(expense(Category.ENTERTAINMENT, 2026, 6, new BigDecimal(current), "Netflix"));
+        }
+        return history;
+    }
+
+    @Test
+    @DisplayName("a stable recurring charge jumping past the tolerance band → WARN price hike, and no RECURRING for the group")
+    void priceHikeDetected() {
+        List<Transaction> history = subscriptionHistory("260"); // +30% > 15% tolerance
+        List<Insight> found = hikes(history);
+        assertEquals(1, found.size());
+        Insight insight = found.get(0);
+        assertEquals(Severity.WARN, insight.getSeverity());
+        assertEquals(Category.ENTERTAINMENT, insight.getCategory());
+        assertEquals("insight.subscription_price_hike.entertainment", insight.getCode());
+        assertEquals("netflix", insight.getMetrics().get("description"));
+        assertEquals(0, new BigDecimal("200.00").compareTo(
+                (BigDecimal) insight.getMetrics().get("previousAmount")));
+        assertEquals(0, new BigDecimal("260.00").compareTo(
+                (BigDecimal) insight.getMetrics().get("newAmount")));
+        assertEquals(0.30, insight.getMetrics().get("increaseRatio"));
+        assertEquals(3, insight.getMetrics().get("monthsObserved"));
+        // The hiked month breaks the group's all-months tolerance → the hike replaces RECURRING.
+        assertTrue(recurring(history).isEmpty());
+    }
+
+    @Test
+    @DisplayName("a rise still inside the tolerance band is not a hike (and stays RECURRING)")
+    void withinToleranceNotAHike() {
+        List<Transaction> history = subscriptionHistory("220"); // +10% ≤ 15%
+        assertTrue(hikes(history).isEmpty());
+        assertEquals(1, recurring(history).size());
+    }
+
+    @Test
+    @DisplayName("a price drop is not a hike")
+    void priceDropNotAHike() {
+        assertTrue(hikes(subscriptionHistory("150")).isEmpty());
+    }
+
+    @Test
+    @DisplayName("fewer than 3 stable prior months → no hike (never was a subscription)")
+    void tooFewPriorMonthsNoHike() {
+        List<Transaction> history = new ArrayList<>();
+        history.add(expense(Category.ENTERTAINMENT, 2026, 4, new BigDecimal("200"), "Netflix"));
+        history.add(expense(Category.ENTERTAINMENT, 2026, 5, new BigDecimal("200"), "Netflix"));
+        history.add(expense(Category.ENTERTAINMENT, 2026, 6, new BigDecimal("260"), "Netflix"));
+        assertTrue(hikes(history).isEmpty());
+    }
+
+    @Test
+    @DisplayName("no charge posted this month → nothing new to judge, no hike")
+    void noCurrentChargeNoHike() {
+        assertTrue(hikes(subscriptionHistory(null)).isEmpty());
+    }
+
+    @Test
+    @DisplayName("prior months that were never stable → a jump means nothing")
+    void unstablePriorMonthsNoHike() {
+        List<Transaction> history = new ArrayList<>();
+        history.add(expense(Category.SHOPPING, 2026, 3, new BigDecimal("100"), "Amazon"));
+        history.add(expense(Category.SHOPPING, 2026, 4, new BigDecimal("200"), "Amazon"));
+        history.add(expense(Category.SHOPPING, 2026, 5, new BigDecimal("400"), "Amazon"));
+        history.add(expense(Category.SHOPPING, 2026, 6, new BigDecimal("600"), "Amazon"));
+        assertTrue(hikes(history).isEmpty());
+    }
 }

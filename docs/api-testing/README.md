@@ -71,6 +71,8 @@ state from the previous one:
 | `8 — REDUCE_BUDGET` | budgeted category consistently under limit → `BUDGET_UNDERSPEND` → `REDUCE_BUDGET` → accept lowers the limit |
 | `9 — LARGE_TRANSACTION` | a per-charge outlier expense → notification-only ping (`app://transactions`), no suggestion |
 | `10 — DUPLICATE_CHARGE` | same category+amount+description within 72h → notification-only ping (`app://transactions`), no suggestion |
+| `11 — REBALANCE_BUDGETS` | a budget **write** pushes committed limits over declared income → `BUDGET_OVER_INCOME` → `REBALANCE_BUDGETS` (per-budget snapshot) → accept scales every listed limit down to fit |
+| `12 — REVIEW_SUBSCRIPTION` | a stable recurring charge posts above its tolerance band → `SUBSCRIPTION_PRICE_HIKE` → acknowledge-only `REVIEW_SUBSCRIPTION` (no `proposedAction`, accept executes nothing) |
 
 Folders 7–10 (Wave 1 of the expansion plan) each **seed their own disjoint categories** (TRANSPORTATION,
 CLOTHING, SHOPPING, UTILITIES), so they don't collide with the FOOD/ENTERTAINMENT state from folders 1–4.
@@ -78,6 +80,15 @@ Folders 9 and 10 are **notification-only** — there is no suggestion card or ac
 push landed. Their content is the raw i18n key (e.g. `notification.insight.large_transaction|SHOPPING`)
 **only when server narration is off** — with narration on, assert on the `app://transactions` deep-link
 instead of the key substring.
+
+Folders 11–12 (Wave 2) differ from everything before them in two ways. **Folder 11's trigger is a budget
+write, not a transaction** — `Create/UpdateBudgetUseCase` now runs the rebalance check after saving, so
+the suggestion appears the moment the user over-commits, and it must run **after folders 0–8** (it needs
+their accumulated budgets plus the 20M HEALTH budget to exceed the 20M income). Its accept is the first
+**multi-entity** action: every budget in `proposedAction.budgetAdjustments` is set to its snapshotted
+`newLimit`. **Folder 12 is acknowledge-only** — the suggestion card exists and is accepted like any
+other, but the payload has no `proposedAction` and accepting changes no data (EDUCATION is its disjoint
+category).
 
 Because the scenario is pinned to **May 2026**, re-running on the same account hits the
 one-open-ask-per-topic **dedup** (a 2nd PENDING for the same topic is refused) and the accepted

@@ -157,6 +157,7 @@ Render rules:
 | `SAVINGS_CAPACITY` | There's spare money to save this month | `avgMonthlyIncome`, `recurringCosts`, `committedBudgets`, `disposable` |
 | `BUDGET_OVER_INCOME` | This month's budget limits add up to more than declared income (account-wide, `category:null`) — a **soft**, never-enforced warning to rebalance | `committedBudgets`, `income`, `overBy`, `overshootRatio` |
 | `BUDGET_UNDERSPEND` | A budgeted category is consistently used well under its limit — the budget can be trimmed (backs `REDUCE_BUDGET`) | `limit`, `medianActual`, `projectedEndOfMonth`, `underspendRatio` |
+| `SUBSCRIPTION_PRICE_HIKE` | A stable recurring charge just posted noticeably above its usual price — the subscription got more expensive (backs `REVIEW_SUBSCRIPTION`) | `description`, `previousAmount`, `newAmount`, `increaseRatio`, `monthsObserved` |
 
 `metrics` is an open map — treat unknown keys as ignorable, so new metrics never break your render.
 
@@ -224,9 +225,23 @@ the user is consenting to** — never recompute it.
 | `SET_CATEGORY_LIMIT` | "Set a {category} budget of {resolvedValue} for this month?" | `category`, `month`, `year`, `resolvedValue` | creates the budget (first limit for a trending, budgetless category) |
 | `REDUCE_BUDGET` | "Lower your {category} budget to {resolvedValue}?" | `category`, `budgetId`, `resolvedValue` | updates that budget's limit (downward) |
 | `CONTRIBUTE_TO_PROJECT` | "Put {resolvedValue} toward {project}?" | `projectId`, `resolvedValue` | records a contribution (an EXPENSE ledger entry) |
+| `REBALANCE_BUDGETS` | "Your budgets total more than your income — shrink them to fit ({resolvedValue} total)?" | `month`, `year`, `resolvedValue` (new committed total), `budgetAdjustments[]` | updates **every listed budget** to its `newLimit` |
+| `REVIEW_SUBSCRIPTION` | "{description} went up from {previousAmount} to {newAmount} — reviewed it?" *(numbers from `insightSnapshot.metrics`)* | **none** (`proposedAction` is `null`) | **nothing** — acknowledge-only; Yes just marks it reviewed |
 
 `insightSnapshot` is the frozen reason ("why are you asking?") — use it to show the supporting
 number(s) on the card. It's a snapshot, so it stays stable even if live data later changes.
+
+**`REBALANCE_BUDGETS` card specifics** (the one multi-entity ask):
+- `proposedAction.budgetAdjustments` is a list of
+  `{ "budgetId", "category", "currentLimit", "newLimit" }` — render a per-budget
+  **currentLimit → newLimit** table so the user sees exactly what Yes applies. Consent is to this
+  snapshot: the backend applies these numbers verbatim (a budget deleted in the meantime is
+  skipped), never recomputes.
+- It's raised by **creating or editing a budget** (not by logging an expense), so surface it right
+  after budget-editing flows. Its `dedupKey` is account-wide per month (`REBALANCE_BUDGETS:2026-07`).
+- `REVIEW_SUBSCRIPTION` has **no** `proposedAction` — build the whole card from
+  `insightSnapshot.metrics` (`description`, `previousAmount`, `newAmount`). Yes = "I've looked at
+  it"; the actual cancelling/renegotiating happens outside the app.
 
 ### Suggestion state machine
 
@@ -289,8 +304,8 @@ Routing contract:
 | `Saving_Pace` | `RELAXED`, `BALANCED`, `AGGRESIVE` *(sic — one S)* |
 | `Focus_Mode` | `SAVE_MORE`, `REDUCE_SPENDING`, `TRACK_ONLY` |
 | `Severity` | `INFO`, `WARN`, `CRITICAL` |
-| `InsightType` | `OVERSPEND_ANOMALY`, `BUDGET_PACE`, `CATEGORY_TREND`, `RECURRING`, `SAVINGS_CAPACITY`, `BUDGET_OVER_INCOME`, `BUDGET_UNDERSPEND` (+ notification-only `LARGE_TRANSACTION`, `DUPLICATE_CHARGE` — never in `GET /insights`) |
-| `SuggestionType` | `RAISE_BUDGET`, `CREATE_BUDGET`, `SET_CATEGORY_LIMIT`, `REDUCE_BUDGET`, `CONTRIBUTE_TO_PROJECT` |
+| `InsightType` | `OVERSPEND_ANOMALY`, `BUDGET_PACE`, `CATEGORY_TREND`, `RECURRING`, `SAVINGS_CAPACITY`, `BUDGET_OVER_INCOME`, `BUDGET_UNDERSPEND`, `SUBSCRIPTION_PRICE_HIKE` (+ notification-only `LARGE_TRANSACTION`, `DUPLICATE_CHARGE` — never in `GET /insights`) |
+| `SuggestionType` | `RAISE_BUDGET`, `CREATE_BUDGET`, `SET_CATEGORY_LIMIT`, `REDUCE_BUDGET`, `CONTRIBUTE_TO_PROJECT`, `REBALANCE_BUDGETS`, `REVIEW_SUBSCRIPTION` |
 | `SuggestionStatus` | `PENDING`, `ACCEPTED`, `DISMISSED`, `EXPIRED` |
 | `Category` (transactions) | `FOOD`, `TRANSPORTATION`, `CLOTHING`, `UTILITIES`, `ENTERTAINMENT`, `HEALTH`, `EDUCATION`, `SHOPPING`, `OTHER`, `PROJECT_REFUND`, `PROJECT_CONTRIBUTION` — the last two are system-generated ledger entries (accepting `CONTRIBUTE_TO_PROJECT` writes a `PROJECT_CONTRIBUTION` expense; abandoning a project writes `PROJECT_REFUND` income), so localize them in transaction lists |
 | `TransactionType` | `EXPENSE`, `INCOME` |
@@ -305,12 +320,20 @@ insight.category_trend.<category>
 insight.recurring.<category>
 insight.savings_capacity
 insight.budget_over_income
+insight.budget_underspend.<category>
+insight.subscription_price_hike.<category>
 ```
 Notification `content` keys (may carry `|<ARG>`):
 ```
 notification.suggestion.raise_budget|<CATEGORY>
 notification.suggestion.create_budget|<CATEGORY>
+notification.suggestion.set_category_limit|<CATEGORY>
+notification.suggestion.reduce_budget|<CATEGORY>
 notification.suggestion.contribute_to_project|<PROJECT_NAME>
+notification.suggestion.rebalance_budgets    # account-wide, no arg
+notification.suggestion.review_subscription|<DESCRIPTION>   # arg = the subscription's description
+notification.insight.large_transaction|<CATEGORY>   # notification-only ping → app://transactions
+notification.insight.duplicate_charge|<CATEGORY>    # notification-only ping → app://transactions
 notification.digest.pending_suggestions      # daily roll-up → deep-links to app://suggestions
 notification.digest.weekly|<COUNT>           # weekly digest (opt-in flag) → deep-links to app://insights
 notification.notification_done|<notification.expense OR notification.income>|<AMOUNT>|<CATEGORY>

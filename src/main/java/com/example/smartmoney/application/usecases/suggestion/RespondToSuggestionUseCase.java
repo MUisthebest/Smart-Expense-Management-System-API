@@ -11,6 +11,7 @@ import com.example.smartmoney.domain.exceptions.DomainException;
 import com.example.smartmoney.domain.models.suggestion.Suggestion;
 import com.example.smartmoney.domain.models.suggestion.SuggestionStatus;
 import com.example.smartmoney.domain.models.suggestion.SuggestionTopicStat;
+import com.example.smartmoney.domain.repositories.BudgetRepository;
 import com.example.smartmoney.domain.repositories.SuggestionRepository;
 import com.example.smartmoney.domain.repositories.SuggestionTopicStatRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -21,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -39,6 +41,7 @@ public class RespondToSuggestionUseCase {
 
     private final SuggestionRepository suggestionRepository;
     private final SuggestionTopicStatRepository topicStatRepository;
+    private final BudgetRepository budgetRepository;
     private final UpdateBudgetUseCase updateBudgetUseCase;
     private final CreateBudgetUseCase createBudgetUseCase;
     private final AddProjectContributionUseCase addProjectContributionUseCase;
@@ -93,6 +96,10 @@ public class RespondToSuggestionUseCase {
             case RAISE_BUDGET, REDUCE_BUDGET -> resizeBudget(payload, userId);
             case CREATE_BUDGET, SET_CATEGORY_LIMIT -> createBudget(payload, userId);
             case CONTRIBUTE_TO_PROJECT -> contributeToProject(payload, userId);
+            case REBALANCE_BUDGETS -> rebalanceBudgets(payload, userId);
+            // Acknowledge-only: the real action (cancelling the subscription) happens outside the
+            // app; "yes" just marks it reviewed. The ACCEPTED flip is the entire effect.
+            case REVIEW_SUBSCRIPTION -> { }
         }
     }
 
@@ -131,6 +138,39 @@ public class RespondToSuggestionUseCase {
         request.setAmount(action.getResolvedValue()); // the consented contribution amount
         addProjectContributionUseCase.execute(
                 userId.toString(), action.getProjectId().toString(), request);
+    }
+
+    /**
+     * Apply a REBALANCE_BUDGETS snapshot: set every listed budget to its consented new limit, inside
+     * the surrounding transaction. Consent is to the concrete numbers taken at ask time, so the
+     * snapshot is honored verbatim — never recomputed — even if limits changed in between; a budget
+     * deleted since the ask is skipped. Ownership of each budget is enforced by
+     * {@link UpdateBudgetUseCase}, which rejects any budget that isn't the caller's.
+     */
+    private void rebalanceBudgets(SuggestionPayload payload, UUID userId) {
+        SuggestionPayload.ProposedAction action = requireAction(payload);
+        List<SuggestionPayload.BudgetAdjustment> adjustments = action.getBudgetAdjustments();
+        if (adjustments == null || adjustments.isEmpty()) {
+            throw new DomainException("REBALANCE_BUDGETS suggestion has no budget adjustments");
+        }
+        // Validate the whole snapshot before touching anything — all-or-nothing consent.
+        for (SuggestionPayload.BudgetAdjustment adjustment : adjustments) {
+            if (adjustment == null || adjustment.getBudgetId() == null || adjustment.getNewLimit() == null
+                    || adjustment.getNewLimit().compareTo(BigDecimal.ZERO) <= 0) {
+                throw new DomainException("REBALANCE_BUDGETS adjustment is missing budgetId or a positive newLimit");
+            }
+        }
+        for (SuggestionPayload.BudgetAdjustment adjustment : adjustments) {
+            if (budgetRepository.findById(adjustment.getBudgetId()).isEmpty()) {
+                log.info("[Suggestion] rebalance: budget {} was deleted after the ask — skipping it",
+                        adjustment.getBudgetId());
+                continue;
+            }
+            UpdateBudgetRequest request = new UpdateBudgetRequest();
+            request.setAmountLimit(adjustment.getNewLimit()); // the consented snapshot number
+            // No rebalance re-check mid-loop: the loop's end state is exactly the consented fit.
+            updateBudgetUseCase.execute(adjustment.getBudgetId(), userId, request, false);
+        }
     }
 
     /** Increment the (user, topic) dismissal counter, creating the stat row on first dismissal. */

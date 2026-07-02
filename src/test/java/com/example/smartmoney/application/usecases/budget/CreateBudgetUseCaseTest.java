@@ -2,6 +2,7 @@ package com.example.smartmoney.application.usecases.budget;
 
 import com.example.smartmoney.application.dtos.requests.budgets.CreateBudgetRequest;
 import com.example.smartmoney.application.dtos.responses.BudgetItemResponse;
+import com.example.smartmoney.application.usecases.insight.SuggestionProducer;
 import com.example.smartmoney.domain.models.budget.Budget;
 import com.example.smartmoney.domain.models.transaction.Transaction;
 import com.example.smartmoney.domain.models.transaction.enums.Category;
@@ -31,11 +32,12 @@ class CreateBudgetUseCaseTest {
 
     @Mock private BudgetRepository budgetRepository;
     @Mock private TransactionRepository transactionRepository;
+    @Mock private SuggestionProducer suggestionProducer; // Wave 2: rebalance hook — inert in these tests
 
     private final UUID userId = UUID.randomUUID();
 
     private CreateBudgetUseCase useCase() {
-        return new CreateBudgetUseCase(budgetRepository, transactionRepository);
+        return new CreateBudgetUseCase(budgetRepository, transactionRepository, suggestionProducer);
     }
 
     private CreateBudgetRequest request(String limit) {

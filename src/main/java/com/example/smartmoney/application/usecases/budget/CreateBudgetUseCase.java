@@ -2,6 +2,7 @@ package com.example.smartmoney.application.usecases.budget;
 
 import com.example.smartmoney.application.dtos.requests.budgets.CreateBudgetRequest;
 import com.example.smartmoney.application.dtos.responses.BudgetItemResponse;
+import com.example.smartmoney.application.usecases.insight.SuggestionProducer;
 import com.example.smartmoney.domain.exceptions.DomainException;
 import com.example.smartmoney.domain.models.budget.Budget;
 import com.example.smartmoney.domain.models.transaction.Transaction;
@@ -23,6 +24,7 @@ import java.util.UUID;
 public class CreateBudgetUseCase {
     private final BudgetRepository budgetRepository;
     private final TransactionRepository transactionRepository;
+    private final SuggestionProducer suggestionProducer;
 
     public BudgetItemResponse execute(UUID userId, CreateBudgetRequest request) {
         if (userId == null) {
@@ -68,6 +70,11 @@ public class CreateBudgetUseCase {
 
         log.info("Budget created: id={}, userId={}, category={}, month={}, year={}, backfilledSpent={}",
                 savedBudget.getId(), userId, request.getCategory(), request.getMonth(), request.getYear(), spent);
+
+        // Wave 2 (item 5): a new budget can push the month's committed total over the user's
+        // declared income — surface the over-commitment while they're editing. Best-effort: the
+        // producer swallows every failure, so this can never break the budget write.
+        suggestionProducer.maybeProduceRebalance(userId, request.getMonth(), request.getYear());
 
         BigDecimal savedSpent = savedBudget.getSpent();
         return BudgetItemResponse.builder()

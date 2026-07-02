@@ -6,7 +6,10 @@
 >
 > **Progress:** ✅ **Wave 1 shipped** (items 1–3: `SET_CATEGORY_LIMIT`, `REDUCE_BUDGET` +
 > `BUDGET_UNDERSPEND`, notification-only `LARGE_TRANSACTION` + `DUPLICATE_CHARGE`) — code,
-> unit tests, i18n, FE guide, and Postman scenarios all in. Waves 2–4 not started.
+> unit tests, i18n, FE guide, and Postman scenarios all in.
+> ✅ **Wave 2 shipped** (items 4–5: `REVIEW_SUBSCRIPTION` + `SUBSCRIPTION_PRICE_HIKE`,
+> `REBALANCE_BUDGETS` with the new multi-budget payload/executor and the budget-write trigger) —
+> same deliverable bar; both open decisions resolved (see as-built notes). Waves 3–4 not started.
 
 ## Context — how the system works today
 
@@ -106,9 +109,13 @@ Per-item test targets: `SpendingInsightAnalyzerTest`, `SuggestionProducerTest`,
 
 ---
 
-## Wave 2 — New action *shape* or new insight semantics
+## Wave 2 — New action *shape* or new insight semantics — ✅ SHIPPED
 
-### 4. `REVIEW_SUBSCRIPTION` (+ `SUBSCRIPTION_PRICE_HIKE`)
+> Both items implemented (5 first, per sequencing). New `SuggestionType`s `REBALANCE_BUDGETS`,
+> `REVIEW_SUBSCRIPTION`; new `InsightType` `SUBSCRIPTION_PRICE_HIKE`. Decisions resolved: item 4 =
+> **(b) acknowledge-only**; item 5 = **honor the snapshot**. As-built notes below.
+
+### 4. `REVIEW_SUBSCRIPTION` (+ `SUBSCRIPTION_PRICE_HIKE`) — ✅ DONE
 - **Insight:** extend `RECURRING` to also emit `SUBSCRIPTION_PRICE_HIKE` when the latest
   month's amount breaks the recurring group's upward tolerance band (`allWithinTolerance`
   already computes it).
@@ -119,7 +126,7 @@ Per-item test targets: `SpendingInsightAnalyzerTest`, `SuggestionProducerTest`,
 - **Trigger:** expense-create path (when the recurring charge posts).
 - **Effort:** medium — mostly the product decision on what "yes" does.
 
-### 5. `REBALANCE_BUDGETS` — first multi-entity action
+### 5. `REBALANCE_BUDGETS` — first multi-entity action — ✅ DONE
 - **Insight:** `BUDGET_OVER_INCOME` — *already emitted*. No analyzer change.
 - **Suggestion (new):** `REBALANCE_BUDGETS`. Accept scales all of the month's budget
   limits proportionally to fit declared income.
@@ -198,9 +205,10 @@ Per-item test targets: `SpendingInsightAnalyzerTest`, `SuggestionProducerTest`,
 ## Suggested sequencing
 
 ~~Ship **1 → 2 → 3** first~~ ✅ **done** (pure additions, max reuse, close the up-only ratchet,
-exercise both the suggestion path and the notification-only path with no new infra). **Next up:**
-**5 (REBALANCE)** for the first payoff on `BUDGET_OVER_INCOME`, then Wave 3 schedulers, then
-the Wave 4 project/positive work.
+exercise both the suggestion path and the notification-only path with no new infra).
+~~Then **5 (REBALANCE)** for the first payoff on `BUDGET_OVER_INCOME`, then 4~~ ✅ **done** (Wave 2
+shipped 5-then-4). **Next up:** Wave 3 schedulers (month-rollover recap, day-25 sweep), then the
+Wave 4 project/positive work.
 
 ### Wave 1 — as-built notes
 - **`SET_CATEGORY_LIMIT`:** third branch in `SuggestionProducer.maybeProduce` (budgetless path), tried
@@ -218,11 +226,59 @@ the Wave 4 project/positive work.
   `CreateNotificationUseCase` with deep-link `app://transactions`. **Not** added to `analyze()`, so
   they never surface in `GET /insights` or as suggestion cards.
 
+### Wave 2 — as-built notes
+
+- **`REBALANCE_BUDGETS` (item 5, built first):**
+  - **Payload:** `ProposedAction` gained a nullable `List<BudgetAdjustment>` (`budgetId`, `category`,
+    `currentLimit`, `newLimit` — the last two for the FE's before→after render). `resolvedValue`
+    carries the **new committed total** for display. Only this type uses the list.
+  - **Math:** factor = `income ÷ committed` (scale 6, DOWN); each `newLimit` = `limit × factor`
+    rounded **DOWN** to the cent (floored at 0.01), so the rebalanced total can never exceed income.
+    Budgets whose floor makes the "reduction" a non-reduction are dropped from the snapshot.
+  - **Executor:** new `rebalanceBudgets` arm validates the whole snapshot up front, then loops
+    `UpdateBudgetUseCase.execute(..., rebalanceCheck=false)` inside the accept transaction —
+    ownership is enforced per budget by the reused use case. **Snapshot is honored verbatim**
+    (decision: consent is to concrete numbers); a budget deleted since the ask is skipped, never
+    recomputed. `RespondToSuggestionUseCase` gained a `BudgetRepository` to make that skip explicit.
+  - **Trigger:** `maybeProduceRebalance(userId, month, year)` runs after `CreateBudgetUseCase` saves
+    and after `UpdateBudgetUseCase` saves a **limit** change. The 4-arg `execute(..., boolean
+    rebalanceCheck)` overload exists solely so the rebalance accept loop doesn't re-check a
+    half-applied state (the 3-arg form defaults to `true`, so RAISE/REDUCE accepts *do* re-check —
+    a raise that over-commits the month legitimately asks to rebalance). The income-create fallback
+    was **not** wired: `BUDGET_OVER_INCOME` compares against *declared* income (on the User), which
+    an income transaction doesn't change.
+  - **Gate:** the insight is WARN, so GENTLE users get the ask and HARD (CRITICAL-only) users don't —
+    the same `atLeast(gate)` rule as the expense-path candidates. `dedupKey` is account-wide per
+    month (`REBALANCE_BUDGETS:2026-07`).
+- **`SUBSCRIPTION_PRICE_HIKE` / `REVIEW_SUBSCRIPTION` (item 4):**
+  - **Detector:** the recurring grouping was extracted to a shared `recurringGroups()` helper; the
+    new `detectSubscriptionPriceHikes` (in `analyze()`, so it *does* surface in `GET /insights`)
+    fires WARN when ≥ `RECURRING_MIN_MONTHS` *prior* months sit within the ±15% tolerance of their
+    median and the **current** month breaks the band **upward**. Metrics: `description`,
+    `previousAmount` (prior median), `newAmount`, `increaseRatio`, `monthsObserved`. Such a group
+    simultaneously stops qualifying as `RECURRING` (the hiked month fails the all-months tolerance),
+    so the hike replaces it rather than duplicating it.
+  - **Decision (b) — acknowledge-only:** accepting executes **nothing** (`case REVIEW_SUBSCRIPTION
+    -> {}` in the whitelist); the payload has **no `proposedAction`** and the card renders from the
+    insight snapshot. Rationale: a category budget can't stop a subscription charging, and creating
+    one would immediately feed BUDGET_PACE noise.
+  - **Producer:** `reviewSubscriptionCandidate` is the lowest-precedence branch in `maybeProduce`
+    (any budget-related candidate wins). The `dedupKey` embeds a 40-char slug of the subscription's
+    normalized description (`REVIEW_SUBSCRIPTION:ENTERTAINMENT:netflix-premium:2026-07`) so two
+    subscriptions in one category are independent topics. Push key:
+    `notification.suggestion.review_subscription|<description>`.
+- **Docs/tests:** analyzer/producer/respond tests extended (full suite green: 293 tests). Postman
+  folders 11–12 + README rows; FE guide gained the new insight row, both card rows (incl. the
+  `budgetAdjustments` render contract), enum/i18n entries; `docs/frontend/i18n.en.reference.json`
+  (previously a dangling reference) now exists with starter copy for every Appendix-B key,
+  including the Wave 1 keys that were missing from Appendix B.
+
 ## Open decisions to resolve before building
 
-- **Item 4:** what does "yes" on `REVIEW_SUBSCRIPTION` execute — cap-via-budget (a) or
-  acknowledge-only (b)?
-- **Item 5:** on stale budgets at accept time — honor the snapshot (recommended) or no-op?
+- ~~**Item 4:** what does "yes" on `REVIEW_SUBSCRIPTION` execute?~~ **Resolved: (b) acknowledge-only**
+  (user decision, 2026-07-02) — no state change; the flip to ACCEPTED is the entire effect.
+- ~~**Item 5:** on stale budgets at accept time?~~ **Resolved: honor the snapshot** (user decision,
+  2026-07-02) — apply the consented numbers verbatim; skip budgets deleted since the ask.
 - **Item 10:** is `CREATE_SAVING_PROJECT` a deep-link nudge or a server-executed action?
 
 ## Quick-reference: new type inventory
@@ -232,8 +288,8 @@ the Wave 4 project/positive work.
 | 1 | CATEGORY_TREND (existing) | SET_CATEGORY_LIMIT | createBudget | no | ✅ done |
 | 2 | BUDGET_UNDERSPEND (new) | REDUCE_BUDGET | updateBudget | no | ✅ done |
 | 3 | LARGE_TRANSACTION, DUPLICATE_CHARGE (new) | — (notification only) | — | sync in create | ✅ done |
-| 4 | SUBSCRIPTION_PRICE_HIKE (new, on RECURRING) | REVIEW_SUBSCRIPTION | createBudget / none | no | — |
-| 5 | BUDGET_OVER_INCOME (existing) | REBALANCE_BUDGETS | updateBudget (×N) | budget write | — |
+| 4 | SUBSCRIPTION_PRICE_HIKE (new, on RECURRING) | REVIEW_SUBSCRIPTION | none (acknowledge-only) | no | ✅ done |
+| 5 | BUDGET_OVER_INCOME (existing) | REBALANCE_BUDGETS | updateBudget (×N) | budget write | ✅ done |
 | 6 | INCOME_DROP, CASHFLOW_NEGATIVE (new) | — (recap) | — | month-rollover cron | — |
 | 7 | SAVINGS_CAPACITY (existing) | CONTRIBUTE_TO_PROJECT (reused) | contribute | day-25 cron | — |
 | 8 | PROJECT_OFF_TRACK (new) | INCREASE_CONTRIBUTION | contribute | project cron | — |
