@@ -441,6 +441,42 @@ public class SpendingInsightAnalyzer {
                 .build());
     }
 
+    // ---- soft budget envelope: total budget limits vs declared income --------------------
+
+    /**
+     * Account-wide "soft envelope": fires when the sum of {@code period}'s budget limits exceeds the
+     * user's <em>declared</em> monthly income (not the learned average). Purely informational — the
+     * system never blocks a budget write; this only surfaces the over-commitment so the user can
+     * rebalance. Empty when income is unset/non-positive (cold-start, nothing to judge against) or
+     * when committed budgets are within income. Public so the pull use case can call it directly:
+     * income lives on the User, which the pure analyzer intentionally doesn't load.
+     */
+    public Optional<Insight> detectBudgetOverIncome(List<Budget> budgets, BigDecimal income, YearMonth period) {
+        if (income == null || income.compareTo(BigDecimal.ZERO) <= 0) {
+            return Optional.empty();
+        }
+        BigDecimal committed = committedBudgetTotal(budgets);
+        if (committed.compareTo(income) <= 0) {
+            return Optional.empty(); // within the envelope — nothing to surface
+        }
+
+        double overshootRatio = committed.doubleValue() / income.doubleValue();
+        Map<String, Object> metrics = new LinkedHashMap<>();
+        metrics.put("committedBudgets", round(committed));
+        metrics.put("income", round(income));
+        metrics.put("overBy", round(committed.subtract(income)));
+        metrics.put("overshootRatio", round2(overshootRatio));
+
+        return Optional.of(Insight.builder()
+                .type(InsightType.BUDGET_OVER_INCOME)
+                .category(null) // account-wide, not category-scoped
+                .severity(Severity.WARN) // a soft warning, never enforced
+                .period(period)
+                .metrics(metrics)
+                .code("insight.budget_over_income")
+                .build());
+    }
+
     // ---- shared helpers ------------------------------------------------------------------
 
     private static Map<Category, Map<YearMonth, BigDecimal>> monthlyExpenseTotalsByCategory(List<Transaction> history) {

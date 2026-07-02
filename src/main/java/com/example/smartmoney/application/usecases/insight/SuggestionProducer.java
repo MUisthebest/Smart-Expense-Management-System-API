@@ -209,8 +209,14 @@ public class SuggestionProducer {
         if (insight == null) {
             return null;
         }
+        // Anchor on the historical norm, but never below what's already spent this month: CreateBudget
+        // backfills spent from the month's existing expenses, so a limit under the overspend that
+        // triggered this would be born already-EXCEEDED. The current-month total is carried on the
+        // anomaly insight as "actual" (SpendingInsightAnalyzer#detectOverspendAnomalies).
+        BigDecimal actualThisMonth = toBigDecimal(insight.getMetrics().get("actual"));
         BigDecimal resolvedValue = capByIncome(
-                analyzer.trailing3MonthMedian(history, category, period), income);
+                analyzer.trailing3MonthMedian(history, category, period), income)
+                .max(actualThisMonth);
         if (resolvedValue.compareTo(BigDecimal.ZERO) <= 0) {
             return null; // no robust baseline to propose a limit from
         }
