@@ -451,4 +451,47 @@ class SpendingInsightAnalyzerTest {
                 .category(Category.FOOD).amountLimit(new BigDecimal("2000")).month(6).year(2026).build());
         assertTrue(capacity(history, budgets).isEmpty());
     }
+
+    // ---- soft budget envelope (budget limits vs declared income) -------------------------
+
+    @Test
+    @DisplayName("budget limits over declared income → WARN, account-wide, with over-by metrics")
+    void budgetsOverIncomeWarn() {
+        List<Budget> budgets = List.of(
+                budget(Category.FOOD, new BigDecimal("8000"), BigDecimal.ZERO),
+                budget(Category.SHOPPING, new BigDecimal("5000"), BigDecimal.ZERO));
+
+        Insight insight = analyzer.detectBudgetOverIncome(budgets, new BigDecimal("10000"), PERIOD)
+                .orElseThrow();
+        assertEquals(InsightType.BUDGET_OVER_INCOME, insight.getType());
+        assertEquals(Severity.WARN, insight.getSeverity());
+        assertNull(insight.getCategory()); // account-wide
+        assertEquals("insight.budget_over_income", insight.getCode());
+        // committed 13000 vs income 10000 → overBy 3000, ratio 1.30
+        assertEquals(0, new BigDecimal("3000.00").compareTo(
+                (BigDecimal) insight.getMetrics().get("overBy")));
+        assertEquals(1.30, insight.getMetrics().get("overshootRatio"));
+    }
+
+    @Test
+    @DisplayName("budget limits within income → no envelope insight")
+    void budgetsWithinIncomeNone() {
+        List<Budget> budgets = List.of(budget(Category.FOOD, new BigDecimal("4000"), BigDecimal.ZERO));
+        assertTrue(analyzer.detectBudgetOverIncome(budgets, new BigDecimal("10000"), PERIOD).isEmpty());
+    }
+
+    @Test
+    @DisplayName("budget total exactly equal to income → within the envelope (no insight)")
+    void budgetsEqualIncomeNone() {
+        List<Budget> budgets = List.of(budget(Category.FOOD, new BigDecimal("10000"), BigDecimal.ZERO));
+        assertTrue(analyzer.detectBudgetOverIncome(budgets, new BigDecimal("10000"), PERIOD).isEmpty());
+    }
+
+    @Test
+    @DisplayName("income unset (cold start) → no envelope insight even when budgets exist")
+    void budgetsNoIncomeNone() {
+        List<Budget> budgets = List.of(budget(Category.FOOD, new BigDecimal("9999"), BigDecimal.ZERO));
+        assertTrue(analyzer.detectBudgetOverIncome(budgets, null, PERIOD).isEmpty());
+        assertTrue(analyzer.detectBudgetOverIncome(budgets, BigDecimal.ZERO, PERIOD).isEmpty());
+    }
 }
