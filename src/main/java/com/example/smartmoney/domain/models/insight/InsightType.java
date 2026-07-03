@@ -45,5 +45,18 @@ public enum InsightType {
      * group's upward tolerance band — the subscription's price went up. Backs the acknowledge-only
      * REVIEW_SUBSCRIPTION suggestion (Wave 2, docs/insight-suggestion-expansion-plan.md).
      */
-    SUBSCRIPTION_PRICE_HIKE
+    SUBSCRIPTION_PRICE_HIKE,
+    /**
+     * A closed month's INCOME total is a statistical low-outlier vs the trailing income baseline
+     * (the mirror of {@link #OVERSPEND_ANOMALY} on the income series) — or, on a flat baseline,
+     * half or less of the usual amount arrived. Only meaningful once the month has ended, so it is
+     * evaluated by the month-rollover recap, never by {@code analyze()}. Notification-only (Wave 3).
+     */
+    INCOME_DROP,
+    /**
+     * A closed month's expenses exceeded its income. Mid-month this is normal (salary timing), so
+     * like {@link #INCOME_DROP} it is judged only at month close by the recap. Notification-only
+     * (Wave 3).
+     */
+    CASHFLOW_NEGATIVE
 }

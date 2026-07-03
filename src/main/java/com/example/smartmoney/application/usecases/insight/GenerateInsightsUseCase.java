@@ -104,30 +104,34 @@ public class GenerateInsightsUseCase {
             // Cut-waste users: spending-control insights first, savings/info last.
             return switch (type) {
                 case OVERSPEND_ANOMALY -> 0;
-                case BUDGET_PACE -> 1;
-                case LARGE_TRANSACTION -> 2;
-                case BUDGET_OVER_INCOME -> 3;
-                case SUBSCRIPTION_PRICE_HIKE -> 4;
-                case CATEGORY_TREND -> 5;
-                case DUPLICATE_CHARGE -> 6;
-                case RECURRING -> 7;
-                case BUDGET_UNDERSPEND -> 8;
-                case SAVINGS_CAPACITY -> 9;
+                case CASHFLOW_NEGATIVE -> 1;
+                case BUDGET_PACE -> 2;
+                case INCOME_DROP -> 3;
+                case LARGE_TRANSACTION -> 4;
+                case BUDGET_OVER_INCOME -> 5;
+                case SUBSCRIPTION_PRICE_HIKE -> 6;
+                case CATEGORY_TREND -> 7;
+                case DUPLICATE_CHARGE -> 8;
+                case RECURRING -> 9;
+                case BUDGET_UNDERSPEND -> 10;
+                case SAVINGS_CAPACITY -> 11;
             };
         }
         if (focus == Focus_Mode.SAVE_MORE) {
             // Save-mode users: surface saving opportunities and committed costs first.
             return switch (type) {
                 case SAVINGS_CAPACITY -> 0;
-                case BUDGET_UNDERSPEND -> 1;
-                case BUDGET_OVER_INCOME -> 2;
-                case SUBSCRIPTION_PRICE_HIKE -> 3;
-                case RECURRING -> 4;
-                case CATEGORY_TREND -> 5;
-                case DUPLICATE_CHARGE -> 6;
-                case LARGE_TRANSACTION -> 7;
-                case OVERSPEND_ANOMALY -> 8;
-                case BUDGET_PACE -> 9;
+                case INCOME_DROP -> 1;
+                case CASHFLOW_NEGATIVE -> 2;
+                case BUDGET_UNDERSPEND -> 3;
+                case BUDGET_OVER_INCOME -> 4;
+                case SUBSCRIPTION_PRICE_HIKE -> 5;
+                case RECURRING -> 6;
+                case CATEGORY_TREND -> 7;
+                case DUPLICATE_CHARGE -> 8;
+                case LARGE_TRANSACTION -> 9;
+                case OVERSPEND_ANOMALY -> 10;
+                case BUDGET_PACE -> 11;
             };
         }
         return 0; // TRACK_ONLY / cold-start: no type prioritization, severity order only

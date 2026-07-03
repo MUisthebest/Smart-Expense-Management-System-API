@@ -25,6 +25,8 @@
 
   "notification.insight.large_transaction": "That {arg} charge was much larger than your usual.",
   "notification.insight.duplicate_charge": "Possible double-charge on {arg} — check your recent transactions.",
+  "notification.insight.income_drop": "Last month's income came in well below your usual — worth a look.",
+  "notification.insight.cashflow_negative": "Last month you spent more than you earned.",
 
   "notification.digest.pending_suggestions": "You have suggestions waiting for review.",
   "notification.digest.weekly": "{arg} things worth a look in this week's insights.",

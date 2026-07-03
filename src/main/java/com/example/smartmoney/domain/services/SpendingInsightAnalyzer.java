@@ -68,6 +68,12 @@ public class SpendingInsightAnalyzer {
     private static final double UNDERSPEND_RATIO = 0.60d;
     /** How close together two identical charges must fall to look like a double-charge. */
     static final int DUPLICATE_WINDOW_HOURS = 72;
+    /**
+     * Flat-baseline fallback for the income-drop rule: when the trailing income has zero variance
+     * (a fixed salary), a z-score is undefined, so instead fire when the closed month brought in
+     * at most this fraction of the usual amount.
+     */
+    private static final double INCOME_DROP_FLAT_RATIO = 0.5d;
 
     /** Which end-of-month projection the budget-pace rule uses (P3-B). */
     private final ForecastMethod forecastMethod;
@@ -730,6 +736,103 @@ public class SpendingInsightAnalyzer {
                 .build());
     }
 
+    // ---- Wave 3: closed-month recap facts (evaluated at month rollover, never in analyze()) ----
+
+    /**
+     * A closed month whose INCOME total collapsed versus the trailing baseline — the mirror of
+     * {@code detectOverspendAnomalies} on the income series, judging the <em>low</em> tail. With a
+     * flat baseline (fixed salary → stddev 0, where a z-score is undefined) it falls back to a
+     * relative test: fire when at most {@value #INCOME_DROP_FLAT_RATIO} of the usual income arrived,
+     * CRITICAL when none did. Mid-month the current total is always "low" (salary hasn't landed),
+     * so this is only meaningful for a <b>completed</b> month — the month-rollover recap calls it
+     * directly, like the pull use case calls {@code detectBudgetOverIncome}.
+     */
+    public Optional<Insight> detectIncomeDrop(List<Transaction> history, YearMonth month) {
+        Map<YearMonth, BigDecimal> totals = monthlyIncomeTotals(history);
+        List<BigDecimal> trailing = trailingTotals(totals, month, TRAILING_WINDOW);
+        if (trailing.size() < MIN_SAMPLE) {
+            return Optional.empty(); // no baseline to judge against
+        }
+        double mean = mean(trailing);
+        if (mean <= 0d) {
+            return Optional.empty();
+        }
+        BigDecimal actual = totals.getOrDefault(month, BigDecimal.ZERO);
+        if (actual.doubleValue() >= mean) {
+            return Optional.empty(); // income held up — nothing to report
+        }
+        double stddev = populationStddev(trailing, mean);
+        double dropRatio = actual.doubleValue() / mean; // fraction of the usual income that arrived
+
+        Severity severity;
+        Double zScore = null;
+        if (stddev == 0d) {
+            if (dropRatio > INCOME_DROP_FLAT_RATIO) {
+                return Optional.empty(); // small dip on a flat salary — not a drop
+            }
+            severity = actual.compareTo(BigDecimal.ZERO) == 0 ? Severity.CRITICAL : Severity.WARN;
+        } else {
+            double z = (actual.doubleValue() - mean) / stddev;
+            if (z > -Z_WARN.doubleValue()) {
+                return Optional.empty(); // within normal variance
+            }
+            severity = z <= -Z_CRITICAL.doubleValue() ? Severity.CRITICAL : Severity.WARN;
+            zScore = round2(z);
+        }
+
+        Map<String, Object> metrics = new LinkedHashMap<>();
+        metrics.put("baseline", round(BigDecimal.valueOf(mean)));
+        metrics.put("stddev", round(BigDecimal.valueOf(stddev)));
+        metrics.put("actual", round(actual));
+        metrics.put("dropRatio", round2(dropRatio));
+        metrics.put("sampleMonths", trailing.size());
+        if (zScore != null) {
+            metrics.put("zScore", zScore);
+        }
+
+        return Optional.of(Insight.builder()
+                .type(InsightType.INCOME_DROP)
+                .category(null) // account-wide: income isn't category-scoped
+                .severity(severity)
+                .period(month)
+                .metrics(metrics)
+                .code("insight.income_drop")
+                .build());
+    }
+
+    /**
+     * A closed month whose expenses exceeded its income. Requires an income signal in the month —
+     * a month with zero income is {@link #detectIncomeDrop}'s territory, not a cashflow verdict.
+     * CRITICAL when expenses ran ≥ {@value #PACE_CRITICAL_RATIO}× income (the same escalation
+     * ratio as budget pace). Like the income drop, only meaningful at month close.
+     */
+    public Optional<Insight> detectCashflowNegative(List<Transaction> history, YearMonth month) {
+        BigDecimal income = monthlyIncomeTotals(history).getOrDefault(month, BigDecimal.ZERO);
+        if (income.compareTo(BigDecimal.ZERO) <= 0) {
+            return Optional.empty();
+        }
+        BigDecimal expenses = monthlyExpenseTotal(history, month);
+        if (expenses.compareTo(income) <= 0) {
+            return Optional.empty(); // the month paid for itself
+        }
+        double overshootRatio = expenses.doubleValue() / income.doubleValue();
+
+        Map<String, Object> metrics = new LinkedHashMap<>();
+        metrics.put("income", round(income));
+        metrics.put("expenses", round(expenses));
+        metrics.put("deficit", round(expenses.subtract(income)));
+        metrics.put("overshootRatio", round2(overshootRatio));
+
+        return Optional.of(Insight.builder()
+                .type(InsightType.CASHFLOW_NEGATIVE)
+                .category(null) // account-wide
+                .severity(overshootRatio >= PACE_CRITICAL_RATIO ? Severity.CRITICAL : Severity.WARN)
+                .period(month)
+                .metrics(metrics)
+                .code("insight.cashflow_negative")
+                .build());
+    }
+
     // ---- shared helpers ------------------------------------------------------------------
 
     private static Map<Category, Map<YearMonth, BigDecimal>> monthlyExpenseTotalsByCategory(List<Transaction> history) {
@@ -827,26 +930,50 @@ public class SpendingInsightAnalyzer {
 
     /** Average monthly INCOME over the months in [period - window, period] that have income. */
     private static BigDecimal averageMonthlyIncome(List<Transaction> history, YearMonth period) {
-        if (history == null) {
-            return BigDecimal.ZERO;
-        }
         Map<YearMonth, BigDecimal> incomeByMonth = new TreeMap<>();
-        for (Transaction tx : history) {
-            if (tx == null || tx.getType() != TransactionType.INCOME
-                    || tx.getAmount() == null || tx.getDate() == null) {
-                continue;
+        monthlyIncomeTotals(history).forEach((month, total) -> {
+            if (!month.isAfter(period) && !month.isBefore(period.minusMonths(TRAILING_WINDOW))) {
+                incomeByMonth.put(month, total);
             }
-            YearMonth month = YearMonth.from(tx.getDate());
-            if (month.isAfter(period) || month.isBefore(period.minusMonths(TRAILING_WINDOW))) {
-                continue;
-            }
-            incomeByMonth.merge(month, tx.getAmount().getValue(), BigDecimal::add);
-        }
+        });
         if (incomeByMonth.isEmpty()) {
             return BigDecimal.ZERO;
         }
         BigDecimal sum = incomeByMonth.values().stream().reduce(BigDecimal.ZERO, BigDecimal::add);
         return sum.divide(BigDecimal.valueOf(incomeByMonth.size()), 4, RoundingMode.HALF_UP);
+    }
+
+    /** INCOME totals per month across the provided history (callers bound the window themselves). */
+    private static Map<YearMonth, BigDecimal> monthlyIncomeTotals(List<Transaction> history) {
+        Map<YearMonth, BigDecimal> totals = new TreeMap<>();
+        if (history == null) {
+            return totals;
+        }
+        for (Transaction tx : history) {
+            if (tx == null || tx.getType() != TransactionType.INCOME
+                    || tx.getAmount() == null || tx.getDate() == null) {
+                continue;
+            }
+            totals.merge(YearMonth.from(tx.getDate()), tx.getAmount().getValue(), BigDecimal::add);
+        }
+        return totals;
+    }
+
+    /** Total EXPENSE amount logged in {@code month}. */
+    private static BigDecimal monthlyExpenseTotal(List<Transaction> history, YearMonth month) {
+        BigDecimal total = BigDecimal.ZERO;
+        if (history == null) {
+            return total;
+        }
+        for (Transaction tx : history) {
+            if (tx == null || tx.getType() != TransactionType.EXPENSE
+                    || tx.getAmount() == null || tx.getDate() == null
+                    || !YearMonth.from(tx.getDate()).equals(month)) {
+                continue;
+            }
+            total = total.add(tx.getAmount().getValue());
+        }
+        return total;
     }
 
     private static BigDecimal committedBudgetTotal(List<Budget> budgets) {

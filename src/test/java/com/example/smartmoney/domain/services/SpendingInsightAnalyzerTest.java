@@ -707,4 +707,117 @@ class SpendingInsightAnalyzerTest {
         history.add(expense(Category.SHOPPING, 2026, 6, new BigDecimal("600"), "Amazon"));
         assertTrue(hikes(history).isEmpty());
     }
+
+    // ---- Wave 3: income drop (closed-month, low tail of the income series) ------------------
+
+    /** Income of {@code amounts[i]} in Mar+i 2026; pass June's amount as the judged month's income. */
+    private List<Transaction> incomeMonths(String... amounts) {
+        List<Transaction> history = new ArrayList<>();
+        for (int i = 0; i < amounts.length; i++) {
+            if (amounts[i] != null) {
+                history.add(income(2026, 3 + i, new BigDecimal(amounts[i])));
+            }
+        }
+        return history;
+    }
+
+    @Test
+    @DisplayName("income far below a varying baseline → WARN drop with z-score metrics")
+    void incomeDropDetected() {
+        // trailing [4000,5000,6000]: mean 5000, stddev ~816.5; June 3200 → z ~ -2.2 → WARN
+        List<Transaction> history = incomeMonths("4000", "5000", "6000", "3200");
+        Insight insight = analyzer.detectIncomeDrop(history, PERIOD).orElseThrow();
+        assertEquals(InsightType.INCOME_DROP, insight.getType());
+        assertEquals(Severity.WARN, insight.getSeverity());
+        assertNull(insight.getCategory()); // account-wide
+        assertEquals("insight.income_drop", insight.getCode());
+        assertEquals(0, new BigDecimal("5000.00").compareTo((BigDecimal) insight.getMetrics().get("baseline")));
+        assertEquals(0, new BigDecimal("3200.00").compareTo((BigDecimal) insight.getMetrics().get("actual")));
+        assertEquals(0.64, insight.getMetrics().get("dropRatio"));
+    }
+
+    @Test
+    @DisplayName("flat salary baseline: half or less arrived → WARN (z-score is undefined at stddev 0)")
+    void incomeDropFlatBaselineFallback() {
+        List<Transaction> history = incomeMonths("5000", "5000", "5000", "2000"); // 40% of usual
+        Insight insight = analyzer.detectIncomeDrop(history, PERIOD).orElseThrow();
+        assertEquals(Severity.WARN, insight.getSeverity());
+        assertEquals(0.4, insight.getMetrics().get("dropRatio"));
+        assertNull(insight.getMetrics().get("zScore")); // no variance → no z
+    }
+
+    @Test
+    @DisplayName("flat salary baseline: NO income at all this month → CRITICAL")
+    void incomeVanishedIsCritical() {
+        List<Transaction> history = incomeMonths("5000", "5000", "5000"); // nothing in June
+        Insight insight = analyzer.detectIncomeDrop(history, PERIOD).orElseThrow();
+        assertEquals(Severity.CRITICAL, insight.getSeverity());
+        assertEquals(0.0, insight.getMetrics().get("dropRatio"));
+    }
+
+    @Test
+    @DisplayName("a small dip on a flat baseline is not a drop")
+    void smallDipOnFlatBaselineIgnored() {
+        // 70% of usual > the 50% flat-baseline floor
+        assertTrue(analyzer.detectIncomeDrop(incomeMonths("5000", "5000", "5000", "3500"), PERIOD).isEmpty());
+    }
+
+    @Test
+    @DisplayName("income at/above the baseline → no drop")
+    void steadyIncomeNoDrop() {
+        assertTrue(analyzer.detectIncomeDrop(incomeMonths("5000", "5000", "5000", "5000"), PERIOD).isEmpty());
+    }
+
+    @Test
+    @DisplayName("fewer than 3 baseline months → no drop call")
+    void incomeDropNeedsBaseline() {
+        List<Transaction> history = new ArrayList<>();
+        history.add(income(2026, 4, new BigDecimal("5000")));
+        history.add(income(2026, 5, new BigDecimal("5000")));
+        assertTrue(analyzer.detectIncomeDrop(history, PERIOD).isEmpty());
+    }
+
+    // ---- Wave 3: cashflow negative (closed-month expenses vs income) ------------------------
+
+    @Test
+    @DisplayName("month expenses over its income → WARN with deficit metrics")
+    void cashflowNegativeDetected() {
+        List<Transaction> history = new ArrayList<>();
+        history.add(income(2026, 6, new BigDecimal("5000")));
+        history.add(expense(Category.FOOD, 2026, 6, new BigDecimal("6000"))); // ratio 1.2 < 1.25
+        Insight insight = analyzer.detectCashflowNegative(history, PERIOD).orElseThrow();
+        assertEquals(InsightType.CASHFLOW_NEGATIVE, insight.getType());
+        assertEquals(Severity.WARN, insight.getSeverity());
+        assertNull(insight.getCategory());
+        assertEquals("insight.cashflow_negative", insight.getCode());
+        assertEquals(0, new BigDecimal("1000.00").compareTo((BigDecimal) insight.getMetrics().get("deficit")));
+        assertEquals(1.2, insight.getMetrics().get("overshootRatio"));
+    }
+
+    @Test
+    @DisplayName("expenses at 125%+ of income escalate to CRITICAL (same ratio as budget pace)")
+    void cashflowDeepDeficitIsCritical() {
+        List<Transaction> history = new ArrayList<>();
+        history.add(income(2026, 6, new BigDecimal("5000")));
+        history.add(expense(Category.FOOD, 2026, 6, new BigDecimal("7000"))); // ratio 1.4
+        assertEquals(Severity.CRITICAL,
+                analyzer.detectCashflowNegative(history, PERIOD).orElseThrow().getSeverity());
+    }
+
+    @Test
+    @DisplayName("a month that pays for itself → no cashflow insight")
+    void cashflowPositiveNone() {
+        List<Transaction> history = new ArrayList<>();
+        history.add(income(2026, 6, new BigDecimal("5000")));
+        history.add(expense(Category.FOOD, 2026, 6, new BigDecimal("4000")));
+        assertTrue(analyzer.detectCashflowNegative(history, PERIOD).isEmpty());
+    }
+
+    @Test
+    @DisplayName("no income signal in the month → no cashflow verdict (INCOME_DROP's territory)")
+    void cashflowNeedsIncomeSignal() {
+        List<Transaction> history = new ArrayList<>();
+        history.add(expense(Category.FOOD, 2026, 6, new BigDecimal("4000")));
+        assertTrue(analyzer.detectCashflowNegative(history, PERIOD).isEmpty());
+    }
 }

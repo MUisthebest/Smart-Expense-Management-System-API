@@ -1076,6 +1076,125 @@
           "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('accepted', () => pm.response.to.have.status(200));", "pm.expect(pm.response.json().data.status).to.eql('ACCEPTED');"] } }]
         }
       ]
+    },
+    {
+      "name": "13 — Monthly recap: CASHFLOW_NEGATIVE + INCOME_DROP (Wave 3, notification-only)",
+      "description": "The month-rollover recap judges the month that just CLOSED — facts no transaction event can trigger (a vanished income is a transaction that never happened). Normally MonthlyRecapScheduler runs this on the 1st; here the property-gated demo endpoint (app.demo-triggers.enabled=true REQUIRED) runs the same use case with an explicit asOf. NO new seeds needed — folders 0–12 already built the story: July has 20M income but ~24M+ of expenses (cashflow negative), and August has NO income against a flat 20M/month baseline (critical income drop). Run after folders 0–12.",
+      "item": [
+        {
+          "name": "Run recap asOf 2026-08-01 → closed July is cashflow-negative",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/api/v1/demo/adaptive/recap?asOf=2026-08-01", "host": ["{{baseUrl}}"], "path": ["api", "v1", "demo", "adaptive", "recap"], "query": [{ "key": "asOf", "value": "2026-08-01" }] },
+            "description": "Closed month = July 2026: income 20M (folder 4) vs the ~24M+ of expenses folders 2–12 accumulated → CASHFLOW_NEGATIVE. July income equals the flat Apr–Jun baseline, so INCOME_DROP correctly stays quiet. 404? → app.demo-triggers.enabled is not set."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('recap ran', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test('something was sent for July', () => pm.expect(j.data, j.message).to.be.true);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /notifications — assert CASHFLOW_NEGATIVE ping",
+          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/api/v1/notifications", "host": ["{{baseUrl}}"], "path": ["api", "v1", "notifications"] } },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('notifications ok', () => pm.response.to.have.status(200));",
+                  "const items = pm.response.json().data;",
+                  "const ping = items.find(n => typeof n.content === 'string' && n.content.indexOf('cashflow_negative') >= 0);",
+                  "pm.test('CASHFLOW_NEGATIVE recap ping present (assumes narration off → raw i18n key)', () => pm.expect(ping, JSON.stringify(items.map(n => n.content))).to.exist);",
+                  "pm.test('deep-links to transactions', () => pm.expect(ping.deepLink).to.eql('app://transactions'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Run recap asOf 2026-09-01 → closed August has NO income (drop)",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/api/v1/demo/adaptive/recap?asOf=2026-09-01", "host": ["{{baseUrl}}"], "path": ["api", "v1", "demo", "adaptive", "recap"], "query": [{ "key": "asOf", "value": "2026-09-01" }] },
+            "description": "Closed month = August 2026: zero income logged against a flat 20M/month baseline (Apr–Jul) → flat-baseline fallback fires INCOME_DROP at CRITICAL. Cashflow is correctly skipped (no income signal in the month). This is the fact no transaction-triggered rule can ever catch — the trigger is the transaction that DIDN'T happen."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('recap ran', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test('something was sent for August', () => pm.expect(j.data, j.message).to.be.true);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /notifications — assert INCOME_DROP ping",
+          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/api/v1/notifications", "host": ["{{baseUrl}}"], "path": ["api", "v1", "notifications"] } },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('notifications ok', () => pm.response.to.have.status(200));",
+                  "const items = pm.response.json().data;",
+                  "const ping = items.find(n => typeof n.content === 'string' && n.content.indexOf('income_drop') >= 0);",
+                  "pm.test('INCOME_DROP recap ping present (assumes narration off → raw i18n key)', () => pm.expect(ping, JSON.stringify(items.map(n => n.content))).to.exist);",
+                  "pm.test('deep-links to transactions', () => pm.expect(ping.deepLink).to.eql('app://transactions'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "14 — Month-end sweep: CONTRIBUTE_TO_PROJECT without an income event (Wave 3)",
+      "description": "The day-25 sweep decouples the savings nudge from income arrival: NO income was ever logged in August 2026, yet the sweep still raises a CONTRIBUTE_TO_PROJECT ask from the learned average income and the (budget-free) August headroom. Uses the property-gated demo endpoint (app.demo-triggers.enabled=true REQUIRED); MonthEndSweepScheduler runs the identical producer call on the 25th. Needs the folder-4 project to still have room, and the recommended cooldown-hours=0 test profile (folder 4 pushed the same topic family earlier in the run). Run after folders 0–12.",
+      "item": [
+        {
+          "name": "Run sweep asOf 2026-08-25 — no August income, nudge still fires",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/api/v1/demo/adaptive/sweep?asOf=2026-08-25", "host": ["{{baseUrl}}"], "path": ["api", "v1", "demo", "adaptive", "sweep"], "query": [{ "key": "asOf", "value": "2026-08-25" }] },
+            "description": "As of Aug 25: learned avg income ~20M (Apr–Jul), recurring ~3M, NO August budgets committed → disposable > 0 → CONTRIBUTE_TO_PROJECT toward the folder-4 project, scaled by savingPace (BALANCED = 20%), capped at what the project still needs. dedupKey is per-month (…:2026-08), so folder 4's July ask doesn't dedup it away."
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('sweep ran', () => pm.response.to.have.status(200));", "pm.expect(pm.response.json().success).to.be.true;"] } }]
+        },
+        {
+          "name": "GET /suggestions?status=PENDING — assert August CONTRIBUTE ask",
+          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/api/v1/suggestions?status=PENDING", "host": ["{{baseUrl}}"], "path": ["api", "v1", "suggestions"], "query": [{ "key": "status", "value": "PENDING" }] } },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const items = pm.response.json().data;",
+                  "const s = items.find(x => x.type === 'CONTRIBUTE_TO_PROJECT' && typeof x.dedupKey === 'string' && x.dedupKey.indexOf(':2026-08') >= 0);",
+                  "pm.test('sweep raised an August CONTRIBUTE_TO_PROJECT (no income event!)', () => pm.expect(s, JSON.stringify(items.map(x => x.dedupKey))).to.exist);",
+                  "pm.test('payload has projectId + positive resolvedValue', () => { const a = s.payload.proposedAction; pm.expect(a.projectId).to.exist; pm.expect(Number(a.resolvedValue)).to.be.above(0); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
     }
   ]
 }

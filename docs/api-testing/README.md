@@ -42,6 +42,7 @@ Three code facts drive the whole design:
 | 2 | A **pre-verified** account in `email`/`password` | registration needs multipart + an email OTP (`/auth/verify-email`) that can't be automated here — register once by hand, verify, then reuse |
 | 3 | Trait `interventionLevel = GENTLE` (the collection sets this) | `NOTIFY`/null = pull-only → **no suggestions are ever pushed** |
 | 4 | **Recommended test profile:** `app.suggestion.daily-cap=0` and `app.suggestion.cooldown-hours=0` | otherwise the P3-A fatigue ceiling (default cap 3 / 24h cooldown) can legitimately suppress the 2nd–3rd suggestion in a single run and make the flow look broken |
+| 5 | `app.demo-triggers.enabled=true` (env `DEMO_TRIGGERS_ENABLED=true`) — **for folders 13–14 only** | the Wave 3 recap/sweep are scheduler-driven; the demo endpoints (`POST /api/v1/demo/adaptive/recap\|sweep?asOf=…`) run the same code paths on demand. Without the flag the endpoints don't exist (404) |
 
 > The cap/cooldown use the **real** clock and count suggestion rows created *today*, independent of
 > the (back-dated) transaction dates. That is correct production behaviour — it just needs to be
@@ -73,6 +74,8 @@ state from the previous one:
 | `10 — DUPLICATE_CHARGE` | same category+amount+description within 72h → notification-only ping (`app://transactions`), no suggestion |
 | `11 — REBALANCE_BUDGETS` | a budget **write** pushes committed limits over declared income → `BUDGET_OVER_INCOME` → `REBALANCE_BUDGETS` (per-budget snapshot) → accept scales every listed limit down to fit |
 | `12 — REVIEW_SUBSCRIPTION` | a stable recurring charge posts above its tolerance band → `SUBSCRIPTION_PRICE_HIKE` → acknowledge-only `REVIEW_SUBSCRIPTION` (no `proposedAction`, accept executes nothing) |
+| `13 — Monthly recap` | the closed month is judged at rollover: July → `CASHFLOW_NEGATIVE` ping; August (no income logged!) → `INCOME_DROP` ping. Demo endpoint runs the scheduler's exact code path |
+| `14 — Month-end sweep` | a `CONTRIBUTE_TO_PROJECT` ask **without any income event** — the day-25 sweep nudges from learned income + headroom. Demo endpoint, same producer the cron calls |
 
 Folders 7–10 (Wave 1 of the expansion plan) each **seed their own disjoint categories** (TRANSPORTATION,
 CLOTHING, SHOPPING, UTILITIES), so they don't collide with the FOOD/ENTERTAINMENT state from folders 1–4.
@@ -80,6 +83,14 @@ Folders 9 and 10 are **notification-only** — there is no suggestion card or ac
 push landed. Their content is the raw i18n key (e.g. `notification.insight.large_transaction|SHOPPING`)
 **only when server narration is off** — with narration on, assert on the `app://transactions` deep-link
 instead of the key substring.
+
+Folders 13–14 (Wave 3) exercise the **scheduler-driven** flows deterministically: in production
+`MonthlyRecapScheduler` (cron `app.recap.cron`, default 09:00 on the 1st) and `MonthEndSweepScheduler`
+(`app.sweep.cron`, default 09:00 on the 25th) fan these out to all eligible users; the demo endpoints
+run the identical per-user use case for the authenticated account with an explicit `asOf`. They need
+**no new seeds** — they read the world folders 0–12 already built (so run those first): July closed
+over-spent, and August has zero income against a flat 20M baseline. To watch a cron fire for real,
+set `app.recap.enabled=true` and `RECAP_CRON="0 * * * * *"` (every minute) in a demo profile.
 
 Folders 11–12 (Wave 2) differ from everything before them in two ways. **Folder 11's trigger is a budget
 write, not a transaction** — `Create/UpdateBudgetUseCase` now runs the rebalance check after saving, so
