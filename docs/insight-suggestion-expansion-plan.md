@@ -1,6 +1,6 @@
 # Insight & Suggestion System — Expansion Plan
 
-> Status: IN PROGRESS. Ordered easiest → hardest by *total* effort
+> Status: ✅ **COMPLETE** — all four waves shipped. Ordered easiest → hardest by *total* effort
 > (detection + action + trigger + plumbing + risk), not just detection difficulty.
 > Author: analysis pass over the insight/suggestion pipeline (2026-07-02).
 >
@@ -12,7 +12,11 @@
 > same deliverable bar; both open decisions resolved (see as-built notes).
 > ✅ **Wave 3 shipped** (items 6–7: `INCOME_DROP` + `CASHFLOW_NEGATIVE` recap on a month-rollover
 > scheduler, day-25 savings sweep, plus property-gated on-demand demo triggers) — schedulers off by
-> default like the digest. Wave 4 not started.
+> default like the digest.
+> ✅ **Wave 4 shipped** (items 8–10: `PROJECT_OFF_TRACK` + `INCREASE_CONTRIBUTION` on a weekly
+> project-health scheduler, `PROJECT_MILESTONE` + `GOOD_MONTH` positive reinforcement, and the
+> `CREATE_SAVING_PROJECT` deep-link nudge) — item 10 resolved as a nudge, not a suggestion (see
+> as-built notes).
 
 ## Context — how the system works today
 
@@ -177,9 +181,15 @@ Per-item test targets: `SpendingInsightAnalyzerTest`, `SuggestionProducerTest`,
 
 ---
 
-## Wave 4 — Hardest (project lifecycle, positive reinforcement, non-consentable actions)
+## Wave 4 — Hardest (project lifecycle, positive reinforcement, non-consentable actions) — ✅ SHIPPED
 
-### 8. `PROJECT_OFF_TRACK` + `INCREASE_CONTRIBUTION`
+> All three items implemented. New `InsightType`s `PROJECT_OFF_TRACK`, `PROJECT_MILESTONE`,
+> `GOOD_MONTH`; new `SuggestionType` `INCREASE_CONTRIBUTION`; item 10 deliberately adds **no**
+> enum values (resolved as a deep-link nudge). New `ProjectHealthScheduler` (weekly, off by
+> default) + `PositiveReinforcementUseCase`; demo endpoint `POST /demo/adaptive/project-health`.
+> As-built notes below.
+
+### 8. `PROJECT_OFF_TRACK` + `INCREASE_CONTRIBUTION` — ✅ DONE
 - **Insight (new):** `PROJECT_OFF_TRACK` — `remaining ÷ months-to-deadline > observed
   contribution rate`. Needs project reads; the pure analyzer intentionally doesn't load
   projects, so this lives in the producer / a new project-aware service (like
@@ -190,7 +200,7 @@ Per-item test targets: `SpendingInsightAnalyzerTest`, `SuggestionProducerTest`,
   weeks) — more new time-based infra.
 - **Effort:** hard — project-rate math, contribution-history tracking, new trigger.
 
-### 9. `PROJECT_MILESTONE` / `GOOD_MONTH` — positive reinforcement (new message *kind*)
+### 9. `PROJECT_MILESTONE` / `GOOD_MONTH` — positive reinforcement (new message *kind*) — ✅ DONE
 - **What:** "hit 50% of your goal," "stayed under every budget this month." Retention.
 - **Why hard despite simple detection:** no accept action, so it doesn't fit the
   `Suggestion` model — needs its own lightweight positive-notification path *and* its own
@@ -199,7 +209,7 @@ Per-item test targets: `SpendingInsightAnalyzerTest`, `SuggestionProducerTest`,
 - **Trigger:** contribution-made event (milestone) + month-rollover (good-month, rides #6).
 - **Effort:** hard-ish — new category of message + distinct dedup semantics.
 
-### 10. `CREATE_SAVING_PROJECT` — hardest, needs a UX decision
+### 10. `CREATE_SAVING_PROJECT` — hardest, needs a UX decision — ✅ DONE (as a nudge)
 - **What:** persistent `SAVINGS_CAPACITY` with no active project → suggest creating one.
 - **Why hardest:** a project needs a name, target, and deadline the system cannot invent.
   Breaks the one-tap "consent to a resolved number" model. Accept must open a **pre-filled
@@ -216,8 +226,9 @@ Per-item test targets: `SpendingInsightAnalyzerTest`, `SuggestionProducerTest`,
 exercise both the suggestion path and the notification-only path with no new infra).
 ~~Then **5 (REBALANCE)** for the first payoff on `BUDGET_OVER_INCOME`, then 4~~ ✅ **done** (Wave 2
 shipped 5-then-4). ~~Then Wave 3 schedulers~~ ✅ **done** (month-rollover recap + day-25 sweep, both
-flag-gated off). **Next up:** the Wave 4 project/positive work — item 8 can now ride the existing
-scheduler pattern.
+flag-gated off). ~~Then the Wave 4 project/positive work~~ ✅ **done** — item 8 rode the Wave 3
+scheduler pattern as predicted; item 9's GOOD_MONTH rode the recap; item 10 shipped as a
+deep-link nudge. **The plan is complete.**
 
 ### Wave 1 — as-built notes
 - **`SET_CATEGORY_LIMIT`:** third branch in `SuggestionProducer.maybeProduce` (budgetless path), tried
@@ -315,13 +326,70 @@ scheduler pattern.
   (July closed over-spent; August has no income vs a flat 20M baseline). FE guide + i18n reference
   updated; `application.yml` documents all three new flags.
 
+### Wave 4 — as-built notes
+
+- **`PROJECT_OFF_TRACK` / `INCREASE_CONTRIBUTION` (item 8):**
+  - **Detection:** lives in `SuggestionProducer` (`offTrackInsight`) as pure math over the loaded
+    `Project` aggregate — the analyzer stays project-free, as planned. Judged only for live,
+    fundable, non-sub-personal projects **at least one month old**. Required rate = `remaining ÷
+    monthsLeft` (deadline month and current partial month both count — money can still move in
+    both); observed rate = contributions over the trailing **closed** months (up to
+    `OFF_TRACK_OBSERVE_MONTHS = 3`, fewer for younger projects) ÷ that window — the current partial
+    month is excluded because it isn't over yet. Off-track = required > observed. WARN by default;
+    **CRITICAL when stalled** (zero contributed in the whole window — this covers the plan's
+    "stalled = no contribution in N weeks" without a second concept) **or the shortfall is ≥2×**,
+    so HARD users only hear about projects in real trouble.
+  - **Suggestion:** `INCREASE_CONTRIBUTION` reuses the contribute executor verbatim
+    (`case CONTRIBUTE_TO_PROJECT, INCREASE_CONTRIBUTION -> contributeToProject(...)`).
+    `resolvedValue` = the required monthly rate capped at `remaining`. `dedupKey`
+    `INCREASE_CONTRIBUTION:<projectId>:<yearMonth>` — one ask per project per month, several
+    off-track projects each get their own topic (the daily cap arbitrates flooding).
+  - **Trigger:** `ProjectHealthScheduler`, **weekly** (default 09:00 Monday) rather than monthly so
+    a stall is caught within days, while the monthly dedup key + topic cooldown keep the ask itself
+    at most monthly. `app.project-health.enabled` (default **off**), cron overridable via
+    `app.project-health.cron`. Demo endpoint: `POST /api/v1/demo/adaptive/project-health?asOf=…`.
+- **`PROJECT_MILESTONE` / `GOOD_MONTH` (item 9):** new `PositiveReinforcementUseCase` — the
+  engine's first celebratory messages. Notification-only, INFO by nature, so the gate is
+  **presence-of-push** (GENTLE *and* HARD celebrate; NOTIFY stays pull-only — user decision
+  2026-07-03, matching the savings-nudge precedent: the severity gate is about warning fatigue and
+  these aren't warnings). As predicted, they don't fit the `Suggestion` dedup model, so
+  "already congratulated?" is a `SuggestionTopicStat` **marker row** whose presence is the answer:
+  `MILESTONE:<projectId>:<pct>` / `GOOD_MONTH:<yearMonth>`.
+  - **Milestones** (25/50/75/100%): checked synchronously in `AddProjectContributionUseCase` with
+    the progress percent captured before/after the contribution; a jump over several thresholds
+    celebrates only the highest. 100% doubles as the completion cheer. Deep link
+    `app://projects/<id>`. Covers both the press-to-contribute button and suggestion accepts (both
+    run through the same use case).
+  - **GOOD_MONTH** rides the recap: only evaluated when the closed month produced **no negative
+    finding at all** (found, not merely gated off — a bad month stays bad for HARD users too, no
+    accidental sarcasm), then requires ≥1 budget and every budget's `spent ≤ limit`. Deep link
+    `app://budgets`.
+- **`CREATE_SAVING_PROJECT` (item 10) — resolved: deep-link nudge.** Deliberately **no new enum
+  values**: when the savings producer finds capacity but `pickContributionTarget` comes up empty
+  (exactly where the contribute ask used to dead-end), it pushes
+  `notification.nudge.create_saving_project` with deep link
+  `app://projects/create?amount=<pace-scaled seed>` — the FE opens the create form pre-filled; the
+  user supplies the name/target/deadline only they can choose. At most once per month via a
+  `CREATE_SAVING_PROJECT:<yearMonth>` marker. Fires from both the income-create path and the
+  day-25 sweep (same code path), so users who never log income still get it. The `notification.nudge.*`
+  namespace is new: a call-to-action push with no suggestion card and no accept step.
+- **Docs/tests:** producer off-track cases (behind/on-pace/stalled-CRITICAL/young/NOTIFY), nudge
+  once-per-month cases, `PositiveReinforcementUseCaseTest`, recap good-month integration,
+  executor + scheduler fan-out tests (full suite green: 330 tests). Postman folders 15–17 +
+  README rows; FE guide + `i18n.en.reference.json` extended (incl. the new nudge group);
+  `application.yml` documents `app.project-health.*`.
+
 ## Open decisions to resolve before building
 
 - ~~**Item 4:** what does "yes" on `REVIEW_SUBSCRIPTION` execute?~~ **Resolved: (b) acknowledge-only**
   (user decision, 2026-07-02) — no state change; the flip to ACCEPTED is the entire effect.
 - ~~**Item 5:** on stale budgets at accept time?~~ **Resolved: honor the snapshot** (user decision,
   2026-07-02) — apply the consented numbers verbatim; skip budgets deleted since the ask.
-- **Item 10:** is `CREATE_SAVING_PROJECT` a deep-link nudge or a server-executed action?
+- ~~**Item 10:** is `CREATE_SAVING_PROJECT` a deep-link nudge or a server-executed action?~~
+  **Resolved: deep-link nudge** (user decision, 2026-07-03) — notification-only, no suggestion
+  row, no enum value; the deep link carries the pre-fill seed amount. A project needs a name,
+  target and deadline only the user can choose, so there is nothing a server-side "yes" could
+  honestly execute.
 
 ## Quick-reference: new type inventory
 
@@ -334,6 +402,6 @@ scheduler pattern.
 | 5 | BUDGET_OVER_INCOME (existing) | REBALANCE_BUDGETS | updateBudget (×N) | budget write | ✅ done |
 | 6 | INCOME_DROP, CASHFLOW_NEGATIVE (new) | — (recap) | — | month-rollover cron | ✅ done |
 | 7 | SAVINGS_CAPACITY (existing) | CONTRIBUTE_TO_PROJECT (reused) | contribute | day-25 cron | ✅ done |
-| 8 | PROJECT_OFF_TRACK (new) | INCREASE_CONTRIBUTION | contribute | project cron | — |
-| 9 | PROJECT_MILESTONE, GOOD_MONTH (new) | — (positive push) | — | contribution + cron | — |
-| 10 | SAVINGS_CAPACITY persistent (existing) | CREATE_SAVING_PROJECT | createProject / deep-link | no | — |
+| 8 | PROJECT_OFF_TRACK (new) | INCREASE_CONTRIBUTION | contribute | weekly project cron | ✅ done |
+| 9 | PROJECT_MILESTONE, GOOD_MONTH (new) | — (positive push) | — | contribution + recap | ✅ done |
+| 10 | SAVINGS_CAPACITY (existing) | — (deep-link nudge, no enum) | — | income create + sweep | ✅ done |

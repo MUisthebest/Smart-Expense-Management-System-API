@@ -42,7 +42,7 @@ Three code facts drive the whole design:
 | 2 | A **pre-verified** account in `email`/`password` | registration needs multipart + an email OTP (`/auth/verify-email`) that can't be automated here — register once by hand, verify, then reuse |
 | 3 | Trait `interventionLevel = GENTLE` (the collection sets this) | `NOTIFY`/null = pull-only → **no suggestions are ever pushed** |
 | 4 | **Recommended test profile:** `app.suggestion.daily-cap=0` and `app.suggestion.cooldown-hours=0` | otherwise the P3-A fatigue ceiling (default cap 3 / 24h cooldown) can legitimately suppress the 2nd–3rd suggestion in a single run and make the flow look broken |
-| 5 | `app.demo-triggers.enabled=true` (env `DEMO_TRIGGERS_ENABLED=true`) — **for folders 13–14 only** | the Wave 3 recap/sweep are scheduler-driven; the demo endpoints (`POST /api/v1/demo/adaptive/recap\|sweep?asOf=…`) run the same code paths on demand. Without the flag the endpoints don't exist (404) |
+| 5 | `app.demo-triggers.enabled=true` (env `DEMO_TRIGGERS_ENABLED=true`) — **for folders 13–18** | the Wave 3/4 recap, sweep and project-health flows are scheduler-driven; the demo endpoints (`POST /api/v1/demo/adaptive/recap\|sweep\|project-health?asOf=…`) run the same code paths on demand. Without the flag the endpoints don't exist (404) |
 
 > The cap/cooldown use the **real** clock and count suggestion rows created *today*, independent of
 > the (back-dated) transaction dates. That is correct production behaviour — it just needs to be
@@ -76,6 +76,10 @@ state from the previous one:
 | `12 — REVIEW_SUBSCRIPTION` | a stable recurring charge posts above its tolerance band → `SUBSCRIPTION_PRICE_HIKE` → acknowledge-only `REVIEW_SUBSCRIPTION` (no `proposedAction`, accept executes nothing) |
 | `13 — Monthly recap` | the closed month is judged at rollover: July → `CASHFLOW_NEGATIVE` ping; August (no income logged!) → `INCOME_DROP` ping. Demo endpoint runs the scheduler's exact code path |
 | `14 — Month-end sweep` | a `CONTRIBUTE_TO_PROJECT` ask **without any income event** — the day-25 sweep nudges from learned income + headroom. Demo endpoint, same producer the cron calls |
+| `15 — INCREASE_CONTRIBUTION` | a saving project behind the pace its deadline requires → `PROJECT_OFF_TRACK` (CRITICAL when ≥2× behind or stalled) → catch-up ask sized `remaining ÷ months left` → accept records the contribution. **Dynamic dates** (see below) |
+| `16 — PROJECT_MILESTONE` | positive ping when a contribution crosses 25/50/75/100% progress (deep link `app://projects/{id}`); a tiny non-crossing top-up proves each milestone is celebrated **once** |
+| `17 — GOOD_MONTH` | a quiet, budgeted October closes with every budget under its limit → one cheer (`app://budgets`) riding the recap; re-running the recap proves the once-per-month marker |
+| `18 — CREATE_SAVING_PROJECT nudge` | completes/deletes the projects (also proving a 2-threshold jump celebrates only the highest milestone), then the sweep finds capacity with **no active project** → deep-link nudge to the pre-filled create form (no suggestion card — item 10's resolved shape) |
 
 Folders 7–10 (Wave 1 of the expansion plan) each **seed their own disjoint categories** (TRANSPORTATION,
 CLOTHING, SHOPPING, UTILITIES), so they don't collide with the FOOD/ENTERTAINMENT state from folders 1–4.
@@ -100,6 +104,18 @@ their accumulated budgets plus the 20M HEALTH budget to exceed the 20M income). 
 `newLimit`. **Folder 12 is acknowledge-only** — the suggestion card exists and is accepted like any
 other, but the payload has no `proposedAction` and accepting changes no data (EDUCATION is its disjoint
 category).
+
+Folders 15–18 (Wave 4) close out the plan. **Folder 15 is the one deviation from the fixed-2026
+dating**: a project's `createdAt` is the real server clock (the API sets it), and the off-track
+judgment needs the project to be at least a month old — so its pre-request script computes dates
+relative to the real "today" (deadline = the 15th three months out; judged `asOf` the 1st of next
+month). The math stays exactly deterministic (remaining 11M ÷ 3 months → a `3,666,666.67` ask).
+Folders 16–18 are the **positive/nudge** paths: no suggestion cards — they assert on notifications
+(milestone pings deep-linked to the project, the GOOD_MONTH cheer to `app://budgets`, and the
+create-project nudge to `app://projects/create?amount=<seed>`). Folder 18 must run **last**: it
+completes the folder-15 project and deletes the folder-4 one to reach the "capacity but no active
+project" state item 10 targets. Like folders 9–13, their key-substring asserts assume **server
+narration is off**; with narration on, assert the deep links instead.
 
 Because the scenario is pinned to **May 2026**, re-running on the same account hits the
 one-open-ask-per-topic **dedup** (a 2nd PENDING for the same topic is refused) and the accepted

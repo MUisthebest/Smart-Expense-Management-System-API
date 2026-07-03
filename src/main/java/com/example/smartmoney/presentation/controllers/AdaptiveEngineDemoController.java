@@ -105,6 +105,37 @@ public class AdaptiveEngineDemoController {
         }
     }
 
+    @Operation(
+            summary = "Run my project-health check now (demo)",
+            description = "Evaluates every active saving project's pace against its deadline as of "
+                    + "`asOf` (default: today) and may raise an INCREASE_CONTRIBUTION suggestion per "
+                    + "off-track project — the same code path ProjectHealthScheduler runs weekly, for "
+                    + "the caller only. Best-effort: always returns success; check GET /suggestions "
+                    + "for the outcome (on-pace/young projects and dedup/cooldown legitimately skip)."
+    )
+    @PostMapping("/project-health")
+    public ResponseEntity<CheckResponse<Boolean>> runProjectHealth(
+            @Parameter(description = "Bearer token", required = true, hidden = true)
+            @RequestHeader("Authorization") String authHeader,
+            @Parameter(description = "Reference date (YYYY-MM-DD) the pace is judged at. Defaults to today.")
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate asOf) {
+        try {
+            UUID userId = extractUserIdFromToken(authHeader);
+            suggestionProducer.maybeProduceProjectHealth(userId, asOf != null ? asOf : LocalDate.now());
+            return ResponseEntity.ok(CheckResponse.<Boolean>builder()
+                    .success(true)
+                    .message("Project health evaluated — check pending suggestions for catch-up asks")
+                    .data(true)
+                    .build());
+        } catch (Exception e) {
+            log.error("Demo project-health trigger failed", e);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(CheckResponse.<Boolean>builder()
+                    .success(false)
+                    .message("Project-health trigger failed: " + e.getMessage())
+                    .build());
+        }
+    }
+
     private UUID extractUserIdFromToken(String authHeader) {
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             return jwtTokenProvider.getUserIdFromToken(authHeader.substring(7));

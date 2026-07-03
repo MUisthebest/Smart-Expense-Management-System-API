@@ -58,5 +58,25 @@ public enum InsightType {
      * like {@link #INCOME_DROP} it is judged only at month close by the recap. Notification-only
      * (Wave 3).
      */
-    CASHFLOW_NEGATIVE
+    CASHFLOW_NEGATIVE,
+    /**
+     * An active saving project whose required monthly saving rate (remaining ÷ months to deadline)
+     * exceeds the observed contribution rate over the trailing closed months — it will miss its
+     * deadline at the current pace. Needs project reads, so it is evaluated by the project-health
+     * pass in the producer, never by {@code analyze()}. Backs the INCREASE_CONTRIBUTION suggestion
+     * (Wave 4, docs/insight-suggestion-expansion-plan.md).
+     */
+    PROJECT_OFF_TRACK,
+    /**
+     * A contribution pushed a saving project across a progress milestone (25/50/75/100%).
+     * Positive reinforcement: notification-only, evaluated synchronously on contribution, each
+     * milestone congratulated at most once per project. Not emitted by {@code analyze()} (Wave 4).
+     */
+    PROJECT_MILESTONE,
+    /**
+     * A closed month where every budget finished under its limit (and no negative recap finding
+     * fired). Positive reinforcement at month rollover, riding the recap; congratulated at most
+     * once per month. Notification-only, never in {@code analyze()} (Wave 4).
+     */
+    GOOD_MONTH
 }

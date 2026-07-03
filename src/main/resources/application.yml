@@ -113,9 +113,19 @@ app:
     enabled: ${SWEEP_ENABLED:false}
     cron: ${SWEEP_CRON:0 0 9 25 * *}
 
+  # Weekly project-health pass (expansion Wave 4 item 8, ProjectHealthScheduler): checks every
+  # active saving project's pace against its deadline and may raise an INCREASE_CONTRIBUTION
+  # catch-up ask per off-track project. Weekly so a stalled project is caught quickly; the ask
+  # itself is at most monthly per project (dedup key + cooldown). Disabled by default; default
+  # cron 09:00 every Monday.
+  project-health:
+    enabled: ${PROJECT_HEALTH_ENABLED:false}
+    cron: ${PROJECT_HEALTH_CRON:0 0 9 * * MON}
+
   # On-demand triggers for the scheduled flows (AdaptiveEngineDemoController,
-  # POST /api/v1/demo/adaptive/recap|sweep?asOf=...). Testing/demo only — lets Postman run the
-  # recap/sweep code paths deterministically for the authenticated user. Keep OFF in production.
+  # POST /api/v1/demo/adaptive/recap|sweep|project-health?asOf=...). Testing/demo only — lets
+  # Postman run the scheduled code paths deterministically for the authenticated user. Keep OFF
+  # in production.
   demo-triggers:
     enabled: ${DEMO_TRIGGERS_ENABLED:false}
 

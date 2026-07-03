@@ -20,6 +20,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -37,16 +38,19 @@ class SendMonthlyRecapUseCaseTest {
     @Mock private UserRepository userRepository;
     @Mock private CreateNotificationUseCase createNotificationUseCase;
     @Mock private InsightNarrator narrator; // narrate() null by default → push uses the i18n code
+    @Mock private PositiveReinforcementUseCase positiveReinforcementUseCase;
 
     private SendMonthlyRecapUseCase useCase;
     private final UUID userId = UUID.randomUUID();
     /** Recap run on July 1st → the judged (closed) month is June 2026. */
     private static final LocalDate AS_OF = LocalDate.of(2026, 7, 1);
+    private static final YearMonth CLOSED = YearMonth.of(2026, 6);
 
     @BeforeEach
     void setUp() {
         useCase = new SendMonthlyRecapUseCase(transactionRepository, userRepository,
-                new SpendingInsightAnalyzer(), createNotificationUseCase, narrator);
+                new SpendingInsightAnalyzer(), createNotificationUseCase, narrator,
+                positiveReinforcementUseCase);
     }
 
     private void stubUser(Intervention_Level level) {
@@ -134,5 +138,38 @@ class SendMonthlyRecapUseCaseTest {
         assertFalse(useCase.sendFor(userId, AS_OF));
 
         verify(createNotificationUseCase, never()).createNotification(any(), any(), any());
+    }
+
+    // ---- Wave 4 (item 9): GOOD_MONTH rides the recap ---------------------------------------
+
+    @Test
+    @DisplayName("no negative finding → the good-month check runs for the closed month")
+    void healthyMonthOffersGoodMonthCheck() {
+        stubUser(Intervention_Level.GENTLE);
+        List<Transaction> history = new ArrayList<>();
+        for (int m = 3; m <= 6; m++) {
+            history.add(income(m, "5000"));
+        }
+        history.add(expense(6, "1000"));
+        when(transactionRepository.findByUserIdWithFilters(any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(history);
+        when(positiveReinforcementUseCase.maybeCelebrateGoodMonth(userId, CLOSED)).thenReturn(true);
+
+        assertTrue(useCase.sendFor(userId, AS_OF));
+
+        verify(positiveReinforcementUseCase).maybeCelebrateGoodMonth(userId, CLOSED);
+    }
+
+    @Test
+    @DisplayName("a negative finding exists (even if gated off) → no good-month check at all")
+    void badMonthNeverChecksGoodMonth() {
+        // HARD gate drops the WARN income-drop ping, but the bad facts still veto the cheer.
+        stubUser(Intervention_Level.HARD);
+        when(transactionRepository.findByUserIdWithFilters(any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(badJuneHistory());
+
+        useCase.sendFor(userId, AS_OF);
+
+        verify(positiveReinforcementUseCase, never()).maybeCelebrateGoodMonth(any(), any());
     }
 }

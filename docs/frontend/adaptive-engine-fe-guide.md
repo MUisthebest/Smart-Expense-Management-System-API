@@ -162,7 +162,7 @@ Render rules:
 `metrics` is an open map — treat unknown keys as ignorable, so new metrics never break your render.
 
 **Notification-only insights** are **not** returned by `GET /insights` and never become suggestion
-cards. There's no accept action; they're informational pings (Screen 4) only. Two groups:
+cards. There's no accept action; they're informational pings (Screen 4) only. Three groups:
 
 - **Per-transaction** (`LARGE_TRANSACTION`, `DUPLICATE_CHARGE`) — evaluated synchronously when an
   expense is created: a large single charge vs. that category's typical size, or a likely
@@ -172,6 +172,23 @@ cards. There's no accept action; they're informational pings (Screen 4) only. Tw
   usual level, or last month spent more than it earned. Both deep-link to `app://transactions` and
   respect the same `interventionLevel` gate as pushes (NOTIFY users never get them). Backend
   feature-flagged (`app.recap.enabled`, off by default), like the weekly digest.
+- **Positive reinforcement** (`PROJECT_MILESTONE`, `GOOD_MONTH` — Wave 4) — the engine's only
+  *celebratory* pings: a contribution pushed a saving project past 25/50/75/100% (deep link
+  `app://projects/{id}`), or a closed month finished with **every** budget under its limit (deep
+  link `app://budgets`, rides the recap and only fires when the month had nothing negative). Each
+  milestone/month is congratulated **at most once**. Gate is presence-of-push: `GENTLE` *and*
+  `HARD` users get them; `NOTIFY` users don't. Style these as good news — no amber/red.
+
+Related but distinct: the **create-project nudge** (`notification.nudge.create_saving_project`,
+Wave 4) — when the user has savings capacity but **no active project** to receive it, a push
+deep-links to `app://projects/create?amount=<seed>`. Open the project-create form **pre-filled**
+with that amount (user edits freely — name/target/deadline are theirs to choose). No suggestion
+card, no accept step, at most once per month.
+
+One more insight type exists that appears **only inside a suggestion card's `insightSnapshot`**,
+never in `GET /insights`: `PROJECT_OFF_TRACK` (backs `INCREASE_CONTRIBUTION`, Wave 4). Its
+`metrics`: `projectName`, `remaining`, `deadline`, `monthsLeft`, `requiredMonthly`,
+`observedMonthly`, `shortfall`, `observedWindowMonths`.
 
 ---
 
@@ -233,6 +250,7 @@ the user is consenting to** — never recompute it.
 | `CONTRIBUTE_TO_PROJECT` | "Put {resolvedValue} toward {project}?" | `projectId`, `resolvedValue` | records a contribution (an EXPENSE ledger entry) |
 | `REBALANCE_BUDGETS` | "Your budgets total more than your income — shrink them to fit ({resolvedValue} total)?" | `month`, `year`, `resolvedValue` (new committed total), `budgetAdjustments[]` | updates **every listed budget** to its `newLimit` |
 | `REVIEW_SUBSCRIPTION` | "{description} went up from {previousAmount} to {newAmount} — reviewed it?" *(numbers from `insightSnapshot.metrics`)* | **none** (`proposedAction` is `null`) | **nothing** — acknowledge-only; Yes just marks it reviewed |
+| `INCREASE_CONTRIBUTION` | "{project} is behind — add {resolvedValue} this month to catch up?" *(supporting `requiredMonthly`/`observedMonthly` from `insightSnapshot.metrics`)* | `projectId`, `resolvedValue` | records a contribution (same executor as `CONTRIBUTE_TO_PROJECT`) |
 
 `insightSnapshot` is the frozen reason ("why are you asking?") — use it to show the supporting
 number(s) on the card. It's a snapshot, so it stays stable even if live data later changes.
@@ -293,6 +311,12 @@ Routing contract:
     (`content = notification.digest.weekly|<count>`, count = actionable ≥WARN insights) — a Monday
     batch ping for low-interruption users. Backend feature-flagged (`app.digest.enabled`, off by
     default), but wire the route so it works when enabled.
+  - `app://transactions` → open the **transactions list** (per-transaction anomaly and monthly
+    recap pings).
+  - `app://projects/{id}` → open that **project's detail** (milestone celebrations).
+  - `app://budgets` → open the **budgets screen** (GOOD_MONTH celebration).
+  - `app://projects/create?amount={seed}` → open the **project-create form pre-filled** with the
+    seed amount (the create-project nudge; the user edits everything freely).
   - `null` (plain transaction receipts, key `notification.notification_done|…`) → route to their
     normal place / no-op.
 - **Mark read:** `PATCH /api/v1/notifications/read` with `{ "notificationIds": ["…","…"] }`.
@@ -310,8 +334,8 @@ Routing contract:
 | `Saving_Pace` | `RELAXED`, `BALANCED`, `AGGRESIVE` *(sic — one S)* |
 | `Focus_Mode` | `SAVE_MORE`, `REDUCE_SPENDING`, `TRACK_ONLY` |
 | `Severity` | `INFO`, `WARN`, `CRITICAL` |
-| `InsightType` | `OVERSPEND_ANOMALY`, `BUDGET_PACE`, `CATEGORY_TREND`, `RECURRING`, `SAVINGS_CAPACITY`, `BUDGET_OVER_INCOME`, `BUDGET_UNDERSPEND`, `SUBSCRIPTION_PRICE_HIKE` (+ notification-only `LARGE_TRANSACTION`, `DUPLICATE_CHARGE`, `INCOME_DROP`, `CASHFLOW_NEGATIVE` — never in `GET /insights`) |
-| `SuggestionType` | `RAISE_BUDGET`, `CREATE_BUDGET`, `SET_CATEGORY_LIMIT`, `REDUCE_BUDGET`, `CONTRIBUTE_TO_PROJECT`, `REBALANCE_BUDGETS`, `REVIEW_SUBSCRIPTION` |
+| `InsightType` | `OVERSPEND_ANOMALY`, `BUDGET_PACE`, `CATEGORY_TREND`, `RECURRING`, `SAVINGS_CAPACITY`, `BUDGET_OVER_INCOME`, `BUDGET_UNDERSPEND`, `SUBSCRIPTION_PRICE_HIKE` (+ never in `GET /insights`: notification-only `LARGE_TRANSACTION`, `DUPLICATE_CHARGE`, `INCOME_DROP`, `CASHFLOW_NEGATIVE`, `PROJECT_MILESTONE`, `GOOD_MONTH`; card-snapshot-only `PROJECT_OFF_TRACK`) |
+| `SuggestionType` | `RAISE_BUDGET`, `CREATE_BUDGET`, `SET_CATEGORY_LIMIT`, `REDUCE_BUDGET`, `CONTRIBUTE_TO_PROJECT`, `REBALANCE_BUDGETS`, `REVIEW_SUBSCRIPTION`, `INCREASE_CONTRIBUTION` |
 | `SuggestionStatus` | `PENDING`, `ACCEPTED`, `DISMISSED`, `EXPIRED` |
 | `Category` (transactions) | `FOOD`, `TRANSPORTATION`, `CLOTHING`, `UTILITIES`, `ENTERTAINMENT`, `HEALTH`, `EDUCATION`, `SHOPPING`, `OTHER`, `PROJECT_REFUND`, `PROJECT_CONTRIBUTION` — the last two are system-generated ledger entries (accepting `CONTRIBUTE_TO_PROJECT` writes a `PROJECT_CONTRIBUTION` expense; abandoning a project writes `PROJECT_REFUND` income), so localize them in transaction lists |
 | `TransactionType` | `EXPENSE`, `INCOME` |
@@ -328,6 +352,7 @@ insight.savings_capacity
 insight.budget_over_income
 insight.budget_underspend.<category>
 insight.subscription_price_hike.<category>
+insight.project_off_track          # card-snapshot only (INCREASE_CONTRIBUTION), no category
 ```
 Notification `content` keys (may carry `|<ARG>`):
 ```
@@ -338,10 +363,14 @@ notification.suggestion.reduce_budget|<CATEGORY>
 notification.suggestion.contribute_to_project|<PROJECT_NAME>
 notification.suggestion.rebalance_budgets    # account-wide, no arg
 notification.suggestion.review_subscription|<DESCRIPTION>   # arg = the subscription's description
+notification.suggestion.increase_contribution|<PROJECT_NAME>  # catch-up ask → app://suggestions/{id}
 notification.insight.large_transaction|<CATEGORY>   # notification-only ping → app://transactions
 notification.insight.duplicate_charge|<CATEGORY>    # notification-only ping → app://transactions
 notification.insight.income_drop            # monthly recap ping (no arg) → app://transactions
 notification.insight.cashflow_negative      # monthly recap ping (no arg) → app://transactions
+notification.insight.project_milestone|<PROJECT_NAME>  # positive ping → app://projects/{id}
+notification.insight.good_month             # positive ping (no arg) → app://budgets
+notification.nudge.create_saving_project    # deep-link nudge → app://projects/create?amount=<seed>
 notification.digest.pending_suggestions      # daily roll-up → deep-links to app://suggestions
 notification.digest.weekly|<COUNT>           # weekly digest (opt-in flag) → deep-links to app://insights
 notification.notification_done|<notification.expense OR notification.income>|<AMOUNT>|<CATEGORY>

@@ -14,6 +14,7 @@ import com.example.smartmoney.domain.models.transaction.Transaction;
 import com.example.smartmoney.domain.models.transaction.enums.Category;
 import com.example.smartmoney.domain.models.transaction.enums.TransactionType;
 import com.example.smartmoney.application.usecases.group.GroupProjectCompletionService;
+import com.example.smartmoney.application.usecases.insight.PositiveReinforcementUseCase;
 import com.example.smartmoney.domain.repositories.ProjectRepository;
 import com.example.smartmoney.domain.repositories.TransactionRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -46,6 +47,9 @@ class AddProjectContributionUseCaseTest {
     @Mock
     private GroupProjectCompletionService groupProjectCompletionService;
 
+    @Mock
+    private PositiveReinforcementUseCase positiveReinforcementUseCase;
+
     private AddProjectContributionUseCase useCase;
 
     private UUID ownerUuid;
@@ -53,7 +57,8 @@ class AddProjectContributionUseCaseTest {
 
     @BeforeEach
     void setUp() {
-        useCase = new AddProjectContributionUseCase(projectRepository, transactionRepository, groupProjectCompletionService);
+        useCase = new AddProjectContributionUseCase(projectRepository, transactionRepository,
+                groupProjectCompletionService, positiveReinforcementUseCase);
         ownerUuid = UUID.randomUUID();
         ownerId = ownerUuid.toString();
         lenient().when(projectRepository.save(any(Project.class))).thenAnswer(inv -> inv.getArgument(0));
@@ -105,6 +110,21 @@ class AddProjectContributionUseCaseTest {
 
         assertEquals("COMPLETED", res.getStatus());
         verify(transactionRepository).save(any(Transaction.class));
+    }
+
+    @Test
+    @DisplayName("Wave 4: the milestone check runs with before/after progress once the contribution lands")
+    void milestoneCheckSeesTheCrossing() {
+        Project project = activeProject(new BigDecimal("1000"));
+        String projectId = project.getId().toString();
+        when(projectRepository.findById(ProjectId.of(projectId))).thenReturn(Optional.of(project));
+
+        useCase.execute(ownerId, projectId, req(new BigDecimal("300"), null)); // 0% → 30%
+
+        verify(positiveReinforcementUseCase).maybeCelebrateMilestone(
+                eq(ownerUuid), same(project),
+                argThat(before -> before.compareTo(BigDecimal.ZERO) == 0),
+                argThat(after -> after.compareTo(new BigDecimal("30")) == 0));
     }
 
     @Test

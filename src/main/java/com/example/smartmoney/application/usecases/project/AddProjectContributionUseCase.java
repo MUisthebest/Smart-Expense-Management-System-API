@@ -3,6 +3,7 @@ package com.example.smartmoney.application.usecases.project;
 import com.example.smartmoney.application.dtos.requests.project.AddProjectContributionRequest;
 import com.example.smartmoney.application.dtos.responses.project.ProjectDetailResponse;
 import com.example.smartmoney.application.usecases.group.GroupProjectCompletionService;
+import com.example.smartmoney.application.usecases.insight.PositiveReinforcementUseCase;
 import com.example.smartmoney.domain.exceptions.ProjectErrorCode;
 import com.example.smartmoney.domain.exceptions.ProjectException;
 import com.example.smartmoney.domain.models.project.Project;
@@ -18,6 +19,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -39,6 +41,7 @@ public class AddProjectContributionUseCase {
     private final ProjectRepository projectRepository;
     private final TransactionRepository transactionRepository;
     private final GroupProjectCompletionService groupProjectCompletionService;
+    private final PositiveReinforcementUseCase positiveReinforcementUseCase;
 
     @Transactional
     public ProjectDetailResponse execute(String actorId, String projectId, AddProjectContributionRequest request) {
@@ -53,6 +56,9 @@ public class AddProjectContributionUseCase {
             throw new ProjectException("Project deadline has passed; it is now expired",
                     ProjectErrorCode.PROJECT_EXPIRED);
         }
+
+        // Captured before the contribution lands so the milestone check can see the crossing.
+        BigDecimal progressBefore = project.progressPercent();
 
         // Domain validates owner, contributable status, and amount > 0 (throws otherwise).
         project.addContribution(UserId.of(actorId), request.getAmount(), request.getNote());
@@ -84,6 +90,11 @@ public class AddProjectContributionUseCase {
         if (saved.isSubPersonal()) {
             groupProjectCompletionService.evaluateById(saved.getGroupProjectId());
         }
+
+        // Wave 4 (item 9): crossing 25/50/75/100% earns a one-time congratulation. Best-effort
+        // inside the use case — it can never fail the contribution that triggered it.
+        positiveReinforcementUseCase.maybeCelebrateMilestone(
+                UUID.fromString(actorId), saved, progressBefore, saved.progressPercent());
 
         return ProjectDetailResponse.fromDomain(saved);
     }

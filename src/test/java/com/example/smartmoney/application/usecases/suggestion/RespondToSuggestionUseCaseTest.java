@@ -201,6 +201,30 @@ class RespondToSuggestionUseCaseTest {
     }
 
     @Test
+    @DisplayName("Wave 4: accepting an INCREASE_CONTRIBUTION contributes the consented catch-up amount")
+    void acceptIncreaseContribution() {
+        UUID projectId = UUID.randomUUID();
+        SuggestionPayload payload = SuggestionPayload.builder()
+                .proposedAction(SuggestionPayload.ProposedAction.builder()
+                        .projectId(projectId).resolvedValue(new BigDecimal("1750.00")).build())
+                .build();
+        Suggestion s = suggestionOf(userId, SuggestionType.INCREASE_CONTRIBUTION, payload,
+                "INCREASE_CONTRIBUTION:" + projectId + ":2026-06");
+        when(suggestionRepository.findById(s.getId())).thenReturn(Optional.of(s));
+        when(suggestionRepository.markDecidedIfPending(eq(s.getId()), eq(userId),
+                eq(SuggestionStatus.ACCEPTED), any())).thenReturn(1);
+
+        useCase.execute(userId, s.getId(), true);
+
+        // Same executor as CONTRIBUTE_TO_PROJECT — the consented number is what lands.
+        ArgumentCaptor<AddProjectContributionRequest> captor =
+                ArgumentCaptor.forClass(AddProjectContributionRequest.class);
+        verify(addProjectContributionUseCase).execute(
+                eq(userId.toString()), eq(projectId.toString()), captor.capture());
+        assertEquals(0, new BigDecimal("1750.00").compareTo(captor.getValue().getAmount()));
+    }
+
+    @Test
     @DisplayName("Wave 1: accepting a SET_CATEGORY_LIMIT creates the budget at the consented limit")
     void acceptSetCategoryLimit() {
         Suggestion s = setCategoryLimitSuggestion(userId);
