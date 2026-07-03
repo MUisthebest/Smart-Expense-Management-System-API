@@ -32,6 +32,10 @@ import java.util.UUID;
  * WARN+, HARD → CRITICAL only). Pure per-user logic taking an explicit {@code asOf}, separated
  * from the cron trigger ({@code MonthlyRecapScheduler}) so it is unit-testable and demo-runnable
  * without Spring scheduling.
+ *
+ * <p>Wave 4 (item 9): when the closed month produced <em>no</em> negative finding, the recap
+ * instead gives {@link PositiveReinforcementUseCase} a chance to celebrate a GOOD_MONTH (every
+ * budget under its limit).
  */
 @Service
 @Slf4j
@@ -43,6 +47,7 @@ public class SendMonthlyRecapUseCase {
     private final SpendingInsightAnalyzer analyzer;
     private final CreateNotificationUseCase createNotificationUseCase;
     private final InsightNarrator narrator;
+    private final PositiveReinforcementUseCase positiveReinforcementUseCase;
 
     /**
      * Run the recap of the month before {@code asOf} for one user. Returns whether anything was
@@ -63,13 +68,19 @@ public class SendMonthlyRecapUseCase {
         List<Transaction> history = transactionRepository.findByUserIdWithFilters(
                 userId, null, null, windowStart, windowEnd, null, null);
 
+        Insight incomeDrop = analyzer.detectIncomeDrop(history, closed).orElse(null);
+        Insight cashflowNegative = analyzer.detectCashflowNegative(history, closed).orElse(null);
+
         int sent = 0;
-        sent += pushIfQualifying(userId, gate,
-                analyzer.detectIncomeDrop(history, closed).orElse(null),
-                "notification.insight.income_drop");
-        sent += pushIfQualifying(userId, gate,
-                analyzer.detectCashflowNegative(history, closed).orElse(null),
-                "notification.insight.cashflow_negative");
+        sent += pushIfQualifying(userId, gate, incomeDrop, "notification.insight.income_drop");
+        sent += pushIfQualifying(userId, gate, cashflowNegative, "notification.insight.cashflow_negative");
+
+        // Wave 4 (item 9): a month with NO negative finding (found at all, not merely gated off —
+        // a bad month stays a bad month for HARD users too) may instead earn a GOOD_MONTH cheer.
+        if (incomeDrop == null && cashflowNegative == null
+                && positiveReinforcementUseCase.maybeCelebrateGoodMonth(userId, closed)) {
+            sent++;
+        }
 
         if (sent > 0) {
             log.info("[Recap] monthly recap for user {}: {} finding(s) on {}", userId, sent, closed);

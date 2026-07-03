@@ -115,23 +115,32 @@ public class GenerateInsightsUseCase {
                 case RECURRING -> 9;
                 case BUDGET_UNDERSPEND -> 10;
                 case SAVINGS_CAPACITY -> 11;
+                case PROJECT_OFF_TRACK -> 12;
+                // Positive pings are notification-only and never reach this list; ranked last.
+                case PROJECT_MILESTONE -> 13;
+                case GOOD_MONTH -> 14;
             };
         }
         if (focus == Focus_Mode.SAVE_MORE) {
             // Save-mode users: surface saving opportunities and committed costs first.
             return switch (type) {
                 case SAVINGS_CAPACITY -> 0;
-                case INCOME_DROP -> 1;
-                case CASHFLOW_NEGATIVE -> 2;
-                case BUDGET_UNDERSPEND -> 3;
-                case BUDGET_OVER_INCOME -> 4;
-                case SUBSCRIPTION_PRICE_HIKE -> 5;
-                case RECURRING -> 6;
-                case CATEGORY_TREND -> 7;
-                case DUPLICATE_CHARGE -> 8;
-                case LARGE_TRANSACTION -> 9;
-                case OVERSPEND_ANOMALY -> 10;
-                case BUDGET_PACE -> 11;
+                // A saving project falling behind its deadline is the save-mode headline.
+                case PROJECT_OFF_TRACK -> 1;
+                case INCOME_DROP -> 2;
+                case CASHFLOW_NEGATIVE -> 3;
+                case BUDGET_UNDERSPEND -> 4;
+                case BUDGET_OVER_INCOME -> 5;
+                case SUBSCRIPTION_PRICE_HIKE -> 6;
+                case RECURRING -> 7;
+                case CATEGORY_TREND -> 8;
+                case DUPLICATE_CHARGE -> 9;
+                case LARGE_TRANSACTION -> 10;
+                case OVERSPEND_ANOMALY -> 11;
+                case BUDGET_PACE -> 12;
+                // Positive pings are notification-only and never reach this list; ranked last.
+                case PROJECT_MILESTONE -> 13;
+                case GOOD_MONTH -> 14;
             };
         }
         return 0; // TRACK_ONLY / cold-start: no type prioritization, severity order only

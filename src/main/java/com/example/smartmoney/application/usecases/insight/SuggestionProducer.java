@@ -39,13 +39,13 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -79,6 +79,10 @@ public class SuggestionProducer {
     private static final BigDecimal REDUCE_HEADROOM = new BigDecimal("1.15");
     /** Floor for a rebalanced budget limit — never propose scaling a limit below one cent. */
     private static final BigDecimal MIN_LIMIT = new BigDecimal("0.01");
+    /** Trailing closed months over which a project's observed contribution rate is averaged. */
+    static final int OFF_TRACK_OBSERVE_MONTHS = 3;
+    /** Required-rate ÷ observed-rate at or above which an off-track project escalates to CRITICAL. */
+    private static final BigDecimal OFF_TRACK_CRITICAL_RATIO = new BigDecimal("2");
 
     private final SpendingInsightAnalyzer analyzer;
     private final TransactionRepository transactionRepository;
@@ -172,7 +176,9 @@ public class SuggestionProducer {
 
             Project target = pickContributionTarget(userId);
             if (target == null) {
-                return; // no active saving project with room to receive
+                // Wave 4 (item 10): capacity but nowhere to put it — nudge creating a project.
+                maybeNudgeCreateProject(userId, user, capacity, disposable, period);
+                return;
             }
 
             // P2-E: scale the share of disposable by savingPace, then cap at what the project needs.
@@ -221,6 +227,35 @@ public class SuggestionProducer {
     }
 
     /**
+     * Wave 4 (item 8): evaluate every active saving project's pace against its deadline and maybe
+     * ask for a catch-up contribution (INCREASE_CONTRIBUTION) on each project that has fallen
+     * behind. Off-track = the required monthly rate (remaining ÷ months to deadline) exceeds the
+     * observed contribution rate over the trailing closed months. WARN by default; a stalled
+     * project (nothing contributed in the whole window) or a ≥2× shortfall escalates to CRITICAL,
+     * so HARD users only hear about projects in real trouble. Best-effort, never throws.
+     */
+    public void maybeProduceProjectHealth(UUID userId, LocalDate asOf) {
+        try {
+            User user = userRepository.findById(userId).orElse(null);
+            Severity gate = pushGateFor(user == null ? null : user.getInterventionLevel());
+            if (gate == null) {
+                return; // pull-only / unset → no push
+            }
+
+            YearMonth period = YearMonth.from(asOf);
+            for (Project project : projectRepository.findAllByUser(new UserId(userId))) {
+                Insight insight = offTrackInsight(project, asOf);
+                if (insight == null || !insight.getSeverity().atLeast(gate)) {
+                    continue;
+                }
+                persistAndPush(userId, increaseContributionCandidate(insight, project, period));
+            }
+        } catch (Exception e) {
+            log.warn("[Suggestion] project-health producer failed for user {}: {}", userId, e.getMessage());
+        }
+    }
+
+    /**
      * Wave 1: on an expense create, synchronously check the just-saved transaction for two
      * per-transaction anomalies — a {@code LARGE_TRANSACTION} outlier and a {@code DUPLICATE_CHARGE} —
      * and push an informational notification for each (no suggestion, no accept action). Gated by
@@ -252,6 +287,32 @@ public class SuggestionProducer {
     /** Push a notification-only insight (no suggestion card), narrated when available. */
     private void notifyInsight(UUID userId, Insight insight, String fallbackCode) {
         createNotificationUseCase.createNotification(userId, pushText(insight, fallbackCode), "app://transactions");
+    }
+
+    /**
+     * Wave 4 (item 10): the user has savings capacity but no active project to receive it — a
+     * deep-link nudge toward the pre-filled create-project screen, seeded with the pace-scaled
+     * amount. Deliberately <b>not</b> a suggestion row (per the resolved item-10 decision): a
+     * project needs a name, target and deadline only the user can choose, so there is nothing a
+     * server-side "yes" could execute. At most one nudge per month via a topic-stat marker.
+     */
+    private void maybeNudgeCreateProject(UUID userId, User user, Insight capacity,
+                                         BigDecimal disposable, YearMonth period) {
+        String markerKey = "CREATE_SAVING_PROJECT:" + period;
+        if (topicStatRepository.find(userId, markerKey).isPresent()) {
+            return; // already nudged this month
+        }
+        BigDecimal seed = scaleByPace(disposable, user.getSavingPace()).setScale(2, RoundingMode.HALF_UP);
+        if (seed.compareTo(BigDecimal.ZERO) <= 0) {
+            return;
+        }
+
+        createNotificationUseCase.createNotification(
+                userId,
+                pushText(capacity, "notification.nudge.create_saving_project"),
+                "app://projects/create?amount=" + seed.toPlainString());
+        recordPush(userId, markerKey);
+        log.info("[Suggestion] create-project nudge pushed for user={} period={} seed={}", userId, period, seed);
     }
 
     // ---- candidate builders --------------------------------------------------------------
@@ -458,6 +519,101 @@ public class SuggestionProducer {
                 .dedupKey("REBALANCE_BUDGETS:" + period)
                 .payloadJson(payloadJson(insight, action))
                 .notificationContent(pushText(insight, "notification.suggestion.rebalance_budgets"))
+                .build();
+    }
+
+    /**
+     * PROJECT_OFF_TRACK evaluation for one project (Wave 4 item 8). Pure math over the already-
+     * loaded aggregate — no I/O. Judged only for live, fundable projects that are at least one
+     * month old (a fresh project hasn't had a chance to be "behind" yet):
+     * <ul>
+     *   <li>required rate = remaining ÷ months left (deadline month counts, current partial month
+     *       counts — the money can still move in both);</li>
+     *   <li>observed rate = contributions over the trailing closed months (up to
+     *       {@value #OFF_TRACK_OBSERVE_MONTHS}, less for younger projects) ÷ that window. The
+     *       current partial month is excluded — it isn't over, so it can't be under-delivered.</li>
+     * </ul>
+     */
+    private Insight offTrackInsight(Project project, LocalDate asOf) {
+        if (project == null || project.getStatus() != ProjectStatus.ACTIVE || project.isSubPersonal()) {
+            return null;
+        }
+        BigDecimal remaining = project.remaining().amount();
+        if (remaining.compareTo(BigDecimal.ZERO) <= 0 || project.getDeadline() == null
+                || project.getDeadline().isBefore(asOf)) {
+            return null; // funded, or past deadline (lazy expiry handles that elsewhere)
+        }
+
+        YearMonth current = YearMonth.from(asOf);
+        YearMonth createdMonth = YearMonth.from(LocalDate.ofInstant(project.getCreatedAt(), clock.getZone()));
+        long ageMonths = ChronoUnit.MONTHS.between(createdMonth, current);
+        if (ageMonths < 1) {
+            return null; // give a new project a full month before judging its pace
+        }
+
+        long monthsLeft = ChronoUnit.MONTHS.between(current, YearMonth.from(project.getDeadline())) + 1;
+        BigDecimal requiredMonthly = remaining.divide(BigDecimal.valueOf(monthsLeft), 2, RoundingMode.CEILING);
+
+        int windowMonths = (int) Math.min(OFF_TRACK_OBSERVE_MONTHS, ageMonths);
+        Instant windowStart = current.minusMonths(windowMonths).atDay(1).atStartOfDay(clock.getZone()).toInstant();
+        Instant windowEnd = current.atDay(1).atStartOfDay(clock.getZone()).toInstant();
+        BigDecimal observedTotal = project.getContributions().stream()
+                .filter(c -> !c.getCreatedAt().isBefore(windowStart) && c.getCreatedAt().isBefore(windowEnd))
+                .map(c -> c.getMoney().amount())
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal observedMonthly = observedTotal.divide(BigDecimal.valueOf(windowMonths), 2, RoundingMode.HALF_UP);
+
+        if (requiredMonthly.compareTo(observedMonthly) <= 0) {
+            return null; // on pace
+        }
+        // Stalled (nothing in the whole window) or needing ≥2× the observed pace = real trouble.
+        boolean critical = observedMonthly.compareTo(BigDecimal.ZERO) == 0
+                || requiredMonthly.compareTo(observedMonthly.multiply(OFF_TRACK_CRITICAL_RATIO)) >= 0;
+
+        Map<String, Object> metrics = new LinkedHashMap<>();
+        metrics.put("projectName", project.getName());
+        metrics.put("remaining", remaining);
+        metrics.put("deadline", project.getDeadline().toString());
+        metrics.put("monthsLeft", monthsLeft);
+        metrics.put("requiredMonthly", requiredMonthly);
+        metrics.put("observedMonthly", observedMonthly);
+        metrics.put("shortfall", requiredMonthly.subtract(observedMonthly));
+        metrics.put("observedWindowMonths", windowMonths);
+
+        return Insight.builder()
+                .type(InsightType.PROJECT_OFF_TRACK)
+                .category(null)
+                .severity(critical ? Severity.CRITICAL : Severity.WARN)
+                .period(current)
+                .metrics(metrics)
+                .code("insight.project_off_track")
+                .build();
+    }
+
+    /**
+     * INCREASE_CONTRIBUTION: PROJECT_OFF_TRACK on a specific project — ask to contribute the
+     * required monthly catch-up amount (never more than the project still needs). Reuses the
+     * CONTRIBUTE_TO_PROJECT executor shape: {@code projectId} + {@code resolvedValue}.
+     */
+    private Candidate increaseContributionCandidate(Insight insight, Project project, YearMonth period) {
+        BigDecimal amount = toBigDecimal(insight.getMetrics().get("requiredMonthly"))
+                .min(project.remaining().amount())
+                .setScale(2, RoundingMode.HALF_UP);
+        if (amount.compareTo(BigDecimal.ZERO) <= 0) {
+            return null;
+        }
+
+        SuggestionPayload.ProposedAction action = SuggestionPayload.ProposedAction.builder()
+                .projectId(project.getId().value())
+                .resolvedValue(amount)
+                .build();
+
+        return Candidate.builder()
+                .type(SuggestionType.INCREASE_CONTRIBUTION)
+                .severity(insight.getSeverity())
+                .dedupKey("INCREASE_CONTRIBUTION:" + project.getId().value() + ":" + period)
+                .payloadJson(payloadJson(insight, action))
+                .notificationContent(pushText(insight, "notification.suggestion.increase_contribution|" + project.getName()))
                 .build();
     }
 

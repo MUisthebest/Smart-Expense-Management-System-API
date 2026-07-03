@@ -95,7 +95,7 @@ public class RespondToSuggestionUseCase {
         switch (suggestion.getType()) {
             case RAISE_BUDGET, REDUCE_BUDGET -> resizeBudget(payload, userId);
             case CREATE_BUDGET, SET_CATEGORY_LIMIT -> createBudget(payload, userId);
-            case CONTRIBUTE_TO_PROJECT -> contributeToProject(payload, userId);
+            case CONTRIBUTE_TO_PROJECT, INCREASE_CONTRIBUTION -> contributeToProject(payload, userId);
             case REBALANCE_BUDGETS -> rebalanceBudgets(payload, userId);
             // Acknowledge-only: the real action (cancelling the subscription) happens outside the
             // app; "yes" just marks it reviewed. The ACCEPTED flip is the entire effect.

@@ -7,7 +7,13 @@
   },
   "auth": {
     "type": "bearer",
-    "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
   },
   "event": [
     {
@@ -30,20 +36,82 @@
     }
   ],
   "variable": [
-    { "key": "token", "value": "" },
-    { "key": "userId", "value": "" },
-    { "key": "foodBudgetId", "value": "" },
-    { "key": "clothingBudgetId", "value": "" },
-    { "key": "projectId", "value": "" },
-    { "key": "suggestionId", "value": "" },
-    { "key": "seedM1Date", "value": "" },
-    { "key": "seedM2Date", "value": "" },
-    { "key": "seedM3Date", "value": "" },
-    { "key": "triggerDate", "value": "" },
-    { "key": "triggerMonth", "value": "" },
-    { "key": "triggerYear", "value": "" },
-    { "key": "asOfInsights", "value": "" },
-    { "key": "projectDeadline", "value": "" }
+    {
+      "key": "token",
+      "value": ""
+    },
+    {
+      "key": "userId",
+      "value": ""
+    },
+    {
+      "key": "foodBudgetId",
+      "value": ""
+    },
+    {
+      "key": "clothingBudgetId",
+      "value": ""
+    },
+    {
+      "key": "projectId",
+      "value": ""
+    },
+    {
+      "key": "suggestionId",
+      "value": ""
+    },
+    {
+      "key": "seedM1Date",
+      "value": ""
+    },
+    {
+      "key": "seedM2Date",
+      "value": ""
+    },
+    {
+      "key": "seedM3Date",
+      "value": ""
+    },
+    {
+      "key": "triggerDate",
+      "value": ""
+    },
+    {
+      "key": "triggerMonth",
+      "value": ""
+    },
+    {
+      "key": "triggerYear",
+      "value": ""
+    },
+    {
+      "key": "asOfInsights",
+      "value": ""
+    },
+    {
+      "key": "projectDeadline",
+      "value": ""
+    },
+    {
+      "key": "phDeadline",
+      "value": ""
+    },
+    {
+      "key": "phAsOf",
+      "value": ""
+    },
+    {
+      "key": "phProjectId",
+      "value": ""
+    },
+    {
+      "key": "phSuggestionId",
+      "value": ""
+    },
+    {
+      "key": "phMilestoneCount",
+      "value": ""
+    }
   ],
   "item": [
     {
@@ -52,11 +120,32 @@
         {
           "name": "Login",
           "request": {
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "login"] },
-            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}" },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"
+            },
             "description": "Uses a PRE-VERIFIED account (registration needs multipart + an email OTP via /auth/verify-email; not automatable here). Captures the bearer token used by every later request."
           },
           "event": [
@@ -79,9 +168,29 @@
           "name": "Set traits: GENTLE / BALANCED / REDUCE_SPENDING",
           "request": {
             "method": "PUT",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/auth/me/financial-setup", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "me", "financial-setup"] },
-            "body": { "mode": "raw", "raw": "{\n  \"income\": 20000000,\n  \"savingPace\": \"BALANCED\",\n  \"interventionLevel\": \"GENTLE\",\n  \"focusMode\": \"REDUCE_SPENDING\"\n}" },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/me/financial-setup",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "me",
+                "financial-setup"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"income\": 20000000,\n  \"savingPace\": \"BALANCED\",\n  \"interventionLevel\": \"GENTLE\",\n  \"focusMode\": \"REDUCE_SPENDING\"\n}"
+            },
             "description": "interventionLevel GENTLE is REQUIRED for pushed suggestions (NOTIFY / null = pull-only, no suggestions ever). GENTLE means the push gate = WARN. savingPace BALANCED scales CONTRIBUTE amounts to 20% of disposable. focusMode REDUCE_SPENDING orders GET /insights spending-first."
           },
           "event": [
@@ -109,91 +218,343 @@
           "name": "FOOD expense — month -3 (flat 2,000,000)",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/transactions", "host": ["{{baseUrl}}"], "path": ["api", "v1", "transactions"] },
-            "body": { "mode": "raw", "raw": "{\n  \"amount\": 2000000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"FOOD\",\n  \"description\": \"groceries\",\n  \"date\": \"{{seedM3Date}}\"\n}" }
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/transactions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "transactions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 2000000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"FOOD\",\n  \"description\": \"groceries\",\n  \"date\": \"{{seedM3Date}}\"\n}"
+            }
           },
-          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('created', () => pm.response.to.have.status(201));"] } }]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "FOOD expense — month -2 (flat 2,000,000)",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/transactions", "host": ["{{baseUrl}}"], "path": ["api", "v1", "transactions"] },
-            "body": { "mode": "raw", "raw": "{\n  \"amount\": 2000000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"FOOD\",\n  \"description\": \"groceries\",\n  \"date\": \"{{seedM2Date}}\"\n}" }
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/transactions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "transactions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 2000000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"FOOD\",\n  \"description\": \"groceries\",\n  \"date\": \"{{seedM2Date}}\"\n}"
+            }
           },
-          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('created', () => pm.response.to.have.status(201));"] } }]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "FOOD expense — month -1 (flat 2,000,000)",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/transactions", "host": ["{{baseUrl}}"], "path": ["api", "v1", "transactions"] },
-            "body": { "mode": "raw", "raw": "{\n  \"amount\": 2000000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"FOOD\",\n  \"description\": \"groceries\",\n  \"date\": \"{{seedM1Date}}\"\n}" }
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/transactions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "transactions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 2000000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"FOOD\",\n  \"description\": \"groceries\",\n  \"date\": \"{{seedM1Date}}\"\n}"
+            }
           },
-          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('created', () => pm.response.to.have.status(201));"] } }]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "ENTERTAINMENT expense — month -3 (1,000,000)",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/transactions", "host": ["{{baseUrl}}"], "path": ["api", "v1", "transactions"] },
-            "body": { "mode": "raw", "raw": "{\n  \"amount\": 1000000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"ENTERTAINMENT\",\n  \"description\": \"movies\",\n  \"date\": \"{{seedM3Date}}\"\n}" }
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/transactions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "transactions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 1000000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"ENTERTAINMENT\",\n  \"description\": \"movies\",\n  \"date\": \"{{seedM3Date}}\"\n}"
+            }
           },
-          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('created', () => pm.response.to.have.status(201));"] } }]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "ENTERTAINMENT expense — month -2 (1,100,000)",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/transactions", "host": ["{{baseUrl}}"], "path": ["api", "v1", "transactions"] },
-            "body": { "mode": "raw", "raw": "{\n  \"amount\": 1100000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"ENTERTAINMENT\",\n  \"description\": \"movies\",\n  \"date\": \"{{seedM2Date}}\"\n}" }
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/transactions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "transactions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 1100000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"ENTERTAINMENT\",\n  \"description\": \"movies\",\n  \"date\": \"{{seedM2Date}}\"\n}"
+            }
           },
-          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('created', () => pm.response.to.have.status(201));"] } }]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "ENTERTAINMENT expense — month -1 (900,000)",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/transactions", "host": ["{{baseUrl}}"], "path": ["api", "v1", "transactions"] },
-            "body": { "mode": "raw", "raw": "{\n  \"amount\": 900000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"ENTERTAINMENT\",\n  \"description\": \"movies\",\n  \"date\": \"{{seedM1Date}}\"\n}" }
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/transactions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "transactions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 900000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"ENTERTAINMENT\",\n  \"description\": \"movies\",\n  \"date\": \"{{seedM1Date}}\"\n}"
+            }
           },
-          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('created', () => pm.response.to.have.status(201));"] } }]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "INCOME — month -3 (20,000,000)",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/transactions", "host": ["{{baseUrl}}"], "path": ["api", "v1", "transactions"] },
-            "body": { "mode": "raw", "raw": "{\n  \"amount\": 20000000,\n  \"type\": \"INCOME\",\n  \"category\": \"OTHER\",\n  \"description\": \"salary\",\n  \"date\": \"{{seedM3Date}}\"\n}" }
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/transactions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "transactions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 20000000,\n  \"type\": \"INCOME\",\n  \"category\": \"OTHER\",\n  \"description\": \"salary\",\n  \"date\": \"{{seedM3Date}}\"\n}"
+            }
           },
-          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('created', () => pm.response.to.have.status(201));"] } }]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "INCOME — month -2 (20,000,000)",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/transactions", "host": ["{{baseUrl}}"], "path": ["api", "v1", "transactions"] },
-            "body": { "mode": "raw", "raw": "{\n  \"amount\": 20000000,\n  \"type\": \"INCOME\",\n  \"category\": \"OTHER\",\n  \"description\": \"salary\",\n  \"date\": \"{{seedM2Date}}\"\n}" }
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/transactions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "transactions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 20000000,\n  \"type\": \"INCOME\",\n  \"category\": \"OTHER\",\n  \"description\": \"salary\",\n  \"date\": \"{{seedM2Date}}\"\n}"
+            }
           },
-          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('created', () => pm.response.to.have.status(201));"] } }]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "INCOME — month -1 (20,000,000)",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/transactions", "host": ["{{baseUrl}}"], "path": ["api", "v1", "transactions"] },
-            "body": { "mode": "raw", "raw": "{\n  \"amount\": 20000000,\n  \"type\": \"INCOME\",\n  \"category\": \"OTHER\",\n  \"description\": \"salary\",\n  \"date\": \"{{seedM1Date}}\"\n}" }
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/transactions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "transactions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 20000000,\n  \"type\": \"INCOME\",\n  \"category\": \"OTHER\",\n  \"description\": \"salary\",\n  \"date\": \"{{seedM1Date}}\"\n}"
+            }
           },
-          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('created', () => pm.response.to.have.status(201));"] } }]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
@@ -205,9 +566,27 @@
           "name": "Create FOOD budget (limit 10,000,000) for trigger month",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/budgets", "host": ["{{baseUrl}}"], "path": ["api", "v1", "budgets"] },
-            "body": { "mode": "raw", "raw": "{\n  \"category\": \"FOOD\",\n  \"amountLimit\": 3000000,\n  \"month\": {{triggerMonth}},\n  \"year\": {{triggerYear}}\n}" }
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/budgets",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "budgets"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"category\": \"FOOD\",\n  \"amountLimit\": 3000000,\n  \"month\": {{triggerMonth}},\n  \"year\": {{triggerYear}}\n}"
+            }
           },
           "event": [
             {
@@ -227,18 +606,62 @@
           "name": "Trigger: FOOD expense on May 15 (2,000,000) — over pace",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/transactions", "host": ["{{baseUrl}}"], "path": ["api", "v1", "transactions"] },
-            "body": { "mode": "raw", "raw": "{\n  \"amount\": 2000000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"FOOD\",\n  \"description\": \"big grocery run\",\n  \"date\": \"{{triggerDate}}\"\n}" },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/transactions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "transactions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 2000000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"FOOD\",\n  \"description\": \"big grocery run\",\n  \"date\": \"{{triggerDate}}\"\n}"
+            },
             "description": "By day 15 of 31, 2,000,000 spent projects to ~4,130,000 — past the 3,000,000 limit (ratio ~1.38 → CRITICAL) → BUDGET_PACE. The producer runs synchronously inside this create. The proposed raise is income-capped (20,000,000 income, so no cap binds here)."
           },
-          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('created', () => pm.response.to.have.status(201));"] } }]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "GET /insights — assert BUDGET_PACE(FOOD)",
           "request": {
             "method": "GET",
-            "url": { "raw": "{{baseUrl}}/api/v1/insights?asOf={{asOfInsights}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "insights"], "query": [{ "key": "asOf", "value": "{{asOfInsights}}" }] }
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/insights?asOf={{asOfInsights}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "insights"
+              ],
+              "query": [
+                {
+                  "key": "asOf",
+                  "value": "{{asOfInsights}}"
+                }
+              ]
+            }
           },
           "event": [
             {
@@ -260,7 +683,23 @@
           "name": "GET /suggestions?status=PENDING — capture RAISE_BUDGET id",
           "request": {
             "method": "GET",
-            "url": { "raw": "{{baseUrl}}/api/v1/suggestions?status=PENDING", "host": ["{{baseUrl}}"], "path": ["api", "v1", "suggestions"], "query": [{ "key": "status", "value": "PENDING" }] }
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/suggestions?status=PENDING",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "suggestions"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "PENDING"
+                }
+              ]
+            }
           },
           "event": [
             {
@@ -283,9 +722,29 @@
           "name": "POST /suggestions/{id}/respond {accept:true}",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/suggestions/{{suggestionId}}/respond", "host": ["{{baseUrl}}"], "path": ["api", "v1", "suggestions", "{{suggestionId}}", "respond"] },
-            "body": { "mode": "raw", "raw": "{ \"accept\": true }" }
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/suggestions/{{suggestionId}}/respond",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "suggestions",
+                "{{suggestionId}}",
+                "respond"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"accept\": true }"
+            }
           },
           "event": [
             {
@@ -304,7 +763,27 @@
           "name": "GET /budgets — assert FOOD limit raised",
           "request": {
             "method": "GET",
-            "url": { "raw": "{{baseUrl}}/api/v1/budgets?month={{triggerMonth}}&year={{triggerYear}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "budgets"], "query": [{ "key": "month", "value": "{{triggerMonth}}" }, { "key": "year", "value": "{{triggerYear}}" }] },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/budgets?month={{triggerMonth}}&year={{triggerYear}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "budgets"
+              ],
+              "query": [
+                {
+                  "key": "month",
+                  "value": "{{triggerMonth}}"
+                },
+                {
+                  "key": "year",
+                  "value": "{{triggerYear}}"
+                }
+              ]
+            },
             "description": "The accepted RAISE_BUDGET executed Create/UpdateBudget with amountLimit = resolvedValue (> 10,000,000). Verify the FOOD limit moved. Adjust the field path below if the list DTO differs."
           },
           "event": [
@@ -332,16 +811,63 @@
           "name": "Trigger: ENTERTAINMENT spike on May 15 (5,000,000)",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/transactions", "host": ["{{baseUrl}}"], "path": ["api", "v1", "transactions"] },
-            "body": { "mode": "raw", "raw": "{\n  \"amount\": 5000000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"ENTERTAINMENT\",\n  \"description\": \"concert tickets\",\n  \"date\": \"{{triggerDate}}\"\n}" },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/transactions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "transactions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 5000000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"ENTERTAINMENT\",\n  \"description\": \"concert tickets\",\n  \"date\": \"{{triggerDate}}\"\n}"
+            },
             "description": "Baseline ENTERTAINMENT ~1,000,000 with real variance → a 5,000,000 month is a large z-score → OVERSPEND_ANOMALY. No ENTERTAINMENT budget exists → producer picks the CREATE_BUDGET path."
           },
-          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('created', () => pm.response.to.have.status(201));"] } }]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "GET /insights — assert OVERSPEND_ANOMALY(ENTERTAINMENT)",
-          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/api/v1/insights?asOf={{asOfInsights}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "insights"], "query": [{ "key": "asOf", "value": "{{asOfInsights}}" }] } },
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/insights?asOf={{asOfInsights}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "insights"
+              ],
+              "query": [
+                {
+                  "key": "asOf",
+                  "value": "{{asOfInsights}}"
+                }
+              ]
+            }
+          },
           "event": [
             {
               "listen": "test",
@@ -358,7 +884,26 @@
         },
         {
           "name": "GET /suggestions?status=PENDING — capture CREATE_BUDGET id",
-          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/api/v1/suggestions?status=PENDING", "host": ["{{baseUrl}}"], "path": ["api", "v1", "suggestions"], "query": [{ "key": "status", "value": "PENDING" }] } },
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/suggestions?status=PENDING",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "suggestions"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "PENDING"
+                }
+              ]
+            }
+          },
           "event": [
             {
               "listen": "test",
@@ -379,11 +924,42 @@
           "name": "POST /suggestions/{id}/respond {accept:true}",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/suggestions/{{suggestionId}}/respond", "host": ["{{baseUrl}}"], "path": ["api", "v1", "suggestions", "{{suggestionId}}", "respond"] },
-            "body": { "mode": "raw", "raw": "{ \"accept\": true }" }
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/suggestions/{{suggestionId}}/respond",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "suggestions",
+                "{{suggestionId}}",
+                "respond"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"accept\": true }"
+            }
           },
-          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('accepted', () => pm.response.to.have.status(200));", "pm.expect(pm.response.json().data.status).to.eql('ACCEPTED');"] } }]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('accepted', () => pm.response.to.have.status(200));",
+                  "pm.expect(pm.response.json().data.status).to.eql('ACCEPTED');"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
@@ -395,9 +971,27 @@
           "name": "Create saving project (target 10,000,000)",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/projects", "host": ["{{baseUrl}}"], "path": ["api", "v1", "projects"] },
-            "body": { "mode": "raw", "raw": "{\n  \"name\": \"New Laptop\",\n  \"description\": \"savings goal\",\n  \"priority\": \"MEDIUM\",\n  \"targetAmount\": 10000000,\n  \"currency\": \"VND\",\n  \"deadline\": \"{{projectDeadline}}\"\n}" },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/projects",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "projects"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"New Laptop\",\n  \"description\": \"savings goal\",\n  \"priority\": \"MEDIUM\",\n  \"targetAmount\": 10000000,\n  \"currency\": \"VND\",\n  \"deadline\": \"{{projectDeadline}}\"\n}"
+            },
             "description": "Must be an ACTIVE, non-group saving project with room to receive. priority may be optional; remove it if your ProjectPriority enum differs."
           },
           "event": [
@@ -420,16 +1014,63 @@
           "name": "Trigger: INCOME on May 15 (20,000,000)",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/transactions", "host": ["{{baseUrl}}"], "path": ["api", "v1", "transactions"] },
-            "body": { "mode": "raw", "raw": "{\n  \"amount\": 20000000,\n  \"type\": \"INCOME\",\n  \"category\": \"OTHER\",\n  \"description\": \"salary\",\n  \"date\": \"{{triggerDate}}\"\n}" },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/transactions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "transactions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 20000000,\n  \"type\": \"INCOME\",\n  \"category\": \"OTHER\",\n  \"description\": \"salary\",\n  \"date\": \"{{triggerDate}}\"\n}"
+            },
             "description": "Getting paid is the moment the producer checks savings headroom (maybeProduceSavingsContribution). disposable = avgIncome (~20,000,000) - recurring (0) - committed budgets."
           },
-          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('created', () => pm.response.to.have.status(201));"] } }]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "GET /insights — assert SAVINGS_CAPACITY",
-          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/api/v1/insights?asOf={{asOfInsights}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "insights"], "query": [{ "key": "asOf", "value": "{{asOfInsights}}" }] } },
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/insights?asOf={{asOfInsights}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "insights"
+              ],
+              "query": [
+                {
+                  "key": "asOf",
+                  "value": "{{asOfInsights}}"
+                }
+              ]
+            }
+          },
           "event": [
             {
               "listen": "test",
@@ -447,7 +1088,26 @@
         },
         {
           "name": "GET /suggestions?status=PENDING — capture CONTRIBUTE id",
-          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/api/v1/suggestions?status=PENDING", "host": ["{{baseUrl}}"], "path": ["api", "v1", "suggestions"], "query": [{ "key": "status", "value": "PENDING" }] } },
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/suggestions?status=PENDING",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "suggestions"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "PENDING"
+                }
+              ]
+            }
+          },
           "event": [
             {
               "listen": "test",
@@ -468,15 +1128,60 @@
           "name": "POST /suggestions/{id}/respond {accept:true}",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/suggestions/{{suggestionId}}/respond", "host": ["{{baseUrl}}"], "path": ["api", "v1", "suggestions", "{{suggestionId}}", "respond"] },
-            "body": { "mode": "raw", "raw": "{ \"accept\": true }" }
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/suggestions/{{suggestionId}}/respond",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "suggestions",
+                "{{suggestionId}}",
+                "respond"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"accept\": true }"
+            }
           },
-          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('accepted', () => pm.response.to.have.status(200));", "pm.expect(pm.response.json().data.status).to.eql('ACCEPTED');"] } }]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('accepted', () => pm.response.to.have.status(200));",
+                  "pm.expect(pm.response.json().data.status).to.eql('ACCEPTED');"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "GET /projects/{id} — assert contribution recorded",
-          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/api/v1/projects/{{projectId}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "projects", "{{projectId}}"] } },
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/projects/{{projectId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "projects",
+                "{{projectId}}"
+              ]
+            }
+          },
           "event": [
             {
               "listen": "test",
@@ -501,9 +1206,29 @@
           "name": "Re-respond to last accepted id (idempotent)",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/suggestions/{{suggestionId}}/respond", "host": ["{{baseUrl}}"], "path": ["api", "v1", "suggestions", "{{suggestionId}}", "respond"] },
-            "body": { "mode": "raw", "raw": "{ \"accept\": true }" },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/suggestions/{{suggestionId}}/respond",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "suggestions",
+                "{{suggestionId}}",
+                "respond"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"accept\": true }"
+            },
             "description": "Second response returns the current (already-decided) state without executing the action again — the RespondToSuggestionUseCase flips PENDING->decided conditionally."
           },
           "event": [
@@ -526,7 +1251,20 @@
       "item": [
         {
           "name": "GET /notifications — find app://suggestions deep-link",
-          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/api/v1/notifications", "host": ["{{baseUrl}}"], "path": ["api", "v1", "notifications"] } },
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/notifications",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "notifications"
+              ]
+            }
+          },
           "event": [
             {
               "listen": "test",
@@ -552,46 +1290,177 @@
           "name": "TRANSPORTATION — month -3 (1,000,000)",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/transactions", "host": ["{{baseUrl}}"], "path": ["api", "v1", "transactions"] },
-            "body": { "mode": "raw", "raw": "{\n  \"amount\": 1000000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"TRANSPORTATION\",\n  \"description\": \"bus pass\",\n  \"date\": \"{{seedM3Date}}\"\n}" }
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/transactions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "transactions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 1000000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"TRANSPORTATION\",\n  \"description\": \"bus pass\",\n  \"date\": \"{{seedM3Date}}\"\n}"
+            }
           },
-          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('created', () => pm.response.to.have.status(201));"] } }]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "TRANSPORTATION — month -2 (1,500,000)",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/transactions", "host": ["{{baseUrl}}"], "path": ["api", "v1", "transactions"] },
-            "body": { "mode": "raw", "raw": "{\n  \"amount\": 1500000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"TRANSPORTATION\",\n  \"description\": \"bus pass\",\n  \"date\": \"{{seedM2Date}}\"\n}" }
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/transactions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "transactions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 1500000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"TRANSPORTATION\",\n  \"description\": \"bus pass\",\n  \"date\": \"{{seedM2Date}}\"\n}"
+            }
           },
-          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('created', () => pm.response.to.have.status(201));"] } }]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "TRANSPORTATION — month -1 (3,000,000)",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/transactions", "host": ["{{baseUrl}}"], "path": ["api", "v1", "transactions"] },
-            "body": { "mode": "raw", "raw": "{\n  \"amount\": 3000000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"TRANSPORTATION\",\n  \"description\": \"bus pass\",\n  \"date\": \"{{seedM1Date}}\"\n}" }
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/transactions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "transactions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 3000000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"TRANSPORTATION\",\n  \"description\": \"bus pass\",\n  \"date\": \"{{seedM1Date}}\"\n}"
+            }
           },
-          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('created', () => pm.response.to.have.status(201));"] } }]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Trigger: TRANSPORTATION on trigger day (3,200,000)",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/transactions", "host": ["{{baseUrl}}"], "path": ["api", "v1", "transactions"] },
-            "body": { "mode": "raw", "raw": "{\n  \"amount\": 3200000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"TRANSPORTATION\",\n  \"description\": \"bus pass\",\n  \"date\": \"{{triggerDate}}\"\n}" },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/transactions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "transactions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 3200000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"TRANSPORTATION\",\n  \"description\": \"bus pass\",\n  \"date\": \"{{triggerDate}}\"\n}"
+            },
             "description": "Trailing [1.0M,1.5M,3.0M] mean ~1.83M, stddev ~0.85M → trigger 3.2M is z~1.6 (< 2 → below WARN, no anomaly), while the 4-point slope is strongly positive → CATEGORY_TREND. No TRANSPORTATION budget exists → producer falls through CREATE_BUDGET to SET_CATEGORY_LIMIT."
           },
-          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('created', () => pm.response.to.have.status(201));"] } }]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "GET /insights — assert CATEGORY_TREND(TRANSPORTATION)",
-          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/api/v1/insights?asOf={{asOfInsights}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "insights"], "query": [{ "key": "asOf", "value": "{{asOfInsights}}" }] } },
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/insights?asOf={{asOfInsights}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "insights"
+              ],
+              "query": [
+                {
+                  "key": "asOf",
+                  "value": "{{asOfInsights}}"
+                }
+              ]
+            }
+          },
           "event": [
             {
               "listen": "test",
@@ -608,7 +1477,26 @@
         },
         {
           "name": "GET /suggestions?status=PENDING — capture SET_CATEGORY_LIMIT id",
-          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/api/v1/suggestions?status=PENDING", "host": ["{{baseUrl}}"], "path": ["api", "v1", "suggestions"], "query": [{ "key": "status", "value": "PENDING" }] } },
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/suggestions?status=PENDING",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "suggestions"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "PENDING"
+                }
+              ]
+            }
+          },
           "event": [
             {
               "listen": "test",
@@ -629,16 +1517,81 @@
           "name": "POST /suggestions/{id}/respond {accept:true}",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/suggestions/{{suggestionId}}/respond", "host": ["{{baseUrl}}"], "path": ["api", "v1", "suggestions", "{{suggestionId}}", "respond"] },
-            "body": { "mode": "raw", "raw": "{ \"accept\": true }" }
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/suggestions/{{suggestionId}}/respond",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "suggestions",
+                "{{suggestionId}}",
+                "respond"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"accept\": true }"
+            }
           },
-          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('accepted', () => pm.response.to.have.status(200));", "pm.expect(pm.response.json().data.status).to.eql('ACCEPTED');"] } }]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('accepted', () => pm.response.to.have.status(200));",
+                  "pm.expect(pm.response.json().data.status).to.eql('ACCEPTED');"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "GET /budgets — assert TRANSPORTATION budget created",
-          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/api/v1/budgets?month={{triggerMonth}}&year={{triggerYear}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "budgets"], "query": [{ "key": "month", "value": "{{triggerMonth}}" }, { "key": "year", "value": "{{triggerYear}}" }] } },
-          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('budgets ok', () => pm.response.to.have.status(200));", "pm.test('response has data', () => pm.expect(pm.response.json().data).to.exist);"] } }]
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/budgets?month={{triggerMonth}}&year={{triggerYear}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "budgets"
+              ],
+              "query": [
+                {
+                  "key": "month",
+                  "value": "{{triggerMonth}}"
+                },
+                {
+                  "key": "year",
+                  "value": "{{triggerYear}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('budgets ok', () => pm.response.to.have.status(200));",
+                  "pm.test('response has data', () => pm.expect(pm.response.json().data).to.exist);"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
@@ -650,39 +1603,141 @@
           "name": "CLOTHING — month -3 (1,000,000)",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/transactions", "host": ["{{baseUrl}}"], "path": ["api", "v1", "transactions"] },
-            "body": { "mode": "raw", "raw": "{\n  \"amount\": 1000000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"CLOTHING\",\n  \"description\": \"jacket\",\n  \"date\": \"{{seedM3Date}}\"\n}" }
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/transactions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "transactions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 1000000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"CLOTHING\",\n  \"description\": \"jacket\",\n  \"date\": \"{{seedM3Date}}\"\n}"
+            }
           },
-          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('created', () => pm.response.to.have.status(201));"] } }]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "CLOTHING — month -2 (1,000,000)",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/transactions", "host": ["{{baseUrl}}"], "path": ["api", "v1", "transactions"] },
-            "body": { "mode": "raw", "raw": "{\n  \"amount\": 1000000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"CLOTHING\",\n  \"description\": \"jacket\",\n  \"date\": \"{{seedM2Date}}\"\n}" }
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/transactions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "transactions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 1000000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"CLOTHING\",\n  \"description\": \"jacket\",\n  \"date\": \"{{seedM2Date}}\"\n}"
+            }
           },
-          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('created', () => pm.response.to.have.status(201));"] } }]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "CLOTHING — month -1 (1,000,000)",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/transactions", "host": ["{{baseUrl}}"], "path": ["api", "v1", "transactions"] },
-            "body": { "mode": "raw", "raw": "{\n  \"amount\": 1000000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"CLOTHING\",\n  \"description\": \"jacket\",\n  \"date\": \"{{seedM1Date}}\"\n}" }
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/transactions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "transactions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 1000000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"CLOTHING\",\n  \"description\": \"jacket\",\n  \"date\": \"{{seedM1Date}}\"\n}"
+            }
           },
-          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('created', () => pm.response.to.have.status(201));"] } }]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Create CLOTHING budget (limit 5,000,000) for trigger month",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/budgets", "host": ["{{baseUrl}}"], "path": ["api", "v1", "budgets"] },
-            "body": { "mode": "raw", "raw": "{\n  \"category\": \"CLOTHING\",\n  \"amountLimit\": 5000000,\n  \"month\": {{triggerMonth}},\n  \"year\": {{triggerYear}}\n}" }
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/budgets",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "budgets"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"category\": \"CLOTHING\",\n  \"amountLimit\": 5000000,\n  \"month\": {{triggerMonth}},\n  \"year\": {{triggerYear}}\n}"
+            }
           },
           "event": [
             {
@@ -702,16 +1757,63 @@
           "name": "Trigger: CLOTHING on trigger day (500,000) — well under pace",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/transactions", "host": ["{{baseUrl}}"], "path": ["api", "v1", "transactions"] },
-            "body": { "mode": "raw", "raw": "{\n  \"amount\": 500000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"CLOTHING\",\n  \"description\": \"socks\",\n  \"date\": \"{{triggerDate}}\"\n}" },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/transactions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "transactions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 500000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"CLOTHING\",\n  \"description\": \"socks\",\n  \"date\": \"{{triggerDate}}\"\n}"
+            },
             "description": "500,000 by mid-month projects to ~1.0M, far under the 5.0M limit (<= 60% threshold). Trailing median 1.0M is likewise under → BUDGET_UNDERSPEND. No BUDGET_PACE fires (projection under limit), so the producer's reduce branch runs."
           },
-          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('created', () => pm.response.to.have.status(201));"] } }]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "GET /insights — assert BUDGET_UNDERSPEND(CLOTHING)",
-          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/api/v1/insights?asOf={{asOfInsights}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "insights"], "query": [{ "key": "asOf", "value": "{{asOfInsights}}" }] } },
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/insights?asOf={{asOfInsights}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "insights"
+              ],
+              "query": [
+                {
+                  "key": "asOf",
+                  "value": "{{asOfInsights}}"
+                }
+              ]
+            }
+          },
           "event": [
             {
               "listen": "test",
@@ -729,7 +1831,26 @@
         },
         {
           "name": "GET /suggestions?status=PENDING — capture REDUCE_BUDGET id",
-          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/api/v1/suggestions?status=PENDING", "host": ["{{baseUrl}}"], "path": ["api", "v1", "suggestions"], "query": [{ "key": "status", "value": "PENDING" }] } },
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/suggestions?status=PENDING",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "suggestions"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "PENDING"
+                }
+              ]
+            }
+          },
           "event": [
             {
               "listen": "test",
@@ -750,16 +1871,81 @@
           "name": "POST /suggestions/{id}/respond {accept:true}",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/suggestions/{{suggestionId}}/respond", "host": ["{{baseUrl}}"], "path": ["api", "v1", "suggestions", "{{suggestionId}}", "respond"] },
-            "body": { "mode": "raw", "raw": "{ \"accept\": true }" }
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/suggestions/{{suggestionId}}/respond",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "suggestions",
+                "{{suggestionId}}",
+                "respond"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"accept\": true }"
+            }
           },
-          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('accepted', () => pm.response.to.have.status(200));", "pm.expect(pm.response.json().data.status).to.eql('ACCEPTED');"] } }]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('accepted', () => pm.response.to.have.status(200));",
+                  "pm.expect(pm.response.json().data.status).to.eql('ACCEPTED');"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "GET /budgets — assert CLOTHING limit lowered",
-          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/api/v1/budgets?month={{triggerMonth}}&year={{triggerYear}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "budgets"], "query": [{ "key": "month", "value": "{{triggerMonth}}" }, { "key": "year", "value": "{{triggerYear}}" }] } },
-          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('budgets ok', () => pm.response.to.have.status(200));", "pm.test('response has data', () => pm.expect(pm.response.json().data).to.exist);"] } }]
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/budgets?month={{triggerMonth}}&year={{triggerYear}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "budgets"
+              ],
+              "query": [
+                {
+                  "key": "month",
+                  "value": "{{triggerMonth}}"
+                },
+                {
+                  "key": "year",
+                  "value": "{{triggerYear}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('budgets ok', () => pm.response.to.have.status(200));",
+                  "pm.test('response has data', () => pm.expect(pm.response.json().data).to.exist);"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
@@ -771,56 +1957,209 @@
           "name": "SHOPPING charge #1 (400,000)",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/transactions", "host": ["{{baseUrl}}"], "path": ["api", "v1", "transactions"] },
-            "body": { "mode": "raw", "raw": "{\n  \"amount\": 400000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"SHOPPING\",\n  \"description\": \"socks\",\n  \"date\": \"05/07/2026 10:00\"\n}" }
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/transactions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "transactions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 400000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"SHOPPING\",\n  \"description\": \"socks\",\n  \"date\": \"05/07/2026 10:00\"\n}"
+            }
           },
-          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('created', () => pm.response.to.have.status(201));"] } }]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "SHOPPING charge #2 (500,000)",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/transactions", "host": ["{{baseUrl}}"], "path": ["api", "v1", "transactions"] },
-            "body": { "mode": "raw", "raw": "{\n  \"amount\": 500000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"SHOPPING\",\n  \"description\": \"shirt\",\n  \"date\": \"08/07/2026 10:00\"\n}" }
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/transactions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "transactions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 500000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"SHOPPING\",\n  \"description\": \"shirt\",\n  \"date\": \"08/07/2026 10:00\"\n}"
+            }
           },
-          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('created', () => pm.response.to.have.status(201));"] } }]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "SHOPPING charge #3 (600,000)",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/transactions", "host": ["{{baseUrl}}"], "path": ["api", "v1", "transactions"] },
-            "body": { "mode": "raw", "raw": "{\n  \"amount\": 600000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"SHOPPING\",\n  \"description\": \"cap\",\n  \"date\": \"11/07/2026 10:00\"\n}" }
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/transactions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "transactions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 600000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"SHOPPING\",\n  \"description\": \"cap\",\n  \"date\": \"11/07/2026 10:00\"\n}"
+            }
           },
-          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('created', () => pm.response.to.have.status(201));"] } }]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "SHOPPING charge #4 (500,000)",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/transactions", "host": ["{{baseUrl}}"], "path": ["api", "v1", "transactions"] },
-            "body": { "mode": "raw", "raw": "{\n  \"amount\": 500000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"SHOPPING\",\n  \"description\": \"belt\",\n  \"date\": \"13/07/2026 10:00\"\n}" }
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/transactions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "transactions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 500000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"SHOPPING\",\n  \"description\": \"belt\",\n  \"date\": \"13/07/2026 10:00\"\n}"
+            }
           },
-          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('created', () => pm.response.to.have.status(201));"] } }]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Trigger: SHOPPING outlier (10,000,000)",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/transactions", "host": ["{{baseUrl}}"], "path": ["api", "v1", "transactions"] },
-            "body": { "mode": "raw", "raw": "{\n  \"amount\": 10000000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"SHOPPING\",\n  \"description\": \"television\",\n  \"date\": \"{{triggerDate}}\"\n}" },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/transactions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "transactions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 10000000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"SHOPPING\",\n  \"description\": \"television\",\n  \"date\": \"{{triggerDate}}\"\n}"
+            },
             "description": "Prior SHOPPING per-charge amounts ~0.5M with real variance → 10M is a huge per-charge z-score → LARGE_TRANSACTION notification fired inside CreateTransaction (maybeNotifyTransactionAnomalies), gated by interventionLevel."
           },
-          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('created', () => pm.response.to.have.status(201));"] } }]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "GET /notifications — assert LARGE_TRANSACTION ping",
-          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/api/v1/notifications", "host": ["{{baseUrl}}"], "path": ["api", "v1", "notifications"] } },
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/notifications",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "notifications"
+              ]
+            }
+          },
           "event": [
             {
               "listen": "test",
@@ -848,26 +2187,95 @@
           "name": "UTILITIES 'internet bill' (350,000) — first charge",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/transactions", "host": ["{{baseUrl}}"], "path": ["api", "v1", "transactions"] },
-            "body": { "mode": "raw", "raw": "{\n  \"amount\": 350000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"UTILITIES\",\n  \"description\": \"internet bill\",\n  \"date\": \"14/07/2026 10:00\"\n}" }
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/transactions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "transactions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 350000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"UTILITIES\",\n  \"description\": \"internet bill\",\n  \"date\": \"14/07/2026 10:00\"\n}"
+            }
           },
-          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('created', () => pm.response.to.have.status(201));"] } }]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Trigger: identical UTILITIES 'internet bill' (350,000) ~24h later",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/transactions", "host": ["{{baseUrl}}"], "path": ["api", "v1", "transactions"] },
-            "body": { "mode": "raw", "raw": "{\n  \"amount\": 350000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"UTILITIES\",\n  \"description\": \"internet bill\",\n  \"date\": \"{{triggerDate}}\"\n}" },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/transactions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "transactions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 350000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"UTILITIES\",\n  \"description\": \"internet bill\",\n  \"date\": \"{{triggerDate}}\"\n}"
+            },
             "description": "Same category + exact amount + normalized description as the 14 Jul charge, ~24h apart (<= 72h window) → DUPLICATE_CHARGE notification fired inside CreateTransaction."
           },
-          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('created', () => pm.response.to.have.status(201));"] } }]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "GET /notifications — assert DUPLICATE_CHARGE ping",
-          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/api/v1/notifications", "host": ["{{baseUrl}}"], "path": ["api", "v1", "notifications"] } },
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/notifications",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "notifications"
+              ]
+            }
+          },
           "event": [
             {
               "listen": "test",
@@ -895,16 +2303,63 @@
           "name": "Trigger: create HEALTH budget (20,000,000) — total now over income",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/budgets", "host": ["{{baseUrl}}"], "path": ["api", "v1", "budgets"] },
-            "body": { "mode": "raw", "raw": "{\n  \"category\": \"HEALTH\",\n  \"amountLimit\": 20000000,\n  \"month\": {{triggerMonth}},\n  \"year\": {{triggerYear}}\n}" },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/budgets",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "budgets"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"category\": \"HEALTH\",\n  \"amountLimit\": 20000000,\n  \"month\": {{triggerMonth}},\n  \"year\": {{triggerYear}}\n}"
+            },
             "description": "CreateBudgetUseCase runs maybeProduceRebalance after the save: committed limits (this 20M + the FOOD/ENTERTAINMENT/TRANSPORTATION/CLOTHING budgets from earlier folders) now exceed the declared 20M income → BUDGET_OVER_INCOME (WARN, passes the GENTLE gate) → REBALANCE_BUDGETS suggestion with dedupKey REBALANCE_BUDGETS:<period>."
           },
-          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('budget created', () => pm.response.to.have.status(201));"] } }]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('budget created', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "GET /insights — assert BUDGET_OVER_INCOME",
-          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/api/v1/insights?asOf={{asOfInsights}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "insights"], "query": [{ "key": "asOf", "value": "{{asOfInsights}}" }] } },
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/insights?asOf={{asOfInsights}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "insights"
+              ],
+              "query": [
+                {
+                  "key": "asOf",
+                  "value": "{{asOfInsights}}"
+                }
+              ]
+            }
+          },
           "event": [
             {
               "listen": "test",
@@ -923,7 +2378,26 @@
         },
         {
           "name": "GET /suggestions?status=PENDING — capture REBALANCE_BUDGETS id",
-          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/api/v1/suggestions?status=PENDING", "host": ["{{baseUrl}}"], "path": ["api", "v1", "suggestions"], "query": [{ "key": "status", "value": "PENDING" }] } },
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/suggestions?status=PENDING",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "suggestions"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "PENDING"
+                }
+              ]
+            }
+          },
           "event": [
             {
               "listen": "test",
@@ -949,16 +2423,70 @@
           "name": "POST /suggestions/{id}/respond {accept:true}",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/suggestions/{{suggestionId}}/respond", "host": ["{{baseUrl}}"], "path": ["api", "v1", "suggestions", "{{suggestionId}}", "respond"] },
-            "body": { "mode": "raw", "raw": "{ \"accept\": true }" },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/suggestions/{{suggestionId}}/respond",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "suggestions",
+                "{{suggestionId}}",
+                "respond"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"accept\": true }"
+            },
             "description": "Applies the consented snapshot: every listed budget is set to its newLimit (a budget deleted since the ask would be skipped). The numbers are honored verbatim — never recomputed at accept time."
           },
-          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('accepted', () => pm.response.to.have.status(200));", "pm.expect(pm.response.json().data.status).to.eql('ACCEPTED');"] } }]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('accepted', () => pm.response.to.have.status(200));",
+                  "pm.expect(pm.response.json().data.status).to.eql('ACCEPTED');"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "GET /budgets — assert limits scaled down to fit income",
-          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/api/v1/budgets?month={{triggerMonth}}&year={{triggerYear}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "budgets"], "query": [{ "key": "month", "value": "{{triggerMonth}}" }, { "key": "year", "value": "{{triggerYear}}" }] } },
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/budgets?month={{triggerMonth}}&year={{triggerYear}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "budgets"
+              ],
+              "query": [
+                {
+                  "key": "month",
+                  "value": "{{triggerMonth}}"
+                },
+                {
+                  "key": "year",
+                  "value": "{{triggerYear}}"
+                }
+              ]
+            }
+          },
           "event": [
             {
               "listen": "test",
@@ -987,46 +2515,177 @@
           "name": "EDUCATION 'online course' — month -3 (500,000)",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/transactions", "host": ["{{baseUrl}}"], "path": ["api", "v1", "transactions"] },
-            "body": { "mode": "raw", "raw": "{\n  \"amount\": 500000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"EDUCATION\",\n  \"description\": \"online course\",\n  \"date\": \"{{seedM3Date}}\"\n}" }
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/transactions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "transactions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 500000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"EDUCATION\",\n  \"description\": \"online course\",\n  \"date\": \"{{seedM3Date}}\"\n}"
+            }
           },
-          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('created', () => pm.response.to.have.status(201));"] } }]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "EDUCATION 'online course' — month -2 (500,000)",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/transactions", "host": ["{{baseUrl}}"], "path": ["api", "v1", "transactions"] },
-            "body": { "mode": "raw", "raw": "{\n  \"amount\": 500000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"EDUCATION\",\n  \"description\": \"online course\",\n  \"date\": \"{{seedM2Date}}\"\n}" }
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/transactions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "transactions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 500000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"EDUCATION\",\n  \"description\": \"online course\",\n  \"date\": \"{{seedM2Date}}\"\n}"
+            }
           },
-          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('created', () => pm.response.to.have.status(201));"] } }]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "EDUCATION 'online course' — month -1 (500,000)",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/transactions", "host": ["{{baseUrl}}"], "path": ["api", "v1", "transactions"] },
-            "body": { "mode": "raw", "raw": "{\n  \"amount\": 500000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"EDUCATION\",\n  \"description\": \"online course\",\n  \"date\": \"{{seedM1Date}}\"\n}" }
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/transactions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "transactions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 500000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"EDUCATION\",\n  \"description\": \"online course\",\n  \"date\": \"{{seedM1Date}}\"\n}"
+            }
           },
-          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('created', () => pm.response.to.have.status(201));"] } }]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Trigger: EDUCATION 'online course' at 700,000 (+40%)",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/transactions", "host": ["{{baseUrl}}"], "path": ["api", "v1", "transactions"] },
-            "body": { "mode": "raw", "raw": "{\n  \"amount\": 700000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"EDUCATION\",\n  \"description\": \"online course\",\n  \"date\": \"{{triggerDate}}\"\n}" },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/transactions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "transactions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 700000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"EDUCATION\",\n  \"description\": \"online course\",\n  \"date\": \"{{triggerDate}}\"\n}"
+            },
             "description": "Prior months [500k,500k,500k] are a stable recurring group (median 500k, all within ±15%); 700k breaks the band upward (+40%) → SUBSCRIPTION_PRICE_HIKE (WARN, passes the GENTLE gate) → REVIEW_SUBSCRIPTION. Different amount from the seeds → no DUPLICATE_CHARGE; stddev 0 per-charge history → no LARGE_TRANSACTION."
           },
-          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('created', () => pm.response.to.have.status(201));"] } }]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "GET /insights — assert SUBSCRIPTION_PRICE_HIKE(EDUCATION)",
-          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/api/v1/insights?asOf={{asOfInsights}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "insights"], "query": [{ "key": "asOf", "value": "{{asOfInsights}}" }] } },
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/insights?asOf={{asOfInsights}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "insights"
+              ],
+              "query": [
+                {
+                  "key": "asOf",
+                  "value": "{{asOfInsights}}"
+                }
+              ]
+            }
+          },
           "event": [
             {
               "listen": "test",
@@ -1045,7 +2704,26 @@
         },
         {
           "name": "GET /suggestions?status=PENDING — capture REVIEW_SUBSCRIPTION id",
-          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/api/v1/suggestions?status=PENDING", "host": ["{{baseUrl}}"], "path": ["api", "v1", "suggestions"], "query": [{ "key": "status", "value": "PENDING" }] } },
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/suggestions?status=PENDING",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "suggestions"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "PENDING"
+                }
+              ]
+            }
+          },
           "event": [
             {
               "listen": "test",
@@ -1068,12 +2746,43 @@
           "name": "POST /suggestions/{id}/respond {accept:true} — no side effect",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/suggestions/{{suggestionId}}/respond", "host": ["{{baseUrl}}"], "path": ["api", "v1", "suggestions", "{{suggestionId}}", "respond"] },
-            "body": { "mode": "raw", "raw": "{ \"accept\": true }" },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/suggestions/{{suggestionId}}/respond",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "suggestions",
+                "{{suggestionId}}",
+                "respond"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"accept\": true }"
+            },
             "description": "Acknowledge-only by design: accepting flips the card to ACCEPTED and executes nothing — no budget or transaction changes. The real action (cancelling/renegotiating the subscription) happens outside the app."
           },
-          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('accepted', () => pm.response.to.have.status(200));", "pm.expect(pm.response.json().data.status).to.eql('ACCEPTED');"] } }]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('accepted', () => pm.response.to.have.status(200));",
+                  "pm.expect(pm.response.json().data.status).to.eql('ACCEPTED');"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
@@ -1085,7 +2794,25 @@
           "name": "Run recap asOf 2026-08-01 → closed July is cashflow-negative",
           "request": {
             "method": "POST",
-            "url": { "raw": "{{baseUrl}}/api/v1/demo/adaptive/recap?asOf=2026-08-01", "host": ["{{baseUrl}}"], "path": ["api", "v1", "demo", "adaptive", "recap"], "query": [{ "key": "asOf", "value": "2026-08-01" }] },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/demo/adaptive/recap?asOf=2026-08-01",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "demo",
+                "adaptive",
+                "recap"
+              ],
+              "query": [
+                {
+                  "key": "asOf",
+                  "value": "2026-08-01"
+                }
+              ]
+            },
             "description": "Closed month = July 2026: income 20M (folder 4) vs the ~24M+ of expenses folders 2–12 accumulated → CASHFLOW_NEGATIVE. July income equals the flat Apr–Jun baseline, so INCOME_DROP correctly stays quiet. 404? → app.demo-triggers.enabled is not set."
           },
           "event": [
@@ -1104,7 +2831,20 @@
         },
         {
           "name": "GET /notifications — assert CASHFLOW_NEGATIVE ping",
-          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/api/v1/notifications", "host": ["{{baseUrl}}"], "path": ["api", "v1", "notifications"] } },
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/notifications",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "notifications"
+              ]
+            }
+          },
           "event": [
             {
               "listen": "test",
@@ -1125,7 +2865,25 @@
           "name": "Run recap asOf 2026-09-01 → closed August has NO income (drop)",
           "request": {
             "method": "POST",
-            "url": { "raw": "{{baseUrl}}/api/v1/demo/adaptive/recap?asOf=2026-09-01", "host": ["{{baseUrl}}"], "path": ["api", "v1", "demo", "adaptive", "recap"], "query": [{ "key": "asOf", "value": "2026-09-01" }] },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/demo/adaptive/recap?asOf=2026-09-01",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "demo",
+                "adaptive",
+                "recap"
+              ],
+              "query": [
+                {
+                  "key": "asOf",
+                  "value": "2026-09-01"
+                }
+              ]
+            },
             "description": "Closed month = August 2026: zero income logged against a flat 20M/month baseline (Apr–Jul) → flat-baseline fallback fires INCOME_DROP at CRITICAL. Cashflow is correctly skipped (no income signal in the month). This is the fact no transaction-triggered rule can ever catch — the trigger is the transaction that DIDN'T happen."
           },
           "event": [
@@ -1144,7 +2902,20 @@
         },
         {
           "name": "GET /notifications — assert INCOME_DROP ping",
-          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/api/v1/notifications", "host": ["{{baseUrl}}"], "path": ["api", "v1", "notifications"] } },
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/notifications",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "notifications"
+              ]
+            }
+          },
           "event": [
             {
               "listen": "test",
@@ -1171,14 +2942,62 @@
           "name": "Run sweep asOf 2026-08-25 — no August income, nudge still fires",
           "request": {
             "method": "POST",
-            "url": { "raw": "{{baseUrl}}/api/v1/demo/adaptive/sweep?asOf=2026-08-25", "host": ["{{baseUrl}}"], "path": ["api", "v1", "demo", "adaptive", "sweep"], "query": [{ "key": "asOf", "value": "2026-08-25" }] },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/demo/adaptive/sweep?asOf=2026-08-25",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "demo",
+                "adaptive",
+                "sweep"
+              ],
+              "query": [
+                {
+                  "key": "asOf",
+                  "value": "2026-08-25"
+                }
+              ]
+            },
             "description": "As of Aug 25: learned avg income ~20M (Apr–Jul), recurring ~3M, NO August budgets committed → disposable > 0 → CONTRIBUTE_TO_PROJECT toward the folder-4 project, scaled by savingPace (BALANCED = 20%), capped at what the project still needs. dedupKey is per-month (…:2026-08), so folder 4's July ask doesn't dedup it away."
           },
-          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('sweep ran', () => pm.response.to.have.status(200));", "pm.expect(pm.response.json().success).to.be.true;"] } }]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('sweep ran', () => pm.response.to.have.status(200));",
+                  "pm.expect(pm.response.json().success).to.be.true;"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "GET /suggestions?status=PENDING — assert August CONTRIBUTE ask",
-          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/api/v1/suggestions?status=PENDING", "host": ["{{baseUrl}}"], "path": ["api", "v1", "suggestions"], "query": [{ "key": "status", "value": "PENDING" }] } },
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/suggestions?status=PENDING",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "suggestions"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "PENDING"
+                }
+              ]
+            }
+          },
           "event": [
             {
               "listen": "test",
@@ -1189,6 +3008,826 @@
                   "const s = items.find(x => x.type === 'CONTRIBUTE_TO_PROJECT' && typeof x.dedupKey === 'string' && x.dedupKey.indexOf(':2026-08') >= 0);",
                   "pm.test('sweep raised an August CONTRIBUTE_TO_PROJECT (no income event!)', () => pm.expect(s, JSON.stringify(items.map(x => x.dedupKey))).to.exist);",
                   "pm.test('payload has projectId + positive resolvedValue', () => { const a = s.payload.proposedAction; pm.expect(a.projectId).to.exist; pm.expect(Number(a.resolvedValue)).to.be.above(0); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "15 — INCREASE_CONTRIBUTION: project off track (Wave 4)",
+      "description": "A saving project falling behind has NO transaction to react to — the problem is the contributions that DIDN'T happen — so ProjectHealthScheduler judges pace weekly; here the demo endpoint (app.demo-triggers.enabled=true REQUIRED) runs the identical pass with an explicit asOf. Unlike folders 0–14 this scenario uses DYNAMIC dates: a project's createdAt is the real clock (the API sets it), so the pace judgment must be anchored to the real 'today'. The math is still fully deterministic: target 12,000,000, deadline = the 15th three months from now, 1,000,000 contributed this month, judged on the 1st of next month → 3 saving months left, remaining 11,000,000 → required 3,666,666.67/mo vs observed 1,000,000/mo → ≥2× shortfall → CRITICAL → INCREASE_CONTRIBUTION ask. Accepting contributes the catch-up amount — which crosses 25% progress and sets up folder 16's milestone ping.",
+      "item": [
+        {
+          "name": "Create catch-up project (target 12,000,000, deadline +3 months)",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/projects",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "projects"
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Emergency Fund\",\n  \"description\": \"off-track demo\",\n  \"priority\": \"MEDIUM\",\n  \"targetAmount\": 12000000,\n  \"currency\": \"VND\",\n  \"deadline\": \"{{phDeadline}}\"\n}"
+            },
+            "description": "Dynamic dates (see folder description): deadline pinned to the 15th of month+3 so monthsLeft is always exactly 3 when judged from the 1st of next month."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Anchor to the REAL clock: the project's createdAt is server-now, and the off-track",
+                  "// pass requires the project to be ≥1 month old at asOf.",
+                  "const now = new Date();",
+                  "const iso = d => d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');",
+                  "pm.collectionVariables.set('phDeadline', iso(new Date(now.getFullYear(), now.getMonth() + 3, 15)));",
+                  "pm.collectionVariables.set('phAsOf', iso(new Date(now.getFullYear(), now.getMonth() + 1, 1)));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('project created', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
+                  "const j = pm.response.json();",
+                  "const id = (j.data && (j.data.id || j.data.projectId));",
+                  "pm.collectionVariables.set('phProjectId', id);",
+                  "pm.test('captured phProjectId', () => pm.expect(id, JSON.stringify(j.data)).to.exist);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Contribute 1,000,000 now (press-to-contribute)",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/projects/{{phProjectId}}/contributions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "projects",
+                "{{phProjectId}}",
+                "contributions"
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 1000000,\n  \"note\": \"seed pace\"\n}"
+            },
+            "description": "Lands in the current (real) month → it IS the observed rate when next month judges this month. 1,000,000 / 12,000,000 = 8.3% — deliberately under the 25% milestone."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('contribution recorded', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Run project-health asOf next month → CRITICAL off-track",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/demo/adaptive/project-health?asOf={{phAsOf}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "demo",
+                "adaptive",
+                "project-health"
+              ],
+              "query": [
+                {
+                  "key": "asOf",
+                  "value": "{{phAsOf}}"
+                }
+              ]
+            },
+            "description": "Same code path ProjectHealthScheduler fans out weekly, for the caller only. Judged at the 1st of next month: age 1 month, observed window = this month (1,000,000), required 11,000,000/3 → behind ≥2× → CRITICAL (even HARD users would hear this one). 404? → app.demo-triggers.enabled is not set."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('project-health ran', () => pm.response.to.have.status(200));",
+                  "pm.test('endpoint reported success', () => pm.expect(pm.response.json().success).to.be.true);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /suggestions — capture the INCREASE_CONTRIBUTION ask",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/suggestions?status=PENDING",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "suggestions"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "PENDING"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('suggestions ok', () => pm.response.to.have.status(200));",
+                  "const items = pm.response.json().data;",
+                  "const pid = pm.collectionVariables.get('phProjectId');",
+                  "const s = items.find(x => x.type === 'INCREASE_CONTRIBUTION' && x.payload && x.payload.proposedAction && String(x.payload.proposedAction.projectId) === String(pid));",
+                  "pm.test('INCREASE_CONTRIBUTION raised for the off-track project', () => pm.expect(s, JSON.stringify(items.map(x => x.dedupKey))).to.exist);",
+                  "pm.test('dedupKey is per-project per-month', () => pm.expect(s.dedupKey).to.include('INCREASE_CONTRIBUTION:' + pid));",
+                  "pm.test('catch-up amount = remaining 11,000,000 ÷ 3 months', () => pm.expect(Number(s.payload.proposedAction.resolvedValue)).to.eql(3666666.67));",
+                  "pm.test('snapshot explains why: PROJECT_OFF_TRACK, CRITICAL', () => {",
+                  "  pm.expect(s.payload.insightSnapshot.type).to.eql('PROJECT_OFF_TRACK');",
+                  "  pm.expect(s.payload.insightSnapshot.severity).to.eql('CRITICAL');",
+                  "});",
+                  "pm.collectionVariables.set('phSuggestionId', s.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /suggestions/{id}/respond {accept:true} — catch-up lands",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/suggestions/{{phSuggestionId}}/respond",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "suggestions",
+                "{{phSuggestionId}}",
+                "respond"
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accept\": true\n}"
+            },
+            "description": "Same executor as CONTRIBUTE_TO_PROJECT: writes the EXPENSE ledger entry and the project contribution atomically. Progress jumps to (1,000,000+3,666,666.67)/12,000,000 ≈ 38.9% — crossing 25% fires the PROJECT_MILESTONE ping folder 16 asserts."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('accepted', () => pm.response.to.have.status(200));",
+                  "pm.test('status ACCEPTED', () => pm.expect(pm.response.json().data.status).to.eql('ACCEPTED'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /projects/{id} — assert the catch-up contribution landed",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/projects/{{phProjectId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "projects",
+                "{{phProjectId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('project ok', () => pm.response.to.have.status(200));",
+                  "const d = pm.response.json().data;",
+                  "pm.test('totalContributed = 1,000,000 + 3,666,666.67', () => pm.expect(Number(d.totalContributed)).to.eql(4666666.67));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "16 — PROJECT_MILESTONE: 25/50% crossings, each celebrated once (Wave 4, notification-only)",
+      "description": "Positive reinforcement: a contribution that pushes a project past 25/50/75/100% earns a one-time congratulation ping (deep link app://projects/{id}) — no suggestion card, no accept step. Folder 15's accepted catch-up already crossed 25%; here a 2,000,000 top-up crosses 50%, then a tiny 100,000 crossing nothing proves the 'at most once per milestone' marker. Assumes narration off (asserts on the raw i18n key); with narration on, assert the deepLink instead.",
+      "item": [
+        {
+          "name": "GET /notifications — assert the 25% ping from folder 15's accept",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/notifications",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "notifications"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('notifications ok', () => pm.response.to.have.status(200));",
+                  "const items = pm.response.json().data;",
+                  "const pid = pm.collectionVariables.get('phProjectId');",
+                  "const ping = items.find(n => n.deepLink === 'app://projects/' + pid && typeof n.content === 'string' && n.content.indexOf('project_milestone') >= 0);",
+                  "pm.test('25% milestone ping present, deep-linked to the project', () => pm.expect(ping, JSON.stringify(items.map(n => n.content))).to.exist);",
+                  "pm.collectionVariables.set('phMilestoneCount', items.filter(n => typeof n.content === 'string' && n.content.indexOf('project_milestone') >= 0).length);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Contribute 2,000,000 → cross 50%",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/projects/{{phProjectId}}/contributions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "projects",
+                "{{phProjectId}}",
+                "contributions"
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 2000000,\n  \"note\": \"top up\"\n}"
+            },
+            "description": "4,666,666.67 → 6,666,666.67 of 12,000,000: 38.9% → 55.6%, crossing exactly the 50% threshold."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('contribution recorded', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /notifications — assert ONE new milestone ping (50%)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/notifications",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "notifications"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('notifications ok', () => pm.response.to.have.status(200));",
+                  "const items = pm.response.json().data;",
+                  "const before = Number(pm.collectionVariables.get('phMilestoneCount'));",
+                  "const now = items.filter(n => typeof n.content === 'string' && n.content.indexOf('project_milestone') >= 0).length;",
+                  "pm.test('exactly one new milestone ping', () => pm.expect(now).to.eql(before + 1));",
+                  "pm.collectionVariables.set('phMilestoneCount', now);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Contribute 100,000 → crosses nothing",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/projects/{{phProjectId}}/contributions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "projects",
+                "{{phProjectId}}",
+                "contributions"
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 100000,\n  \"note\": \"small\"\n}"
+            },
+            "description": "55.6% → 56.4%: no threshold crossed, so no ping may fire (and 50% must not repeat)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('contribution recorded', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /notifications — assert NO new ping (a milestone is celebrated once)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/notifications",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "notifications"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('notifications ok', () => pm.response.to.have.status(200));",
+                  "const items = pm.response.json().data;",
+                  "const before = Number(pm.collectionVariables.get('phMilestoneCount'));",
+                  "const now = items.filter(n => typeof n.content === 'string' && n.content.indexOf('project_milestone') >= 0).length;",
+                  "pm.test('milestone count unchanged', () => pm.expect(now).to.eql(before));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "17 — GOOD_MONTH: a clean closed month, celebrated once (Wave 4, notification-only)",
+      "description": "The recap's positive arm: a closed month where EVERY budget finished under its limit — and nothing negative fired — earns one cheer (deep link app://budgets). July can't qualify (folders 2–12 blew it — folder 13 proved CASHFLOW_NEGATIVE), so this seeds a quiet October: one 20,000,000 income (matching the flat baseline → no INCOME_DROP), one 5,000,000 FOOD budget, zero October expenses. Recap asOf 2026-11-01 judges closed October → GOOD_MONTH. Re-running proves the once-per-month marker: the endpoint reports nothing sent.",
+      "item": [
+        {
+          "name": "Seed October income (20,000,000) — keeps the recap negatives quiet",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/transactions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "transactions"
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 20000000,\n  \"type\": \"INCOME\",\n  \"category\": \"OTHER\",\n  \"description\": \"salary\",\n  \"date\": \"10/10/2026 10:00\"\n}"
+            },
+            "description": "October income equals the flat 20M baseline → no INCOME_DROP; income > 0 expenses → no CASHFLOW_NEGATIVE. (This income event may also raise an October CONTRIBUTE ask toward an active project — expected, unrelated.)"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('income recorded', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create October FOOD budget (5,000,000) — something to stay under",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/budgets",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "budgets"
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"category\": \"FOOD\",\n  \"amountLimit\": 5000000,\n  \"month\": 10,\n  \"year\": 2026\n}"
+            },
+            "description": "GOOD_MONTH requires ≥1 budget (an unbudgeted month proves nothing). No October expenses exist, so spent stays 0 ≤ limit."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('budget created', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Run recap asOf 2026-11-01 → closed October earns the cheer",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/demo/adaptive/recap?asOf=2026-11-01",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "demo",
+                "adaptive",
+                "recap"
+              ],
+              "query": [
+                {
+                  "key": "asOf",
+                  "value": "2026-11-01"
+                }
+              ]
+            },
+            "description": "No negative finding for October → the recap hands the month to the positive check: every budget under its limit → GOOD_MONTH ping. 404? → app.demo-triggers.enabled is not set."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('recap ran', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test('something was sent for October (the cheer)', () => pm.expect(j.data, j.message).to.be.true);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /notifications — assert GOOD_MONTH ping",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/notifications",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "notifications"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('notifications ok', () => pm.response.to.have.status(200));",
+                  "const items = pm.response.json().data;",
+                  "const ping = items.find(n => typeof n.content === 'string' && n.content.indexOf('good_month') >= 0);",
+                  "pm.test('GOOD_MONTH ping present (assumes narration off → raw i18n key)', () => pm.expect(ping, JSON.stringify(items.map(n => n.content))).to.exist);",
+                  "pm.test('deep-links to budgets', () => pm.expect(ping.deepLink).to.eql('app://budgets'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Re-run recap asOf 2026-11-01 — a month is celebrated once",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/demo/adaptive/recap?asOf=2026-11-01",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "demo",
+                "adaptive",
+                "recap"
+              ],
+              "query": [
+                {
+                  "key": "asOf",
+                  "value": "2026-11-01"
+                }
+              ]
+            },
+            "description": "The GOOD_MONTH:2026-10 marker suppresses the repeat → the recap reports nothing sent (data:false)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('recap ran', () => pm.response.to.have.status(200));",
+                  "pm.test('nothing sent the second time (marker)', () => pm.expect(pm.response.json().data).to.be.false);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "18 — CREATE_SAVING_PROJECT nudge: capacity but no project (Wave 4, deep-link nudge)",
+      "description": "Item 10's resolved shape: when savings capacity exists but there is NO active project to receive it, the engine pushes a deep-link nudge to the pre-filled create-project form — deliberately NOT a suggestion card (a project needs a name/target/deadline only the user can choose, so a server-side 'yes' could execute nothing). To reach that state this folder finishes the project story: completing Emergency Fund with the exact remaining amount (also proving a multi-threshold jump celebrates only the highest milestone: 75% and 100% crossed → ONE ping), deleting New Laptop, then running the day-25 sweep for December — capacity, zero projects → the nudge.",
+      "item": [
+        {
+          "name": "Complete the project: contribute the exact remaining (5,233,333.33)",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/projects/{{phProjectId}}/contributions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "projects",
+                "{{phProjectId}}",
+                "contributions"
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 5233333.33,\n  \"note\": \"finish line\"\n}"
+            },
+            "description": "12,000,000 − (1,000,000 + 3,666,666.67 + 2,000,000 + 100,000) = 5,233,333.33. Jumps 56.4% → 100%: crosses BOTH 75% and 100% — the milestone check celebrates only the highest. Completion is synchronous."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('contribution recorded', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
+                  "pm.test('project completed synchronously', () => pm.expect(pm.response.json().data.status).to.eql('COMPLETED'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /notifications — assert ONE new ping despite crossing two milestones",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/notifications",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "notifications"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('notifications ok', () => pm.response.to.have.status(200));",
+                  "const items = pm.response.json().data;",
+                  "const before = Number(pm.collectionVariables.get('phMilestoneCount'));",
+                  "const now = items.filter(n => typeof n.content === 'string' && n.content.indexOf('project_milestone') >= 0).length;",
+                  "pm.test('exactly one new milestone ping (the 100%)', () => pm.expect(now).to.eql(before + 1));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete the New Laptop project — zero active projects remain",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/projects/{{projectId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "projects",
+                "{{projectId}}"
+              ]
+            },
+            "description": "Standalone personal project → hard delete. Emergency Fund is COMPLETED (terminal), so the account now has no ACTIVE project to receive a contribution."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('deleted', () => pm.expect(pm.response.code).to.be.oneOf([200, 204]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Run sweep asOf 2026-12-25 — capacity with nowhere to put it",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/demo/adaptive/sweep?asOf=2026-12-25",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "demo",
+                "adaptive",
+                "sweep"
+              ],
+              "query": [
+                {
+                  "key": "asOf",
+                  "value": "2026-12-25"
+                }
+              ]
+            },
+            "description": "December: learned income, no December budgets → disposable > 0; no active project → instead of a CONTRIBUTE ask, the producer pushes the create-project nudge (at most once per month via the CREATE_SAVING_PROJECT:2026-12 marker)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('sweep ran', () => pm.response.to.have.status(200));",
+                  "pm.test('endpoint reported success', () => pm.expect(pm.response.json().success).to.be.true);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /notifications — assert the nudge with the pre-fill deep link",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/notifications",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "notifications"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('notifications ok', () => pm.response.to.have.status(200));",
+                  "const items = pm.response.json().data;",
+                  "const nudge = items.find(n => typeof n.deepLink === 'string' && n.deepLink.indexOf('app://projects/create?amount=') === 0);",
+                  "pm.test('create-project nudge present, deep-linked to the pre-filled form', () => pm.expect(nudge, JSON.stringify(items.map(n => n.deepLink))).to.exist);",
+                  "pm.test('content is the nudge key (assumes narration off)', () => pm.expect(nudge.content).to.include('create_saving_project'));",
+                  "pm.test('seed amount rides the deep link', () => pm.expect(Number(nudge.deepLink.split('amount=')[1])).to.be.above(0));"
                 ]
               }
             }

@@ -4,9 +4,14 @@ import com.example.smartmoney.application.usecases.notification.CreateNotificati
 import com.example.smartmoney.application.usecases.suggestion.SuggestionPayload;
 import com.example.smartmoney.domain.models.budget.Budget;
 import com.example.smartmoney.domain.models.project.Project;
+import com.example.smartmoney.domain.models.project.ProjectContribution;
+import com.example.smartmoney.domain.models.project.enums.ProjectPriority;
 import com.example.smartmoney.domain.models.project.enums.ProjectStatus;
+import com.example.smartmoney.domain.models.project.enums.ProjectType;
+import com.example.smartmoney.domain.models.project.valueobjects.ContributionId;
 import com.example.smartmoney.domain.models.project.valueobjects.Money;
 import com.example.smartmoney.domain.models.project.valueobjects.ProjectId;
+import com.example.smartmoney.domain.models.project.valueobjects.UserId;
 import com.example.smartmoney.domain.models.suggestion.Suggestion;
 import com.example.smartmoney.domain.models.suggestion.SuggestionTopicStat;
 import com.example.smartmoney.domain.models.suggestion.SuggestionType;
@@ -439,18 +444,45 @@ class SuggestionProducerTest {
     }
 
     @Test
-    @DisplayName("P2-B: no active saving project → no contribution suggestion")
-    void noProjectNoContribution() {
+    @DisplayName("P2-B → Wave 4 item 10: no active saving project → no contribution ask; a create-project deep-link nudge instead")
+    void noProjectNudgesCreateProject() {
         stubUser(Intervention_Level.GENTLE, Saving_Pace.BALANCED);
         when(transactionRepository.findByUserIdWithFilters(any(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(incomeHistory());
         when(budgetRepository.findByUserIdMonthYear(eq(userId), eq(6), eq(2026))).thenReturn(List.of());
         when(projectRepository.findAllByUser(any())).thenReturn(List.of());
+        when(topicStatRepository.find(userId, "CREATE_SAVING_PROJECT:2026-06"))
+                .thenReturn(Optional.empty());
 
         producer.maybeProduceSavingsContribution(userId, AS_OF);
 
+        // No suggestion row — there is nothing a server-side "yes" could execute (item 10 decision).
         verify(suggestionRepository, never()).save(any());
+        // The nudge deep-links to the pre-filled create form, seeded pace-scaled (5000 × 0.20).
+        verify(createNotificationUseCase).createNotification(eq(userId),
+                eq("notification.nudge.create_saving_project"),
+                eq("app://projects/create?amount=1000.00"));
+        // Marked so the nudge fires at most once per month.
+        ArgumentCaptor<SuggestionTopicStat> marker = ArgumentCaptor.forClass(SuggestionTopicStat.class);
+        verify(topicStatRepository).save(marker.capture());
+        assertEquals("CREATE_SAVING_PROJECT:2026-06", marker.getValue().getDedupKey());
+    }
+
+    @Test
+    @DisplayName("Wave 4 item 10: the create-project nudge fires at most once per month")
+    void createProjectNudgeOncePerMonth() {
+        stubUser(Intervention_Level.GENTLE, Saving_Pace.BALANCED);
+        when(transactionRepository.findByUserIdWithFilters(any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(incomeHistory());
+        when(budgetRepository.findByUserIdMonthYear(eq(userId), eq(6), eq(2026))).thenReturn(List.of());
+        when(projectRepository.findAllByUser(any())).thenReturn(List.of());
+        when(topicStatRepository.find(userId, "CREATE_SAVING_PROJECT:2026-06"))
+                .thenReturn(Optional.of(topicStat("CREATE_SAVING_PROJECT:2026-06", 0)));
+
+        producer.maybeProduceSavingsContribution(userId, AS_OF);
+
         verify(createNotificationUseCase, never()).createNotification(any(), any(), any());
+        verify(topicStatRepository, never()).save(any());
     }
 
     // ---- helpers for the Phase-2 cases ---------------------------------------------------
@@ -803,5 +835,121 @@ class SuggestionProducerTest {
         verify(createNotificationUseCase).createNotification(eq(userId),
                 eq("notification.suggestion.review_subscription|netflix premium"),
                 startsWith("app://suggestions/"));
+    }
+
+    // ---- Wave 4: PROJECT_OFF_TRACK / INCREASE_CONTRIBUTION ---------------------------------
+
+    /** A rehydrated project with explicit createdAt/deadline/contributions — fully clock-independent. */
+    private Project savingProject(UUID projectId, String target, LocalDate deadline, Instant createdAt,
+                                  List<ProjectContribution> contributions) {
+        return Project.rehydrate(new ProjectId(projectId), new UserId(userId), ProjectType.PERSONAL,
+                ProjectStatus.ACTIVE, ProjectPriority.MEDIUM, "Trip", null,
+                new Money(new BigDecimal(target), "VND"), deadline, null, contributions, null, createdAt);
+    }
+
+    private ProjectContribution contribution(String amount, String instant) {
+        return new ProjectContribution(ContributionId.newId(), new UserId(userId),
+                new Money(new BigDecimal(amount), "VND"), null, Instant.parse(instant));
+    }
+
+    @Test
+    @DisplayName("Wave 4: a project behind its required pace → INCREASE_CONTRIBUTION sized to the catch-up rate")
+    void behindPaceProducesIncreaseContribution() throws Exception {
+        stubUser(Intervention_Level.GENTLE);
+        UUID projectId = UUID.randomUUID();
+        // Target 10000, deadline Sep 30 → 4 saving months left (Jun–Sep). Contributed 1000/month
+        // Mar–May → observed 1000/mo; remaining 7000 needs 1750/mo → behind, but < 2× → WARN.
+        Project project = savingProject(projectId, "10000", LocalDate.of(2026, 9, 30),
+                Instant.parse("2026-03-01T00:00:00Z"),
+                List.of(contribution("1000", "2026-03-10T00:00:00Z"),
+                        contribution("1000", "2026-04-10T00:00:00Z"),
+                        contribution("1000", "2026-05-10T00:00:00Z")));
+        when(projectRepository.findAllByUser(any())).thenReturn(List.of(project));
+        when(suggestionRepository.findOpenByUserIdAndDedupKey(eq(userId), anyString()))
+                .thenReturn(Optional.empty());
+        when(suggestionRepository.save(any(Suggestion.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        producer.maybeProduceProjectHealth(userId, AS_OF);
+
+        ArgumentCaptor<Suggestion> captor = ArgumentCaptor.forClass(Suggestion.class);
+        verify(suggestionRepository).save(captor.capture());
+        Suggestion saved = captor.getValue();
+        assertEquals(SuggestionType.INCREASE_CONTRIBUTION, saved.getType());
+        assertEquals("INCREASE_CONTRIBUTION:" + projectId + ":2026-06", saved.getDedupKey());
+
+        SuggestionPayload payload = objectMapper.readValue(saved.getPayloadJson(), SuggestionPayload.class);
+        assertEquals(projectId, payload.getProposedAction().getProjectId());
+        // requiredMonthly = remaining 7000 ÷ 4 months = 1750 (well under the 7000 remaining cap).
+        assertEquals(0, new BigDecimal("1750.00").compareTo(payload.getProposedAction().getResolvedValue()));
+        assertEquals("PROJECT_OFF_TRACK", payload.getInsightSnapshot().get("type"));
+        assertEquals("WARN", payload.getInsightSnapshot().get("severity"));
+
+        verify(createNotificationUseCase).createNotification(eq(userId),
+                eq("notification.suggestion.increase_contribution|Trip"), startsWith("app://suggestions/"));
+    }
+
+    @Test
+    @DisplayName("Wave 4: a project on (or ahead of) the required pace produces nothing")
+    void onPaceProducesNothing() {
+        stubUser(Intervention_Level.GENTLE);
+        // Contributed 2000/month Mar–May → remaining 4000 over 4 months needs 1000/mo ≤ observed 2000.
+        Project project = savingProject(UUID.randomUUID(), "10000", LocalDate.of(2026, 9, 30),
+                Instant.parse("2026-03-01T00:00:00Z"),
+                List.of(contribution("2000", "2026-03-10T00:00:00Z"),
+                        contribution("2000", "2026-04-10T00:00:00Z"),
+                        contribution("2000", "2026-05-10T00:00:00Z")));
+        when(projectRepository.findAllByUser(any())).thenReturn(List.of(project));
+
+        producer.maybeProduceProjectHealth(userId, AS_OF);
+
+        verify(suggestionRepository, never()).save(any());
+        verify(createNotificationUseCase, never()).createNotification(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("Wave 4: a stalled project (nothing contributed in the window) escalates to CRITICAL — even HARD users hear it")
+    void stalledProjectIsCriticalForHardUser() throws Exception {
+        stubUser(Intervention_Level.HARD);
+        UUID projectId = UUID.randomUUID();
+        Project project = savingProject(projectId, "10000", LocalDate.of(2026, 9, 30),
+                Instant.parse("2026-03-01T00:00:00Z"), List.of()); // three closed months, zero saved
+        when(projectRepository.findAllByUser(any())).thenReturn(List.of(project));
+        when(suggestionRepository.findOpenByUserIdAndDedupKey(eq(userId), anyString()))
+                .thenReturn(Optional.empty());
+        when(suggestionRepository.save(any(Suggestion.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        producer.maybeProduceProjectHealth(userId, AS_OF);
+
+        ArgumentCaptor<Suggestion> captor = ArgumentCaptor.forClass(Suggestion.class);
+        verify(suggestionRepository).save(captor.capture());
+        SuggestionPayload payload = objectMapper.readValue(captor.getValue().getPayloadJson(), SuggestionPayload.class);
+        assertEquals("CRITICAL", payload.getInsightSnapshot().get("severity"));
+        // requiredMonthly = 10000 ÷ 4 = 2500
+        assertEquals(0, new BigDecimal("2500.00").compareTo(payload.getProposedAction().getResolvedValue()));
+    }
+
+    @Test
+    @DisplayName("Wave 4: a project younger than one month isn't judged yet")
+    void youngProjectNotJudged() {
+        stubUser(Intervention_Level.GENTLE);
+        Project project = savingProject(UUID.randomUUID(), "10000", LocalDate.of(2026, 9, 30),
+                Instant.parse("2026-06-05T00:00:00Z"), List.of()); // created this month
+        when(projectRepository.findAllByUser(any())).thenReturn(List.of(project));
+
+        producer.maybeProduceProjectHealth(userId, AS_OF);
+
+        verify(suggestionRepository, never()).save(any());
+        verify(createNotificationUseCase, never()).createNotification(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("Wave 4: a NOTIFY (pull-only) user gets no project-health pass at all")
+    void notifyUserNoProjectHealth() {
+        stubUser(Intervention_Level.NOTIFY);
+
+        producer.maybeProduceProjectHealth(userId, AS_OF);
+
+        verify(projectRepository, never()).findAllByUser(any());
+        verify(suggestionRepository, never()).save(any());
     }
 }

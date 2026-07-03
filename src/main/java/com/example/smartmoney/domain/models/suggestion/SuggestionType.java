@@ -34,5 +34,12 @@ public enum SuggestionType {
      * Acknowledge-only: accepting marks it reviewed; the real action (cancelling or renegotiating
      * the subscription) happens outside the app, so accept executes nothing (Wave 2 item 4).
      */
-    REVIEW_SUBSCRIPTION
+    REVIEW_SUBSCRIPTION,
+    /**
+     * Contribute a catch-up amount to a saving project that is behind the pace its deadline
+     * requires (PROJECT_OFF_TRACK). Executes the same add-contribution action as
+     * {@link #CONTRIBUTE_TO_PROJECT}, with the resolved amount sized to close the gap
+     * (Wave 4 item 8).
+     */
+    INCREASE_CONTRIBUTION
 }
