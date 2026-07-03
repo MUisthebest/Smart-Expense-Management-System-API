@@ -98,6 +98,27 @@ app:
   digest:
     enabled: ${DIGEST_ENABLED:false}
 
+  # Monthly recap (expansion Wave 3 item 6, MonthlyRecapScheduler): at month rollover, checks the
+  # just-closed month for INCOME_DROP / CASHFLOW_NEGATIVE and pushes notification-only recap pings.
+  # Disabled by default like the digest. The cron is overridable so a demo profile can fire it
+  # every minute (e.g. RECAP_CRON="0 * * * * *"); default 09:00 on the 1st.
+  recap:
+    enabled: ${RECAP_ENABLED:false}
+    cron: ${RECAP_CRON:0 0 9 1 * *}
+
+  # Month-end savings sweep (expansion Wave 3 item 7, MonthEndSweepScheduler): a late-month
+  # CONTRIBUTE_TO_PROJECT nudge decoupled from income arrival — reuses the existing savings
+  # producer, so all fatigue controls apply. Disabled by default; default cron 09:00 on the 25th.
+  sweep:
+    enabled: ${SWEEP_ENABLED:false}
+    cron: ${SWEEP_CRON:0 0 9 25 * *}
+
+  # On-demand triggers for the scheduled flows (AdaptiveEngineDemoController,
+  # POST /api/v1/demo/adaptive/recap|sweep?asOf=...). Testing/demo only — lets Postman run the
+  # recap/sweep code paths deterministically for the authenticated user. Keep OFF in production.
+  demo-triggers:
+    enabled: ${DEMO_TRIGGERS_ENABLED:false}
+
   # Budget-pace forecast method (redesign Phase 3 P3-B). LINEAR = the original naive
   # spent/day × daysInMonth projection (kept as the control). EXP_SMOOTHING = an exponentially
   # smoothed daily burn rate carried over the remaining days — steadier and far less sensitive to a

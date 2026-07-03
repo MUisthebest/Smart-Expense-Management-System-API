@@ -9,7 +9,10 @@
 > unit tests, i18n, FE guide, and Postman scenarios all in.
 > ✅ **Wave 2 shipped** (items 4–5: `REVIEW_SUBSCRIPTION` + `SUBSCRIPTION_PRICE_HIKE`,
 > `REBALANCE_BUDGETS` with the new multi-budget payload/executor and the budget-write trigger) —
-> same deliverable bar; both open decisions resolved (see as-built notes). Waves 3–4 not started.
+> same deliverable bar; both open decisions resolved (see as-built notes).
+> ✅ **Wave 3 shipped** (items 6–7: `INCOME_DROP` + `CASHFLOW_NEGATIVE` recap on a month-rollover
+> scheduler, day-25 savings sweep, plus property-gated on-demand demo triggers) — schedulers off by
+> default like the digest. Wave 4 not started.
 
 ## Context — how the system works today
 
@@ -144,9 +147,14 @@ Per-item test targets: `SpendingInsightAnalyzerTest`, `SuggestionProducerTest`,
 
 ---
 
-## Wave 3 — New time-based triggers (scheduler infrastructure)
+## Wave 3 — New time-based triggers (scheduler infrastructure) — ✅ SHIPPED
 
-### 6. `INCOME_DROP` / `CASHFLOW_NEGATIVE` + month-rollover scheduler
+> Both items implemented. New notification-only `InsightType`s `INCOME_DROP`, `CASHFLOW_NEGATIVE`;
+> two schedulers (`MonthlyRecapScheduler`, `MonthEndSweepScheduler`), both disabled by default with
+> property-overridable crons; `SendMonthlyRecapUseCase` takes an explicit `asOf` for deterministic
+> tests/demos; property-gated demo endpoints power Postman folders 13–14. As-built notes below.
+
+### 6. `INCOME_DROP` / `CASHFLOW_NEGATIVE` + month-rollover scheduler — ✅ DONE
 - **Insights (new):** `INCOME_DROP` (z-score on monthly INCOME totals — mirror of
   `detectOverspendAnomalies` on the income series; `averageMonthlyIncome` partially
   assembles it) and `CASHFLOW_NEGATIVE` (month expenses > income).
@@ -159,7 +167,7 @@ Per-item test targets: `SpendingInsightAnalyzerTest`, `SuggestionProducerTest`,
 - **Gotcha:** server-timezone month boundaries; the digest's `findAllForDigest` native-enum
   query is noted "unproven end-to-end" — validate the fan-out against a live DB first.
 
-### 7. Month-end sweep (day ~25 scheduler)
+### 7. Month-end sweep (day ~25 scheduler) — ✅ DONE
 - **What:** decouple `CONTRIBUTE_TO_PROJECT` from income arrival — late-month nudge to
   sweep leftover budget headroom into a saving project.
 - **Reuse:** `contributeCandidate` + `pickContributionTarget` + `scaleByPace` all exist;
@@ -207,8 +215,9 @@ Per-item test targets: `SpendingInsightAnalyzerTest`, `SuggestionProducerTest`,
 ~~Ship **1 → 2 → 3** first~~ ✅ **done** (pure additions, max reuse, close the up-only ratchet,
 exercise both the suggestion path and the notification-only path with no new infra).
 ~~Then **5 (REBALANCE)** for the first payoff on `BUDGET_OVER_INCOME`, then 4~~ ✅ **done** (Wave 2
-shipped 5-then-4). **Next up:** Wave 3 schedulers (month-rollover recap, day-25 sweep), then the
-Wave 4 project/positive work.
+shipped 5-then-4). ~~Then Wave 3 schedulers~~ ✅ **done** (month-rollover recap + day-25 sweep, both
+flag-gated off). **Next up:** the Wave 4 project/positive work — item 8 can now ride the existing
+scheduler pattern.
 
 ### Wave 1 — as-built notes
 - **`SET_CATEGORY_LIMIT`:** third branch in `SuggestionProducer.maybeProduce` (budgetless path), tried
@@ -273,6 +282,39 @@ Wave 4 project/positive work.
   (previously a dangling reference) now exists with starter copy for every Appendix-B key,
   including the Wave 1 keys that were missing from Appendix B.
 
+### Wave 3 — as-built notes
+
+- **Detectors (item 6):** `detectIncomeDrop` / `detectCashflowNegative` are public analyzer methods
+  taking an explicit `YearMonth` — **not** part of `analyze()` (mid-month both facts would be
+  misleading), mirroring how `detectBudgetOverIncome` sits outside it. Income drop is the
+  overspend-anomaly z-score on the income series, low tail, with a flat-baseline fallback (fixed
+  salary → stddev 0): fire when ≤50% of the usual income arrived, CRITICAL when none did — the
+  fallback matters because the vanished-salary case *is* the flat case. Cashflow-negative requires
+  an income signal in the month (a zero-income month is the drop's territory) and escalates to
+  CRITICAL at ≥1.25× income, the budget-pace ratio. Both category-null, notification-only, never in
+  `GET /insights`.
+- **Recap (item 6):** `SendMonthlyRecapUseCase.sendFor(userId, asOf)` judges the month *before*
+  `asOf`, severity-gated per `interventionLevel` exactly like pushed suggestions (NOTIFY → nothing,
+  and the gate is checked before any data is loaded). One push per finding, narrated when narration
+  is on, fallback keys `notification.insight.income_drop` / `.cashflow_negative`, deep link
+  `app://transactions`. `MonthlyRecapScheduler` (digest-pattern fan-out over `findAllForDigest`,
+  per-user try/catch) runs it; `@ConditionalOnProperty app.recap.enabled` (default **off**), cron
+  `${app.recap.cron:0 0 9 1 * *}` — property-overridable so a demo profile can fire every minute.
+- **Sweep (item 7):** deliberately **zero new logic** — `MonthEndSweepScheduler` fans out to the
+  existing `maybeProduceSavingsContribution`, so the trait gate, capacity math, pace scaling,
+  dedup (per-month topic key), cooldown, and daily cap all apply unchanged. `app.sweep.enabled`
+  (default off), cron `${app.sweep.cron:0 0 9 25 * *}`. Took the "second scheduler" option over a
+  day-of-month branch in the recap — the two flows gate and fire independently.
+- **Demo triggers:** `AdaptiveEngineDemoController` (`POST /api/v1/demo/adaptive/recap|sweep?asOf=…`)
+  runs the identical use-case paths for the authenticated user only; registered solely when
+  `app.demo-triggers.enabled=true`. This is the testing strategy discussed pre-build: schedulers
+  stay thin, date-parameterized use cases carry the logic, demos never wait for a clock.
+- **Tests/docs:** analyzer recap-fact cases, `SendMonthlyRecapUseCaseTest` (gating incl.
+  HARD-sees-only-CRITICAL), fan-out don't-abort tests for both schedulers (full suite green: 309).
+  Postman folders 13–14 need **no new seeds** — they judge the world folders 0–12 already built
+  (July closed over-spent; August has no income vs a flat 20M baseline). FE guide + i18n reference
+  updated; `application.yml` documents all three new flags.
+
 ## Open decisions to resolve before building
 
 - ~~**Item 4:** what does "yes" on `REVIEW_SUBSCRIPTION` execute?~~ **Resolved: (b) acknowledge-only**
@@ -290,8 +332,8 @@ Wave 4 project/positive work.
 | 3 | LARGE_TRANSACTION, DUPLICATE_CHARGE (new) | — (notification only) | — | sync in create | ✅ done |
 | 4 | SUBSCRIPTION_PRICE_HIKE (new, on RECURRING) | REVIEW_SUBSCRIPTION | none (acknowledge-only) | no | ✅ done |
 | 5 | BUDGET_OVER_INCOME (existing) | REBALANCE_BUDGETS | updateBudget (×N) | budget write | ✅ done |
-| 6 | INCOME_DROP, CASHFLOW_NEGATIVE (new) | — (recap) | — | month-rollover cron | — |
-| 7 | SAVINGS_CAPACITY (existing) | CONTRIBUTE_TO_PROJECT (reused) | contribute | day-25 cron | — |
+| 6 | INCOME_DROP, CASHFLOW_NEGATIVE (new) | — (recap) | — | month-rollover cron | ✅ done |
+| 7 | SAVINGS_CAPACITY (existing) | CONTRIBUTE_TO_PROJECT (reused) | contribute | day-25 cron | ✅ done |
 | 8 | PROJECT_OFF_TRACK (new) | INCREASE_CONTRIBUTION | contribute | project cron | — |
 | 9 | PROJECT_MILESTONE, GOOD_MONTH (new) | — (positive push) | — | contribution + cron | — |
 | 10 | SAVINGS_CAPACITY persistent (existing) | CREATE_SAVING_PROJECT | createProject / deep-link | no | — |

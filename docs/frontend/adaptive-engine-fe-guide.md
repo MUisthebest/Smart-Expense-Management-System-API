@@ -161,11 +161,17 @@ Render rules:
 
 `metrics` is an open map — treat unknown keys as ignorable, so new metrics never break your render.
 
-**Notification-only insights** (`LARGE_TRANSACTION`, `DUPLICATE_CHARGE`) are **not** returned by
-`GET /insights` and never become suggestion cards. They are evaluated synchronously when you create an
-expense and, for push-enabled users, arrive purely as a notification (Screen 4) — a large single
-charge vs. that category's typical size, or a likely double-charge (same category + exact amount +
-description within 72h). There's no accept action; they're informational pings only.
+**Notification-only insights** are **not** returned by `GET /insights` and never become suggestion
+cards. There's no accept action; they're informational pings (Screen 4) only. Two groups:
+
+- **Per-transaction** (`LARGE_TRANSACTION`, `DUPLICATE_CHARGE`) — evaluated synchronously when an
+  expense is created: a large single charge vs. that category's typical size, or a likely
+  double-charge (same category + exact amount + description within 72h).
+- **Monthly recap** (`INCOME_DROP`, `CASHFLOW_NEGATIVE`) — evaluated by a scheduler shortly after a
+  month **closes** (these facts are meaningless mid-month): last month's income collapsed vs. its
+  usual level, or last month spent more than it earned. Both deep-link to `app://transactions` and
+  respect the same `interventionLevel` gate as pushes (NOTIFY users never get them). Backend
+  feature-flagged (`app.recap.enabled`, off by default), like the weekly digest.
 
 ---
 
@@ -304,7 +310,7 @@ Routing contract:
 | `Saving_Pace` | `RELAXED`, `BALANCED`, `AGGRESIVE` *(sic — one S)* |
 | `Focus_Mode` | `SAVE_MORE`, `REDUCE_SPENDING`, `TRACK_ONLY` |
 | `Severity` | `INFO`, `WARN`, `CRITICAL` |
-| `InsightType` | `OVERSPEND_ANOMALY`, `BUDGET_PACE`, `CATEGORY_TREND`, `RECURRING`, `SAVINGS_CAPACITY`, `BUDGET_OVER_INCOME`, `BUDGET_UNDERSPEND`, `SUBSCRIPTION_PRICE_HIKE` (+ notification-only `LARGE_TRANSACTION`, `DUPLICATE_CHARGE` — never in `GET /insights`) |
+| `InsightType` | `OVERSPEND_ANOMALY`, `BUDGET_PACE`, `CATEGORY_TREND`, `RECURRING`, `SAVINGS_CAPACITY`, `BUDGET_OVER_INCOME`, `BUDGET_UNDERSPEND`, `SUBSCRIPTION_PRICE_HIKE` (+ notification-only `LARGE_TRANSACTION`, `DUPLICATE_CHARGE`, `INCOME_DROP`, `CASHFLOW_NEGATIVE` — never in `GET /insights`) |
 | `SuggestionType` | `RAISE_BUDGET`, `CREATE_BUDGET`, `SET_CATEGORY_LIMIT`, `REDUCE_BUDGET`, `CONTRIBUTE_TO_PROJECT`, `REBALANCE_BUDGETS`, `REVIEW_SUBSCRIPTION` |
 | `SuggestionStatus` | `PENDING`, `ACCEPTED`, `DISMISSED`, `EXPIRED` |
 | `Category` (transactions) | `FOOD`, `TRANSPORTATION`, `CLOTHING`, `UTILITIES`, `ENTERTAINMENT`, `HEALTH`, `EDUCATION`, `SHOPPING`, `OTHER`, `PROJECT_REFUND`, `PROJECT_CONTRIBUTION` — the last two are system-generated ledger entries (accepting `CONTRIBUTE_TO_PROJECT` writes a `PROJECT_CONTRIBUTION` expense; abandoning a project writes `PROJECT_REFUND` income), so localize them in transaction lists |
@@ -334,6 +340,8 @@ notification.suggestion.rebalance_budgets    # account-wide, no arg
 notification.suggestion.review_subscription|<DESCRIPTION>   # arg = the subscription's description
 notification.insight.large_transaction|<CATEGORY>   # notification-only ping → app://transactions
 notification.insight.duplicate_charge|<CATEGORY>    # notification-only ping → app://transactions
+notification.insight.income_drop            # monthly recap ping (no arg) → app://transactions
+notification.insight.cashflow_negative      # monthly recap ping (no arg) → app://transactions
 notification.digest.pending_suggestions      # daily roll-up → deep-links to app://suggestions
 notification.digest.weekly|<COUNT>           # weekly digest (opt-in flag) → deep-links to app://insights
 notification.notification_done|<notification.expense OR notification.income>|<AMOUNT>|<CATEGORY>
