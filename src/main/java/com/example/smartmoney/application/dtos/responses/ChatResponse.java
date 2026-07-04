@@ -40,12 +40,20 @@ public class ChatResponse {
      */
     SimulationResult simulationResult;
 
+    /**
+     * Populated when {@code intent == INCOME_WINDFALL} or {@code LARGE_EXPENSE}.
+     * Each entry maps to {@code PUT /api/v1/projects/{projectId}/tracking}.
+     */
+    List<SavingsPlanSuggestion> savingsSuggestions;
+
     // ── Nested types ──────────────────────────────────────────────────────────
 
     public enum ChatIntent {
         GENERAL_ADVICE,
         BUDGET_UPDATE,
         SIMULATION,
+        INCOME_WINDFALL,
+        LARGE_EXPENSE,
         OUT_OF_SCOPE
     }
 
@@ -71,5 +79,28 @@ public class ChatResponse {
         Long newSafeSpending;
         String projectImpact;
         boolean violates20Rule;
+    }
+
+    /**
+     * One savings-plan adjustment suggestion.
+     *
+     * <p>INCOME_WINDFALL: {@code suggestedAddAmount} > 0 — add a lump sum to the project.
+     * Frontend calls {@code PUT /api/v1/projects/{projectId}/tracking}
+     * with body {@code {moneySaved: newMoneySaved}}.
+     *
+     * <p>LARGE_EXPENSE: {@code suggestedMonthLeft} set — extend deadline to lower monthly pressure.
+     * Frontend calls {@code PUT /api/v1/projects/{projectId}/tracking}
+     * with body {@code {monthLeft: suggestedMonthLeft}}.
+     */
+    @Value
+    @Builder
+    public static class SavingsPlanSuggestion {
+        String projectId;
+        String projectName;
+        Long currentMoneySaved;
+        Long suggestedAddAmount;     // > 0 for windfall; null for large-expense deferral
+        Long newMoneySaved;          // currentMoneySaved + suggestedAddAmount (null for deferral)
+        Integer suggestedMonthLeft;  // extended months left (null for windfall)
+        String reason;
     }
 }

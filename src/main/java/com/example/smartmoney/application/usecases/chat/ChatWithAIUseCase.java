@@ -3,11 +3,15 @@ package com.example.smartmoney.application.usecases.chat;
 import com.example.smartmoney.application.dtos.requests.chat.ChatMessageDto;
 import com.example.smartmoney.application.dtos.requests.chat.ChatRequest;
 import com.example.smartmoney.application.dtos.responses.ChatResponse;
+import com.example.smartmoney.application.guardrails.InputGuardrail;
+import com.example.smartmoney.application.guardrails.JsonSchemaGuardrail;
 import com.example.smartmoney.application.ports.chat.AIChatPort;
+import com.example.smartmoney.application.ports.chat.ChatHistoryPort;
 import com.example.smartmoney.application.services.BudgetAdvisorService;
 import com.example.smartmoney.application.services.ChatbotPromptBuilder;
 import com.example.smartmoney.application.services.SpendingSimulationService;
 import com.example.smartmoney.application.services.UserFinancialDataService;
+import com.example.smartmoney.application.services.WindfallAllocationService;
 import com.example.smartmoney.domain.models.user.User;
 import com.example.smartmoney.domain.repositories.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -16,232 +20,160 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.util.*;
 import java.util.function.Consumer;
-import java.util.stream.Collectors;
 
 /**
- * Main chat orchestrator — wires UC1, UC2, and UC3 into a single execute() call.
+ * Chat orchestrator — UC1, UC2, UC3 + Redis history + Gemini + guardrails.
  *
- * UC1 — Budget Adjustment:
- *   Detects "cut/reduce spending" intent → fetches budgets → lets AI explain the
- *   server-computed suggestion → returns ChatResponse with intent=BUDGET_UPDATE and
- *   a BudgetUpdateSuggestion list (frontend calls PUT /budgets/{id} on confirm).
- *
- * UC2 — What-if Simulation:
- *   Detects "if I spend X more" intent → runs SpendingSimulationService → checks 20%
- *   rule and project delay risk → returns ChatResponse with intent=SIMULATION and a
- *   SimulationResult. Read-only, no data written.
- *
- * UC3 — Personalised Tone:
- *   Fetches user's savingPace / interventionLevel / focusMode and injects them into
- *   the system prompt via ChatbotPromptBuilder. Every response (regardless of intent)
- *   is shaped by these preferences.
- *
- * Old signatures are preserved as comments; new signatures accept a full ChatRequest
- * (including optional conversation history, month, and year) and return ChatResponse.
+ * Full request flow:
+ *  Rate limit (aspect) → ScopeGuardrail (aspect) → PromptInjectionGuardrail (aspect)
+ *  → Redis GET history → ChatbotPromptBuilder → Gemini call
+ *  → JsonSchemaGuardrail (POST only) → append turns → Redis SET+EXPIRE
+ *  → return ChatResponse / SSE stream
  */
 @Service
 @RequiredArgsConstructor
 public class ChatWithAIUseCase {
 
-    // ── Dependencies ─────────────────────────────────────────────────────────
-
     private final UserFinancialDataService dataProvider;
     private final AIChatPort aiChatPort;
-
-    // UC1
     private final BudgetAdvisorService budgetAdvisorService;
-    // UC2
     private final SpendingSimulationService spendingSimulationService;
-    // UC3
+    private final WindfallAllocationService windfallAllocationService;
     private final ChatbotPromptBuilder promptBuilder;
     private final UserRepository userRepository;
+    private final ChatHistoryPort chatHistoryPort;
+    private final JsonSchemaGuardrail jsonSchemaGuardrail;
 
-    // Maximum conversation turns forwarded to the LLM to avoid context overflow
     private static final int MAX_HISTORY_TURNS = 10;
 
-    // ── Old execute (single String message, plain String reply) ─────────────
-    // Kept as a comment — the controller previously called this.
-    //
-    // public String execute(String message, UUID userId) {
-    //     Set<UserFinancialDataService.DataType> dataTypes = determineDataTypes(message);
-    //     String userData = dataProvider.getUserDataSummary(userId, dataTypes);
-    //     String fullPrompt = userData.isEmpty()
-    //             ? "Câu hỏi của bạn: " + message
-    //             : "Đây là dữ liệu tài chính của bạn:\n" + userData + "\n\nCâu hỏi của bạn: " + message;
-    //     return aiChatPort.chat(fullPrompt, userId.toString());
-    // }
+    // ── Synchronous chat (POST /chat) ────────────────────────────────────────
 
-    /**
-     * UC1 / UC2 / UC3 — synchronous chat.
-     *
-     * @param request contains the user message, optional history (last N turns),
-     *                and optional month / year for context scoping
-     * @param userId  authenticated user ID
-     * @return structured ChatResponse with intent classification and optional
-     *         BudgetUpdateSuggestion or SimulationResult payloads
-     */
+    @InputGuardrail
     public ChatResponse execute(ChatRequest request, UUID userId) {
         String message = request.getMessage();
-        String messageLow = message.toLowerCase();
 
-        // Resolve the analysis month/year (defaults to current month)
         LocalDate now = LocalDate.now();
         int month = request.getMonth() != null ? request.getMonth() : now.getMonthValue();
         int year  = request.getYear()  != null ? request.getYear()  : now.getYear();
 
-        // UC3: load user preferences for personalised system prompt
         User user = userRepository.findById(userId).orElse(null);
         String systemPrompt = promptBuilder.build(user);
 
-        // Detect intent from the user's message
-        ChatResponse.ChatIntent intent = detectIntent(messageLow);
+        // Load history from Redis
+        List<ChatMessageDto> history = chatHistoryPort.load(userId);
 
-        // Build the financial context block injected ahead of the user's question
-        String financialContext = buildContextForIntent(intent, userId, month, year, messageLow);
+        // Build financial context (income + safe_spending + budgets + projects)
+        String financialContext = dataProvider.buildChatContext(userId, month, year);
 
-        // Include the last N turns of conversation history so the AI can refer back
-        String historyBlock = buildHistoryBlock(request.getHistory());
+        // Compose user message: context + history + current question + JSON format
+        String userMessage = composeUserMessage(financialContext, history, message, true);
 
-        // Compose the full user-turn message: context + history + current question
-        String userMessage = composeUserMessage(financialContext, historyBlock, message);
+        // Call Gemini (sync); retry once handled inside JsonSchemaGuardrail
+        String rawResponse = aiChatPort.chat(systemPrompt, userMessage, userId.toString());
 
-        // Call the AI for the natural-language reply
-        String reply = aiChatPort.chat(systemPrompt, userMessage, userId.toString());
+        // Validate & parse JSON output
+        JsonSchemaGuardrail.ParsedLlmResponse parsed = jsonSchemaGuardrail.validate(
+                rawResponse,
+                () -> aiChatPort.chat(systemPrompt, userMessage, userId.toString()));
 
-        // Build the structured response depending on detected intent
-        return buildStructuredResponse(intent, reply, userId, month, year, messageLow);
+        // Persist history: append USER + ASSISTANT turns
+        history = appendAndTrim(history, message, parsed.reply());
+        chatHistoryPort.save(userId, history);
+
+        // Attach server-computed structured payloads based on detected intent
+        return buildStructuredResponse(parsed.intent(), parsed.reply(), userId, month, year,
+                message.toLowerCase());
     }
 
-    // ── Old streamChat (single String message) ───────────────────────────────
-    // Kept as a comment — the controller previously called this.
-    //
-    // public void streamChat(String message, UUID userId,
-    //                        Consumer<String> onNext,
-    //                        Consumer<Throwable> onError,
-    //                        Runnable onComplete) {
-    //     Set<UserFinancialDataService.DataType> dataTypes = determineDataTypes(message);
-    //     String userData = dataProvider.getUserDataSummary(userId, dataTypes);
-    //     String fullPrompt = userData.isEmpty()
-    //             ? "Câu hỏi của bạn: " + message
-    //             : "Đây là dữ liệu tài chính của bạn:\n" + userData + "\n\nCâu hỏi của bạn: " + message;
-    //     aiChatPort.chatStream(fullPrompt, userId.toString(), onNext, onError, onComplete);
-    // }
+    // ── Streaming chat (GET /chat/stream) ────────────────────────────────────
 
-    /**
-     * UC1 / UC2 / UC3 — streaming chat (SSE).
-     *
-     * The same intent detection and context-building logic applies; the only
-     * difference is that the reply is delivered token-by-token via {@code onNext}.
-     * Structured BudgetUpdateSuggestion / SimulationResult payloads are NOT
-     * available in stream mode — use the synchronous endpoint for those.
-     */
+    @InputGuardrail
     public void streamChat(ChatRequest request, UUID userId,
                            Consumer<String> onNext,
                            Consumer<Throwable> onError,
                            Runnable onComplete) {
 
         String message = request.getMessage();
-        String messageLow = message.toLowerCase();
 
         LocalDate now = LocalDate.now();
         int month = request.getMonth() != null ? request.getMonth() : now.getMonthValue();
         int year  = request.getYear()  != null ? request.getYear()  : now.getYear();
 
-        // UC3: personalised system prompt
         User user = userRepository.findById(userId).orElse(null);
         String systemPrompt = promptBuilder.build(user);
 
-        ChatResponse.ChatIntent intent = detectIntent(messageLow);
-        String financialContext = buildContextForIntent(intent, userId, month, year, messageLow);
-        String historyBlock = buildHistoryBlock(request.getHistory());
-        String userMessage = composeUserMessage(financialContext, historyBlock, message);
+        List<ChatMessageDto> history = chatHistoryPort.load(userId);
 
-        // Stream the reply; UC3 personalisation is already baked into the systemPrompt
-        aiChatPort.chatStream(systemPrompt, userMessage, userId.toString(), onNext, onError, onComplete);
+        String financialContext = dataProvider.buildChatContext(userId, month, year);
+
+        // No JSON format instruction for stream — plain text reply
+        String userMessage = composeUserMessage(financialContext, history, message, false);
+
+        // chunk from GeminiAIChatAdapter is cumulative — track the latest value
+        String[] lastChunk = {""};
+
+        aiChatPort.chatStream(
+                systemPrompt, userMessage, userId.toString(),
+                chunk -> { lastChunk[0] = chunk; onNext.accept(chunk); },
+                onError,
+                () -> {
+                    // Append USER + ASSISTANT turns and save to Redis
+                    List<ChatMessageDto> updated = appendAndTrim(history, message, lastChunk[0]);
+                    chatHistoryPort.save(userId, updated);
+                    onComplete.run();
+                });
     }
 
-    // ── Intent detection ─────────────────────────────────────────────────────
+    // ── Prompt composition ───────────────────────────────────────────────────
 
-    /**
-     * Classifies the user's message into one of the UC intents using keyword matching.
-     *
-     * Priority order: SIMULATION is checked first because its trigger keywords
-     * ("nếu", "what if") can appear in the same message as budget keywords.
-     */
-    private ChatResponse.ChatIntent detectIntent(String messageLow) {
-        // UC2 — What-if simulation keywords (check BEFORE budget keywords)
-        if (messageLow.contains("nếu") || messageLow.contains("what if") ||
-            messageLow.contains("nếu tôi") || messageLow.contains("nếu chi") ||
-            messageLow.contains("mô phỏng") || messageLow.contains("thử xem") ||
-            messageLow.contains("giả sử") || messageLow.contains("if i spend")) {
-            return ChatResponse.ChatIntent.SIMULATION;
+    private String composeUserMessage(String financialContext,
+                                      List<ChatMessageDto> history,
+                                      String message,
+                                      boolean includeJsonFormat) {
+        StringBuilder sb = new StringBuilder();
+
+        if (!financialContext.isBlank()) {
+            sb.append("=== Dữ liệu tài chính ===\n").append(financialContext).append("\n");
         }
 
-        // UC1 — Budget adjustment keywords
-        if (messageLow.contains("cắt") || messageLow.contains("giảm") ||
-            messageLow.contains("điều chỉnh ngân sách") || messageLow.contains("thay đổi ngân sách") ||
-            messageLow.contains("ngân sách") || messageLow.contains("cut spending") ||
-            messageLow.contains("reduce") || messageLow.contains("budget") ||
-            messageLow.contains("chi tiêu ăn") || messageLow.contains("chi tiêu") ||
-            messageLow.contains("tiết kiệm ngân sách")) {
-            return ChatResponse.ChatIntent.BUDGET_UPDATE;
+        if (!history.isEmpty()) {
+            int start = Math.max(0, history.size() - MAX_HISTORY_TURNS);
+            sb.append("=== Lịch sử hội thoại ===\n");
+            history.subList(start, history.size()).forEach(turn ->
+                    sb.append(turn.toPromptLine()).append("\n"));
+            sb.append("\n");
         }
 
-        // Default: general financial advice or off-topic chat
-        return ChatResponse.ChatIntent.GENERAL_ADVICE;
+        sb.append("=== Câu hỏi hiện tại ===\n").append(message);
+
+        if (includeJsonFormat) {
+            sb.append(ChatbotPromptBuilder.JSON_OUTPUT_FORMAT);
+        }
+
+        return sb.toString();
     }
 
-    // ── Context building ─────────────────────────────────────────────────────
+    // ── History management ───────────────────────────────────────────────────
 
-    /**
-     * Builds the financial context string prepended to the user message.
-     * Each intent gets the data it specifically needs:
-     *  UC1 → budget list with category percentages
-     *  UC2 → simulation result + project list
-     *  GENERAL → transactions + projects (existing behaviour)
-     */
-    private String buildContextForIntent(
-            ChatResponse.ChatIntent intent, UUID userId, int month, int year, String messageLow) {
-
-        return switch (intent) {
-            case BUDGET_UPDATE -> {
-                // UC1: give the AI the budget breakdown so it can explain the suggestion naturally
-                yield budgetAdvisorService.buildBudgetContext(userId, month, year);
-            }
-            case SIMULATION -> {
-                // UC2: give the AI the pre-computed simulation result + project summary
-                String simContext = spendingSimulationService.buildSimulationContext(userId, month, year, messageLow);
-                String projectContext = dataProvider.getUserDataSummary(
-                        userId, Set.of(UserFinancialDataService.DataType.PROJECTS));
-                yield simContext + "\n" + projectContext;
-            }
-            default -> {
-                // GENERAL_ADVICE: load transactions + projects as before
-                // Old logic from determineDataTypes() is inlined here for clarity
-                Set<UserFinancialDataService.DataType> types = new HashSet<>();
-                types.add(UserFinancialDataService.DataType.TRANSACTIONS);
-                types.add(UserFinancialDataService.DataType.PROJECTS);
-                yield dataProvider.getUserDataSummary(userId, types);
-            }
-        };
+    private List<ChatMessageDto> appendAndTrim(List<ChatMessageDto> history,
+                                               String userMessage, String assistantReply) {
+        List<ChatMessageDto> updated = new ArrayList<>(history);
+        updated.add(ChatMessageDto.user(userMessage));
+        updated.add(ChatMessageDto.assistant(assistantReply));
+        // Evict oldest pair when exceeding MAX_HISTORY_TURNS (each turn = 2 messages)
+        while (updated.size() > MAX_HISTORY_TURNS * 2) {
+            updated.remove(0);
+            updated.remove(0);
+        }
+        return updated;
     }
 
-    // ── Structured response builder ───────────────────────────────────────────
+    // ── Structured response builder ──────────────────────────────────────────
 
-    /**
-     * Assembles the final ChatResponse, attaching structured payloads only when
-     * the intent requires them:
-     *  BUDGET_UPDATE → BudgetUpdateSuggestion list (server-computed, read-only)
-     *  SIMULATION    → SimulationResult (server-computed, read-only)
-     *  GENERAL_ADVICE → reply only
-     */
-    private ChatResponse buildStructuredResponse(
-            ChatResponse.ChatIntent intent, String reply,
-            UUID userId, int month, int year, String messageLow) {
-
+    private ChatResponse buildStructuredResponse(ChatResponse.ChatIntent intent, String reply,
+                                                 UUID userId, int month, int year, String messageLow) {
         return switch (intent) {
             case BUDGET_UPDATE -> {
-                // UC1: attach the concrete budget suggestion for the frontend confirm card
                 var suggestions = budgetAdvisorService.suggestReductions(userId, month, year, messageLow);
                 yield ChatResponse.builder()
                         .reply(reply)
@@ -250,7 +182,6 @@ public class ChatWithAIUseCase {
                         .build();
             }
             case SIMULATION -> {
-                // UC2: attach the computed simulation result for the frontend what-if panel
                 var simResult = spendingSimulationService.simulate(userId, month, year, messageLow);
                 yield ChatResponse.builder()
                         .reply(reply)
@@ -258,60 +189,41 @@ public class ChatWithAIUseCase {
                         .simulationResult(simResult)
                         .build();
             }
+            case INCOME_WINDFALL -> {
+                // AI detected sudden income → allocate 60% to savings, 40% to budget limits
+                var savingsSuggestions = windfallAllocationService.suggestSavingsBoost(
+                        userId, month, year, messageLow);
+                var budgetBoosts = windfallAllocationService.suggestBudgetBoosts(
+                        userId, month, year, messageLow);
+                yield ChatResponse.builder()
+                        .reply(reply)
+                        .intent(intent)
+                        .budgetSuggestions(budgetBoosts.isEmpty() ? null : budgetBoosts)
+                        .savingsSuggestions(savingsSuggestions.isEmpty() ? null : savingsSuggestions)
+                        .build();
+            }
+            case LARGE_EXPENSE -> {
+                // AI detected large unplanned expense → suggest budget coverage + project deferral
+                var budgetCoverage = windfallAllocationService.suggestExpenseCoverage(
+                        userId, month, year, messageLow);
+                var deferral = windfallAllocationService.suggestProjectDeferral(
+                        userId, month, year, messageLow);
+                yield ChatResponse.builder()
+                        .reply(reply)
+                        .intent(intent)
+                        .budgetSuggestions(budgetCoverage.isEmpty() ? null : budgetCoverage)
+                        .savingsSuggestions(deferral.isEmpty() ? null : deferral)
+                        .build();
+            }
+            case OUT_OF_SCOPE -> ChatResponse.builder()
+                    .reply("Xin lỗi, tôi chỉ hỗ trợ các câu hỏi về tài chính cá nhân. " +
+                           "Bạn có muốn hỏi về ngân sách, chi tiêu, hoặc mục tiêu tiết kiệm không?")
+                    .intent(intent)
+                    .build();
             default -> ChatResponse.builder()
                     .reply(reply)
                     .intent(intent)
                     .build();
         };
     }
-
-    // ── Prompt composition helpers ────────────────────────────────────────────
-
-    /**
-     * Formats the conversation history into a readable block for the LLM.
-     * Truncated to MAX_HISTORY_TURNS to avoid overshooting the context window.
-     */
-    private String buildHistoryBlock(List<ChatMessageDto> history) {
-        if (history == null || history.isEmpty()) {
-            return "";
-        }
-        int startIdx = Math.max(0, history.size() - MAX_HISTORY_TURNS);
-        return history.subList(startIdx, history.size()).stream()
-                .map(ChatMessageDto::toPromptLine)
-                .collect(Collectors.joining("\n", "Lịch sử hội thoại:\n", "\n"));
-    }
-
-    /**
-     * Composes the final user-turn message from three parts:
-     *  1. Financial context (transactions, budgets, or simulation result)
-     *  2. Conversation history (optional, last N turns)
-     *  3. The user's actual current question
-     */
-    private String composeUserMessage(String financialContext, String historyBlock, String message) {
-        StringBuilder sb = new StringBuilder();
-        if (!financialContext.isBlank()) {
-            sb.append("Dữ liệu tài chính:\n").append(financialContext).append("\n");
-        }
-        if (!historyBlock.isBlank()) {
-            sb.append(historyBlock).append("\n");
-        }
-        sb.append("Câu hỏi hiện tại: ").append(message);
-        return sb.toString();
-    }
-
-    // ── Old determineDataTypes (replaced by buildContextForIntent above) ─────
-    // Kept as a comment for reference.
-    //
-    // private Set<UserFinancialDataService.DataType> determineDataTypes(String message) {
-    //     Set<UserFinancialDataService.DataType> types = new HashSet<>();
-    //     types.add(UserFinancialDataService.DataType.INCOME);
-    //     String lower = message.toLowerCase();
-    //     if (lower.contains("chi tiêu") || lower.contains("giao dịch") || ...) {
-    //         types.add(UserFinancialDataService.DataType.TRANSACTIONS);
-    //     }
-    //     if (lower.contains("dự án") || lower.contains("project") || ...) {
-    //         types.add(UserFinancialDataService.DataType.PROJECTS);
-    //     }
-    //     return types;
-    // }
 }

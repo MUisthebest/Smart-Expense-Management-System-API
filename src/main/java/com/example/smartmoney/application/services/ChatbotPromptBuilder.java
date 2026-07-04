@@ -30,6 +30,33 @@ public class ChatbotPromptBuilder {
             - Khi đề xuất điều chỉnh ngân sách: luôn giải thích lý do và kết quả kỳ vọng.
             - Khi mô phỏng kịch bản: tính toán rõ ràng, nêu rủi ro và ảnh hưởng cụ thể đến từng dự án.
             - Không phỏng đoán số liệu — chỉ sử dụng dữ liệu được cung cấp trong prompt.
+            - Luôn phân loại intent vào một trong: GENERAL_ADVICE, BUDGET_UPDATE, SIMULATION, INCOME_WINDFALL, LARGE_EXPENSE, OUT_OF_SCOPE.
+            - INCOME_WINDFALL: đề xuất phân bổ cụ thể (% tiết kiệm / % tăng ngân sách).
+            - LARGE_EXPENSE: đề xuất ngân sách nào dùng để trang trải và có thể hoãn dự án nào.
+            """;
+
+    /**
+     * JSON output format instruction appended to every user message for POST /chat.
+     * Instructs Gemini to respond with a parseable JSON object — no markdown fences.
+     */
+    public static final String JSON_OUTPUT_FORMAT = """
+
+            === Định dạng phản hồi (BẮT BUỘC) ===
+            Trả về DUY NHẤT JSON (không dùng markdown ```, không giải thích thêm):
+            {
+              "intent": "<GENERAL_ADVICE|BUDGET_UPDATE|SIMULATION|INCOME_WINDFALL|LARGE_EXPENSE|OUT_OF_SCOPE>",
+              "reply": "<câu trả lời tiếng Việt, tối đa 800 chữ>"
+            }
+
+            Quy tắc chọn intent:
+            - INCOME_WINDFALL: người dùng đề cập thu nhập đột xuất (học bổng, xổ số, thưởng KPI, thưởng lớn, tiền thừa kế, windfall).
+            - LARGE_EXPENSE: người dùng đề cập chi phí lớn đột xuất (mua xe, sửa chữa lớn, thanh toán y tế, chi tiêu ngoài kế hoạch).
+            - BUDGET_UPDATE: người dùng muốn cắt/giảm/điều chỉnh ngân sách định kỳ.
+            - SIMULATION: người dùng hỏi "nếu" / "what if" / mô phỏng kịch bản chi tiêu.
+            - OUT_OF_SCOPE: câu hỏi ngoài lĩnh vực tài chính cá nhân.
+            - GENERAL_ADVICE: mặc định cho mọi câu hỏi tài chính còn lại.
+
+            Với INCOME_WINDFALL và LARGE_EXPENSE: trong "reply" hãy đề xuất cụ thể số tiền phân bổ cho từng hạng mục/dự án.
             """;
 
     /**
