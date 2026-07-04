@@ -143,11 +143,21 @@ public class Group {
     }
 
     public BigDecimal totalCapacity() {
-        return members.stream()
+        List<BigDecimal> activeCapacities = members.stream()
                 .filter(m -> m.getInviteStatus() == GroupMemberInviteStatus.JOINED)
                 .map(GroupMember::getCapacitySnapshot)
                 .filter(Objects::nonNull)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+                .toList();
+
+        if (activeCapacities.isEmpty()) {
+            return BigDecimal.ZERO;
+        }
+
+        BigDecimal minCapacity = activeCapacities.stream()
+                .min(BigDecimal::compareTo)
+                .orElse(BigDecimal.ZERO);
+
+        return minCapacity.multiply(BigDecimal.valueOf(activeCapacities.size()));
     }
 
     public List<GroupMember> joinedMembers() {

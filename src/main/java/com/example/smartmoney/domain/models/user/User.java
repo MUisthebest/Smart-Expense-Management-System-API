@@ -315,6 +315,19 @@ public class User {
                 && focusMode != null;
     }
 
+    public BigDecimal getSavingCapacity() {
+        if (this.income == null || this.income.compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO;
+        }
+        BigDecimal rate = new BigDecimal("0.20"); // Default: BALANCED
+        if (this.savingPace == Saving_Pace.RELAXED || this.focusMode == Focus_Mode.TRACK_ONLY) {
+            rate = new BigDecimal("0.10");
+        } else if (this.savingPace == Saving_Pace.AGGRESIVE || this.focusMode == Focus_Mode.SAVE_MORE) {
+            rate = new BigDecimal("0.35");
+        }
+        return this.income.multiply(rate);
+    }
+
     public void clearFinancialSetup() {
         this.income = null;
         this.savingPace = null;
