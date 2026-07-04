@@ -524,3 +524,2186 @@ com.example.smartmoney.domain.exceptions.DomainException: Invalid date format
     where
         ne1_0.user_id=? 
         and ne1_0.id in (?)
+2026-07-04 14:29:55 [main] INFO  c.e.smartmoney.SmartmoneyApplication - Starting SmartmoneyApplication using Java 17.0.12 with PID 6312 (D:\HCMUS\Nam4\CapstoneProject\backend\Smart-Expense-Management-System-API\target\classes started by ACER in D:\HCMUS\Nam4\CapstoneProject\backend\Smart-Expense-Management-System-API)
+2026-07-04 14:29:55 [main] DEBUG c.e.smartmoney.SmartmoneyApplication - Running with Spring Boot v4.0.1, Spring v7.0.2
+2026-07-04 14:29:55 [main] INFO  c.e.smartmoney.SmartmoneyApplication - No active profile set, falling back to 1 default profile: "default"
+2026-07-04 14:29:57 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Multiple Spring Data modules found, entering strict repository configuration mode
+2026-07-04 14:29:57 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-07-04 14:29:57 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 489 ms. Found 12 JPA repository interfaces.
+2026-07-04 14:29:58 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Multiple Spring Data modules found, entering strict repository configuration mode
+2026-07-04 14:29:58 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data Redis repositories in DEFAULT mode.
+2026-07-04 14:29:59 [main] INFO  o.s.d.r.c.RepositoryConfigurationExtensionSupport - Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.example.smartmoney.infrastructure.persistence.repositories.JpaBudgetRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-07-04 14:29:59 [main] INFO  o.s.d.r.c.RepositoryConfigurationExtensionSupport - Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.example.smartmoney.infrastructure.persistence.repositories.JpaGroupMemberRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-07-04 14:29:59 [main] INFO  o.s.d.r.c.RepositoryConfigurationExtensionSupport - Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.example.smartmoney.infrastructure.persistence.repositories.JpaGroupProjectRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-07-04 14:29:59 [main] INFO  o.s.d.r.c.RepositoryConfigurationExtensionSupport - Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.example.smartmoney.infrastructure.persistence.repositories.JpaGroupRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-07-04 14:29:59 [main] INFO  o.s.d.r.c.RepositoryConfigurationExtensionSupport - Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.example.smartmoney.infrastructure.persistence.repositories.JpaNotificationRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-07-04 14:29:59 [main] INFO  o.s.d.r.c.RepositoryConfigurationExtensionSupport - Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.example.smartmoney.infrastructure.persistence.repositories.JpaProjectContributionRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-07-04 14:29:59 [main] INFO  o.s.d.r.c.RepositoryConfigurationExtensionSupport - Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.example.smartmoney.infrastructure.persistence.repositories.JpaProjectHistoryRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-07-04 14:29:59 [main] INFO  o.s.d.r.c.RepositoryConfigurationExtensionSupport - Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.example.smartmoney.infrastructure.persistence.repositories.JpaProjectRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-07-04 14:29:59 [main] INFO  o.s.d.r.c.RepositoryConfigurationExtensionSupport - Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.example.smartmoney.infrastructure.persistence.repositories.JpaProjectTrackingRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-07-04 14:29:59 [main] INFO  o.s.d.r.c.RepositoryConfigurationExtensionSupport - Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.example.smartmoney.infrastructure.persistence.repositories.JpaPushTokenRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-07-04 14:29:59 [main] INFO  o.s.d.r.c.RepositoryConfigurationExtensionSupport - Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.example.smartmoney.infrastructure.persistence.repositories.JpaTransactionRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-07-04 14:29:59 [main] INFO  o.s.d.r.c.RepositoryConfigurationExtensionSupport - Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.example.smartmoney.infrastructure.persistence.repositories.JpaUserRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-07-04 14:29:59 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 148 ms. Found 0 Redis repository interfaces.
+2026-07-04 14:30:01 [main] INFO  o.s.boot.tomcat.TomcatWebServer - Tomcat initialized with port 8080 (http)
+2026-07-04 14:30:01 [main] INFO  o.a.catalina.core.StandardService - Starting service [Tomcat]
+2026-07-04 14:30:01 [main] INFO  o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/11.0.15]
+2026-07-04 14:30:01 [main] INFO  o.s.b.w.c.s.WebApplicationContextInitializer - Root WebApplicationContext: initialization completed in 5872 ms
+2026-07-04 14:30:01 [main] INFO  org.hibernate.orm.jpa - HHH008540: Processing PersistenceUnitInfo [name: default]
+2026-07-04 14:30:01 [main] INFO  org.hibernate.orm.core - HHH000001: Hibernate ORM core version 7.2.0.Final
+2026-07-04 14:30:02 [main] INFO  o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-07-04 14:30:02 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
+2026-07-04 14:30:04 [main] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@eb6ccbc
+2026-07-04 14:30:04 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
+2026-07-04 14:30:04 [main] WARN  org.hibernate.orm.deprecation - HHH90000025: PostgreSQLDialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
+2026-07-04 14:30:04 [main] INFO  o.hibernate.orm.connections.pooling - HHH10001005: Database info:
+	Database JDBC URL [jdbc:postgresql://ep-royal-morning-a13nc72w-pooler.ap-southeast-1.aws.neon.tech/official?sslmode=require&connectionTimeout=15]
+	Database driver: PostgreSQL JDBC Driver
+	Database dialect: PostgreSQLDialect
+	Database version: 17.10
+	Default catalog/schema: official/public
+	Autocommit mode: undefined/unknown
+	Isolation level: READ_COMMITTED [default READ_COMMITTED]
+	JDBC fetch size: none
+	Pool: DataSourceConnectionProvider
+	Minimum pool size: undefined/unknown
+	Maximum pool size: undefined/unknown
+2026-07-04 14:30:06 [main] INFO  org.hibernate.orm.core - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-07-04 14:30:06 [main] INFO  org.hibernate.orm.jdbc.batch - HHH100501: Automatic JDBC statement batching enabled (maximum batch size 20)
+2026-07-04 14:30:06 [main] INFO  o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-07-04 14:30:06 [main] INFO  o.s.d.j.r.q.QueryEnhancerFactories - Hibernate is in classpath; If applicable, HQL parser will be used.
+2026-07-04 14:30:08 [main] INFO  c.e.s.i.security.JwtTokenProvider - JWT Token Provider initialized with secret length: 128
+2026-07-04 14:30:08 [main] DEBUG c.e.s.i.s.AuthenticationFilter - Filter 'authenticationFilter' configured for use
+2026-07-04 14:30:10 [main] INFO  c.e.s.i.mail.config.MailConfig - Initializing JavaMailSender...
+2026-07-04 14:30:10 [main] INFO  c.e.s.i.mail.config.MailProperties - Mail Configuration:
+2026-07-04 14:30:10 [main] INFO  c.e.s.i.mail.config.MailProperties -   Host: smtp.gmail.com
+2026-07-04 14:30:10 [main] INFO  c.e.s.i.mail.config.MailProperties -   Port: 587
+2026-07-04 14:30:10 [main] INFO  c.e.s.i.mail.config.MailProperties -   Username: nhbang22@clc.fitus.edu.vn
+2026-07-04 14:30:10 [main] INFO  c.e.s.i.mail.config.MailProperties -   Protocol: smtp
+2026-07-04 14:30:10 [main] INFO  c.e.s.i.mail.config.MailProperties -   SMTP Auth: true
+2026-07-04 14:30:10 [main] INFO  c.e.s.i.mail.config.MailProperties -   STARTTLS Enabled: true
+2026-07-04 14:30:10 [main] INFO  c.e.s.i.mail.config.MailProperties -   STARTTLS Required: false
+2026-07-04 14:30:10 [main] INFO  c.e.s.i.mail.config.MailConfig - JavaMailSender initialized successfully
+2026-07-04 14:30:10 [main] WARN  c.e.s.i.common.AIRedisConfig - BE AI REDIS host=redis-15305.crce185.ap-seast-1-1.ec2.cloud.redislabs.com port=15305 db=0 ssl=false
+2026-07-04 14:30:11 [main] INFO  c.e.s.i.a.c.SupabaseJwtProperties - ✅ Supabase anonKey is configured for frontend authentication
+2026-07-04 14:30:11 [main] INFO  c.e.s.i.a.c.SupabaseJwtProperties - ✅ Supabase JWT_JWK is configured for ES256 token validation
+2026-07-04 14:30:11 [main] INFO  c.e.s.i.common.DotenvConfig - Environment variables loaded successfully
+2026-07-04 14:30:13 [main] INFO  c.e.s.i.worker.ResultAIWorker - Redis Stream group may already exist: Error in execution
+2026-07-04 14:30:13 [main] INFO  c.e.s.i.worker.ResultAIWorker - ResultAIWorker started stream=result_stream
+2026-07-04 14:30:13 [main] INFO  c.e.s.a.u.auth.FacebookLoginUseCase - ✅ FacebookLoginUseCase initialized - Ready to validate external JWT tokens
+2026-07-04 14:30:13 [main] WARN  o.s.b.j.a.JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-07-04 14:30:14 [main] INFO  o.s.s.c.a.a.c.InitializeAuthenticationProviderBeanManagerConfigurer$InitializeAuthenticationProviderManagerConfigurer - Global AuthenticationManager configured with AuthenticationProvider bean with name daoAuthenticationProvider
+2026-07-04 14:30:14 [main] WARN  o.s.s.c.a.a.c.InitializeUserDetailsBeanManagerConfigurer$InitializeUserDetailsManagerConfigurer - Global AuthenticationManager configured with an AuthenticationProvider bean. UserDetailsService beans will not be used by Spring Security for automatically configuring username/password login. Consider removing the AuthenticationProvider bean. Alternatively, consider using the UserDetailsService in a manually instantiated DaoAuthenticationProvider. If the current configuration is intentional, to turn off this warning, increase the logging level of 'org.springframework.security.config.annotation.authentication.configuration.InitializeUserDetailsBeanManagerConfigurer' to ERROR
+2026-07-04 14:30:15 [main] INFO  o.s.m.s.b.SimpleBrokerMessageHandler - Starting...
+2026-07-04 14:30:15 [main] INFO  o.s.m.s.b.SimpleBrokerMessageHandler - BrokerAvailabilityEvent[available=true, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@37988190]]
+2026-07-04 14:30:15 [main] INFO  o.s.m.s.b.SimpleBrokerMessageHandler - Started.
+2026-07-04 14:30:15 [main] INFO  o.s.boot.tomcat.TomcatWebServer - Tomcat started on port 8080 (http) with context path '/'
+2026-07-04 14:30:15 [main] INFO  c.e.smartmoney.SmartmoneyApplication - Started SmartmoneyApplication in 21.825 seconds (process running for 22.633)
+2026-07-04 14:31:15 [MessageBroker-2] INFO  o.s.w.s.c.WebSocketMessageBrokerStats - WebSocketSession[0 current WS(0)-HttpStream(0)-HttpPoll(0), 0 total, 0 closed abnormally (0 connect failure, 0 send limit, 0 transport error)], stompSubProtocol[processed CONNECT(0)-CONNECTED(0)-DISCONNECT(0)], stompBrokerRelay[null], inboundChannel[pool size = 0, active threads = 0, queued tasks = 0, completed tasks = 0], outboundChannel[pool size = 0, active threads = 0, queued tasks = 0, completed tasks = 0], sockJsScheduler[pool size = 4, active threads = 1, queued tasks = 2, completed tasks = 1]
+2026-07-04 14:33:10 [http-nio-0.0.0.0-8080-exec-1] INFO  o.a.tomcat.util.http.parser.Cookie - A cookie header was received [__utmzz=utmcsr=(direct)|utmcmd=(none)|utmccn=(not set);] that contained an invalid cookie. That cookie will be ignored.
+ Note: further occurrences of this error will be logged at DEBUG level.
+2026-07-04 14:33:10 [http-nio-0.0.0.0-8080-exec-1] INFO  o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-07-04 14:33:10 [http-nio-0.0.0.0-8080-exec-1] INFO  o.s.web.servlet.DispatcherServlet - Initializing Servlet 'dispatcherServlet'
+2026-07-04 14:33:10 [http-nio-0.0.0.0-8080-exec-1] INFO  o.s.web.servlet.DispatcherServlet - Completed initialization in 14 ms
+2026-07-04 14:33:31 [http-nio-0.0.0.0-8080-exec-6] INFO  c.e.s.p.controllers.AuthController - Google login attempt
+2026-07-04 14:33:32 [http-nio-0.0.0.0-8080-exec-6] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.focus,
+        ue1_0.full_name,
+        ue1_0.income,
+        ue1_0.intervention_level,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.pace,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.email=?
+2026-07-04 14:33:32 [http-nio-0.0.0.0-8080-exec-6] DEBUG c.e.s.i.security.JwtTokenProvider - Generated refresh token for user ID: bc87e5ee-f0ba-4c6d-bf19-2457b86d4865
+2026-07-04 14:33:32 [http-nio-0.0.0.0-8080-exec-6] DEBUG org.hibernate.SQL - 
+    update
+        users 
+    set
+        is_active=?,
+        avatar=?,
+        coin=?,
+        created_at=?,
+        date_of_birth=?,
+        email=?,
+        is_email_verified=?,
+        focus=?,
+        full_name=?,
+        income=?,
+        intervention_level=?,
+        notification_enabled=?,
+        password_hash=?,
+        phone=?,
+        rate=?,
+        refresh_token=?,
+        refresh_token_expiry=?,
+        role=?,
+        pace=?,
+        updated_at=?,
+        username=? 
+    where
+        id=?
+2026-07-04 14:33:32 [http-nio-0.0.0.0-8080-exec-6] INFO  c.e.s.p.controllers.AuthController - Google login successful for user
+2026-07-04 14:33:33 [http-nio-0.0.0.0-8080-exec-4] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.focus,
+        ue1_0.full_name,
+        ue1_0.income,
+        ue1_0.intervention_level,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.pace,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-07-04 14:33:33 [http-nio-0.0.0.0-8080-exec-9] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.focus,
+        ue1_0.full_name,
+        ue1_0.income,
+        ue1_0.intervention_level,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.pace,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-07-04 14:33:33 [http-nio-0.0.0.0-8080-exec-4] DEBUG c.e.s.i.s.AuthenticationFilter - Authenticated user ID: bc87e5ee-f0ba-4c6d-bf19-2457b86d4865
+2026-07-04 14:33:33 [http-nio-0.0.0.0-8080-exec-4] INFO  c.e.s.p.c.TransactionController - Fetching transactions for user ID: bc87e5ee-f0ba-4c6d-bf19-2457b86d4865 with filters - minAmount: null, maxAmount: null, startDate: null, endDate: null, category: null, type: null, sortBy: date, sortOrder: DESC, page: 0, size: 5
+2026-07-04 14:33:33 [http-nio-0.0.0.0-8080-exec-4] DEBUG org.hibernate.SQL - 
+    select
+        te1_0.id,
+        te1_0.amount,
+        te1_0.category,
+        te1_0.created_at,
+        te1_0.date,
+        te1_0.description,
+        te1_0.type,
+        te1_0.updated_at,
+        te1_0.user_id 
+    from
+        transactions te1_0 
+    where
+        te1_0.user_id=?
+2026-07-04 14:33:33 [http-nio-0.0.0.0-8080-exec-4] INFO  c.e.s.p.c.TransactionController - Retrieved 0 transactions for user ID: bc87e5ee-f0ba-4c6d-bf19-2457b86d4865
+2026-07-04 14:33:33 [http-nio-0.0.0.0-8080-exec-8] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.focus,
+        ue1_0.full_name,
+        ue1_0.income,
+        ue1_0.intervention_level,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.pace,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-07-04 14:33:33 [http-nio-0.0.0.0-8080-exec-8] DEBUG c.e.s.i.s.AuthenticationFilter - Authenticated user ID: bc87e5ee-f0ba-4c6d-bf19-2457b86d4865
+2026-07-04 14:33:33 [http-nio-0.0.0.0-8080-exec-8] INFO  c.e.s.p.c.TransactionController - Fetching transactions for user ID: bc87e5ee-f0ba-4c6d-bf19-2457b86d4865 with filters - minAmount: null, maxAmount: null, startDate: null, endDate: null, category: null, type: null, sortBy: date, sortOrder: DESC, page: 0, size: 5
+2026-07-04 14:33:33 [http-nio-0.0.0.0-8080-exec-8] DEBUG org.hibernate.SQL - 
+    select
+        te1_0.id,
+        te1_0.amount,
+        te1_0.category,
+        te1_0.created_at,
+        te1_0.date,
+        te1_0.description,
+        te1_0.type,
+        te1_0.updated_at,
+        te1_0.user_id 
+    from
+        transactions te1_0 
+    where
+        te1_0.user_id=?
+2026-07-04 14:33:33 [http-nio-0.0.0.0-8080-exec-8] INFO  c.e.s.p.c.TransactionController - Retrieved 0 transactions for user ID: bc87e5ee-f0ba-4c6d-bf19-2457b86d4865
+2026-07-04 14:33:33 [http-nio-0.0.0.0-8080-exec-10] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.focus,
+        ue1_0.full_name,
+        ue1_0.income,
+        ue1_0.intervention_level,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.pace,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-07-04 14:33:34 [http-nio-0.0.0.0-8080-exec-9] DEBUG c.e.s.i.s.AuthenticationFilter - Authenticated user ID: bc87e5ee-f0ba-4c6d-bf19-2457b86d4865
+2026-07-04 14:33:34 [http-nio-0.0.0.0-8080-exec-9] DEBUG org.hibernate.SQL - 
+    select
+        ne1_0.id,
+        ne1_0.content,
+        ne1_0.created_at,
+        ne1_0.deep_link,
+        ne1_0.is_read,
+        ne1_0.user_id 
+    from
+        notifications ne1_0 
+    where
+        ne1_0.user_id=? 
+    order by
+        ne1_0.created_at desc
+2026-07-04 14:33:34 [http-nio-0.0.0.0-8080-exec-10] DEBUG c.e.s.i.s.AuthenticationFilter - Authenticated user ID: bc87e5ee-f0ba-4c6d-bf19-2457b86d4865
+2026-07-04 14:33:34 [http-nio-0.0.0.0-8080-exec-7] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.focus,
+        ue1_0.full_name,
+        ue1_0.income,
+        ue1_0.intervention_level,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.pace,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-07-04 14:33:34 [http-nio-0.0.0.0-8080-exec-10] INFO  c.e.s.p.c.TransactionController - Fetching analytics for user ID: bc87e5ee-f0ba-4c6d-bf19-2457b86d4865
+2026-07-04 14:33:34 [http-nio-0.0.0.0-8080-exec-10] DEBUG org.hibernate.SQL - 
+    WITH weeks AS (     SELECT
+        generate_series(1, 5) AS week_of_month ), types AS (     SELECT
+        unnest(ARRAY['INCOME', 'EXPENSE']) AS type ), stats AS (     SELECT
+        t.type,         ((EXTRACT(DAY FROM t.date)::int - 1) / 7) + 1 AS week_of_month,         COALESCE(SUM(t.amount), 0) AS total_amount     FROM transactions t     
+    WHERE
+        t.user_id = CAST(? AS uuid)       
+        AND EXTRACT(MONTH FROM t.date) = ?       
+        AND EXTRACT(YEAR FROM t.date) = ?     
+    GROUP BY
+        t.type, week_of_month ) SELECT
+        types.type,
+        weeks.week_of_month,
+        COALESCE(stats.total_amount, 0) AS total_amount 
+    FROM
+        weeks 
+    CROSS JOIN
+        types 
+    LEFT JOIN
+        stats   
+            ON stats.week_of_month = weeks.week_of_month  
+            AND stats.type = types.type 
+    ORDER BY
+        weeks.week_of_month,
+        types.type 
+2026-07-04 14:33:34 [http-nio-0.0.0.0-8080-exec-1] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.focus,
+        ue1_0.full_name,
+        ue1_0.income,
+        ue1_0.intervention_level,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.pace,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-07-04 14:33:34 [http-nio-0.0.0.0-8080-exec-10] DEBUG org.hibernate.SQL - 
+    SELECT
+        t.category,
+        COUNT(t.id),
+        SUM(t.amount) 
+    FROM
+        transactions t 
+    WHERE
+        t.user_id = CAST(? AS uuid) 
+        AND t.type = 'EXPENSE' 
+        AND EXTRACT(YEAR FROM t.date) = ? 
+        AND EXTRACT(MONTH FROM t.date) = ? 
+    GROUP BY
+        t.category
+2026-07-04 14:33:34 [http-nio-0.0.0.0-8080-exec-1] DEBUG c.e.s.i.s.AuthenticationFilter - Authenticated user ID: bc87e5ee-f0ba-4c6d-bf19-2457b86d4865
+2026-07-04 14:33:34 [http-nio-0.0.0.0-8080-exec-1] DEBUG org.hibernate.SQL - 
+    select
+        ne1_0.id,
+        ne1_0.content,
+        ne1_0.created_at,
+        ne1_0.deep_link,
+        ne1_0.is_read,
+        ne1_0.user_id 
+    from
+        notifications ne1_0 
+    where
+        ne1_0.user_id=? 
+    order by
+        ne1_0.created_at desc
+2026-07-04 14:33:34 [http-nio-0.0.0.0-8080-exec-10] DEBUG org.hibernate.SQL - 
+    SELECT
+        COALESCE(SUM(CASE 
+            WHEN t.type = 'INCOME' 
+                THEN t.amount 
+            ELSE 0 
+    END), 0) AS total_income,
+    COALESCE(SUM(CASE 
+        WHEN t.type = 'EXPENSE' 
+            THEN t.amount 
+        ELSE 0 
+END), 0) AS total_expense,
+COUNT(t.id) AS total_transactions 
+FROM
+    transactions t 
+WHERE
+    t.user_id = CAST(? AS uuid) 
+    AND EXTRACT(YEAR FROM t.date) = ? 
+    AND EXTRACT(MONTH FROM t.date) = ?
+2026-07-04 14:33:34 [http-nio-0.0.0.0-8080-exec-10] DEBUG org.hibernate.SQL - 
+    SELECT
+        EXTRACT(DAY FROM t.date)::int AS day_of_month,
+        COALESCE(SUM(CASE 
+            WHEN t.type = 'INCOME' 
+                THEN t.amount 
+            ELSE 0 
+    END), 0) AS total_income,
+    COALESCE(SUM(CASE 
+        WHEN t.type = 'EXPENSE' 
+            THEN t.amount 
+        ELSE 0 
+END), 0) AS total_expense 
+FROM
+    transactions t 
+WHERE
+    t.user_id = CAST(? AS uuid) 
+    AND EXTRACT(YEAR FROM t.date) = ? 
+    AND EXTRACT(MONTH FROM t.date) = ? 
+GROUP BY
+    day_of_month 
+ORDER BY
+    day_of_month
+2026-07-04 14:33:34 [http-nio-0.0.0.0-8080-exec-2] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.focus,
+        ue1_0.full_name,
+        ue1_0.income,
+        ue1_0.intervention_level,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.pace,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-07-04 14:33:34 [http-nio-0.0.0.0-8080-exec-7] DEBUG c.e.s.i.s.AuthenticationFilter - Authenticated user ID: bc87e5ee-f0ba-4c6d-bf19-2457b86d4865
+2026-07-04 14:33:34 [http-nio-0.0.0.0-8080-exec-7] INFO  c.e.s.p.c.TransactionController - Fetching analytics for user ID: bc87e5ee-f0ba-4c6d-bf19-2457b86d4865
+2026-07-04 14:33:34 [http-nio-0.0.0.0-8080-exec-7] DEBUG org.hibernate.SQL - 
+    WITH weeks AS (     SELECT
+        generate_series(1, 5) AS week_of_month ), types AS (     SELECT
+        unnest(ARRAY['INCOME', 'EXPENSE']) AS type ), stats AS (     SELECT
+        t.type,         ((EXTRACT(DAY FROM t.date)::int - 1) / 7) + 1 AS week_of_month,         COALESCE(SUM(t.amount), 0) AS total_amount     FROM transactions t     
+    WHERE
+        t.user_id = CAST(? AS uuid)       
+        AND EXTRACT(MONTH FROM t.date) = ?       
+        AND EXTRACT(YEAR FROM t.date) = ?     
+    GROUP BY
+        t.type, week_of_month ) SELECT
+        types.type,
+        weeks.week_of_month,
+        COALESCE(stats.total_amount, 0) AS total_amount 
+    FROM
+        weeks 
+    CROSS JOIN
+        types 
+    LEFT JOIN
+        stats   
+            ON stats.week_of_month = weeks.week_of_month  
+            AND stats.type = types.type 
+    ORDER BY
+        weeks.week_of_month,
+        types.type 
+2026-07-04 14:33:34 [http-nio-0.0.0.0-8080-exec-7] DEBUG org.hibernate.SQL - 
+    SELECT
+        t.category,
+        COUNT(t.id),
+        SUM(t.amount) 
+    FROM
+        transactions t 
+    WHERE
+        t.user_id = CAST(? AS uuid) 
+        AND t.type = 'EXPENSE' 
+        AND EXTRACT(YEAR FROM t.date) = ? 
+        AND EXTRACT(MONTH FROM t.date) = ? 
+    GROUP BY
+        t.category
+2026-07-04 14:33:34 [http-nio-0.0.0.0-8080-exec-2] DEBUG c.e.s.i.s.AuthenticationFilter - Authenticated user ID: bc87e5ee-f0ba-4c6d-bf19-2457b86d4865
+2026-07-04 14:33:34 [http-nio-0.0.0.0-8080-exec-2] INFO  c.e.s.p.controllers.BudgetController - Fetching budgets for user ID: bc87e5ee-f0ba-4c6d-bf19-2457b86d4865 with month: 7, year: 2026
+2026-07-04 14:33:34 [http-nio-0.0.0.0-8080-exec-2] DEBUG org.hibernate.SQL - 
+    select
+        be1_0.id,
+        be1_0.amount_limit,
+        be1_0.category,
+        be1_0.created_at,
+        be1_0.month,
+        be1_0.spent,
+        be1_0.updated_at,
+        be1_0.user_id,
+        be1_0.year 
+    from
+        budgets be1_0 
+    where
+        be1_0.user_id=? 
+        and be1_0.month=? 
+        and be1_0.year=?
+2026-07-04 14:33:34 [http-nio-0.0.0.0-8080-exec-7] DEBUG org.hibernate.SQL - 
+    SELECT
+        COALESCE(SUM(CASE 
+            WHEN t.type = 'INCOME' 
+                THEN t.amount 
+            ELSE 0 
+    END), 0) AS total_income,
+    COALESCE(SUM(CASE 
+        WHEN t.type = 'EXPENSE' 
+            THEN t.amount 
+        ELSE 0 
+END), 0) AS total_expense,
+COUNT(t.id) AS total_transactions 
+FROM
+    transactions t 
+WHERE
+    t.user_id = CAST(? AS uuid) 
+    AND EXTRACT(YEAR FROM t.date) = ? 
+    AND EXTRACT(MONTH FROM t.date) = ?
+2026-07-04 14:33:34 [http-nio-0.0.0.0-8080-exec-2] INFO  c.e.s.a.u.b.GetBudgetListUseCase - Retrieved 0 budgets for userId=bc87e5ee-f0ba-4c6d-bf19-2457b86d4865, month=7, year=2026
+2026-07-04 14:33:34 [http-nio-0.0.0.0-8080-exec-2] INFO  c.e.s.p.controllers.BudgetController - Retrieved 0 budgets for user ID: bc87e5ee-f0ba-4c6d-bf19-2457b86d4865
+2026-07-04 14:33:34 [http-nio-0.0.0.0-8080-exec-5] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.focus,
+        ue1_0.full_name,
+        ue1_0.income,
+        ue1_0.intervention_level,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.pace,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-07-04 14:33:34 [http-nio-0.0.0.0-8080-exec-7] DEBUG org.hibernate.SQL - 
+    SELECT
+        EXTRACT(DAY FROM t.date)::int AS day_of_month,
+        COALESCE(SUM(CASE 
+            WHEN t.type = 'INCOME' 
+                THEN t.amount 
+            ELSE 0 
+    END), 0) AS total_income,
+    COALESCE(SUM(CASE 
+        WHEN t.type = 'EXPENSE' 
+            THEN t.amount 
+        ELSE 0 
+END), 0) AS total_expense 
+FROM
+    transactions t 
+WHERE
+    t.user_id = CAST(? AS uuid) 
+    AND EXTRACT(YEAR FROM t.date) = ? 
+    AND EXTRACT(MONTH FROM t.date) = ? 
+GROUP BY
+    day_of_month 
+ORDER BY
+    day_of_month
+2026-07-04 14:33:35 [http-nio-0.0.0.0-8080-exec-5] DEBUG c.e.s.i.s.AuthenticationFilter - Authenticated user ID: bc87e5ee-f0ba-4c6d-bf19-2457b86d4865
+2026-07-04 14:33:35 [http-nio-0.0.0.0-8080-exec-5] DEBUG org.hibernate.SQL - 
+    select
+        pe1_0.id,
+        pe1_0.created_at,
+        pe1_0.currency,
+        pe1_0.deadline,
+        pe1_0.description,
+        pe1_0.group_project_id,
+        pe1_0.name,
+        pe1_0.owner_id,
+        pe1_0.priority,
+        pe1_0.status,
+        pe1_0.target_amount,
+        pe1_0.type,
+        pe1_0.updated_at 
+    from
+        projects pe1_0 
+    where
+        pe1_0.owner_id=?
+2026-07-04 14:33:35 [http-nio-0.0.0.0-8080-exec-6] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.focus,
+        ue1_0.full_name,
+        ue1_0.income,
+        ue1_0.intervention_level,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.pace,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-07-04 14:33:35 [http-nio-0.0.0.0-8080-exec-6] DEBUG c.e.s.i.s.AuthenticationFilter - Authenticated user ID: bc87e5ee-f0ba-4c6d-bf19-2457b86d4865
+2026-07-04 14:33:35 [http-nio-0.0.0.0-8080-exec-6] INFO  c.e.s.p.controllers.BudgetController - Fetching budgets for user ID: bc87e5ee-f0ba-4c6d-bf19-2457b86d4865 with month: 7, year: 2026
+2026-07-04 14:33:35 [http-nio-0.0.0.0-8080-exec-6] DEBUG org.hibernate.SQL - 
+    select
+        be1_0.id,
+        be1_0.amount_limit,
+        be1_0.category,
+        be1_0.created_at,
+        be1_0.month,
+        be1_0.spent,
+        be1_0.updated_at,
+        be1_0.user_id,
+        be1_0.year 
+    from
+        budgets be1_0 
+    where
+        be1_0.user_id=? 
+        and be1_0.month=? 
+        and be1_0.year=?
+2026-07-04 14:33:35 [http-nio-0.0.0.0-8080-exec-6] INFO  c.e.s.a.u.b.GetBudgetListUseCase - Retrieved 0 budgets for userId=bc87e5ee-f0ba-4c6d-bf19-2457b86d4865, month=7, year=2026
+2026-07-04 14:33:35 [http-nio-0.0.0.0-8080-exec-6] INFO  c.e.s.p.controllers.BudgetController - Retrieved 0 budgets for user ID: bc87e5ee-f0ba-4c6d-bf19-2457b86d4865
+2026-07-04 14:33:35 [http-nio-0.0.0.0-8080-exec-3] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.focus,
+        ue1_0.full_name,
+        ue1_0.income,
+        ue1_0.intervention_level,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.pace,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-07-04 14:33:35 [http-nio-0.0.0.0-8080-exec-3] DEBUG c.e.s.i.s.AuthenticationFilter - Authenticated user ID: bc87e5ee-f0ba-4c6d-bf19-2457b86d4865
+2026-07-04 14:33:35 [http-nio-0.0.0.0-8080-exec-3] DEBUG org.hibernate.SQL - 
+    select
+        pe1_0.id,
+        pe1_0.created_at,
+        pe1_0.currency,
+        pe1_0.deadline,
+        pe1_0.description,
+        pe1_0.group_project_id,
+        pe1_0.name,
+        pe1_0.owner_id,
+        pe1_0.priority,
+        pe1_0.status,
+        pe1_0.target_amount,
+        pe1_0.type,
+        pe1_0.updated_at 
+    from
+        projects pe1_0 
+    where
+        pe1_0.owner_id=?
+2026-07-04 14:33:37 [http-nio-0.0.0.0-8080-exec-4] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.focus,
+        ue1_0.full_name,
+        ue1_0.income,
+        ue1_0.intervention_level,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.pace,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-07-04 14:33:37 [http-nio-0.0.0.0-8080-exec-8] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.focus,
+        ue1_0.full_name,
+        ue1_0.income,
+        ue1_0.intervention_level,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.pace,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-07-04 14:33:38 [http-nio-0.0.0.0-8080-exec-4] DEBUG c.e.s.i.s.AuthenticationFilter - Authenticated user ID: bc87e5ee-f0ba-4c6d-bf19-2457b86d4865
+2026-07-04 14:33:38 [http-nio-0.0.0.0-8080-exec-4] DEBUG org.hibernate.SQL - 
+    select
+        ne1_0.id,
+        ne1_0.content,
+        ne1_0.created_at,
+        ne1_0.deep_link,
+        ne1_0.is_read,
+        ne1_0.user_id 
+    from
+        notifications ne1_0 
+    where
+        ne1_0.user_id=? 
+    order by
+        ne1_0.created_at desc
+2026-07-04 14:33:38 [http-nio-0.0.0.0-8080-exec-8] DEBUG c.e.s.i.s.AuthenticationFilter - Authenticated user ID: bc87e5ee-f0ba-4c6d-bf19-2457b86d4865
+2026-07-04 14:33:38 [http-nio-0.0.0.0-8080-exec-8] INFO  c.e.s.p.controllers.BudgetController - Fetching budgets for user ID: bc87e5ee-f0ba-4c6d-bf19-2457b86d4865 with month: 7, year: 2026
+2026-07-04 14:33:38 [http-nio-0.0.0.0-8080-exec-8] DEBUG org.hibernate.SQL - 
+    select
+        be1_0.id,
+        be1_0.amount_limit,
+        be1_0.category,
+        be1_0.created_at,
+        be1_0.month,
+        be1_0.spent,
+        be1_0.updated_at,
+        be1_0.user_id,
+        be1_0.year 
+    from
+        budgets be1_0 
+    where
+        be1_0.user_id=? 
+        and be1_0.month=? 
+        and be1_0.year=?
+2026-07-04 14:33:38 [http-nio-0.0.0.0-8080-exec-8] INFO  c.e.s.a.u.b.GetBudgetListUseCase - Retrieved 0 budgets for userId=bc87e5ee-f0ba-4c6d-bf19-2457b86d4865, month=7, year=2026
+2026-07-04 14:33:38 [http-nio-0.0.0.0-8080-exec-8] INFO  c.e.s.p.controllers.BudgetController - Retrieved 0 budgets for user ID: bc87e5ee-f0ba-4c6d-bf19-2457b86d4865
+2026-07-04 14:33:38 [http-nio-0.0.0.0-8080-exec-9] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.focus,
+        ue1_0.full_name,
+        ue1_0.income,
+        ue1_0.intervention_level,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.pace,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-07-04 14:33:38 [http-nio-0.0.0.0-8080-exec-1] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.focus,
+        ue1_0.full_name,
+        ue1_0.income,
+        ue1_0.intervention_level,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.pace,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-07-04 14:33:38 [http-nio-0.0.0.0-8080-exec-9] DEBUG c.e.s.i.s.AuthenticationFilter - Authenticated user ID: bc87e5ee-f0ba-4c6d-bf19-2457b86d4865
+2026-07-04 14:33:38 [http-nio-0.0.0.0-8080-exec-9] INFO  c.e.s.p.controllers.BudgetController - Fetching budgets for user ID: bc87e5ee-f0ba-4c6d-bf19-2457b86d4865 with month: 7, year: 2026
+2026-07-04 14:33:38 [http-nio-0.0.0.0-8080-exec-9] DEBUG org.hibernate.SQL - 
+    select
+        be1_0.id,
+        be1_0.amount_limit,
+        be1_0.category,
+        be1_0.created_at,
+        be1_0.month,
+        be1_0.spent,
+        be1_0.updated_at,
+        be1_0.user_id,
+        be1_0.year 
+    from
+        budgets be1_0 
+    where
+        be1_0.user_id=? 
+        and be1_0.month=? 
+        and be1_0.year=?
+2026-07-04 14:33:38 [http-nio-0.0.0.0-8080-exec-1] DEBUG c.e.s.i.s.AuthenticationFilter - Authenticated user ID: bc87e5ee-f0ba-4c6d-bf19-2457b86d4865
+2026-07-04 14:33:38 [http-nio-0.0.0.0-8080-exec-1] DEBUG org.hibernate.SQL - 
+    select
+        ne1_0.id,
+        ne1_0.content,
+        ne1_0.created_at,
+        ne1_0.deep_link,
+        ne1_0.is_read,
+        ne1_0.user_id 
+    from
+        notifications ne1_0 
+    where
+        ne1_0.user_id=? 
+    order by
+        ne1_0.created_at desc
+2026-07-04 14:33:38 [http-nio-0.0.0.0-8080-exec-9] INFO  c.e.s.a.u.b.GetBudgetListUseCase - Retrieved 0 budgets for userId=bc87e5ee-f0ba-4c6d-bf19-2457b86d4865, month=7, year=2026
+2026-07-04 14:33:38 [http-nio-0.0.0.0-8080-exec-9] INFO  c.e.s.p.controllers.BudgetController - Retrieved 0 budgets for user ID: bc87e5ee-f0ba-4c6d-bf19-2457b86d4865
+2026-07-04 14:36:10 [http-nio-0.0.0.0-8080-exec-7] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.focus,
+        ue1_0.full_name,
+        ue1_0.income,
+        ue1_0.intervention_level,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.pace,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-07-04 14:36:10 [http-nio-0.0.0.0-8080-exec-7] DEBUG c.e.s.i.s.AuthenticationFilter - Authenticated user ID: bc87e5ee-f0ba-4c6d-bf19-2457b86d4865
+2026-07-04 14:36:10 [http-nio-0.0.0.0-8080-exec-7] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.focus,
+        ue1_0.full_name,
+        ue1_0.income,
+        ue1_0.intervention_level,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.pace,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-07-04 14:36:10 [http-nio-0.0.0.0-8080-exec-7] DEBUG org.hibernate.SQL - 
+    select
+        pe1_0.id,
+        pe1_0.created_at,
+        pe1_0.currency,
+        pe1_0.deadline,
+        pe1_0.description,
+        pe1_0.group_project_id,
+        pe1_0.name,
+        pe1_0.owner_id,
+        pe1_0.priority,
+        pe1_0.status,
+        pe1_0.target_amount,
+        pe1_0.type,
+        pe1_0.updated_at 
+    from
+        projects pe1_0 
+    where
+        pe1_0.owner_id=?
+2026-07-04 14:36:10 [http-nio-0.0.0.0-8080-exec-7] DEBUG org.hibernate.SQL - 
+    SELECT
+        * 
+    FROM
+        transactions t 
+    WHERE
+        t.user_id = CAST(? AS uuid) 
+        AND (
+            CAST(? AS numeric) IS NULL 
+            OR t.amount >= CAST(? AS numeric)
+        ) 
+        AND (
+            CAST(? AS numeric) IS NULL 
+            OR t.amount <= CAST(? AS numeric)
+        ) 
+        AND (
+            CAST(? AS timestamp) IS NULL 
+            OR t.date >= CAST(? AS timestamp)
+        ) 
+        AND (
+            CAST(? AS timestamp) IS NULL 
+            OR t.date <= CAST(? AS timestamp)
+        ) 
+        AND (
+            CAST(? AS varchar) IS NULL 
+            OR t.category = CAST(? AS varchar)
+        ) 
+        AND (
+            CAST(? AS varchar) IS NULL 
+            OR t.type = CAST(? AS varchar)
+        )
+2026-07-04 14:36:43 [http-nio-0.0.0.0-8080-exec-2] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.focus,
+        ue1_0.full_name,
+        ue1_0.income,
+        ue1_0.intervention_level,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.pace,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-07-04 14:36:43 [http-nio-0.0.0.0-8080-exec-2] DEBUG c.e.s.i.s.AuthenticationFilter - Authenticated user ID: bc87e5ee-f0ba-4c6d-bf19-2457b86d4865
+2026-07-04 14:36:43 [http-nio-0.0.0.0-8080-exec-2] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.focus,
+        ue1_0.full_name,
+        ue1_0.income,
+        ue1_0.intervention_level,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.pace,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-07-04 14:36:43 [http-nio-0.0.0.0-8080-exec-2] DEBUG org.hibernate.SQL - 
+    select
+        pe1_0.id,
+        pe1_0.created_at,
+        pe1_0.currency,
+        pe1_0.deadline,
+        pe1_0.description,
+        pe1_0.group_project_id,
+        pe1_0.name,
+        pe1_0.owner_id,
+        pe1_0.priority,
+        pe1_0.status,
+        pe1_0.target_amount,
+        pe1_0.type,
+        pe1_0.updated_at 
+    from
+        projects pe1_0 
+    where
+        pe1_0.owner_id=?
+2026-07-04 14:36:43 [http-nio-0.0.0.0-8080-exec-2] DEBUG org.hibernate.SQL - 
+    SELECT
+        * 
+    FROM
+        transactions t 
+    WHERE
+        t.user_id = CAST(? AS uuid) 
+        AND (
+            CAST(? AS numeric) IS NULL 
+            OR t.amount >= CAST(? AS numeric)
+        ) 
+        AND (
+            CAST(? AS numeric) IS NULL 
+            OR t.amount <= CAST(? AS numeric)
+        ) 
+        AND (
+            CAST(? AS timestamp) IS NULL 
+            OR t.date >= CAST(? AS timestamp)
+        ) 
+        AND (
+            CAST(? AS timestamp) IS NULL 
+            OR t.date <= CAST(? AS timestamp)
+        ) 
+        AND (
+            CAST(? AS varchar) IS NULL 
+            OR t.category = CAST(? AS varchar)
+        ) 
+        AND (
+            CAST(? AS varchar) IS NULL 
+            OR t.type = CAST(? AS varchar)
+        )
+2026-07-04 14:37:38 [ResultAIWorker-Consumer] WARN  c.e.s.i.worker.ResultAIWorker - BE RAW RESULT STREAM messageId=1783150655630-0 payload={"init":"true"}
+2026-07-04 14:38:11 [ResultAIWorker-Consumer] WARN  c.e.s.i.worker.ResultAIWorker - BE RAW RESULT STREAM messageId=1783150688522-0 payload={"jobId":"b33330ee-adc2-4e33-8204-1d6dd7254e75","userId":"bc87e5ee-f0ba-4c6d-bf19-2457b86d4865","duty":"BUDGET_ALLOCATION_PLAN","status":"COMPLETED","type":"BUDGET_ALLOCATION_RESULT","result":"{\"totalBudget\": 20000000, \"currency\": \"VND\", \"modelVersion\": \"LLM_GPT5_NANO\", \"categories\": [{\"category\": \"FOOD\", \"ratio\": 0.28, \"amount\": 5600000}, {\"category\": \"TRANSPORTATION\", \"ratio\": 0.15, \"amount\": 3000000}, {\"category\": \"CLOTHING\", \"ratio\": 0.04, \"amount\": 800000}, {\"category\": \"UTILITIES\", \"ratio\": 0.15, \"amount\": 3000000}, {\"category\": \"ENTERTAINMENT\", \"ratio\": 0.04, \"amount\": 800000}, {\"category\": \"HEALTH\", \"ratio\": 0.05, \"amount\": 1000000}, {\"category\": \"EDUCATION\", \"ratio\": 0.1, \"amount\": 2000000}, {\"category\": \"SHOPPING\", \"ratio\": 0.04, \"amount\": 800000}, {\"category\": \"OTHER\", \"ratio\": 0.15, \"amount\": 3000000}]}","producerVersion":"budget-v2-transportation-9-categories","producerPid":"26572","producerHost":"LAPTOP-LVHEGMTT"}
+2026-07-04 14:38:11 [ResultAIWorker-Consumer] INFO  c.e.s.i.worker.ResultAIWorker - Parsed Budget AI result successfully, jobId=b33330ee-adc2-4e33-8204-1d6dd7254e75
+2026-07-04 14:38:11 [ResultAIWorker-Consumer] WARN  c.e.s.i.worker.ResultAIWorker - BE PARSED BUDGET RESULT messageId=1783150688522-0 jobId=b33330ee-adc2-4e33-8204-1d6dd7254e75 payload={"jobId":"b33330ee-adc2-4e33-8204-1d6dd7254e75","userId":"bc87e5ee-f0ba-4c6d-bf19-2457b86d4865","duty":"BUDGET_ALLOCATION_PLAN","status":"COMPLETED","type":"BUDGET_ALLOCATION_RESULT","result":{"totalBudget":20000000,"currency":"VND","modelVersion":"LLM_GPT5_NANO","categories":[{"category":"FOOD","ratio":0.28,"amount":5600000},{"category":"TRANSPORTATION","ratio":0.15,"amount":3000000},{"category":"CLOTHING","ratio":0.04,"amount":800000},{"category":"UTILITIES","ratio":0.15,"amount":3000000},{"category":"ENTERTAINMENT","ratio":0.04,"amount":800000},{"category":"HEALTH","ratio":0.05,"amount":1000000},{"category":"EDUCATION","ratio":0.1,"amount":2000000},{"category":"SHOPPING","ratio":0.04,"amount":800000},{"category":"OTHER","ratio":0.15,"amount":3000000}]},"producerVersion":"budget-v2-transportation-9-categories","producerPid":"26572","producerHost":"LAPTOP-LVHEGMTT"}
+2026-07-04 14:38:11 [ResultAIWorker-Consumer] WARN  c.e.s.i.worker.ResultAIWorker - BE SENDING RESULT messageId=1783150688522-0 jobId=b33330ee-adc2-4e33-8204-1d6dd7254e75 destination=/topic/ai/user/bc87e5ee-f0ba-4c6d-bf19-2457b86d4865 payload={"jobId":"b33330ee-adc2-4e33-8204-1d6dd7254e75","userId":"bc87e5ee-f0ba-4c6d-bf19-2457b86d4865","duty":"BUDGET_ALLOCATION_PLAN","status":"COMPLETED","type":"BUDGET_ALLOCATION_RESULT","result":{"totalBudget":20000000,"currency":"VND","modelVersion":"LLM_GPT5_NANO","categories":[{"category":"FOOD","ratio":0.28,"amount":5600000},{"category":"TRANSPORTATION","ratio":0.15,"amount":3000000},{"category":"CLOTHING","ratio":0.04,"amount":800000},{"category":"UTILITIES","ratio":0.15,"amount":3000000},{"category":"ENTERTAINMENT","ratio":0.04,"amount":800000},{"category":"HEALTH","ratio":0.05,"amount":1000000},{"category":"EDUCATION","ratio":0.1,"amount":2000000},{"category":"SHOPPING","ratio":0.04,"amount":800000},{"category":"OTHER","ratio":0.15,"amount":3000000}]},"producerVersion":"budget-v2-transportation-9-categories","producerPid":"26572","producerHost":"LAPTOP-LVHEGMTT"}
+2026-07-04 14:38:11 [ResultAIWorker-Consumer] INFO  c.e.s.i.worker.ResultAIWorker - Processed AI result jobId=b33330ee-adc2-4e33-8204-1d6dd7254e75 userId=bc87e5ee-f0ba-4c6d-bf19-2457b86d4865 type=BUDGET_ALLOCATION_RESULT
+2026-07-04 14:39:22 [http-nio-0.0.0.0-8080-exec-4] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.focus,
+        ue1_0.full_name,
+        ue1_0.income,
+        ue1_0.intervention_level,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.pace,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-07-04 14:39:22 [http-nio-0.0.0.0-8080-exec-4] DEBUG c.e.s.i.s.AuthenticationFilter - Authenticated user ID: bc87e5ee-f0ba-4c6d-bf19-2457b86d4865
+2026-07-04 14:39:22 [http-nio-0.0.0.0-8080-exec-4] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.focus,
+        ue1_0.full_name,
+        ue1_0.income,
+        ue1_0.intervention_level,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.pace,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-07-04 14:39:23 [http-nio-0.0.0.0-8080-exec-4] DEBUG org.hibernate.SQL - 
+    select
+        pe1_0.id,
+        pe1_0.created_at,
+        pe1_0.currency,
+        pe1_0.deadline,
+        pe1_0.description,
+        pe1_0.group_project_id,
+        pe1_0.name,
+        pe1_0.owner_id,
+        pe1_0.priority,
+        pe1_0.status,
+        pe1_0.target_amount,
+        pe1_0.type,
+        pe1_0.updated_at 
+    from
+        projects pe1_0 
+    where
+        pe1_0.owner_id=?
+2026-07-04 14:39:23 [http-nio-0.0.0.0-8080-exec-4] DEBUG org.hibernate.SQL - 
+    SELECT
+        * 
+    FROM
+        transactions t 
+    WHERE
+        t.user_id = CAST(? AS uuid) 
+        AND (
+            CAST(? AS numeric) IS NULL 
+            OR t.amount >= CAST(? AS numeric)
+        ) 
+        AND (
+            CAST(? AS numeric) IS NULL 
+            OR t.amount <= CAST(? AS numeric)
+        ) 
+        AND (
+            CAST(? AS timestamp) IS NULL 
+            OR t.date >= CAST(? AS timestamp)
+        ) 
+        AND (
+            CAST(? AS timestamp) IS NULL 
+            OR t.date <= CAST(? AS timestamp)
+        ) 
+        AND (
+            CAST(? AS varchar) IS NULL 
+            OR t.category = CAST(? AS varchar)
+        ) 
+        AND (
+            CAST(? AS varchar) IS NULL 
+            OR t.type = CAST(? AS varchar)
+        )
+2026-07-04 14:40:00 [http-nio-0.0.0.0-8080-exec-9] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.focus,
+        ue1_0.full_name,
+        ue1_0.income,
+        ue1_0.intervention_level,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.pace,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-07-04 14:40:01 [http-nio-0.0.0.0-8080-exec-9] DEBUG c.e.s.i.s.AuthenticationFilter - Authenticated user ID: bc87e5ee-f0ba-4c6d-bf19-2457b86d4865
+2026-07-04 14:40:01 [http-nio-0.0.0.0-8080-exec-9] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.focus,
+        ue1_0.full_name,
+        ue1_0.income,
+        ue1_0.intervention_level,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.pace,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-07-04 14:40:01 [http-nio-0.0.0.0-8080-exec-9] DEBUG org.hibernate.SQL - 
+    select
+        pe1_0.id,
+        pe1_0.created_at,
+        pe1_0.currency,
+        pe1_0.deadline,
+        pe1_0.description,
+        pe1_0.group_project_id,
+        pe1_0.name,
+        pe1_0.owner_id,
+        pe1_0.priority,
+        pe1_0.status,
+        pe1_0.target_amount,
+        pe1_0.type,
+        pe1_0.updated_at 
+    from
+        projects pe1_0 
+    where
+        pe1_0.owner_id=?
+2026-07-04 14:40:01 [http-nio-0.0.0.0-8080-exec-9] DEBUG org.hibernate.SQL - 
+    SELECT
+        * 
+    FROM
+        transactions t 
+    WHERE
+        t.user_id = CAST(? AS uuid) 
+        AND (
+            CAST(? AS numeric) IS NULL 
+            OR t.amount >= CAST(? AS numeric)
+        ) 
+        AND (
+            CAST(? AS numeric) IS NULL 
+            OR t.amount <= CAST(? AS numeric)
+        ) 
+        AND (
+            CAST(? AS timestamp) IS NULL 
+            OR t.date >= CAST(? AS timestamp)
+        ) 
+        AND (
+            CAST(? AS timestamp) IS NULL 
+            OR t.date <= CAST(? AS timestamp)
+        ) 
+        AND (
+            CAST(? AS varchar) IS NULL 
+            OR t.category = CAST(? AS varchar)
+        ) 
+        AND (
+            CAST(? AS varchar) IS NULL 
+            OR t.type = CAST(? AS varchar)
+        )
+2026-07-04 14:40:56 [ResultAIWorker-Consumer] WARN  c.e.s.i.worker.ResultAIWorker - BE RAW RESULT STREAM messageId=1783150853485-0 payload={"jobId":"4c957e2a-1c74-427e-8fce-ca4cd35ba90e","userId":"bc87e5ee-f0ba-4c6d-bf19-2457b86d4865","duty":"BUDGET_ALLOCATION_PLAN","status":"COMPLETED","type":"BUDGET_ALLOCATION_RESULT","result":"{\"totalBudget\": 20000000, \"currency\": \"VND\", \"modelVersion\": \"LLM_GPT5_NANO\", \"categories\": [{\"category\": \"FOOD\", \"ratio\": 0.31, \"amount\": 6200000}, {\"category\": \"TRANSPORTATION\", \"ratio\": 0.12, \"amount\": 2400000}, {\"category\": \"CLOTHING\", \"ratio\": 0.04, \"amount\": 800000}, {\"category\": \"UTILITIES\", \"ratio\": 0.12, \"amount\": 2400000}, {\"category\": \"ENTERTAINMENT\", \"ratio\": 0.04, \"amount\": 800000}, {\"category\": \"HEALTH\", \"ratio\": 0.07, \"amount\": 1400000}, {\"category\": \"EDUCATION\", \"ratio\": 0.12, \"amount\": 2400000}, {\"category\": \"SHOPPING\", \"ratio\": 0.04, \"amount\": 800000}, {\"category\": \"OTHER\", \"ratio\": 0.14, \"amount\": 2800000}]}","producerVersion":"budget-v2-transportation-9-categories","producerPid":"26572","producerHost":"LAPTOP-LVHEGMTT"}
+2026-07-04 14:40:56 [ResultAIWorker-Consumer] INFO  c.e.s.i.worker.ResultAIWorker - Parsed Budget AI result successfully, jobId=4c957e2a-1c74-427e-8fce-ca4cd35ba90e
+2026-07-04 14:40:56 [ResultAIWorker-Consumer] WARN  c.e.s.i.worker.ResultAIWorker - BE PARSED BUDGET RESULT messageId=1783150853485-0 jobId=4c957e2a-1c74-427e-8fce-ca4cd35ba90e payload={"jobId":"4c957e2a-1c74-427e-8fce-ca4cd35ba90e","userId":"bc87e5ee-f0ba-4c6d-bf19-2457b86d4865","duty":"BUDGET_ALLOCATION_PLAN","status":"COMPLETED","type":"BUDGET_ALLOCATION_RESULT","result":{"totalBudget":20000000,"currency":"VND","modelVersion":"LLM_GPT5_NANO","categories":[{"category":"FOOD","ratio":0.31,"amount":6200000},{"category":"TRANSPORTATION","ratio":0.12,"amount":2400000},{"category":"CLOTHING","ratio":0.04,"amount":800000},{"category":"UTILITIES","ratio":0.12,"amount":2400000},{"category":"ENTERTAINMENT","ratio":0.04,"amount":800000},{"category":"HEALTH","ratio":0.07,"amount":1400000},{"category":"EDUCATION","ratio":0.12,"amount":2400000},{"category":"SHOPPING","ratio":0.04,"amount":800000},{"category":"OTHER","ratio":0.14,"amount":2800000}]},"producerVersion":"budget-v2-transportation-9-categories","producerPid":"26572","producerHost":"LAPTOP-LVHEGMTT"}
+2026-07-04 14:40:56 [ResultAIWorker-Consumer] WARN  c.e.s.i.worker.ResultAIWorker - BE SENDING RESULT messageId=1783150853485-0 jobId=4c957e2a-1c74-427e-8fce-ca4cd35ba90e destination=/topic/ai/user/bc87e5ee-f0ba-4c6d-bf19-2457b86d4865 payload={"jobId":"4c957e2a-1c74-427e-8fce-ca4cd35ba90e","userId":"bc87e5ee-f0ba-4c6d-bf19-2457b86d4865","duty":"BUDGET_ALLOCATION_PLAN","status":"COMPLETED","type":"BUDGET_ALLOCATION_RESULT","result":{"totalBudget":20000000,"currency":"VND","modelVersion":"LLM_GPT5_NANO","categories":[{"category":"FOOD","ratio":0.31,"amount":6200000},{"category":"TRANSPORTATION","ratio":0.12,"amount":2400000},{"category":"CLOTHING","ratio":0.04,"amount":800000},{"category":"UTILITIES","ratio":0.12,"amount":2400000},{"category":"ENTERTAINMENT","ratio":0.04,"amount":800000},{"category":"HEALTH","ratio":0.07,"amount":1400000},{"category":"EDUCATION","ratio":0.12,"amount":2400000},{"category":"SHOPPING","ratio":0.04,"amount":800000},{"category":"OTHER","ratio":0.14,"amount":2800000}]},"producerVersion":"budget-v2-transportation-9-categories","producerPid":"26572","producerHost":"LAPTOP-LVHEGMTT"}
+2026-07-04 14:40:56 [ResultAIWorker-Consumer] INFO  c.e.s.i.worker.ResultAIWorker - Processed AI result jobId=4c957e2a-1c74-427e-8fce-ca4cd35ba90e userId=bc87e5ee-f0ba-4c6d-bf19-2457b86d4865 type=BUDGET_ALLOCATION_RESULT
+2026-07-04 14:43:39 [ResultAIWorker-Consumer] WARN  c.e.s.i.worker.ResultAIWorker - BE RAW RESULT STREAM messageId=1783151017124-0 payload={"init":"true"}
+2026-07-04 14:46:59 [SpringApplicationShutdownHook] INFO  o.s.boot.tomcat.GracefulShutdown - Commencing graceful shutdown. Waiting for active requests to complete
+2026-07-04 14:46:59 [tomcat-shutdown] INFO  o.s.boot.tomcat.GracefulShutdown - Graceful shutdown complete
+2026-07-04 14:46:59 [ResultAIWorker-Consumer] WARN  io.lettuce.core.RedisChannelHandler - Connection is already closed
+2026-07-04 14:46:59 [ResultAIWorker-Consumer] ERROR c.e.s.i.worker.ResultAIWorker - Error consuming AI result stream
+org.springframework.data.redis.RedisSystemException: Redis exception
+	at org.springframework.data.redis.connection.lettuce.LettuceExceptionConverter.convert(LettuceExceptionConverter.java:86)
+	at org.springframework.data.redis.connection.lettuce.LettuceExceptionConverter.convert(LettuceExceptionConverter.java:44)
+	at org.springframework.data.redis.PassThroughExceptionTranslationStrategy.translate(PassThroughExceptionTranslationStrategy.java:39)
+	at org.springframework.data.redis.FallbackExceptionTranslationStrategy.translate(FallbackExceptionTranslationStrategy.java:38)
+	at org.springframework.data.redis.connection.lettuce.LettuceConnection.convertLettuceAccessException(LettuceConnection.java:313)
+	at org.springframework.data.redis.connection.lettuce.LettuceConnection.await(LettuceConnection.java:1015)
+	at org.springframework.data.redis.connection.lettuce.LettuceConnection.lambda$doInvoke$2(LettuceConnection.java:450)
+	at org.springframework.data.redis.connection.lettuce.LettuceInvoker$Synchronizer.invoke(LettuceInvoker.java:665)
+	at org.springframework.data.redis.connection.lettuce.LettuceInvoker$DefaultManyInvocationSpec.toList(LettuceInvoker.java:612)
+	at org.springframework.data.redis.connection.lettuce.LettuceStreamCommands.xReadGroup(LettuceStreamCommands.java:294)
+	at org.springframework.data.redis.connection.DefaultedRedisConnection.xReadGroup(DefaultedRedisConnection.java:664)
+	at org.springframework.data.redis.core.DefaultStreamOperations$5.inRedis(DefaultStreamOperations.java:300)
+	at org.springframework.data.redis.core.DefaultStreamOperations$RecordDeserializingRedisCallback.doInRedis(DefaultStreamOperations.java:373)
+	at org.springframework.data.redis.core.DefaultStreamOperations$RecordDeserializingRedisCallback.doInRedis(DefaultStreamOperations.java:369)
+	at org.springframework.data.redis.core.RedisTemplate.execute(RedisTemplate.java:413)
+	at org.springframework.data.redis.core.RedisTemplate.execute(RedisTemplate.java:380)
+	at org.springframework.data.redis.core.AbstractOperations.execute(AbstractOperations.java:166)
+	at org.springframework.data.redis.core.DefaultStreamOperations.read(DefaultStreamOperations.java:295)
+	at com.example.smartmoney.infrastructure.worker.ResultAIWorker.consume(ResultAIWorker.java:103)
+	at java.base/java.lang.Thread.run(Thread.java:840)
+Caused by: io.lettuce.core.RedisException: Connection closed
+	at io.lettuce.core.protocol.DefaultEndpoint.lambda$notifyDrainQueuedCommands$7(DefaultEndpoint.java:688)
+	at io.lettuce.core.protocol.DefaultEndpoint$Lazy.getNullable(DefaultEndpoint.java:1199)
+	at io.lettuce.core.protocol.DefaultEndpoint$Lazy.get(DefaultEndpoint.java:1184)
+	at io.lettuce.core.protocol.DefaultEndpoint.lambda$notifyDrainQueuedCommands$8(DefaultEndpoint.java:689)
+	at io.lettuce.core.protocol.DefaultEndpoint.cancelCommands(DefaultEndpoint.java:810)
+	at io.lettuce.core.protocol.DefaultEndpoint.notifyDrainQueuedCommands(DefaultEndpoint.java:689)
+	at io.lettuce.core.protocol.CommandHandler.channelInactive(CommandHandler.java:373)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:250)
+	at io.netty.channel.ChannelInboundHandlerAdapter.channelInactive(ChannelInboundHandlerAdapter.java:81)
+	at io.lettuce.core.protocol.RedisHandshakeHandler.channelInactive(RedisHandshakeHandler.java:79)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:250)
+	at io.netty.channel.ChannelInboundHandlerAdapter.channelInactive(ChannelInboundHandlerAdapter.java:81)
+	at io.lettuce.core.ChannelGroupListener.channelInactive(ChannelGroupListener.java:54)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:250)
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.channelInactive(DefaultChannelPipeline.java:1424)
+	at io.netty.channel.DefaultChannelPipeline.fireChannelInactive(DefaultChannelPipeline.java:876)
+	at io.netty.channel.AbstractChannel$AbstractUnsafe$8.run(AbstractChannel.java:684)
+	at io.netty.util.concurrent.AbstractEventExecutor.runTask(AbstractEventExecutor.java:148)
+	at io.netty.util.concurrent.AbstractEventExecutor.safeExecute(AbstractEventExecutor.java:141)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.runAllTasks(SingleThreadEventExecutor.java:535)
+	at io.netty.channel.SingleThreadIoEventLoop.run(SingleThreadIoEventLoop.java:201)
+	at io.netty.util.concurrent.SingleThreadEventExecutor$5.run(SingleThreadEventExecutor.java:1195)
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
+	... 1 common frames omitted
+2026-07-04 14:46:59 [SpringApplicationShutdownHook] INFO  o.s.m.s.b.SimpleBrokerMessageHandler - Stopping...
+2026-07-04 14:46:59 [SpringApplicationShutdownHook] INFO  o.s.m.s.b.SimpleBrokerMessageHandler - BrokerAvailabilityEvent[available=false, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@37988190]]
+2026-07-04 14:46:59 [SpringApplicationShutdownHook] INFO  o.s.m.s.b.SimpleBrokerMessageHandler - Stopped.
+2026-07-04 14:46:59 [SpringApplicationShutdownHook] INFO  c.e.s.i.worker.ResultAIWorker - ResultAIWorker stopped
+2026-07-04 14:46:59 [SpringApplicationShutdownHook] INFO  o.s.o.j.LocalContainerEntityManagerFactoryBean - Closing JPA EntityManagerFactory for persistence unit 'default'
+2026-07-04 14:46:59 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown initiated...
+2026-07-04 14:46:59 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown completed.
+2026-07-04 14:47:39 [main] INFO  c.e.smartmoney.SmartmoneyApplication - Starting SmartmoneyApplication using Java 17.0.12 with PID 2540 (D:\HCMUS\Nam4\CapstoneProject\backend\Smart-Expense-Management-System-API\target\classes started by ACER in D:\HCMUS\Nam4\CapstoneProject\backend\Smart-Expense-Management-System-API)
+2026-07-04 14:47:39 [main] DEBUG c.e.smartmoney.SmartmoneyApplication - Running with Spring Boot v4.0.1, Spring v7.0.2
+2026-07-04 14:47:39 [main] INFO  c.e.smartmoney.SmartmoneyApplication - No active profile set, falling back to 1 default profile: "default"
+2026-07-04 14:47:41 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Multiple Spring Data modules found, entering strict repository configuration mode
+2026-07-04 14:47:41 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-07-04 14:47:42 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 440 ms. Found 12 JPA repository interfaces.
+2026-07-04 14:47:42 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Multiple Spring Data modules found, entering strict repository configuration mode
+2026-07-04 14:47:42 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data Redis repositories in DEFAULT mode.
+2026-07-04 14:47:43 [main] INFO  o.s.d.r.c.RepositoryConfigurationExtensionSupport - Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.example.smartmoney.infrastructure.persistence.repositories.JpaBudgetRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-07-04 14:47:43 [main] INFO  o.s.d.r.c.RepositoryConfigurationExtensionSupport - Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.example.smartmoney.infrastructure.persistence.repositories.JpaGroupMemberRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-07-04 14:47:43 [main] INFO  o.s.d.r.c.RepositoryConfigurationExtensionSupport - Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.example.smartmoney.infrastructure.persistence.repositories.JpaGroupProjectRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-07-04 14:47:43 [main] INFO  o.s.d.r.c.RepositoryConfigurationExtensionSupport - Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.example.smartmoney.infrastructure.persistence.repositories.JpaGroupRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-07-04 14:47:43 [main] INFO  o.s.d.r.c.RepositoryConfigurationExtensionSupport - Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.example.smartmoney.infrastructure.persistence.repositories.JpaNotificationRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-07-04 14:47:43 [main] INFO  o.s.d.r.c.RepositoryConfigurationExtensionSupport - Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.example.smartmoney.infrastructure.persistence.repositories.JpaProjectContributionRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-07-04 14:47:43 [main] INFO  o.s.d.r.c.RepositoryConfigurationExtensionSupport - Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.example.smartmoney.infrastructure.persistence.repositories.JpaProjectHistoryRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-07-04 14:47:43 [main] INFO  o.s.d.r.c.RepositoryConfigurationExtensionSupport - Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.example.smartmoney.infrastructure.persistence.repositories.JpaProjectRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-07-04 14:47:43 [main] INFO  o.s.d.r.c.RepositoryConfigurationExtensionSupport - Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.example.smartmoney.infrastructure.persistence.repositories.JpaProjectTrackingRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-07-04 14:47:43 [main] INFO  o.s.d.r.c.RepositoryConfigurationExtensionSupport - Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.example.smartmoney.infrastructure.persistence.repositories.JpaPushTokenRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-07-04 14:47:43 [main] INFO  o.s.d.r.c.RepositoryConfigurationExtensionSupport - Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.example.smartmoney.infrastructure.persistence.repositories.JpaTransactionRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-07-04 14:47:43 [main] INFO  o.s.d.r.c.RepositoryConfigurationExtensionSupport - Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.example.smartmoney.infrastructure.persistence.repositories.JpaUserRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-07-04 14:47:43 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 136 ms. Found 0 Redis repository interfaces.
+2026-07-04 14:47:45 [main] INFO  o.s.boot.tomcat.TomcatWebServer - Tomcat initialized with port 8080 (http)
+2026-07-04 14:47:45 [main] INFO  o.a.catalina.core.StandardService - Starting service [Tomcat]
+2026-07-04 14:47:45 [main] INFO  o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/11.0.15]
+2026-07-04 14:47:45 [main] INFO  o.s.b.w.c.s.WebApplicationContextInitializer - Root WebApplicationContext: initialization completed in 5685 ms
+2026-07-04 14:47:45 [main] INFO  org.hibernate.orm.jpa - HHH008540: Processing PersistenceUnitInfo [name: default]
+2026-07-04 14:47:46 [main] INFO  org.hibernate.orm.core - HHH000001: Hibernate ORM core version 7.2.0.Final
+2026-07-04 14:47:47 [main] INFO  o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-07-04 14:47:47 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
+2026-07-04 14:47:48 [main] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@49322d04
+2026-07-04 14:47:48 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
+2026-07-04 14:47:48 [main] WARN  org.hibernate.orm.deprecation - HHH90000025: PostgreSQLDialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
+2026-07-04 14:47:48 [main] INFO  o.hibernate.orm.connections.pooling - HHH10001005: Database info:
+	Database JDBC URL [jdbc:postgresql://ep-royal-morning-a13nc72w-pooler.ap-southeast-1.aws.neon.tech/official?sslmode=require&connectionTimeout=15]
+	Database driver: PostgreSQL JDBC Driver
+	Database dialect: PostgreSQLDialect
+	Database version: 17.10
+	Default catalog/schema: official/public
+	Autocommit mode: undefined/unknown
+	Isolation level: READ_COMMITTED [default READ_COMMITTED]
+	JDBC fetch size: none
+	Pool: DataSourceConnectionProvider
+	Minimum pool size: undefined/unknown
+	Maximum pool size: undefined/unknown
+2026-07-04 14:47:51 [main] INFO  org.hibernate.orm.core - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-07-04 14:47:51 [main] INFO  org.hibernate.orm.jdbc.batch - HHH100501: Automatic JDBC statement batching enabled (maximum batch size 20)
+2026-07-04 14:47:51 [main] INFO  o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-07-04 14:47:52 [main] INFO  o.s.d.j.r.q.QueryEnhancerFactories - Hibernate is in classpath; If applicable, HQL parser will be used.
+2026-07-04 14:47:53 [main] INFO  c.e.s.i.security.JwtTokenProvider - JWT Token Provider initialized with secret length: 128
+2026-07-04 14:47:53 [main] DEBUG c.e.s.i.s.AuthenticationFilter - Filter 'authenticationFilter' configured for use
+2026-07-04 14:47:56 [main] INFO  c.e.s.i.mail.config.MailConfig - Initializing JavaMailSender...
+2026-07-04 14:47:56 [main] INFO  c.e.s.i.mail.config.MailProperties - Mail Configuration:
+2026-07-04 14:47:56 [main] INFO  c.e.s.i.mail.config.MailProperties -   Host: smtp.gmail.com
+2026-07-04 14:47:56 [main] INFO  c.e.s.i.mail.config.MailProperties -   Port: 587
+2026-07-04 14:47:56 [main] INFO  c.e.s.i.mail.config.MailProperties -   Username: nhbang22@clc.fitus.edu.vn
+2026-07-04 14:47:56 [main] INFO  c.e.s.i.mail.config.MailProperties -   Protocol: smtp
+2026-07-04 14:47:56 [main] INFO  c.e.s.i.mail.config.MailProperties -   SMTP Auth: true
+2026-07-04 14:47:56 [main] INFO  c.e.s.i.mail.config.MailProperties -   STARTTLS Enabled: true
+2026-07-04 14:47:56 [main] INFO  c.e.s.i.mail.config.MailProperties -   STARTTLS Required: false
+2026-07-04 14:47:56 [main] INFO  c.e.s.i.mail.config.MailConfig - JavaMailSender initialized successfully
+2026-07-04 14:47:56 [main] WARN  c.e.s.i.common.AIRedisConfig - BE AI REDIS host=redis-15305.crce185.ap-seast-1-1.ec2.cloud.redislabs.com port=15305 db=0 ssl=false
+2026-07-04 14:47:58 [main] INFO  c.e.s.i.a.c.SupabaseJwtProperties - ✅ Supabase anonKey is configured for frontend authentication
+2026-07-04 14:47:58 [main] INFO  c.e.s.i.a.c.SupabaseJwtProperties - ✅ Supabase JWT_JWK is configured for ES256 token validation
+2026-07-04 14:47:58 [main] INFO  c.e.s.i.common.DotenvConfig - Environment variables loaded successfully
+2026-07-04 14:47:59 [main] INFO  c.e.s.i.worker.ResultAIWorker - Redis Stream group may already exist: Error in execution
+2026-07-04 14:47:59 [main] INFO  c.e.s.i.worker.ResultAIWorker - ResultAIWorker started stream=result_stream
+2026-07-04 14:47:59 [main] INFO  c.e.s.a.u.auth.FacebookLoginUseCase - ✅ FacebookLoginUseCase initialized - Ready to validate external JWT tokens
+2026-07-04 14:48:00 [main] WARN  o.s.b.j.a.JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-07-04 14:48:00 [main] INFO  o.s.s.c.a.a.c.InitializeAuthenticationProviderBeanManagerConfigurer$InitializeAuthenticationProviderManagerConfigurer - Global AuthenticationManager configured with AuthenticationProvider bean with name daoAuthenticationProvider
+2026-07-04 14:48:00 [main] WARN  o.s.s.c.a.a.c.InitializeUserDetailsBeanManagerConfigurer$InitializeUserDetailsManagerConfigurer - Global AuthenticationManager configured with an AuthenticationProvider bean. UserDetailsService beans will not be used by Spring Security for automatically configuring username/password login. Consider removing the AuthenticationProvider bean. Alternatively, consider using the UserDetailsService in a manually instantiated DaoAuthenticationProvider. If the current configuration is intentional, to turn off this warning, increase the logging level of 'org.springframework.security.config.annotation.authentication.configuration.InitializeUserDetailsBeanManagerConfigurer' to ERROR
+2026-07-04 14:48:02 [main] INFO  o.s.m.s.b.SimpleBrokerMessageHandler - Starting...
+2026-07-04 14:48:02 [main] INFO  o.s.m.s.b.SimpleBrokerMessageHandler - BrokerAvailabilityEvent[available=true, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@7ed08d52]]
+2026-07-04 14:48:02 [main] INFO  o.s.m.s.b.SimpleBrokerMessageHandler - Started.
+2026-07-04 14:48:02 [main] INFO  o.s.boot.tomcat.TomcatWebServer - Tomcat started on port 8080 (http) with context path '/'
+2026-07-04 14:48:02 [main] INFO  c.e.smartmoney.SmartmoneyApplication - Started SmartmoneyApplication in 23.831 seconds (process running for 24.643)
+2026-07-04 14:48:07 [http-nio-0.0.0.0-8080-exec-2] INFO  o.a.tomcat.util.http.parser.Cookie - A cookie header was received [__utmzz=utmcsr=(direct)|utmcmd=(none)|utmccn=(not set);] that contained an invalid cookie. That cookie will be ignored.
+ Note: further occurrences of this error will be logged at DEBUG level.
+2026-07-04 14:48:07 [http-nio-0.0.0.0-8080-exec-2] INFO  o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-07-04 14:48:07 [http-nio-0.0.0.0-8080-exec-2] INFO  o.s.web.servlet.DispatcherServlet - Initializing Servlet 'dispatcherServlet'
+2026-07-04 14:48:07 [http-nio-0.0.0.0-8080-exec-2] INFO  o.s.web.servlet.DispatcherServlet - Completed initialization in 2 ms
+2026-07-04 14:49:02 [MessageBroker-7] INFO  o.s.w.s.c.WebSocketMessageBrokerStats - WebSocketSession[1 current WS(1)-HttpStream(0)-HttpPoll(0), 1 total, 0 closed abnormally (0 connect failure, 0 send limit, 0 transport error)], stompSubProtocol[processed CONNECT(1)-CONNECTED(1)-DISCONNECT(0)], stompBrokerRelay[null], inboundChannel[pool size = 3, active threads = 0, queued tasks = 0, completed tasks = 3], outboundChannel[pool size = 1, active threads = 0, queued tasks = 0, completed tasks = 1], sockJsScheduler[pool size = 8, active threads = 1, queued tasks = 4, completed tasks = 14]
+2026-07-04 14:50:04 [http-nio-0.0.0.0-8080-exec-7] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.focus,
+        ue1_0.full_name,
+        ue1_0.income,
+        ue1_0.intervention_level,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.pace,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-07-04 14:50:04 [http-nio-0.0.0.0-8080-exec-7] DEBUG c.e.s.i.s.AuthenticationFilter - Authenticated user ID: bc87e5ee-f0ba-4c6d-bf19-2457b86d4865
+2026-07-04 14:50:04 [http-nio-0.0.0.0-8080-exec-7] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.focus,
+        ue1_0.full_name,
+        ue1_0.income,
+        ue1_0.intervention_level,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.pace,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-07-04 14:50:04 [http-nio-0.0.0.0-8080-exec-7] DEBUG org.hibernate.SQL - 
+    select
+        pe1_0.id,
+        pe1_0.created_at,
+        pe1_0.currency,
+        pe1_0.deadline,
+        pe1_0.description,
+        pe1_0.group_project_id,
+        pe1_0.name,
+        pe1_0.owner_id,
+        pe1_0.priority,
+        pe1_0.status,
+        pe1_0.target_amount,
+        pe1_0.type,
+        pe1_0.updated_at 
+    from
+        projects pe1_0 
+    where
+        pe1_0.owner_id=?
+2026-07-04 14:50:04 [http-nio-0.0.0.0-8080-exec-7] DEBUG org.hibernate.SQL - 
+    SELECT
+        * 
+    FROM
+        transactions t 
+    WHERE
+        t.user_id = CAST(? AS uuid) 
+        AND (
+            CAST(? AS numeric) IS NULL 
+            OR t.amount >= CAST(? AS numeric)
+        ) 
+        AND (
+            CAST(? AS numeric) IS NULL 
+            OR t.amount <= CAST(? AS numeric)
+        ) 
+        AND (
+            CAST(? AS timestamp) IS NULL 
+            OR t.date >= CAST(? AS timestamp)
+        ) 
+        AND (
+            CAST(? AS timestamp) IS NULL 
+            OR t.date <= CAST(? AS timestamp)
+        ) 
+        AND (
+            CAST(? AS varchar) IS NULL 
+            OR t.category = CAST(? AS varchar)
+        ) 
+        AND (
+            CAST(? AS varchar) IS NULL 
+            OR t.type = CAST(? AS varchar)
+        )
+2026-07-04 14:50:08 [http-nio-0.0.0.0-8080-exec-4] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.focus,
+        ue1_0.full_name,
+        ue1_0.income,
+        ue1_0.intervention_level,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.pace,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-07-04 14:50:08 [http-nio-0.0.0.0-8080-exec-4] DEBUG c.e.s.i.s.AuthenticationFilter - Authenticated user ID: bc87e5ee-f0ba-4c6d-bf19-2457b86d4865
+2026-07-04 14:50:11 [http-nio-0.0.0.0-8080-exec-5] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.focus,
+        ue1_0.full_name,
+        ue1_0.income,
+        ue1_0.intervention_level,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.pace,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-07-04 14:50:11 [http-nio-0.0.0.0-8080-exec-5] DEBUG c.e.s.i.s.AuthenticationFilter - Authenticated user ID: bc87e5ee-f0ba-4c6d-bf19-2457b86d4865
+2026-07-04 14:50:14 [http-nio-0.0.0.0-8080-exec-8] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.focus,
+        ue1_0.full_name,
+        ue1_0.income,
+        ue1_0.intervention_level,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.pace,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-07-04 14:50:14 [http-nio-0.0.0.0-8080-exec-8] DEBUG c.e.s.i.s.AuthenticationFilter - Authenticated user ID: bc87e5ee-f0ba-4c6d-bf19-2457b86d4865
+2026-07-04 14:50:17 [http-nio-0.0.0.0-8080-exec-9] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.focus,
+        ue1_0.full_name,
+        ue1_0.income,
+        ue1_0.intervention_level,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.pace,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-07-04 14:50:17 [http-nio-0.0.0.0-8080-exec-9] DEBUG c.e.s.i.s.AuthenticationFilter - Authenticated user ID: bc87e5ee-f0ba-4c6d-bf19-2457b86d4865
+2026-07-04 14:50:20 [http-nio-0.0.0.0-8080-exec-2] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.focus,
+        ue1_0.full_name,
+        ue1_0.income,
+        ue1_0.intervention_level,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.pace,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-07-04 14:50:20 [http-nio-0.0.0.0-8080-exec-2] DEBUG c.e.s.i.s.AuthenticationFilter - Authenticated user ID: bc87e5ee-f0ba-4c6d-bf19-2457b86d4865
+2026-07-04 14:50:23 [http-nio-0.0.0.0-8080-exec-1] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.focus,
+        ue1_0.full_name,
+        ue1_0.income,
+        ue1_0.intervention_level,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.pace,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-07-04 14:50:23 [http-nio-0.0.0.0-8080-exec-1] DEBUG c.e.s.i.s.AuthenticationFilter - Authenticated user ID: bc87e5ee-f0ba-4c6d-bf19-2457b86d4865
+2026-07-04 14:50:26 [http-nio-0.0.0.0-8080-exec-3] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.focus,
+        ue1_0.full_name,
+        ue1_0.income,
+        ue1_0.intervention_level,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.pace,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-07-04 14:50:26 [http-nio-0.0.0.0-8080-exec-3] DEBUG c.e.s.i.s.AuthenticationFilter - Authenticated user ID: bc87e5ee-f0ba-4c6d-bf19-2457b86d4865
+2026-07-04 14:50:29 [http-nio-0.0.0.0-8080-exec-6] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.focus,
+        ue1_0.full_name,
+        ue1_0.income,
+        ue1_0.intervention_level,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.pace,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-07-04 14:50:29 [http-nio-0.0.0.0-8080-exec-6] DEBUG c.e.s.i.s.AuthenticationFilter - Authenticated user ID: bc87e5ee-f0ba-4c6d-bf19-2457b86d4865
+2026-07-04 14:50:31 [ResultAIWorker-Consumer] WARN  c.e.s.i.worker.ResultAIWorker - BE RAW RESULT STREAM messageId=1783151428425-0 payload={"jobId":"12734a91-0be0-4208-b5b0-8d4f6b22bbde","userId":"bc87e5ee-f0ba-4c6d-bf19-2457b86d4865","duty":"BUDGET_ALLOCATION_PLAN","status":"COMPLETED","type":"BUDGET_ALLOCATION_RESULT","result":"{\"totalBudget\": 20000000, \"currency\": \"VND\", \"modelVersion\": \"LLM_GPT5_NANO\", \"categories\": [{\"category\": \"FOOD\", \"ratio\": 0.34, \"amount\": 6800000}, {\"category\": \"TRANSPORTATION\", \"ratio\": 0.14, \"amount\": 2800000}, {\"category\": \"CLOTHING\", \"ratio\": 0.02, \"amount\": 400000}, {\"category\": \"UTILITIES\", \"ratio\": 0.12, \"amount\": 2400000}, {\"category\": \"ENTERTAINMENT\", \"ratio\": 0.02, \"amount\": 400000}, {\"category\": \"HEALTH\", \"ratio\": 0.08, \"amount\": 1600000}, {\"category\": \"EDUCATION\", \"ratio\": 0.12, \"amount\": 2400000}, {\"category\": \"SHOPPING\", \"ratio\": 0.02, \"amount\": 400000}, {\"category\": \"OTHER\", \"ratio\": 0.14, \"amount\": 2800000}]}","producerVersion":"budget-v2-transportation-9-categories","producerPid":"26572","producerHost":"LAPTOP-LVHEGMTT"}
+2026-07-04 14:50:31 [ResultAIWorker-Consumer] INFO  c.e.s.i.worker.ResultAIWorker - Parsed Budget AI result successfully, jobId=12734a91-0be0-4208-b5b0-8d4f6b22bbde
+2026-07-04 14:50:31 [ResultAIWorker-Consumer] WARN  c.e.s.i.worker.ResultAIWorker - BE PARSED BUDGET RESULT messageId=1783151428425-0 jobId=12734a91-0be0-4208-b5b0-8d4f6b22bbde payload={"jobId":"12734a91-0be0-4208-b5b0-8d4f6b22bbde","userId":"bc87e5ee-f0ba-4c6d-bf19-2457b86d4865","duty":"BUDGET_ALLOCATION_PLAN","status":"COMPLETED","type":"BUDGET_ALLOCATION_RESULT","result":{"totalBudget":20000000,"currency":"VND","modelVersion":"LLM_GPT5_NANO","categories":[{"category":"FOOD","ratio":0.34,"amount":6800000},{"category":"TRANSPORTATION","ratio":0.14,"amount":2800000},{"category":"CLOTHING","ratio":0.02,"amount":400000},{"category":"UTILITIES","ratio":0.12,"amount":2400000},{"category":"ENTERTAINMENT","ratio":0.02,"amount":400000},{"category":"HEALTH","ratio":0.08,"amount":1600000},{"category":"EDUCATION","ratio":0.12,"amount":2400000},{"category":"SHOPPING","ratio":0.02,"amount":400000},{"category":"OTHER","ratio":0.14,"amount":2800000}]},"producerVersion":"budget-v2-transportation-9-categories","producerPid":"26572","producerHost":"LAPTOP-LVHEGMTT"}
+2026-07-04 14:50:31 [ResultAIWorker-Consumer] WARN  c.e.s.i.worker.ResultAIWorker - BE SENDING RESULT messageId=1783151428425-0 jobId=12734a91-0be0-4208-b5b0-8d4f6b22bbde destination=/topic/ai/user/bc87e5ee-f0ba-4c6d-bf19-2457b86d4865 payload={"jobId":"12734a91-0be0-4208-b5b0-8d4f6b22bbde","userId":"bc87e5ee-f0ba-4c6d-bf19-2457b86d4865","duty":"BUDGET_ALLOCATION_PLAN","status":"COMPLETED","type":"BUDGET_ALLOCATION_RESULT","result":{"totalBudget":20000000,"currency":"VND","modelVersion":"LLM_GPT5_NANO","categories":[{"category":"FOOD","ratio":0.34,"amount":6800000},{"category":"TRANSPORTATION","ratio":0.14,"amount":2800000},{"category":"CLOTHING","ratio":0.02,"amount":400000},{"category":"UTILITIES","ratio":0.12,"amount":2400000},{"category":"ENTERTAINMENT","ratio":0.02,"amount":400000},{"category":"HEALTH","ratio":0.08,"amount":1600000},{"category":"EDUCATION","ratio":0.12,"amount":2400000},{"category":"SHOPPING","ratio":0.02,"amount":400000},{"category":"OTHER","ratio":0.14,"amount":2800000}]},"producerVersion":"budget-v2-transportation-9-categories","producerPid":"26572","producerHost":"LAPTOP-LVHEGMTT"}
+2026-07-04 14:50:31 [ResultAIWorker-Consumer] INFO  c.e.s.i.worker.ResultAIWorker - Processed AI result jobId=12734a91-0be0-4208-b5b0-8d4f6b22bbde userId=bc87e5ee-f0ba-4c6d-bf19-2457b86d4865 type=BUDGET_ALLOCATION_RESULT
+2026-07-04 14:50:32 [http-nio-0.0.0.0-8080-exec-7] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.focus,
+        ue1_0.full_name,
+        ue1_0.income,
+        ue1_0.intervention_level,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.pace,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-07-04 14:50:32 [http-nio-0.0.0.0-8080-exec-7] DEBUG c.e.s.i.s.AuthenticationFilter - Authenticated user ID: bc87e5ee-f0ba-4c6d-bf19-2457b86d4865
+2026-07-04 14:51:56 [http-nio-0.0.0.0-8080-exec-2] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.focus,
+        ue1_0.full_name,
+        ue1_0.income,
+        ue1_0.intervention_level,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.pace,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-07-04 14:51:56 [http-nio-0.0.0.0-8080-exec-2] DEBUG c.e.s.i.s.AuthenticationFilter - Authenticated user ID: bc87e5ee-f0ba-4c6d-bf19-2457b86d4865
+2026-07-04 14:51:57 [http-nio-0.0.0.0-8080-exec-2] INFO  c.e.s.p.controllers.BudgetController - Updating bulk budgets for user ID: bc87e5ee-f0ba-4c6d-bf19-2457b86d4865 with 9 items for month: 7, year: 2026
+2026-07-04 14:51:57 [http-nio-0.0.0.0-8080-exec-2] DEBUG org.hibernate.SQL - 
+    select
+        be1_0.id,
+        be1_0.amount_limit,
+        be1_0.category,
+        be1_0.created_at,
+        be1_0.month,
+        be1_0.spent,
+        be1_0.updated_at,
+        be1_0.user_id,
+        be1_0.year 
+    from
+        budgets be1_0 
+    where
+        be1_0.user_id=? 
+        and be1_0.category=? 
+        and be1_0.month=? 
+        and be1_0.year=?
+2026-07-04 14:51:57 [http-nio-0.0.0.0-8080-exec-2] INFO  c.e.s.a.u.b.UpsertBulkBudgetsUseCase - Creating new budget: userId=bc87e5ee-f0ba-4c6d-bf19-2457b86d4865, category=FOOD, month=7, year=2026
+2026-07-04 14:51:57 [http-nio-0.0.0.0-8080-exec-2] DEBUG org.hibernate.SQL - 
+    insert 
+    into
+        budgets
+        (amount_limit, category, created_at, month, spent, updated_at, user_id, year, id) 
+    values
+        (?, ?, ?, ?, ?, ?, ?, ?, ?)
+2026-07-04 14:51:57 [http-nio-0.0.0.0-8080-exec-2] DEBUG org.hibernate.SQL - 
+    select
+        be1_0.id,
+        be1_0.amount_limit,
+        be1_0.category,
+        be1_0.created_at,
+        be1_0.month,
+        be1_0.spent,
+        be1_0.updated_at,
+        be1_0.user_id,
+        be1_0.year 
+    from
+        budgets be1_0 
+    where
+        be1_0.user_id=? 
+        and be1_0.category=? 
+        and be1_0.month=? 
+        and be1_0.year=?
+2026-07-04 14:51:57 [http-nio-0.0.0.0-8080-exec-2] INFO  c.e.s.a.u.b.UpsertBulkBudgetsUseCase - Creating new budget: userId=bc87e5ee-f0ba-4c6d-bf19-2457b86d4865, category=TRANSPORTATION, month=7, year=2026
+2026-07-04 14:51:57 [http-nio-0.0.0.0-8080-exec-2] DEBUG org.hibernate.SQL - 
+    insert 
+    into
+        budgets
+        (amount_limit, category, created_at, month, spent, updated_at, user_id, year, id) 
+    values
+        (?, ?, ?, ?, ?, ?, ?, ?, ?)
+2026-07-04 14:51:57 [http-nio-0.0.0.0-8080-exec-2] DEBUG org.hibernate.SQL - 
+    select
+        be1_0.id,
+        be1_0.amount_limit,
+        be1_0.category,
+        be1_0.created_at,
+        be1_0.month,
+        be1_0.spent,
+        be1_0.updated_at,
+        be1_0.user_id,
+        be1_0.year 
+    from
+        budgets be1_0 
+    where
+        be1_0.user_id=? 
+        and be1_0.category=? 
+        and be1_0.month=? 
+        and be1_0.year=?
+2026-07-04 14:51:57 [http-nio-0.0.0.0-8080-exec-2] INFO  c.e.s.a.u.b.UpsertBulkBudgetsUseCase - Creating new budget: userId=bc87e5ee-f0ba-4c6d-bf19-2457b86d4865, category=CLOTHING, month=7, year=2026
+2026-07-04 14:51:57 [http-nio-0.0.0.0-8080-exec-2] DEBUG org.hibernate.SQL - 
+    insert 
+    into
+        budgets
+        (amount_limit, category, created_at, month, spent, updated_at, user_id, year, id) 
+    values
+        (?, ?, ?, ?, ?, ?, ?, ?, ?)
+2026-07-04 14:51:57 [http-nio-0.0.0.0-8080-exec-2] DEBUG org.hibernate.SQL - 
+    select
+        be1_0.id,
+        be1_0.amount_limit,
+        be1_0.category,
+        be1_0.created_at,
+        be1_0.month,
+        be1_0.spent,
+        be1_0.updated_at,
+        be1_0.user_id,
+        be1_0.year 
+    from
+        budgets be1_0 
+    where
+        be1_0.user_id=? 
+        and be1_0.category=? 
+        and be1_0.month=? 
+        and be1_0.year=?
+2026-07-04 14:51:57 [http-nio-0.0.0.0-8080-exec-2] INFO  c.e.s.a.u.b.UpsertBulkBudgetsUseCase - Creating new budget: userId=bc87e5ee-f0ba-4c6d-bf19-2457b86d4865, category=UTILITIES, month=7, year=2026
+2026-07-04 14:51:57 [http-nio-0.0.0.0-8080-exec-2] DEBUG org.hibernate.SQL - 
+    insert 
+    into
+        budgets
+        (amount_limit, category, created_at, month, spent, updated_at, user_id, year, id) 
+    values
+        (?, ?, ?, ?, ?, ?, ?, ?, ?)
+2026-07-04 14:51:57 [http-nio-0.0.0.0-8080-exec-2] DEBUG org.hibernate.SQL - 
+    select
+        be1_0.id,
+        be1_0.amount_limit,
+        be1_0.category,
+        be1_0.created_at,
+        be1_0.month,
+        be1_0.spent,
+        be1_0.updated_at,
+        be1_0.user_id,
+        be1_0.year 
+    from
+        budgets be1_0 
+    where
+        be1_0.user_id=? 
+        and be1_0.category=? 
+        and be1_0.month=? 
+        and be1_0.year=?
+2026-07-04 14:51:57 [http-nio-0.0.0.0-8080-exec-2] INFO  c.e.s.a.u.b.UpsertBulkBudgetsUseCase - Creating new budget: userId=bc87e5ee-f0ba-4c6d-bf19-2457b86d4865, category=ENTERTAINMENT, month=7, year=2026
+2026-07-04 14:51:57 [http-nio-0.0.0.0-8080-exec-2] DEBUG org.hibernate.SQL - 
+    insert 
+    into
+        budgets
+        (amount_limit, category, created_at, month, spent, updated_at, user_id, year, id) 
+    values
+        (?, ?, ?, ?, ?, ?, ?, ?, ?)
+2026-07-04 14:51:57 [http-nio-0.0.0.0-8080-exec-2] DEBUG org.hibernate.SQL - 
+    select
+        be1_0.id,
+        be1_0.amount_limit,
+        be1_0.category,
+        be1_0.created_at,
+        be1_0.month,
+        be1_0.spent,
+        be1_0.updated_at,
+        be1_0.user_id,
+        be1_0.year 
+    from
+        budgets be1_0 
+    where
+        be1_0.user_id=? 
+        and be1_0.category=? 
+        and be1_0.month=? 
+        and be1_0.year=?
+2026-07-04 14:51:57 [http-nio-0.0.0.0-8080-exec-2] INFO  c.e.s.a.u.b.UpsertBulkBudgetsUseCase - Creating new budget: userId=bc87e5ee-f0ba-4c6d-bf19-2457b86d4865, category=HEALTH, month=7, year=2026
+2026-07-04 14:51:57 [http-nio-0.0.0.0-8080-exec-2] DEBUG org.hibernate.SQL - 
+    insert 
+    into
+        budgets
+        (amount_limit, category, created_at, month, spent, updated_at, user_id, year, id) 
+    values
+        (?, ?, ?, ?, ?, ?, ?, ?, ?)
+2026-07-04 14:51:57 [http-nio-0.0.0.0-8080-exec-2] DEBUG org.hibernate.SQL - 
+    select
+        be1_0.id,
+        be1_0.amount_limit,
+        be1_0.category,
+        be1_0.created_at,
+        be1_0.month,
+        be1_0.spent,
+        be1_0.updated_at,
+        be1_0.user_id,
+        be1_0.year 
+    from
+        budgets be1_0 
+    where
+        be1_0.user_id=? 
+        and be1_0.category=? 
+        and be1_0.month=? 
+        and be1_0.year=?
+2026-07-04 14:51:58 [http-nio-0.0.0.0-8080-exec-2] INFO  c.e.s.a.u.b.UpsertBulkBudgetsUseCase - Creating new budget: userId=bc87e5ee-f0ba-4c6d-bf19-2457b86d4865, category=EDUCATION, month=7, year=2026
+2026-07-04 14:51:58 [http-nio-0.0.0.0-8080-exec-2] DEBUG org.hibernate.SQL - 
+    insert 
+    into
+        budgets
+        (amount_limit, category, created_at, month, spent, updated_at, user_id, year, id) 
+    values
+        (?, ?, ?, ?, ?, ?, ?, ?, ?)
+2026-07-04 14:51:58 [http-nio-0.0.0.0-8080-exec-2] DEBUG org.hibernate.SQL - 
+    select
+        be1_0.id,
+        be1_0.amount_limit,
+        be1_0.category,
+        be1_0.created_at,
+        be1_0.month,
+        be1_0.spent,
+        be1_0.updated_at,
+        be1_0.user_id,
+        be1_0.year 
+    from
+        budgets be1_0 
+    where
+        be1_0.user_id=? 
+        and be1_0.category=? 
+        and be1_0.month=? 
+        and be1_0.year=?
+2026-07-04 14:51:58 [http-nio-0.0.0.0-8080-exec-2] INFO  c.e.s.a.u.b.UpsertBulkBudgetsUseCase - Creating new budget: userId=bc87e5ee-f0ba-4c6d-bf19-2457b86d4865, category=SHOPPING, month=7, year=2026
+2026-07-04 14:51:58 [http-nio-0.0.0.0-8080-exec-2] DEBUG org.hibernate.SQL - 
+    insert 
+    into
+        budgets
+        (amount_limit, category, created_at, month, spent, updated_at, user_id, year, id) 
+    values
+        (?, ?, ?, ?, ?, ?, ?, ?, ?)
+2026-07-04 14:51:58 [http-nio-0.0.0.0-8080-exec-2] DEBUG org.hibernate.SQL - 
+    select
+        be1_0.id,
+        be1_0.amount_limit,
+        be1_0.category,
+        be1_0.created_at,
+        be1_0.month,
+        be1_0.spent,
+        be1_0.updated_at,
+        be1_0.user_id,
+        be1_0.year 
+    from
+        budgets be1_0 
+    where
+        be1_0.user_id=? 
+        and be1_0.category=? 
+        and be1_0.month=? 
+        and be1_0.year=?
+2026-07-04 14:51:58 [http-nio-0.0.0.0-8080-exec-2] INFO  c.e.s.a.u.b.UpsertBulkBudgetsUseCase - Creating new budget: userId=bc87e5ee-f0ba-4c6d-bf19-2457b86d4865, category=OTHER, month=7, year=2026
+2026-07-04 14:51:58 [http-nio-0.0.0.0-8080-exec-2] DEBUG org.hibernate.SQL - 
+    insert 
+    into
+        budgets
+        (amount_limit, category, created_at, month, spent, updated_at, user_id, year, id) 
+    values
+        (?, ?, ?, ?, ?, ?, ?, ?, ?)
+2026-07-04 14:51:58 [http-nio-0.0.0.0-8080-exec-2] INFO  c.e.s.p.controllers.BudgetController - Bulk budgets updated successfully: 9 updated, 0 failed
+2026-07-04 14:51:58 [http-nio-0.0.0.0-8080-exec-1] DEBUG org.hibernate.SQL - 
+    select
+        ue1_0.id,
+        ue1_0.is_active,
+        ue1_0.avatar,
+        ue1_0.coin,
+        ue1_0.created_at,
+        ue1_0.date_of_birth,
+        ue1_0.email,
+        ue1_0.is_email_verified,
+        ue1_0.focus,
+        ue1_0.full_name,
+        ue1_0.income,
+        ue1_0.intervention_level,
+        ue1_0.notification_enabled,
+        ue1_0.password_hash,
+        ue1_0.phone,
+        ue1_0.rate,
+        ue1_0.refresh_token,
+        ue1_0.refresh_token_expiry,
+        ue1_0.role,
+        ue1_0.pace,
+        ue1_0.updated_at,
+        ue1_0.username 
+    from
+        users ue1_0 
+    where
+        ue1_0.id=?
+2026-07-04 14:51:58 [http-nio-0.0.0.0-8080-exec-1] DEBUG c.e.s.i.s.AuthenticationFilter - Authenticated user ID: bc87e5ee-f0ba-4c6d-bf19-2457b86d4865
+2026-07-04 14:51:58 [http-nio-0.0.0.0-8080-exec-1] INFO  c.e.s.p.controllers.BudgetController - Fetching budgets for user ID: bc87e5ee-f0ba-4c6d-bf19-2457b86d4865 with month: 7, year: 2026
+2026-07-04 14:51:58 [http-nio-0.0.0.0-8080-exec-1] DEBUG org.hibernate.SQL - 
+    select
+        be1_0.id,
+        be1_0.amount_limit,
+        be1_0.category,
+        be1_0.created_at,
+        be1_0.month,
+        be1_0.spent,
+        be1_0.updated_at,
+        be1_0.user_id,
+        be1_0.year 
+    from
+        budgets be1_0 
+    where
+        be1_0.user_id=? 
+        and be1_0.month=? 
+        and be1_0.year=?
+2026-07-04 14:51:58 [http-nio-0.0.0.0-8080-exec-1] INFO  c.e.s.a.u.b.GetBudgetListUseCase - Retrieved 9 budgets for userId=bc87e5ee-f0ba-4c6d-bf19-2457b86d4865, month=7, year=2026
+2026-07-04 14:51:58 [http-nio-0.0.0.0-8080-exec-1] INFO  c.e.s.p.controllers.BudgetController - Retrieved 9 budgets for user ID: bc87e5ee-f0ba-4c6d-bf19-2457b86d4865
