@@ -20,4 +20,10 @@ public class DomainException extends RuntimeException {
         super(message, cause);
         this.errorCode = "DOMAIN_ERROR";
     }
+
+    public DomainException(String message, String errorCode, Throwable cause
+    ) {
+        super(message, cause);
+        this.errorCode = errorCode;
+    }
 }

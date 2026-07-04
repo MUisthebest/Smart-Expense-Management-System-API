@@ -9,6 +9,9 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.YearMonth;
+import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 
 public class Project {
@@ -331,5 +334,39 @@ public class Project {
         }
         p.tracking = tracking;
         return p;
+    }
+
+    public BigDecimal calculateMonthlyCommitment() {
+        if (targetAmount == null
+                || targetAmount.amount() == null
+                || targetAmount.amount().compareTo(BigDecimal.ZERO) <= 0
+                || createdAt == null
+                || deadline == null) {
+            return BigDecimal.ZERO;
+        }
+
+        ZoneOffset zoneOffset = ZoneOffset.ofHours(7);
+
+
+        // createdAt là Instant
+        YearMonth createdMonth = YearMonth.from(
+                createdAt.atOffset(zoneOffset)
+        );
+
+        // deadline là LocalDate, không cần timezone
+        YearMonth deadlineMonth = YearMonth.from(deadline);
+
+        long durationMonths = ChronoUnit.MONTHS.between(
+                createdMonth,
+                deadlineMonth
+        ) + 1;
+
+        durationMonths = Math.max(durationMonths, 1);
+
+        return targetAmount.amount().divide(
+                BigDecimal.valueOf(durationMonths),
+                2,
+                RoundingMode.HALF_UP
+        );
     }
 }

@@ -322,4 +322,39 @@ public class User {
         this.focusMode = null;
         this.updatedAt = LocalDateTime.now();
     }
+
+    public BigDecimal calculateSafeSpending(
+            BigDecimal activeProjectMonthlyCommitment
+    ) {
+        if (this.income == null || this.income.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new DomainException(
+                    "Income must be configured before calculating safe spending"
+            );
+        }
+
+        BigDecimal commitment = activeProjectMonthlyCommitment != null
+                ? activeProjectMonthlyCommitment
+                : BigDecimal.ZERO;
+
+        if (commitment.compareTo(BigDecimal.ZERO) < 0) {
+            throw new DomainException(
+                    "Active project monthly commitment cannot be negative"
+            );
+        }
+
+        return this.income
+                .subtract(commitment)
+                .max(BigDecimal.ZERO);
+    }
+
+    public boolean isOverCommitted(
+            BigDecimal activeProjectMonthlyCommitment
+    ) {
+        BigDecimal commitment = activeProjectMonthlyCommitment != null
+                ? activeProjectMonthlyCommitment
+                : BigDecimal.ZERO;
+
+        return this.income != null
+                && commitment.compareTo(this.income) > 0;
+    }
 }
