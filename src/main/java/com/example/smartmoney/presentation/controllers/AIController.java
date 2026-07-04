@@ -91,6 +91,15 @@ public class AIController {
             if (result.get("confidence") != null)
                 response.put("confidence", result.get("confidence"));
 
+            if (result.get("status") != null)
+                response.put("status", result.get("status"));
+
+            if (result.get("result") != null)
+                response.put("result", result.get("result"));
+
+            if (result.get("error") != null)
+                response.put("error", result.get("error"));
+
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {
