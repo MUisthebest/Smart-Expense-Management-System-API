@@ -6,11 +6,11 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
-/**
- * One turn in a chatbot conversation, as sent by the frontend inside {@link ChatRequest#getHistory()}.
- */
+/** One turn in a chatbot conversation stored in Redis history. */
 @Getter
+@Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor

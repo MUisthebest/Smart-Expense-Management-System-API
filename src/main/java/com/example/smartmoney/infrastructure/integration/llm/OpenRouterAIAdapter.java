@@ -31,7 +31,7 @@ import java.util.function.Consumer;
  *
  * Old implementations are preserved as comments below each new method.
  */
-@Component
+// @Component — disabled; GeminiAIChatAdapter is the active AIChatPort bean.
 @RequiredArgsConstructor
 public class OpenRouterAIAdapter implements AIChatPort {
 

@@ -2,6 +2,8 @@ package com.example.smartmoney.presentation.controllers;
 
 import com.example.smartmoney.application.dtos.requests.chat.ChatRequest;
 import com.example.smartmoney.application.dtos.responses.ChatResponse;
+import com.example.smartmoney.application.guardrails.GuardrailViolationException;
+import com.example.smartmoney.application.guardrails.RateLimitExceededException;
 import com.example.smartmoney.application.usecases.queue.ProcessQueueRequestUseCase;
 import com.example.smartmoney.application.usecases.chat.ChatWithAIUseCase;
 import com.example.smartmoney.application.usecases.chat.GetAISuggestionsUseCase;
@@ -25,15 +27,10 @@ import java.util.UUID;
 /**
  * REST controller for all AI / chatbot endpoints.
  *
- * UC1 / UC2 / UC3 changes:
- *   POST /chat now accepts a full {@link ChatRequest} (message + history + month + year)
- *   and returns a structured {@link ChatResponse} with intent classification and optional
- *   BudgetUpdateSuggestion or SimulationResult payloads.
- *
- *   GET /chat/stream applies the same UC3 personalisation and UC1/UC2 context logic;
- *   it accepts optional {@code month} and {@code year} query params.
- *
- * The legacy queue endpoints (POST / and GET /{jobId}) are unchanged.
+ * POST /chat  — sync, structured ChatResponse. History managed server-side in Redis.
+ * GET /chat/stream — SSE, cumulative reply tokens, ends event:done data:[DONE].
+ * GET /suggestions — returns {questions: string[]}, 3–5 chips.
+ * POST / and GET /{jobId} — legacy queue endpoints, unchanged.
  */
 @RestController
 @RequestMapping("/api/v1/ai")
@@ -98,27 +95,8 @@ public class AIController {
     // ── Chat endpoints (UC1 / UC2 / UC3) ────────────────────────────────────
 
     /**
-     * Synchronous chat — returns a structured ChatResponse.
-     *
-     * Old behaviour (plain reply):
-     * -------------------------------------------------------------------------
-     * // @PostMapping("/chat")
-     * // public ResponseEntity<?> chat(
-     * //         @RequestBody Map<String, String> body,
-     * //         @RequestHeader("Authorization") String authHeader) {
-     * //     UUID userId = transactionController.extractUserIdFromToken(authHeader);
-     * //     String message = body.get("message");
-     * //     String reply = chatWithAIUseCase.execute(message, userId);
-     * //     return ResponseEntity.ok(Map.of("reply", reply));
-     * // }
-     * -------------------------------------------------------------------------
-     *
-     * New behaviour:
-     *  - Accepts a full {@link ChatRequest} body (message, history, month, year).
-     *  - Returns a {@link ChatResponse} with intent + optional structured payloads.
-     *  - UC1: intent=BUDGET_UPDATE + budgetSuggestions list (frontend calls PUT /budgets/{id})
-     *  - UC2: intent=SIMULATION    + simulationResult
-     *  - UC3: reply tone shaped by user's savingPace / interventionLevel / focusMode
+     * Sync chat. Body: {message, month?, year?}. History from Redis.
+     * UC1→BUDGET_UPDATE, UC2→SIMULATION, UC3→personalised tone, guardrails applied.
      */
     @PostMapping("/chat")
     public ResponseEntity<?> chat(
@@ -126,16 +104,25 @@ public class AIController {
             @RequestHeader("Authorization") String authHeader) {
         try {
             UUID userId = transactionController.extractUserIdFromToken(authHeader);
-
-            // UC1 / UC2 / UC3: delegate to the refactored use case
             ChatResponse response = chatWithAIUseCase.execute(chatRequest, userId);
-
             return ResponseEntity.ok(response);
+
+        } catch (RateLimitExceededException e) {
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                    .body(Map.of("error", e.getMessage()));
+
+        } catch (GuardrailViolationException e) {
+            return ResponseEntity.ok(ChatResponse.builder()
+                    .intent(ChatResponse.ChatIntent.OUT_OF_SCOPE)
+                    .reply("Tôi chỉ hỗ trợ các câu hỏi về tài chính cá nhân như ngân sách, " +
+                           "chi tiêu, và mục tiêu tiết kiệm. Bạn muốn hỏi gì về tài chính không?")
+                    .build());
 
         } catch (Exception e) {
             Throwable cause = e.getCause() != null ? e.getCause() : e;
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", e.getMessage(), "detail", cause.getMessage() != null ? cause.getMessage() : ""));
+                    .body(Map.of("error", e.getMessage(),
+                                 "detail", cause.getMessage() != null ? cause.getMessage() : ""));
         }
     }
 
@@ -158,30 +145,9 @@ public class AIController {
     /**
      * SSE streaming chat endpoint.
      *
-     * Old behaviour:
-     * -------------------------------------------------------------------------
-     * // @GetMapping(value = "/chat/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-     * // public SseEmitter streamChat(
-     * //         @RequestParam String message,
-     * //         @RequestHeader("Authorization") String authHeader) {
-     * //     UUID userId = transactionController.extractUserIdFromToken(authHeader);
-     * //     SseEmitter emitter = new SseEmitter(120_000L);
-     * //     chatWithAIUseCase.streamChat(message, userId, chunk -> {
-     * //         try { emitter.send(SseEmitter.event().data(chunk)); }
-     * //         catch (IOException e) { emitter.completeWithError(e); }
-     * //     }, error -> emitter.completeWithError(error),
-     * //     () -> { try { emitter.send(...); } catch ... emitter.complete(); emitter.complete(); });
-     * //     return emitter;
-     * // }
-     * -------------------------------------------------------------------------
-     *
-     * New behaviour:
-     *  - Accepts optional {@code month} and {@code year} to scope financial context.
-     *  - Builds a {@link ChatRequest} and delegates to the refactored streamChat().
-     *  - UC3 personalisation (tone) is applied via the system prompt.
-     *  - UC1/UC2 context (budgets or simulation) is injected ahead of the user message.
-     *  - Structured BudgetUpdateSuggestion / SimulationResult are NOT sent via SSE;
-     *    use POST /chat for those payloads.
+     * SSE stream. Tokens cumulative. Ends event:done data:[DONE].
+     * No structured payloads — use POST /chat for those.
+     * History loaded from Redis before stream; ASSISTANT turn appended after completion.
      */
     @GetMapping(value = "/chat/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter streamChat(
@@ -190,37 +156,55 @@ public class AIController {
             @RequestParam(required = false) Integer year,
             @RequestHeader("Authorization") String authHeader) {
 
-        UUID userId = transactionController.extractUserIdFromToken(authHeader);
-
-        // Build a minimal ChatRequest from query params (no history in stream mode)
-        ChatRequest chatRequest = ChatRequest.builder()
-                .message(message)
-                .month(month)
-                .year(year)
-                .build();
-
         SseEmitter emitter = new SseEmitter(120_000L);
 
-        chatWithAIUseCase.streamChat(
-                chatRequest,
-                userId,
-                chunk -> {
-                    try {
-                        // Each call delivers the CUMULATIVE reply text (not just the delta),
-                        // so the frontend can do a simple replacement instead of concatenation
-                        emitter.send(SseEmitter.event().data(chunk));
-                    } catch (IOException e) {
-                        emitter.completeWithError(e);
-                    }
-                },
-                error -> emitter.completeWithError(error),
-                () -> {
-                    try {
-                        emitter.send(SseEmitter.event().name("done").data("[DONE]"));
-                    } catch (IOException ignored) {
-                    }
-                    emitter.complete();
-                });
+        try {
+            UUID userId = transactionController.extractUserIdFromToken(authHeader);
+
+            ChatRequest chatRequest = ChatRequest.builder()
+                    .message(message)
+                    .month(month)
+                    .year(year)
+                    .build();
+
+            chatWithAIUseCase.streamChat(
+                    chatRequest,
+                    userId,
+                    chunk -> {
+                        try {
+                            emitter.send(SseEmitter.event().data(chunk));
+                        } catch (IOException e) {
+                            emitter.completeWithError(e);
+                        }
+                    },
+                    error -> emitter.completeWithError(error),
+                    () -> {
+                        try {
+                            emitter.send(SseEmitter.event().name("done").data("[DONE]"));
+                        } catch (IOException ignored) {
+                        }
+                        emitter.complete();
+                    });
+
+        } catch (RateLimitExceededException e) {
+            try {
+                emitter.send(SseEmitter.event().name("error").data("{\"error\":\"rate_limit\"}"));
+            } catch (IOException ignored) {
+            }
+            emitter.complete();
+
+        } catch (GuardrailViolationException e) {
+            try {
+                emitter.send(SseEmitter.event().data(
+                        "Tôi chỉ hỗ trợ câu hỏi về tài chính cá nhân."));
+                emitter.send(SseEmitter.event().name("done").data("[DONE]"));
+            } catch (IOException ignored) {
+            }
+            emitter.complete();
+
+        } catch (Exception e) {
+            emitter.completeWithError(e);
+        }
 
         return emitter;
     }
