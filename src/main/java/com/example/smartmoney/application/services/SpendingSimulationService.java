@@ -46,7 +46,7 @@ public class SpendingSimulationService {
 
     // Matches Vietnamese/English monetary amounts: "1M", "1 triệu", "500K", "1,500,000"
     private static final Pattern AMOUNT_PATTERN = Pattern.compile(
-            "([\\d][\\d,.]*)\\s*(triệu|tr|M|m|K|k|nghìn|ngàn)?",
+            "([\\d][\\d,.]*)\\s*(tỷ|ty|billion|triệu|tr|M|m|K|k|nghìn|ngàn)?",
             Pattern.UNICODE_CASE);
 
     // Default amount used when no parseable number is found in the message
@@ -193,7 +193,7 @@ public class SpendingSimulationService {
     /**
      * Parses a monetary VND amount from a Vietnamese/English financial message.
      *
-     * Supported formats: "1M", "1m", "1 triệu", "1.5 tr", "500K", "500k",
+     * Supported formats: "2 tỷ", "1M", "1m", "1 triệu", "1.5 tr", "500K", "500k",
      *                    "500 nghìn", "1,500,000" (bare number ≥ 1,000 only)
      *
      * Package-private for unit testing.
@@ -208,6 +208,7 @@ public class SpendingSimulationService {
                 BigDecimal num = new BigDecimal(numStr);
                 if (unit != null) {
                     return switch (unit.toLowerCase()) {
+                        case "tỷ", "ty", "billion" -> num.multiply(BigDecimal.valueOf(1_000_000_000));
                         case "triệu", "tr", "m" -> num.multiply(BigDecimal.valueOf(1_000_000));
                         case "k", "nghìn", "ngàn" -> num.multiply(BigDecimal.valueOf(1_000));
                         default -> num;

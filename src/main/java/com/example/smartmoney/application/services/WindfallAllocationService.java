@@ -35,7 +35,7 @@ import java.util.stream.Collectors;
 public class WindfallAllocationService {
 
     private static final Pattern AMOUNT_PATTERN = Pattern.compile(
-            "([\\d][\\d,.]*)\\s*(triệu|tr|M|m|K|k|nghìn|ngàn)?",
+            "([\\d][\\d,.]*)\\s*(tỷ|ty|billion|triệu|tr|M|m|K|k|nghìn|ngàn)?",
             Pattern.UNICODE_CASE);
 
     private static final BigDecimal DEFAULT_AMOUNT = BigDecimal.valueOf(5_000_000);
@@ -281,6 +281,7 @@ public class WindfallAllocationService {
                 BigDecimal num = new BigDecimal(numStr);
                 if (unit != null) {
                     return switch (unit.toLowerCase()) {
+                        case "tỷ", "ty", "billion" -> num.multiply(BigDecimal.valueOf(1_000_000_000));
                         case "triệu", "tr", "m" -> num.multiply(BigDecimal.valueOf(1_000_000));
                         case "k", "nghìn", "ngàn" -> num.multiply(BigDecimal.valueOf(1_000));
                         default -> num;

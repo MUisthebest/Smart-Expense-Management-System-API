@@ -7,7 +7,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Set;
 import java.util.function.Supplier;
 
@@ -25,6 +27,8 @@ public class JsonSchemaGuardrail {
     private static final Set<String> VALID_INTENTS = EnumSet.allOf(ChatResponse.ChatIntent.class)
             .stream().map(Enum::name).collect(java.util.stream.Collectors.toSet());
 
+    private static final int LOG_SNIPPET_LENGTH = 300;
+
     private final ObjectMapper objectMapper;
 
     /**
@@ -41,24 +45,30 @@ public class JsonSchemaGuardrail {
         if (result != null) return result;
 
         log.warn("JsonSchemaGuardrail: initial parse failed, retrying once");
+        String retried = null;
         try {
-            String retried = retrySupplier.get();
+            retried = retrySupplier.get();
             result = tryParse(retried);
             if (result != null) return result;
         } catch (Exception e) {
             log.warn("JsonSchemaGuardrail: retry call failed: {}", e.getMessage());
         }
 
-        // Fallback — safe default prevents NPE in use case
-        log.warn("JsonSchemaGuardrail: falling back to GENERAL_ADVICE");
+        // Fallback — safe default prevents NPE in use case. Log a snippet of whichever
+        // raw response we have so truncation/formatting drift can be diagnosed later
+        // (the raw text itself is never returned to the user).
+        String snippet = snippet(retried != null ? retried : rawResponse);
+        log.warn("JsonSchemaGuardrail: falling back to GENERAL_ADVICE, raw response was: {}", snippet);
         return new ParsedLlmResponse(
                 ChatResponse.ChatIntent.GENERAL_ADVICE,
-                "Xin lỗi, tôi không thể xử lý yêu cầu này lúc này. Vui lòng thử lại sau.");
+                "Xin lỗi, tôi không thể xử lý yêu cầu này lúc này. Vui lòng thử lại sau.",
+                List.of());
     }
 
     private ParsedLlmResponse tryParse(String raw) {
         if (raw == null || raw.isBlank()) return null;
-        String clean = stripMarkdownFences(raw.trim());
+        String clean = extractJsonObject(stripMarkdownFences(raw.trim()));
+        if (clean == null) return null;
         try {
             JsonNode root = objectMapper.readTree(clean);
             JsonNode intentNode = root.get("intent");
@@ -66,9 +76,19 @@ public class JsonSchemaGuardrail {
             if (intentNode == null || replyNode == null) return null;
             String intentStr = intentNode.asText();
             if (!VALID_INTENTS.contains(intentStr)) return null;
+
+            List<String> relatedQuestions = new ArrayList<>();
+            JsonNode relatedNode = root.get("relatedQuestions");
+            if (relatedNode != null && relatedNode.isArray()) {
+                relatedNode.forEach(q -> {
+                    if (q != null && !q.asText("").isBlank()) relatedQuestions.add(q.asText());
+                });
+            }
+
             return new ParsedLlmResponse(
                     ChatResponse.ChatIntent.valueOf(intentStr),
-                    replyNode.asText());
+                    replyNode.asText(),
+                    relatedQuestions);
         } catch (Exception e) {
             return null;
         }
@@ -85,5 +105,49 @@ public class JsonSchemaGuardrail {
         return raw;
     }
 
-    public record ParsedLlmResponse(ChatResponse.ChatIntent intent, String reply) {}
+    /**
+     * Extracts the first balanced {@code {...}} object from the text, tolerating stray
+     * prose the model adds before/after the JSON despite instructions not to. Returns
+     * null (rather than a partial string) when the braces never balance — e.g. output
+     * truncated mid-object by a token-budget cutoff, which is unrecoverable here and
+     * must surface as a parse failure so the retry/fallback path kicks in.
+     */
+    private String extractJsonObject(String text) {
+        int start = text.indexOf('{');
+        if (start < 0) return null;
+
+        int depth = 0;
+        boolean inString = false;
+        boolean escaped = false;
+        for (int i = start; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (inString) {
+                if (escaped) {
+                    escaped = false;
+                } else if (c == '\\') {
+                    escaped = true;
+                } else if (c == '"') {
+                    inString = false;
+                }
+                continue;
+            }
+            if (c == '"') {
+                inString = true;
+            } else if (c == '{') {
+                depth++;
+            } else if (c == '}') {
+                depth--;
+                if (depth == 0) return text.substring(start, i + 1);
+            }
+        }
+        return null;
+    }
+
+    private String snippet(String raw) {
+        if (raw == null) return "<null>";
+        return raw.length() <= LOG_SNIPPET_LENGTH ? raw : raw.substring(0, LOG_SNIPPET_LENGTH) + "...";
+    }
+
+    public record ParsedLlmResponse(ChatResponse.ChatIntent intent, String reply,
+                                     List<String> relatedQuestions) {}
 }

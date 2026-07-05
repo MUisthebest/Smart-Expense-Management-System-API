@@ -8,21 +8,52 @@ import java.util.UUID;
 import java.util.regex.Pattern;
 
 /**
- * @Order(1) — scope guardrail.
- * Allowlist first (finance keywords → pass immediately, prevents false positives).
- * Then blocklist (off-topic domains) with early termination.
- * Ambiguous messages pass through.
+ * @Order(1) — fast, deterministic scope guardrail (regex only, no network call).
+ *
+ * Gambling-advice blocklist first (highest priority — overrides the finance
+ * allowlist, since "trúng"/"xổ số" also appear there for windfall detection).
+ * Then finance allowlist (keywords → pass immediately, prevents false positives).
+ * Then off-topic blocklist with early termination. Ambiguous messages pass through.
+ *
+ * This layer only catches domains/patterns enumerated in advance. It is a
+ * cheap first line of defense (zero latency, catches the most common abuse
+ * pattern — lottery-number requests — instantly). It does NOT generalise to
+ * arbitrary off-topic drift; {@link SemanticScopeGuardrail} (@Order 3) is the
+ * general-purpose net that catches everything this layer misses.
  */
 @Component
 @Order(1)
 public class ScopeGuardrail implements PromptGuardrail {
 
+    private Pattern[] gamblingAdvicePatterns;
     private Pattern[] allowlistPatterns;
     private Pattern[] blocklistPatterns;
 
     @PostConstruct
     void init() {
-        // Finance allowlist — any match bypasses the blocklist entirely
+        // Gambling-advice — asking HOW to win/pick numbers, not the financial
+        // impact of a hypothetical win. Must be checked before the allowlist
+        // below, because "trúng"/"xổ số"/"lottery" are also allowlist terms
+        // (needed to let genuine windfall-planning questions through).
+        String[] gambling = {
+            "nên (mua|chọn) (tờ )?(vé số|con số|số) (nào|gì|mấy)",
+            "chọn (con )?số nào",
+            "(làm (sao|thế nào)|cách|làm gì) (để )?(trúng|thắng)",
+            "bí quyết (trúng|chọn số|xổ số|thắng)",
+            "dự đoán (kết quả|số) (xổ số|trúng|may mắn)",
+            "soi cầu",
+            "phong thủy chọn số",
+            "số (nào|mấy) (dễ|hay|thường|sẽ) trúng",
+            "mua (tờ )?(vé số|con số|số) (nào|gì|mấy)",
+            "lô đề|đánh đề|đánh lô",
+            "cờ bạc|cá độ|gambling|betting odds",
+            "how (to|do i) (pick|choose|win) (the )?(lottery|numbers)",
+            "which (lottery )?numbers (should i|to) (pick|buy|choose)",
+            "predict (the )?(lottery|winning) numbers"
+        };
+        gamblingAdvicePatterns = toPatterns(gambling);
+
+        // Finance allowlist — any match bypasses the off-topic blocklist entirely
         String[] allow = {
             "ngân sách", "budget", "chi tiêu", "tài chính", "finance",
             "tiết kiệm", "saving", "thu nhập", "income", "giao dịch", "transaction",
@@ -58,7 +89,17 @@ public class ScopeGuardrail implements PromptGuardrail {
     public void validate(String message, UUID userId) {
         String lower = message.toLowerCase();
 
-        // Allowlist first — finance context passes immediately
+        // Gambling-advice check first — takes priority over the allowlist below,
+        // since finance keywords like "trúng"/"xổ số" would otherwise let it pass.
+        for (Pattern p : gamblingAdvicePatterns) {
+            if (p.matcher(lower).find()) {
+                throw new GuardrailViolationException(
+                        "Tôi chỉ hỗ trợ lập kế hoạch tài chính, không tư vấn cách chọn số " +
+                        "hay dự đoán kết quả xổ số/cờ bạc.");
+            }
+        }
+
+        // Allowlist — finance context passes immediately
         for (Pattern p : allowlistPatterns) {
             if (p.matcher(lower).find()) return;
         }

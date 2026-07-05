@@ -82,7 +82,7 @@ public class ChatWithAIUseCase {
 
         // Attach server-computed structured payloads based on detected intent
         return buildStructuredResponse(parsed.intent(), parsed.reply(), userId, month, year,
-                message.toLowerCase());
+                message.toLowerCase(), relatedQuestionsOrFallback(parsed.intent(), parsed.relatedQuestions()));
     }
 
     // ── Streaming chat (GET /chat/stream) ────────────────────────────────────
@@ -109,7 +109,7 @@ public class ChatWithAIUseCase {
         // No JSON format instruction for stream — plain text reply
         String userMessage = composeUserMessage(financialContext, history, message, false);
 
-        // chunk from GeminiAIChatAdapter is cumulative — track the latest value
+        // chunk from the AIChatPort adapter is cumulative — track the latest value
         String[] lastChunk = {""};
 
         aiChatPort.chatStream(
@@ -171,7 +171,8 @@ public class ChatWithAIUseCase {
     // ── Structured response builder ──────────────────────────────────────────
 
     private ChatResponse buildStructuredResponse(ChatResponse.ChatIntent intent, String reply,
-                                                 UUID userId, int month, int year, String messageLow) {
+                                                 UUID userId, int month, int year, String messageLow,
+                                                 List<String> relatedQuestions) {
         return switch (intent) {
             case BUDGET_UPDATE -> {
                 var suggestions = budgetAdvisorService.suggestReductions(userId, month, year, messageLow);
@@ -179,6 +180,8 @@ public class ChatWithAIUseCase {
                         .reply(reply)
                         .intent(intent)
                         .budgetSuggestions(suggestions.isEmpty() ? null : suggestions)
+                        .actionRequired(!suggestions.isEmpty())
+                        .relatedQuestions(relatedQuestions)
                         .build();
             }
             case SIMULATION -> {
@@ -187,32 +190,54 @@ public class ChatWithAIUseCase {
                         .reply(reply)
                         .intent(intent)
                         .simulationResult(simResult)
+                        .relatedQuestions(relatedQuestions)
                         .build();
             }
             case INCOME_WINDFALL -> {
-                // AI detected sudden income → allocate 60% to savings, 40% to budget limits
-                var savingsSuggestions = windfallAllocationService.suggestSavingsBoost(
-                        userId, month, year, messageLow);
-                var budgetBoosts = windfallAllocationService.suggestBudgetBoosts(
-                        userId, month, year, messageLow);
+                // AI detected sudden income → allocate 60% to savings, 40% to budget limits.
+                // Only surface the side(s) the user actually asked about; if neither budget
+                // nor project is explicitly mentioned, show both (helpful default).
+                boolean showBudget = wantsBudgetSuggestion(messageLow);
+                boolean showProject = wantsProjectSuggestion(messageLow);
+                boolean scoped = showBudget || showProject;
+
+                var savingsSuggestions = (!scoped || showProject)
+                        ? windfallAllocationService.suggestSavingsBoost(userId, month, year, messageLow)
+                        : Collections.<ChatResponse.SavingsPlanSuggestion>emptyList();
+                var budgetBoosts = (!scoped || showBudget)
+                        ? windfallAllocationService.suggestBudgetBoosts(userId, month, year, messageLow)
+                        : Collections.<ChatResponse.BudgetUpdateSuggestion>emptyList();
+
                 yield ChatResponse.builder()
                         .reply(reply)
                         .intent(intent)
                         .budgetSuggestions(budgetBoosts.isEmpty() ? null : budgetBoosts)
                         .savingsSuggestions(savingsSuggestions.isEmpty() ? null : savingsSuggestions)
+                        .actionRequired(!budgetBoosts.isEmpty() || !savingsSuggestions.isEmpty())
+                        .relatedQuestions(relatedQuestions)
                         .build();
             }
             case LARGE_EXPENSE -> {
-                // AI detected large unplanned expense → suggest budget coverage + project deferral
-                var budgetCoverage = windfallAllocationService.suggestExpenseCoverage(
-                        userId, month, year, messageLow);
-                var deferral = windfallAllocationService.suggestProjectDeferral(
-                        userId, month, year, messageLow);
+                // AI detected large unplanned expense → suggest budget coverage + project deferral.
+                // Same scoping rule as INCOME_WINDFALL above.
+                boolean showBudget = wantsBudgetSuggestion(messageLow);
+                boolean showProject = wantsProjectSuggestion(messageLow);
+                boolean scoped = showBudget || showProject;
+
+                var budgetCoverage = (!scoped || showBudget)
+                        ? windfallAllocationService.suggestExpenseCoverage(userId, month, year, messageLow)
+                        : Collections.<ChatResponse.BudgetUpdateSuggestion>emptyList();
+                var deferral = (!scoped || showProject)
+                        ? windfallAllocationService.suggestProjectDeferral(userId, month, year, messageLow)
+                        : Collections.<ChatResponse.SavingsPlanSuggestion>emptyList();
+
                 yield ChatResponse.builder()
                         .reply(reply)
                         .intent(intent)
                         .budgetSuggestions(budgetCoverage.isEmpty() ? null : budgetCoverage)
                         .savingsSuggestions(deferral.isEmpty() ? null : deferral)
+                        .actionRequired(!budgetCoverage.isEmpty() || !deferral.isEmpty())
+                        .relatedQuestions(relatedQuestions)
                         .build();
             }
             case OUT_OF_SCOPE -> ChatResponse.builder()
@@ -223,7 +248,37 @@ public class ChatWithAIUseCase {
             default -> ChatResponse.builder()
                     .reply(reply)
                     .intent(intent)
+                    .relatedQuestions(relatedQuestions)
                     .build();
         };
+    }
+
+    // ── Related-questions fallback ───────────────────────────────────────────
+
+    private static final List<String> DEFAULT_RELATED_QUESTIONS = List.of(
+            "Tôi có đang chi tiêu vượt ngân sách ở danh mục nào không?",
+            "Tiến độ các dự án tiết kiệm của tôi đang như thế nào?",
+            "Tôi nên điều chỉnh ngân sách tháng này ra sao?");
+
+    /** OUT_OF_SCOPE gets no related questions; other intents fall back to a generic set
+     *  when the LLM omits the field (e.g. after a JsonSchemaGuardrail fallback). */
+    private List<String> relatedQuestionsOrFallback(ChatResponse.ChatIntent intent, List<String> llmQuestions) {
+        if (intent == ChatResponse.ChatIntent.OUT_OF_SCOPE) return null;
+        return (llmQuestions == null || llmQuestions.isEmpty()) ? DEFAULT_RELATED_QUESTIONS : llmQuestions;
+    }
+
+    // ── Suggestion scoping helpers ────────────────────────────────────────────
+
+    /** True when the user's message explicitly asks about budget/spending limits. */
+    private boolean wantsBudgetSuggestion(String messageLow) {
+        return messageLow.contains("ngân sách") || messageLow.contains("budget")
+                || messageLow.contains("hạn mức") || messageLow.contains("chi tiêu");
+    }
+
+    /** True when the user's message explicitly asks about savings projects/goals. */
+    private boolean wantsProjectSuggestion(String messageLow) {
+        return messageLow.contains("dự án") || messageLow.contains("project")
+                || messageLow.contains("tiết kiệm") || messageLow.contains("mục tiêu")
+                || messageLow.contains("saving");
     }
 }

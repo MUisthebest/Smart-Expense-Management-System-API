@@ -70,7 +70,9 @@ public class NotificationWorker {
                         Consumer.from(GROUP, consumerName),
                         StreamReadOptions.empty()
                             .count(BATCH_SIZE)
-                            .block(Duration.ofSeconds(30)),
+                            // Must stay below CoreRedisConfig's 10s client-side commandTimeout,
+                            // or every idle poll throws RedisCommandTimeoutException.
+                            .block(Duration.ofSeconds(8)),
                         StreamOffset.create(STREAM, ReadOffset.lastConsumed())
                     );
 

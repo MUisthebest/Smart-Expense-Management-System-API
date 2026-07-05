@@ -21,19 +21,20 @@ import java.util.Map;
 import java.util.function.Consumer;
 
 /**
- * AIChatPort implementation backed by Google Gemini.
- * Replaces OpenRouterAIAdapter for all chat and suggestion calls.
+ * AIChatPort implementation that calls Google Gemini directly.
  *
  * Sync:   POST .../gemini-2.5-flash-lite:generateContent
  * Stream: POST .../gemini-2.5-flash-lite:streamGenerateContent?alt=sse
  */
 @Slf4j
-@Component
+// @Component — disabled; OpenRouterAIAdapter (routed to google/gemini-2.5-flash-lite)
+// is the active AIChatPort bean. Direct Gemini calls were dropped due to repeated
+// per-project 403 PERMISSION_DENIED errors from Google's API key/project setup.
 public class GeminiAIChatAdapter implements AIChatPort {
 
     private static final String BASE_URL =
             "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite";
-    private static final int MAX_OUTPUT_TOKENS = 800;
+    private static final int MAX_OUTPUT_TOKENS = 2048;
     private static final double TEMPERATURE = 0.3;
 
     private final ObjectMapper objectMapper;
