@@ -480,6 +480,19 @@ public class SpendingInsightAnalyzer {
         return round(median(sample));
     }
 
+    /**
+     * Total EXPENSE spend already logged in {@code category} for {@code period}'s own month.
+     * Unlike {@link #trailing3MonthMedian} this includes the current (partial) month, so a
+     * proposed budget limit can be floored at it and never be born already-exceeded once
+     * {@code CreateBudgetUseCase} backfills the month's spend. Returns {@link BigDecimal#ZERO}
+     * when nothing has been spent in that category this month.
+     */
+    public BigDecimal currentMonthTotal(List<Transaction> history, Category category, YearMonth period) {
+        Map<Category, Map<YearMonth, BigDecimal>> byCategory = monthlyExpenseTotalsByCategory(history);
+        Map<YearMonth, BigDecimal> totals = byCategory.get(category);
+        return totals == null ? BigDecimal.ZERO : round(totals.getOrDefault(period, BigDecimal.ZERO));
+    }
+
     // ---- P2-C Method D: category trend (least-squares slope) -----------------------------
 
     private List<Insight> detectCategoryTrends(List<Transaction> history, LocalDate asOf) {

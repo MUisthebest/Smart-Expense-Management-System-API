@@ -41,5 +41,14 @@ public enum SuggestionType {
      * {@link #CONTRIBUTE_TO_PROJECT}, with the resolved amount sized to close the gap
      * (Wave 4 item 8).
      */
-    INCREASE_CONTRIBUTION
+    INCREASE_CONTRIBUTION,
+    /**
+     * Cover a budget that is on pace to overshoot (BUDGET_PACE) by pulling headroom from other
+     * budgets the same month that are confirmed underspent (BUDGET_UNDERSPEND) — a zero-sum move
+     * that leaves the committed total unchanged. Executes the same all-or-nothing snapshot action
+     * as {@link #REBALANCE_BUDGETS} ({@code proposedAction.budgetAdjustments}): the recipient's
+     * limit goes up and each donor's goes down by the consented amounts. Preferred over
+     * {@link #RAISE_BUDGET} because it needs no new money.
+     */
+    REALLOCATE_BUDGET
 }

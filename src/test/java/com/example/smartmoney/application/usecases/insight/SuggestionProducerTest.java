@@ -590,8 +590,8 @@ class SuggestionProducerTest {
     }
 
     @Test
-    @DisplayName("Wave 1: CATEGORY_TREND on a budgetless category (no anomaly) → SET_CATEGORY_LIMIT at the trailing median")
-    void trendWithoutBudgetSetsCategoryLimit() throws Exception {
+    @DisplayName("Wave 1: CATEGORY_TREND on a budgetless category → SET_CATEGORY_LIMIT floored at current-month spend (never born exceeded)")
+    void trendWithoutBudgetFloorsLimitAtCurrentSpend() throws Exception {
         stubUser(Intervention_Level.GENTLE);
         when(transactionRepository.findByUserIdWithFilters(any(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(risingFoodTrendHistory());
@@ -615,11 +615,48 @@ class SuggestionProducerTest {
         assertEquals(6, action.getMonth());
         assertEquals(2026, action.getYear());
         assertNull(action.getBudgetId());
-        // trailing-3 median [180,160,140] = 160
-        assertEquals(0, new BigDecimal("160").compareTo(action.getResolvedValue()));
+        // The trend fires because June (190) is already above the trailing-3 median [180,160,140]=160.
+        // The proposed limit must be floored at what's already spent this month (190), not the lower
+        // median — otherwise CreateBudget would backfill 190 onto a 160 limit and the budget would be
+        // born EXCEEDED (remaining -30). Floored → remaining = 190 - 190 = 0, never negative.
+        assertEquals(0, new BigDecimal("190").compareTo(action.getResolvedValue()));
 
         verify(createNotificationUseCase).createNotification(eq(userId),
                 eq("notification.suggestion.set_category_limit|FOOD"), startsWith("app://suggestions/"));
+    }
+
+    /** FOOD rising Jan–Jun but with a modest June (210) that sits below the trailing median (250). */
+    private List<Transaction> risingFoodTrendBelowMedianHistory() {
+        List<Transaction> history = new java.util.ArrayList<>();
+        int[] amounts = {100, 150, 200, 250, 300, 210};
+        for (int i = 0; i < amounts.length; i++) {
+            history.add(expense(Category.FOOD, 2026, i + 1, String.valueOf(amounts[i])));
+        }
+        return history;
+    }
+
+    @Test
+    @DisplayName("Wave 1: SET_CATEGORY_LIMIT keeps the trailing median when the current-month spend is below it (floor only raises)")
+    void trendWithoutBudgetKeepsMedianWhenBelowIt() throws Exception {
+        stubUser(Intervention_Level.GENTLE);
+        when(transactionRepository.findByUserIdWithFilters(any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(risingFoodTrendBelowMedianHistory());
+        when(budgetRepository.findByUserIdMonthYear(eq(userId), eq(6), eq(2026)))
+                .thenReturn(List.of()); // no FOOD budget
+        when(suggestionRepository.findOpenByUserIdAndDedupKey(eq(userId), anyString()))
+                .thenReturn(Optional.empty());
+        when(suggestionRepository.save(any(Suggestion.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        producer.maybeProduce(userId, Category.FOOD, AS_OF);
+
+        ArgumentCaptor<Suggestion> captor = ArgumentCaptor.forClass(Suggestion.class);
+        verify(suggestionRepository).save(captor.capture());
+        Suggestion saved = captor.getValue();
+        assertEquals(SuggestionType.SET_CATEGORY_LIMIT, saved.getType());
+
+        SuggestionPayload payload = objectMapper.readValue(saved.getPayloadJson(), SuggestionPayload.class);
+        // trailing-3 median [200,250,300]=250 wins; June's 210 spend is below it so the floor is inert.
+        assertEquals(0, new BigDecimal("250").compareTo(payload.getProposedAction().getResolvedValue()));
     }
 
     // ---- Wave 1: REDUCE_BUDGET (budget consistently underspent) --------------------------
@@ -665,6 +702,91 @@ class SuggestionProducerTest {
 
         verify(createNotificationUseCase).createNotification(eq(userId),
                 eq("notification.suggestion.reduce_budget|FOOD"), startsWith("app://suggestions/"));
+    }
+
+    // ---- UC1: REALLOCATE_BUDGET (cover an overspend from underspent budgets) --------------
+
+    /** SHOPPING budget spent well under its limit, with a positive trailing median → a valid donor. */
+    private Budget underspentShoppingBudget(UUID id, String limit, String spent) {
+        return Budget.builder().id(id).userId(userId).category(Category.SHOPPING)
+                .amountLimit(new BigDecimal(limit)).spent(new BigDecimal(spent)).month(6).year(2026).build();
+    }
+
+    /** SHOPPING history at a steady, low monthly total so BUDGET_UNDERSPEND fires (positive median). */
+    private List<Transaction> steadyShoppingHistory(String monthly) {
+        List<Transaction> history = new java.util.ArrayList<>();
+        history.add(expense(Category.SHOPPING, 2026, 5, monthly));
+        history.add(expense(Category.SHOPPING, 2026, 4, monthly));
+        history.add(expense(Category.SHOPPING, 2026, 3, monthly));
+        return history;
+    }
+
+    @Test
+    @DisplayName("UC1: an overshoot fully coverable by an underspent budget → REALLOCATE_BUDGET (zero-sum, donor floored above spend)")
+    void overshootWithHeadroomReallocates() throws Exception {
+        UUID shoppingBudgetId = UUID.randomUUID();
+        stubUser(Intervention_Level.GENTLE);
+        // FOOD projects to 1200 vs its 1000 limit (gap 200); SHOPPING sits far under its 1000 limit.
+        when(transactionRepository.findByUserIdWithFilters(any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(steadyShoppingHistory("150"));
+        when(budgetRepository.findByUserIdMonthYear(eq(userId), eq(6), eq(2026)))
+                .thenReturn(List.of(warnPaceBudget(), underspentShoppingBudget(shoppingBudgetId, "1000", "50")));
+        when(suggestionRepository.findOpenByUserIdAndDedupKey(eq(userId), anyString()))
+                .thenReturn(Optional.empty());
+        when(suggestionRepository.save(any(Suggestion.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        producer.maybeProduce(userId, Category.FOOD, AS_OF);
+
+        ArgumentCaptor<Suggestion> captor = ArgumentCaptor.forClass(Suggestion.class);
+        verify(suggestionRepository).save(captor.capture());
+        Suggestion saved = captor.getValue();
+        assertEquals(SuggestionType.REALLOCATE_BUDGET, saved.getType());
+        assertEquals("REALLOCATE_BUDGET:FOOD:2026-06", saved.getDedupKey());
+
+        SuggestionPayload payload = objectMapper.readValue(saved.getPayloadJson(), SuggestionPayload.class);
+        SuggestionPayload.ProposedAction action = payload.getProposedAction();
+        assertEquals(0, new BigDecimal("200").compareTo(action.getResolvedValue())); // amount moved
+
+        List<SuggestionPayload.BudgetAdjustment> adj = action.getBudgetAdjustments();
+        SuggestionPayload.BudgetAdjustment food = adj.stream()
+                .filter(a -> a.getBudgetId().equals(budgetId)).findFirst().orElseThrow();
+        SuggestionPayload.BudgetAdjustment shop = adj.stream()
+                .filter(a -> a.getBudgetId().equals(shoppingBudgetId)).findFirst().orElseThrow();
+        // Recipient up to 1200, donor down to 800 — and the donor's new limit stays above its 50 spent.
+        assertEquals(0, new BigDecimal("1200").compareTo(food.getNewLimit()));
+        assertEquals(0, new BigDecimal("800").compareTo(shop.getNewLimit()));
+        assertTrue(shop.getNewLimit().compareTo(new BigDecimal("50")) >= 0);
+        // Zero-sum: the deltas across all adjustments cancel out.
+        BigDecimal netDelta = adj.stream()
+                .map(a -> a.getNewLimit().subtract(a.getCurrentLimit()))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        assertEquals(0, BigDecimal.ZERO.compareTo(netDelta));
+
+        verify(createNotificationUseCase).createNotification(eq(userId),
+                eq("notification.suggestion.reallocate_budget|FOOD"), startsWith("app://suggestions/"));
+    }
+
+    @Test
+    @DisplayName("UC1: an overshoot the underspent budgets can't fully cover → falls back to RAISE_BUDGET")
+    void overshootWithoutEnoughHeadroomFallsBackToRaise() throws Exception {
+        UUID shoppingBudgetId = UUID.randomUUID();
+        stubUser(Intervention_Level.GENTLE);
+        // FOOD gap is 200 but the only underspent budget can spare at most ~90 → reallocation isn't offered.
+        when(transactionRepository.findByUserIdWithFilters(any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(steadyShoppingHistory("30"));
+        when(budgetRepository.findByUserIdMonthYear(eq(userId), eq(6), eq(2026)))
+                .thenReturn(List.of(warnPaceBudget(), underspentShoppingBudget(shoppingBudgetId, "100", "5")));
+        when(suggestionRepository.findOpenByUserIdAndDedupKey(eq(userId), anyString()))
+                .thenReturn(Optional.empty());
+        when(suggestionRepository.save(any(Suggestion.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        producer.maybeProduce(userId, Category.FOOD, AS_OF);
+
+        ArgumentCaptor<Suggestion> captor = ArgumentCaptor.forClass(Suggestion.class);
+        verify(suggestionRepository).save(captor.capture());
+        Suggestion saved = captor.getValue();
+        assertEquals(SuggestionType.RAISE_BUDGET, saved.getType());
+        assertEquals("RAISE_BUDGET:FOOD:2026-06", saved.getDedupKey());
     }
 
     // ---- Wave 1: notification-only per-transaction anomalies -----------------------------

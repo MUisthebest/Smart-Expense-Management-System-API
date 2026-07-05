@@ -23,6 +23,7 @@
   "notification.suggestion.reduce_budget": "You rarely use your whole {arg} budget — lower it?",
   "notification.suggestion.contribute_to_project": "Payday! Put something toward {arg}?",
   "notification.suggestion.rebalance_budgets": "Your budgets add up to more than your income — shrink them to fit?",
+  "notification.suggestion.reallocate_budget": "Your {arg} budget is about to overflow — cover it from budgets you're not using?",
   "notification.suggestion.review_subscription": "{arg} just charged more than usual — worth a quick review?",
   "notification.suggestion.increase_contribution": "{arg} is falling behind its deadline — put in a bit extra this month?",
 

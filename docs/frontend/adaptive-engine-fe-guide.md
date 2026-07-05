@@ -249,20 +249,29 @@ the user is consenting to** — never recompute it.
 | `REDUCE_BUDGET` | "Lower your {category} budget to {resolvedValue}?" | `category`, `budgetId`, `resolvedValue` | updates that budget's limit (downward) |
 | `CONTRIBUTE_TO_PROJECT` | "Put {resolvedValue} toward {project}?" | `projectId`, `resolvedValue` | records a contribution (an EXPENSE ledger entry) |
 | `REBALANCE_BUDGETS` | "Your budgets total more than your income — shrink them to fit ({resolvedValue} total)?" | `month`, `year`, `resolvedValue` (new committed total), `budgetAdjustments[]` | updates **every listed budget** to its `newLimit` |
+| `REALLOCATE_BUDGET` | "Your {category} budget is about to overflow — cover it from budgets you're not using ({resolvedValue} moved)?" | `category`, `month`, `year`, `resolvedValue` (amount moved), `budgetAdjustments[]` | updates **every listed budget** to its `newLimit` (recipient up, donors down) — same executor as `REBALANCE_BUDGETS` |
 | `REVIEW_SUBSCRIPTION` | "{description} went up from {previousAmount} to {newAmount} — reviewed it?" *(numbers from `insightSnapshot.metrics`)* | **none** (`proposedAction` is `null`) | **nothing** — acknowledge-only; Yes just marks it reviewed |
 | `INCREASE_CONTRIBUTION` | "{project} is behind — add {resolvedValue} this month to catch up?" *(supporting `requiredMonthly`/`observedMonthly` from `insightSnapshot.metrics`)* | `projectId`, `resolvedValue` | records a contribution (same executor as `CONTRIBUTE_TO_PROJECT`) |
 
 `insightSnapshot` is the frozen reason ("why are you asking?") — use it to show the supporting
 number(s) on the card. It's a snapshot, so it stays stable even if live data later changes.
 
-**`REBALANCE_BUDGETS` card specifics** (the one multi-entity ask):
+**`REBALANCE_BUDGETS` / `REALLOCATE_BUDGET` card specifics** (the multi-entity asks — both use
+`budgetAdjustments[]` and the same all-or-nothing executor):
 - `proposedAction.budgetAdjustments` is a list of
   `{ "budgetId", "category", "currentLimit", "newLimit" }` — render a per-budget
   **currentLimit → newLimit** table so the user sees exactly what Yes applies. Consent is to this
   snapshot: the backend applies these numbers verbatim (a budget deleted in the meantime is
-  skipped), never recomputes.
-- It's raised by **creating or editing a budget** (not by logging an expense), so surface it right
-  after budget-editing flows. Its `dedupKey` is account-wide per month (`REBALANCE_BUDGETS:2026-07`).
+  skipped), never recomputes. If a donor has spent past its lowered limit by the time the user taps
+  Yes, the **whole ask is rejected** (nothing changes) and an error is returned — re-fetch and let
+  the user try again.
+- `REBALANCE_BUDGETS` is raised by **creating or editing a budget** (its `dedupKey` is account-wide
+  per month, `REBALANCE_BUDGETS:2026-07`). `REALLOCATE_BUDGET` is raised by **logging an expense**
+  that puts a budgeted category on pace to overflow: it moves headroom *from* underspent budgets
+  *into* the overflowing one, so the committed total is unchanged. Its `dedupKey` is per recipient
+  category per month (`REALLOCATE_BUDGET:FOOD:2026-07`), and it's offered **in preference to**
+  `RAISE_BUDGET` when other budgets can fully cover the gap (only if they can't does `RAISE_BUDGET`
+  fire instead).
 - `REVIEW_SUBSCRIPTION` has **no** `proposedAction` — build the whole card from
   `insightSnapshot.metrics` (`description`, `previousAmount`, `newAmount`). Yes = "I've looked at
   it"; the actual cancelling/renegotiating happens outside the app.
@@ -335,7 +344,7 @@ Routing contract:
 | `Focus_Mode` | `SAVE_MORE`, `REDUCE_SPENDING`, `TRACK_ONLY` |
 | `Severity` | `INFO`, `WARN`, `CRITICAL` |
 | `InsightType` | `OVERSPEND_ANOMALY`, `BUDGET_PACE`, `CATEGORY_TREND`, `RECURRING`, `SAVINGS_CAPACITY`, `BUDGET_OVER_INCOME`, `BUDGET_UNDERSPEND`, `SUBSCRIPTION_PRICE_HIKE` (+ never in `GET /insights`: notification-only `LARGE_TRANSACTION`, `DUPLICATE_CHARGE`, `INCOME_DROP`, `CASHFLOW_NEGATIVE`, `PROJECT_MILESTONE`, `GOOD_MONTH`; card-snapshot-only `PROJECT_OFF_TRACK`) |
-| `SuggestionType` | `RAISE_BUDGET`, `CREATE_BUDGET`, `SET_CATEGORY_LIMIT`, `REDUCE_BUDGET`, `CONTRIBUTE_TO_PROJECT`, `REBALANCE_BUDGETS`, `REVIEW_SUBSCRIPTION`, `INCREASE_CONTRIBUTION` |
+| `SuggestionType` | `RAISE_BUDGET`, `CREATE_BUDGET`, `SET_CATEGORY_LIMIT`, `REDUCE_BUDGET`, `CONTRIBUTE_TO_PROJECT`, `REBALANCE_BUDGETS`, `REALLOCATE_BUDGET`, `REVIEW_SUBSCRIPTION`, `INCREASE_CONTRIBUTION` |
 | `SuggestionStatus` | `PENDING`, `ACCEPTED`, `DISMISSED`, `EXPIRED` |
 | `Category` (transactions) | `FOOD`, `TRANSPORTATION`, `CLOTHING`, `UTILITIES`, `ENTERTAINMENT`, `HEALTH`, `EDUCATION`, `SHOPPING`, `OTHER`, `PROJECT_REFUND`, `PROJECT_CONTRIBUTION` — the last two are system-generated ledger entries (accepting `CONTRIBUTE_TO_PROJECT` writes a `PROJECT_CONTRIBUTION` expense; abandoning a project writes `PROJECT_REFUND` income), so localize them in transaction lists |
 | `TransactionType` | `EXPENSE`, `INCOME` |

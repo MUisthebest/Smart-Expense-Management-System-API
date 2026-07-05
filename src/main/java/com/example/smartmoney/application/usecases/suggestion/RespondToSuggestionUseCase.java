@@ -8,6 +8,7 @@ import com.example.smartmoney.application.usecases.budget.CreateBudgetUseCase;
 import com.example.smartmoney.application.usecases.budget.UpdateBudgetUseCase;
 import com.example.smartmoney.application.usecases.project.AddProjectContributionUseCase;
 import com.example.smartmoney.domain.exceptions.DomainException;
+import com.example.smartmoney.domain.models.budget.Budget;
 import com.example.smartmoney.domain.models.suggestion.Suggestion;
 import com.example.smartmoney.domain.models.suggestion.SuggestionStatus;
 import com.example.smartmoney.domain.models.suggestion.SuggestionTopicStat;
@@ -22,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -96,7 +98,7 @@ public class RespondToSuggestionUseCase {
             case RAISE_BUDGET, REDUCE_BUDGET -> resizeBudget(payload, userId);
             case CREATE_BUDGET, SET_CATEGORY_LIMIT -> createBudget(payload, userId);
             case CONTRIBUTE_TO_PROJECT, INCREASE_CONTRIBUTION -> contributeToProject(payload, userId);
-            case REBALANCE_BUDGETS -> rebalanceBudgets(payload, userId);
+            case REBALANCE_BUDGETS, REALLOCATE_BUDGET -> rebalanceBudgets(payload, userId);
             // Acknowledge-only: the real action (cancelling the subscription) happens outside the
             // app; "yes" just marks it reviewed. The ACCEPTED flip is the entire effect.
             case REVIEW_SUBSCRIPTION -> { }
@@ -153,19 +155,33 @@ public class RespondToSuggestionUseCase {
         if (adjustments == null || adjustments.isEmpty()) {
             throw new DomainException("REBALANCE_BUDGETS suggestion has no budget adjustments");
         }
-        // Validate the whole snapshot before touching anything — all-or-nothing consent.
+        // Validate the whole snapshot before applying ANY of it — all-or-nothing consent. A budget
+        // deleted since the ask is dropped from the set to apply. A reduction that would leave a
+        // budget below what it has already spent (spending can rise between ask and accept) leaves it
+        // born-exceeded, so it rejects the entire ask up front — nothing is written. (Guards both
+        // REBALANCE_BUDGETS and REALLOCATE_BUDGET.)
+        List<SuggestionPayload.BudgetAdjustment> applicable = new ArrayList<>();
         for (SuggestionPayload.BudgetAdjustment adjustment : adjustments) {
             if (adjustment == null || adjustment.getBudgetId() == null || adjustment.getNewLimit() == null
                     || adjustment.getNewLimit().compareTo(BigDecimal.ZERO) <= 0) {
                 throw new DomainException("REBALANCE_BUDGETS adjustment is missing budgetId or a positive newLimit");
             }
-        }
-        for (SuggestionPayload.BudgetAdjustment adjustment : adjustments) {
-            if (budgetRepository.findById(adjustment.getBudgetId()).isEmpty()) {
+            Budget budget = budgetRepository.findById(adjustment.getBudgetId()).orElse(null);
+            if (budget == null) {
                 log.info("[Suggestion] rebalance: budget {} was deleted after the ask — skipping it",
                         adjustment.getBudgetId());
                 continue;
             }
+            BigDecimal spent = budget.getSpent() != null ? budget.getSpent() : BigDecimal.ZERO;
+            BigDecimal currentLimit = budget.getAmountLimit();
+            boolean isReduction = currentLimit != null && adjustment.getNewLimit().compareTo(currentLimit) < 0;
+            if (isReduction && adjustment.getNewLimit().compareTo(spent) < 0) {
+                throw new DomainException("Budget " + adjustment.getBudgetId()
+                        + " has already spent more than its reallocated limit — please review the suggestion again");
+            }
+            applicable.add(adjustment);
+        }
+        for (SuggestionPayload.BudgetAdjustment adjustment : applicable) {
             UpdateBudgetRequest request = new UpdateBudgetRequest();
             request.setAmountLimit(adjustment.getNewLimit()); // the consented snapshot number
             // No rebalance re-check mid-loop: the loop's end state is exactly the consented fit.

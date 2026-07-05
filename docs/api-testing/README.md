@@ -80,6 +80,7 @@ state from the previous one:
 | `16 — PROJECT_MILESTONE` | positive ping when a contribution crosses 25/50/75/100% progress (deep link `app://projects/{id}`); a tiny non-crossing top-up proves each milestone is celebrated **once** |
 | `17 — GOOD_MONTH` | a quiet, budgeted October closes with every budget under its limit → one cheer (`app://budgets`) riding the recap; re-running the recap proves the once-per-month marker |
 | `18 — CREATE_SAVING_PROJECT nudge` | completes/deletes the projects (also proving a 2-threshold jump celebrates only the highest milestone), then the sweep finds capacity with **no active project** → deep-link nudge to the pre-filled create form (no suggestion card — item 10's resolved shape) |
+| `19 — REALLOCATE_BUDGET` | budgeted category over pace **plus** another budget confirmed underspent → `REALLOCATE_BUDGET` **instead of** `RAISE_BUDGET`: a zero-sum snapshot that raises the overflowing budget and lowers the underused one by the same amount → accept applies both atomically. Uses the fixed demo window (baseline in the seed months, trigger 15 July); **run on a fresh account** (its FOOD/ENTERTAINMENT July budgets collide with folders 2–3) |
 
 Folders 7–10 (Wave 1 of the expansion plan) each **seed their own disjoint categories** (TRANSPORTATION,
 CLOTHING, SHOPPING, UTILITIES), so they don't collide with the FOOD/ENTERTAINMENT state from folders 1–4.
@@ -112,10 +113,20 @@ relative to the real "today" (deadline = the 15th three months out; judged `asOf
 month). The math stays exactly deterministic (remaining 11M ÷ 3 months → a `3,666,666.67` ask).
 Folders 16–18 are the **positive/nudge** paths: no suggestion cards — they assert on notifications
 (milestone pings deep-linked to the project, the GOOD_MONTH cheer to `app://budgets`, and the
-create-project nudge to `app://projects/create?amount=<seed>`). Folder 18 must run **last**: it
+create-project nudge to `app://projects/create?amount=<seed>`). Folder 18 must run **after 15–17**: it
 completes the folder-15 project and deletes the folder-4 one to reach the "capacity but no active
 project" state item 10 targets. Like folders 9–13, their key-substring asserts assume **server
 narration is off**; with narration on, assert the deep links instead.
+
+Folder 19 (`REALLOCATE_BUDGET`, UC1) follows the collection's **fixed May-window convention** like the
+other suggestion folders: it seeds a FOOD/ENTERTAINMENT baseline across the three seed months and
+triggers on 15 July 2026. Because those are the same categories folders 2–3 budget in July, run it on
+a **fresh account** (folder 0 first) rather than in the same pass as folders 2–3 — otherwise the July
+FOOD/ENTERTAINMENT budgets already exist and the create steps 409. The reallocation is **preferred
+over a raise**: the producer offers it whenever the underspent donor budgets can *fully* cover the
+overflowing budget's gap, and only falls back to `RAISE_BUDGET` when they can't. Accept applies the
+multi-budget snapshot through the same executor as `REBALANCE_BUDGETS`, with a guard that rejects the
+whole ask if any lowered limit would fall below what that budget has already spent.
 
 Because the scenario is pinned to **May 2026**, re-running on the same account hits the
 one-open-ask-per-topic **dedup** (a 2nd PENDING for the same topic is refused) and the accepted
