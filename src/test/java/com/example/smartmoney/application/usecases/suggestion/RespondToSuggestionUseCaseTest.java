@@ -7,6 +7,7 @@ import com.example.smartmoney.application.usecases.budget.CreateBudgetUseCase;
 import com.example.smartmoney.application.usecases.budget.UpdateBudgetUseCase;
 import com.example.smartmoney.application.usecases.project.AddProjectContributionUseCase;
 import com.example.smartmoney.domain.exceptions.DomainException;
+import com.example.smartmoney.domain.models.budget.Budget;
 import com.example.smartmoney.domain.models.suggestion.Suggestion;
 import com.example.smartmoney.domain.models.suggestion.SuggestionStatus;
 import com.example.smartmoney.domain.models.suggestion.SuggestionTopicStat;
@@ -344,6 +345,75 @@ class RespondToSuggestionUseCaseTest {
         verify(updateBudgetUseCase, never()).execute(eq(foodBudgetId), any(), any(), anyBoolean());
         verify(updateBudgetUseCase).execute(eq(shoppingBudgetId), eq(userId),
                 any(UpdateBudgetRequest.class), eq(false));
+    }
+
+    // ---- UC1: REALLOCATE_BUDGET (same snapshot executor; born-exceeded guard) --------------
+
+    private Budget budget(UUID id, Category category, String limit, String spent) {
+        return Budget.builder().id(id).userId(userId).category(category)
+                .amountLimit(new BigDecimal(limit)).spent(new BigDecimal(spent)).month(6).year(2026).build();
+    }
+
+    private Suggestion reallocateSuggestion(UUID owner, UUID foodBudgetId, UUID shoppingBudgetId) {
+        SuggestionPayload payload = SuggestionPayload.builder()
+                .proposedAction(SuggestionPayload.ProposedAction.builder()
+                        .category(Category.FOOD).month(6).year(2026)
+                        .resolvedValue(new BigDecimal("200")) // amount moved
+                        .budgetAdjustments(List.of(
+                                SuggestionPayload.BudgetAdjustment.builder()
+                                        .budgetId(foodBudgetId).category(Category.FOOD)
+                                        .currentLimit(new BigDecimal("1000"))
+                                        .newLimit(new BigDecimal("1200")).build(), // recipient up
+                                SuggestionPayload.BudgetAdjustment.builder()
+                                        .budgetId(shoppingBudgetId).category(Category.SHOPPING)
+                                        .currentLimit(new BigDecimal("1000"))
+                                        .newLimit(new BigDecimal("800")).build()))  // donor down
+                        .build())
+                .build();
+        return suggestionOf(owner, SuggestionType.REALLOCATE_BUDGET, payload, "REALLOCATE_BUDGET:FOOD:2026-06");
+    }
+
+    @Test
+    @DisplayName("UC1: accepting a REALLOCATE_BUDGET applies the recipient raise and the donor cut as one snapshot")
+    void acceptReallocateAppliesSnapshot() {
+        UUID foodBudgetId = UUID.randomUUID();
+        UUID shoppingBudgetId = UUID.randomUUID();
+        Suggestion s = reallocateSuggestion(userId, foodBudgetId, shoppingBudgetId);
+        when(suggestionRepository.findById(s.getId())).thenReturn(Optional.of(s));
+        when(suggestionRepository.markDecidedIfPending(eq(s.getId()), eq(userId),
+                eq(SuggestionStatus.ACCEPTED), any())).thenReturn(1);
+        when(budgetRepository.findById(foodBudgetId))
+                .thenReturn(Optional.of(budget(foodBudgetId, Category.FOOD, "1000", "600")));
+        when(budgetRepository.findById(shoppingBudgetId))
+                .thenReturn(Optional.of(budget(shoppingBudgetId, Category.SHOPPING, "1000", "50")));
+
+        useCase.execute(userId, s.getId(), true);
+
+        ArgumentCaptor<UpdateBudgetRequest> captor = ArgumentCaptor.forClass(UpdateBudgetRequest.class);
+        verify(updateBudgetUseCase).execute(eq(foodBudgetId), eq(userId), captor.capture(), eq(false));
+        assertEquals(0, new BigDecimal("1200").compareTo(captor.getValue().getAmountLimit()));
+        verify(updateBudgetUseCase).execute(eq(shoppingBudgetId), eq(userId), captor.capture(), eq(false));
+        assertEquals(0, new BigDecimal("800").compareTo(captor.getValue().getAmountLimit()));
+    }
+
+    @Test
+    @DisplayName("UC1 guard: a snapshot that would cut a budget below its already-spent amount rejects the whole ask — nothing applied")
+    void snapshotRejectsReductionBelowSpent() {
+        UUID foodBudgetId = UUID.randomUUID();
+        UUID shoppingBudgetId = UUID.randomUUID();
+        // Reuse the REBALANCE snapshot (shopping 600 → 399.99); the guard protects both types.
+        Suggestion s = rebalanceSuggestion(userId, foodBudgetId, shoppingBudgetId);
+        when(suggestionRepository.findById(s.getId())).thenReturn(Optional.of(s));
+        when(suggestionRepository.markDecidedIfPending(eq(s.getId()), eq(userId),
+                eq(SuggestionStatus.ACCEPTED), any())).thenReturn(1);
+        when(budgetRepository.findById(foodBudgetId))
+                .thenReturn(Optional.of(budget(foodBudgetId, Category.FOOD, "900", "100")));
+        // Shopping has already spent 500, but the snapshot would cut its limit to 399.99 → reject all.
+        when(budgetRepository.findById(shoppingBudgetId))
+                .thenReturn(Optional.of(budget(shoppingBudgetId, Category.SHOPPING, "600", "500")));
+
+        assertThrows(DomainException.class, () -> useCase.execute(userId, s.getId(), true));
+        verify(updateBudgetUseCase, never()).execute(any(), any(), any(), anyBoolean());
     }
 
     @Test

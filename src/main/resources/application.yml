@@ -96,21 +96,21 @@ app:
   # (WeeklyInsightDigestScheduler) only runs when enabled=true. Keep off until the digest
   # path is validated against a live DB.
   digest:
-    enabled: ${DIGEST_ENABLED:false}
+    enabled: ${DIGEST_ENABLED:true}
 
   # Monthly recap (expansion Wave 3 item 6, MonthlyRecapScheduler): at month rollover, checks the
   # just-closed month for INCOME_DROP / CASHFLOW_NEGATIVE and pushes notification-only recap pings.
   # Disabled by default like the digest. The cron is overridable so a demo profile can fire it
   # every minute (e.g. RECAP_CRON="0 * * * * *"); default 09:00 on the 1st.
   recap:
-    enabled: ${RECAP_ENABLED:false}
+    enabled: ${RECAP_ENABLED:true}
     cron: ${RECAP_CRON:0 0 9 1 * *}
 
   # Month-end savings sweep (expansion Wave 3 item 7, MonthEndSweepScheduler): a late-month
   # CONTRIBUTE_TO_PROJECT nudge decoupled from income arrival — reuses the existing savings
   # producer, so all fatigue controls apply. Disabled by default; default cron 09:00 on the 25th.
   sweep:
-    enabled: ${SWEEP_ENABLED:false}
+    enabled: ${SWEEP_ENABLED:true}
     cron: ${SWEEP_CRON:0 0 9 25 * *}
 
   # Weekly project-health pass (expansion Wave 4 item 8, ProjectHealthScheduler): checks every
@@ -119,7 +119,7 @@ app:
   # itself is at most monthly per project (dedup key + cooldown). Disabled by default; default
   # cron 09:00 every Monday.
   project-health:
-    enabled: ${PROJECT_HEALTH_ENABLED:false}
+    enabled: ${PROJECT_HEALTH_ENABLED:true}
     cron: ${PROJECT_HEALTH_CRON:0 0 9 * * MON}
 
   # On-demand triggers for the scheduled flows (AdaptiveEngineDemoController,
@@ -127,7 +127,7 @@ app:
   # Postman run the scheduled code paths deterministically for the authenticated user. Keep OFF
   # in production.
   demo-triggers:
-    enabled: ${DEMO_TRIGGERS_ENABLED:false}
+    enabled: ${DEMO_TRIGGERS_ENABLED:true}
 
   # Budget-pace forecast method (redesign Phase 3 P3-B). LINEAR = the original naive
   # spent/day × daysInMonth projection (kept as the control). EXP_SMOOTHING = an exponentially

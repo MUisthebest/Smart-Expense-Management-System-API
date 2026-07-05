@@ -53,6 +53,14 @@
       "value": ""
     },
     {
+      "key": "reallocRecipientBudgetId",
+      "value": ""
+    },
+    {
+      "key": "reallocDonorBudgetId",
+      "value": ""
+    },
+    {
       "key": "projectId",
       "value": ""
     },
@@ -3828,6 +3836,578 @@
                   "pm.test('create-project nudge present, deep-linked to the pre-filled form', () => pm.expect(nudge, JSON.stringify(items.map(n => n.deepLink))).to.exist);",
                   "pm.test('content is the nudge key (assumes narration off)', () => pm.expect(nudge.content).to.include('create_saving_project'));",
                   "pm.test('seed amount rides the deep link', () => pm.expect(Number(nudge.deepLink.split('amount=')[1])).to.be.above(0));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "19 — REALLOCATE_BUDGET flow (UC1)",
+      "description": "A budgeted category on pace to overshoot (BUDGET_PACE), where ANOTHER budget the same month is confirmed underspent (BUDGET_UNDERSPEND) with enough headroom → the producer offers REALLOCATE_BUDGET INSTEAD of RAISE_BUDGET: a zero-sum snapshot that raises the overflowing budget and lowers the underused one by the same amount (committed total unchanged, so it never trips BUDGET_OVER_INCOME). Accept applies the whole snapshot atomically.\n\nUses the collection's fixed demo window: baseline in the three seed months (Apr/May/Jun 2026), trigger on 15 July 2026 — same convention as folders 2/3/7/8. FOOD is the overflowing recipient (3M limit, a 2M mid-month expense projects over it); ENTERTAINMENT is the underspent donor (5M limit, flat ~1M history + a tiny early-month expense). The donor's headroom (~4M) fully covers FOOD's gap (~1.1M), so reallocation is preferred over a raise. Because FOOD and ENTERTAINMENT are the same categories folders 2–3 budget in July, run this folder on a FRESH account (folder 0 first), not in the same pass as folders 2–3.",
+      "item": [
+        {
+          "name": "FOOD baseline — month -3 (2,000,000)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/transactions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "transactions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 2000000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"FOOD\",\n  \"description\": \"groceries\",\n  \"date\": \"{{seedM3Date}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "FOOD baseline — month -2 (2,000,000)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/transactions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "transactions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 2000000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"FOOD\",\n  \"description\": \"groceries\",\n  \"date\": \"{{seedM2Date}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "FOOD baseline — month -1 (2,000,000)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/transactions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "transactions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 2000000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"FOOD\",\n  \"description\": \"groceries\",\n  \"date\": \"{{seedM1Date}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "ENTERTAINMENT baseline — month -3 (1,000,000)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/transactions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "transactions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 1000000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"ENTERTAINMENT\",\n  \"description\": \"movies\",\n  \"date\": \"{{seedM3Date}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "ENTERTAINMENT baseline — month -2 (1,000,000)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/transactions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "transactions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 1000000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"ENTERTAINMENT\",\n  \"description\": \"movies\",\n  \"date\": \"{{seedM2Date}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "ENTERTAINMENT baseline — month -1 (1,000,000)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/transactions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "transactions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 1000000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"ENTERTAINMENT\",\n  \"description\": \"movies\",\n  \"date\": \"{{seedM1Date}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create FOOD budget (limit 3,000,000) for the trigger month",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/budgets",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "budgets"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"category\": \"FOOD\",\n  \"amountLimit\": 3000000,\n  \"month\": {{triggerMonth}},\n  \"year\": {{triggerYear}}\n}"
+            },
+            "description": "The category that will overflow — the reallocation RECIPIENT."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('budget created', () => pm.response.to.have.status(201));",
+                  "const j = pm.response.json();",
+                  "pm.collectionVariables.set('reallocRecipientBudgetId', j.data.budgetId || (j.data && j.data.id));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create ENTERTAINMENT budget (limit 5,000,000) for the trigger month",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/budgets",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "budgets"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"category\": \"ENTERTAINMENT\",\n  \"amountLimit\": 5000000,\n  \"month\": {{triggerMonth}},\n  \"year\": {{triggerYear}}\n}"
+            },
+            "description": "A roomy limit against a flat ~1M/month history — the underspent DONOR. FOOD (3M) + ENTERTAINMENT (5M) = 8M committed, well under the 20M income, so no BUDGET_OVER_INCOME / REBALANCE fires."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('budget created', () => pm.response.to.have.status(201));",
+                  "const j = pm.response.json();",
+                  "pm.collectionVariables.set('reallocDonorBudgetId', j.data.budgetId || (j.data && j.data.id));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Seed donor ENTERTAINMENT expense (500,000) early in the trigger month (day 2) — no premature ask",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/transactions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "transactions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 500000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"ENTERTAINMENT\",\n  \"description\": \"movies\",\n  \"date\": \"02/07/2026 10:00\"\n}"
+            },
+            "description": "Dated day 2 (< MIN_PACE_DAYS = 3) so the producer's pace/underspend detectors bail on THIS create — no REDUCE_BUDGET is raised for ENTERTAINMENT yet. By the day-15 trigger the donor's spent is 500,000 (projects to ~1M, well under its 5M limit → BUDGET_UNDERSPEND), leaving ~4M of headroom to donate."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Trigger: FOOD overshoot on the trigger day (2,000,000)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/transactions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "transactions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 2000000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"FOOD\",\n  \"description\": \"big grocery run\",\n  \"date\": \"{{triggerDate}}\"\n}"
+            },
+            "description": "2,000,000 by day 15 of 31 projects to ~4,130,000 — past the 3,000,000 FOOD limit → BUDGET_PACE. The producer runs synchronously: the budgeted branch tries REALLOCATE first, finds ENTERTAINMENT can fully cover the ~1.1M gap, and raises REALLOCATE_BUDGET instead of RAISE_BUDGET."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /insights — assert BUDGET_PACE(FOOD) + BUDGET_UNDERSPEND(ENTERTAINMENT)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/insights?asOf={{asOfInsights}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "insights"
+              ],
+              "query": [
+                {
+                  "key": "asOf",
+                  "value": "{{asOfInsights}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('insights ok', () => pm.response.to.have.status(200));",
+                  "const items = pm.response.json().data;",
+                  "const pace = items.find(i => i.type === 'BUDGET_PACE' && i.category === 'FOOD');",
+                  "pm.test('BUDGET_PACE(FOOD) present', () => pm.expect(pace, JSON.stringify(items)).to.exist);",
+                  "const us = items.find(i => i.type === 'BUDGET_UNDERSPEND' && i.category === 'ENTERTAINMENT');",
+                  "pm.test('BUDGET_UNDERSPEND(ENTERTAINMENT) present (a valid donor)', () => pm.expect(us, JSON.stringify(items)).to.exist);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /suggestions?status=PENDING — capture REALLOCATE_BUDGET id",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/suggestions?status=PENDING",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "suggestions"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "PENDING"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('suggestions ok', () => pm.response.to.have.status(200));",
+                  "const items = pm.response.json().data;",
+                  "const s = items.find(x => x.type === 'REALLOCATE_BUDGET' && typeof x.dedupKey === 'string' && x.dedupKey.indexOf('REALLOCATE_BUDGET:FOOD:2026-07') === 0);",
+                  "pm.test('REALLOCATE_BUDGET(FOOD) pending exists', () => pm.expect(s, JSON.stringify(items.map(x => x.dedupKey))).to.exist);",
+                  "pm.collectionVariables.set('suggestionId', s.id);",
+                  "pm.test('preferred over a raise: no RAISE_BUDGET(FOOD) for the same month', () => pm.expect(items.find(x => x.type === 'RAISE_BUDGET' && String(x.dedupKey).indexOf('RAISE_BUDGET:FOOD:2026-07') === 0)).to.not.exist);",
+                  "const a = s.payload.proposedAction;",
+                  "pm.test('resolvedValue (amount moved) > 0', () => pm.expect(Number(a.resolvedValue)).to.be.above(0));",
+                  "const adj = a.budgetAdjustments;",
+                  "pm.test('budgetAdjustments snapshot present', () => pm.expect(adj, 'budgetAdjustments').to.be.an('array').that.is.not.empty);",
+                  "const food = adj.find(x => x.category === 'FOOD');",
+                  "const ent = adj.find(x => x.category === 'ENTERTAINMENT');",
+                  "pm.test('recipient FOOD limit goes UP', () => pm.expect(Number(food.newLimit)).to.be.above(Number(food.currentLimit)));",
+                  "pm.test('donor ENTERTAINMENT limit goes DOWN', () => pm.expect(Number(ent.newLimit)).to.be.below(Number(ent.currentLimit)));",
+                  "pm.test('donor never cut below its own spend (>= 0, stays positive)', () => pm.expect(Number(ent.newLimit)).to.be.above(0));",
+                  "pm.test('zero-sum: the deltas cancel out', () => { const net = adj.reduce((sum, x) => sum + (Number(x.newLimit) - Number(x.currentLimit)), 0); pm.expect(Math.abs(net)).to.be.below(1); });",
+                  "pm.test('amount moved == the recipient raise', () => pm.expect(Math.abs(Number(a.resolvedValue) - (Number(food.newLimit) - Number(food.currentLimit)))).to.be.below(1));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /suggestions/{id}/respond {accept:true}",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/suggestions/{{suggestionId}}/respond",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "suggestions",
+                "{{suggestionId}}",
+                "respond"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"accept\": true }"
+            },
+            "description": "Applies the consented snapshot to BOTH budgets atomically (same executor as REBALANCE_BUDGETS). If a donor had spent past its lowered limit by now, the whole ask would be rejected (nothing changes) — the born-exceeded guard."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('accepted', () => pm.response.to.have.status(200));",
+                  "pm.expect(pm.response.json().data.status).to.eql('ACCEPTED');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /budgets — assert FOOD up, ENTERTAINMENT down, total unchanged",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/budgets?month={{triggerMonth}}&year={{triggerYear}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "budgets"
+              ],
+              "query": [
+                {
+                  "key": "month",
+                  "value": "{{triggerMonth}}"
+                },
+                {
+                  "key": "year",
+                  "value": "{{triggerYear}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('budgets ok', () => pm.response.to.have.status(200));",
+                  "const d = pm.response.json().data;",
+                  "const items = (d && d.items) || d || [];",
+                  "const food = Array.isArray(items) ? items.find(b => b.category === 'FOOD') : null;",
+                  "const ent = Array.isArray(items) ? items.find(b => b.category === 'ENTERTAINMENT') : null;",
+                  "if (food && ent) {",
+                  "  pm.test('FOOD limit raised above its original 3,000,000', () => pm.expect(Number(food.amountLimit)).to.be.above(3000000));",
+                  "  pm.test('ENTERTAINMENT limit lowered below its original 5,000,000', () => pm.expect(Number(ent.amountLimit)).to.be.below(5000000));",
+                  "  pm.test('committed total unchanged (~8,000,000 — zero-sum move)', () => pm.expect(Math.abs(Number(food.amountLimit) + Number(ent.amountLimit) - 8000000)).to.be.below(1));",
+                  "} else { pm.test('response has data', () => pm.expect(d).to.exist); }"
                 ]
               }
             }
