@@ -21,7 +21,7 @@ import java.util.Map;
 import java.util.function.Consumer;
 
 /**
- * Adapter that calls the OpenRouter API (DeepSeek model) on behalf of the chat use cases.
+ * Adapter that calls the OpenRouter API (routed to Gemini) on behalf of the chat use cases.
  *
  * Change summary (UC1 / UC2 / UC3 update):
  * The old {@code chat(message, userId)} and {@code chatStream(message, userId, ...)} methods
@@ -31,7 +31,7 @@ import java.util.function.Consumer;
  *
  * Old implementations are preserved as comments below each new method.
  */
-// @Component — disabled; GeminiAIChatAdapter is the active AIChatPort bean.
+@Component
 @RequiredArgsConstructor
 public class OpenRouterAIAdapter implements AIChatPort {
 
@@ -43,7 +43,12 @@ public class OpenRouterAIAdapter implements AIChatPort {
             .build();
 
     private static final String OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-    private static final String MODEL = "deepseek/deepseek-v4-flash";
+    // Same Gemini model GeminiAIChatAdapter called directly, now proxied through OpenRouter.
+    private static final String MODEL = "google/gemini-2.5-flash-lite";
+    // 800 was too tight: Vietnamese BPE tokenization needs ~1.5-2x tokens/word, so an
+    // 800-word reply could exceed 800 tokens and get cut off mid-JSON, tripping
+    // JsonSchemaGuardrail's GENERAL_ADVICE fallback. Raised headroom accordingly.
+    private static final int MAX_OUTPUT_TOKENS = 2048;
 
     // ── Synchronous chat (UC1 / UC2 / UC3) ─────────────────────────────────
 
@@ -81,7 +86,8 @@ public class OpenRouterAIAdapter implements AIChatPort {
             Map<String, Object> body = Map.of(
                     "model", MODEL,
                     "temperature", 0.3,
-                    "max_tokens", 800,
+                    "max_tokens", MAX_OUTPUT_TOKENS,
+                    "reasoning", Map.of("max_tokens", 0),
                     "messages", List.of(
                             Map.of("role", "system", "content", systemPrompt),
                             Map.of("role", "user", "content", userMessage)));
@@ -225,7 +231,8 @@ public class OpenRouterAIAdapter implements AIChatPort {
             Map<String, Object> body = new HashMap<>();
             body.put("model", MODEL);
             body.put("temperature", 0.3);
-            body.put("max_tokens", 800);
+            body.put("max_tokens", MAX_OUTPUT_TOKENS);
+            body.put("reasoning", Map.of("max_tokens", 0));
             body.put("stream", true);
             body.put("messages", List.of(
                     Map.of("role", "system", "content", systemPrompt),

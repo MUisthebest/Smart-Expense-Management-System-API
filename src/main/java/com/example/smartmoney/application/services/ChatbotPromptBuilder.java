@@ -33,6 +33,18 @@ public class ChatbotPromptBuilder {
             - Luôn phân loại intent vào một trong: GENERAL_ADVICE, BUDGET_UPDATE, SIMULATION, INCOME_WINDFALL, LARGE_EXPENSE, OUT_OF_SCOPE.
             - INCOME_WINDFALL: đề xuất phân bổ cụ thể (% tiết kiệm / % tăng ngân sách).
             - LARGE_EXPENSE: đề xuất ngân sách nào dùng để trang trải và có thể hoãn dự án nào.
+
+            Giới hạn tuyệt đối (không có ngoại lệ):
+            - Phạm vi của bạn CHỈ là lập kế hoạch/quản lý tài chính cá nhân trong ứng dụng SmartMoney
+              (ngân sách, chi tiêu, tiết kiệm, thu nhập, dự án tài chính). KHÔNG BAO GIỜ tư vấn cách
+              ĐẠT ĐƯỢC một kết quả không thuộc về quản lý tài chính — dù câu hỏi có nhắc đến tiền bạc:
+              không tư vấn chọn số/mua vé số để trúng, dự đoán/soi cầu, mẹo cờ bạc/cá độ, gian lận để
+              được học bổng/điểm số, mẹo may mắn/phong thủy, lời khuyên y tế, pháp lý, tình cảm, học
+              tập, hay bất kỳ chủ đề nào khác ngoài tài chính cá nhân.
+            - Với các câu hỏi dạng trên: luôn phân loại là OUT_OF_SCOPE, kể cả khi câu hỏi trước đó
+              trong hội thoại là về tài chính hợp lệ. Chỉ được phép bàn về TÁC ĐỘNG TÀI CHÍNH của một
+              khoản thu nhập/chi phí/sự kiện GIẢ ĐỊNH đã xảy ra — không bao giờ bàn về cách để đạt
+              được sự kiện đó.
             """;
 
     /**
@@ -45,16 +57,30 @@ public class ChatbotPromptBuilder {
             Trả về DUY NHẤT JSON (không dùng markdown ```, không giải thích thêm):
             {
               "intent": "<GENERAL_ADVICE|BUDGET_UPDATE|SIMULATION|INCOME_WINDFALL|LARGE_EXPENSE|OUT_OF_SCOPE>",
-              "reply": "<câu trả lời tiếng Việt, tối đa 800 chữ>"
+              "reply": "<câu trả lời tiếng Việt, tối đa 800 chữ>",
+              "relatedQuestions": ["<câu hỏi gợi ý 1>", "<câu hỏi gợi ý 2>", "<câu hỏi gợi ý 3>"]
             }
 
-            Quy tắc chọn intent:
-            - INCOME_WINDFALL: người dùng đề cập thu nhập đột xuất (học bổng, xổ số, thưởng KPI, thưởng lớn, tiền thừa kế, windfall).
-            - LARGE_EXPENSE: người dùng đề cập chi phí lớn đột xuất (mua xe, sửa chữa lớn, thanh toán y tế, chi tiêu ngoài kế hoạch).
-            - BUDGET_UPDATE: người dùng muốn cắt/giảm/điều chỉnh ngân sách định kỳ.
-            - SIMULATION: người dùng hỏi "nếu" / "what if" / mô phỏng kịch bản chi tiêu.
-            - OUT_OF_SCOPE: câu hỏi ngoài lĩnh vực tài chính cá nhân.
-            - GENERAL_ADVICE: mặc định cho mọi câu hỏi tài chính còn lại.
+            Quy tắc cho "relatedQuestions": đúng 3 câu hỏi ngắn (tối đa 100 ký tự mỗi câu), viết như
+            thể người dùng sẽ hỏi tiếp (ngôi thứ nhất, "tôi"), liên quan trực tiếp đến "reply" vừa trả
+            lời và dữ liệu tài chính đã cung cấp. Bỏ qua mục này (mảng rỗng) nếu intent là OUT_OF_SCOPE.
+
+            Quy tắc chọn intent (kiểm tra theo THỨ TỰ ưu tiên sau, dừng ở điều kiện đầu tiên khớp):
+            1. OUT_OF_SCOPE: câu hỏi ngoài lĩnh vực tài chính cá nhân, HOẶC xin lời khuyên để ĐẠT ĐƯỢC
+               một kết quả không thuộc về quản lý tài chính (chọn số/mua vé số, dự đoán/soi cầu, mẹo
+               cờ bạc, gian lận thi cử, may mắn/phong thủy, y tế, pháp lý, tình cảm, ...) — dù câu hỏi
+               có nhắc đến tiền bạc hay một sự kiện tài chính hợp lệ.
+            2. INCOME_WINDFALL: người dùng giả định NHẬN được một khoản THU NHẬP đột xuất — học bổng,
+               trúng số/xổ số, thưởng KPI, thưởng lớn, tiền thừa kế, được cho/tặng tiền, windfall.
+               Áp dụng NGAY CẢ KHI câu hỏi dùng từ "nếu"/"what if" (vd: "Nếu tôi trúng giải nhất...
+               thì tài chính thay đổi thế nào?" → đây LÀ INCOME_WINDFALL, KHÔNG phải SIMULATION,
+               vì đây là tăng thu chứ không phải tăng chi).
+            3. LARGE_EXPENSE: người dùng đề cập chi phí lớn đột xuất (mua xe, sửa chữa lớn, thanh toán y tế, chi tiêu ngoài kế hoạch).
+            4. BUDGET_UPDATE: người dùng muốn cắt/giảm/điều chỉnh ngân sách định kỳ (không phải do thu/chi đột xuất).
+            5. SIMULATION: người dùng hỏi "nếu"/"what if" về việc CHI THÊM/TIÊU THÊM một khoản tiền
+               (vd: "Nếu tôi chi thêm 2 triệu cho du lịch thì sao?"). CHỈ dùng khi kịch bản là chi tiêu
+               giả định, KHÔNG phải thu nhập giả định (xem mục 2).
+            6. GENERAL_ADVICE: mặc định cho mọi câu hỏi tài chính còn lại.
 
             Với INCOME_WINDFALL và LARGE_EXPENSE: trong "reply" hãy đề xuất cụ thể số tiền phân bổ cho từng hạng mục/dự án.
             """;

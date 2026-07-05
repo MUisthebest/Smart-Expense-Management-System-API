@@ -112,10 +112,12 @@ public class AIController {
                     .body(Map.of("error", e.getMessage()));
 
         } catch (GuardrailViolationException e) {
+            String reply = e.getMessage() != null ? e.getMessage()
+                    : "Tôi chỉ hỗ trợ các câu hỏi về tài chính cá nhân như ngân sách, " +
+                      "chi tiêu, và mục tiêu tiết kiệm. Bạn muốn hỏi gì về tài chính không?";
             return ResponseEntity.ok(ChatResponse.builder()
                     .intent(ChatResponse.ChatIntent.OUT_OF_SCOPE)
-                    .reply("Tôi chỉ hỗ trợ các câu hỏi về tài chính cá nhân như ngân sách, " +
-                           "chi tiêu, và mục tiêu tiết kiệm. Bạn muốn hỏi gì về tài chính không?")
+                    .reply(reply)
                     .build());
 
         } catch (Exception e) {
@@ -195,8 +197,9 @@ public class AIController {
 
         } catch (GuardrailViolationException e) {
             try {
-                emitter.send(SseEmitter.event().data(
-                        "Tôi chỉ hỗ trợ câu hỏi về tài chính cá nhân."));
+                String reply = e.getMessage() != null ? e.getMessage()
+                        : "Tôi chỉ hỗ trợ câu hỏi về tài chính cá nhân.";
+                emitter.send(SseEmitter.event().data(reply));
                 emitter.send(SseEmitter.event().name("done").data("[DONE]"));
             } catch (IOException ignored) {
             }

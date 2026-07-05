@@ -33,7 +33,14 @@ public class RedisChatHistoryAdapter implements ChatHistoryPort {
 
     @Override
     public List<ChatMessageDto> load(UUID userId) {
-        String raw = redisTemplate.opsForValue().get(key(userId));
+        String raw;
+        try {
+            raw = redisTemplate.opsForValue().get(key(userId));
+        } catch (Exception e) {
+            log.warn("Failed to load chat history for user {}, continuing without history: {}",
+                    userId, e.getMessage());
+            return Collections.emptyList();
+        }
         if (raw == null || raw.isBlank()) return Collections.emptyList();
         try {
             return objectMapper.readValue(raw, new TypeReference<List<ChatMessageDto>>() {});

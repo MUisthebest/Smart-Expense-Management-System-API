@@ -46,6 +46,21 @@ public class ChatResponse {
      */
     List<SavingsPlanSuggestion> savingsSuggestions;
 
+    /**
+     * True when {@code budgetSuggestions} or {@code savingsSuggestions} is non-empty —
+     * tells the frontend to render confirm/deny buttons for the proposed update instead
+     * of inferring it from {@code intent} alone (intent stays the same even when the
+     * server found no viable suggestion to propose).
+     */
+    boolean actionRequired;
+
+    /**
+     * 3 short follow-up questions the user could ask next, personalised to this turn's
+     * reply and financial context. Always populated for successful chat turns (falls back
+     * to generic finance questions if the LLM omits them); omitted for guardrail rejections.
+     */
+    List<String> relatedQuestions;
+
     // ── Nested types ──────────────────────────────────────────────────────────
 
     public enum ChatIntent {

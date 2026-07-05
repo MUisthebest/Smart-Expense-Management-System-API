@@ -19,8 +19,9 @@ import java.util.UUID;
  *
  * Execution order:
  *  1. Rate limit check (Bucket4j-style via Redis INCR, 20 req/user/min) → 429
- *  2. ScopeGuardrail @Order(1)
- *  3. PromptInjectionGuardrail @Order(2)
+ *  2. ScopeGuardrail @Order(1) — cheap regex, known domains/patterns
+ *  3. PromptInjectionGuardrail @Order(2) — cheap regex, jailbreak/injection patterns
+ *  4. SemanticScopeGuardrail @Order(3) — LLM classifier, general-purpose scope net
  *  Violation → GuardrailViolationException → controller maps to OUT_OF_SCOPE.
  */
 @Slf4j
@@ -69,10 +70,17 @@ public class InputGuardrailAspect {
     private void checkRateLimit(UUID userId) {
         long minuteBucket = System.currentTimeMillis() / 60_000;
         String key = RATE_KEY_PREFIX + userId + ":" + minuteBucket;
-        Long count = redisTemplate.opsForValue().increment(key);
-        if (count != null && count == 1) {
-            // Set TTL on first increment so the key auto-expires after the window
-            redisTemplate.expire(key, Duration.ofSeconds(65));
+        Long count;
+        try {
+            count = redisTemplate.opsForValue().increment(key);
+            if (count != null && count == 1) {
+                // Set TTL on first increment so the key auto-expires after the window
+                redisTemplate.expire(key, Duration.ofSeconds(65));
+            }
+        } catch (Exception e) {
+            // Redis unavailable/timed out — fail open rather than blocking chat entirely.
+            log.warn("Rate limit check failed for user {}, allowing request: {}", userId, e.getMessage());
+            return;
         }
         if (count != null && count > MAX_REQUESTS_PER_MINUTE) {
             throw new RateLimitExceededException(
