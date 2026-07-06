@@ -22,9 +22,12 @@ public class UserResponse {
     private Role role;
     private Double rate;
     private boolean active;
-    private boolean incomeSetupCompleted;
+
     private boolean financialSetupCompleted;
-    private boolean onboardingCompleted;
+
+//    private boolean incomeSetupCompleted;
+//    private boolean financialSetupCompleted;
+//    private boolean onboardingCompleted;
 
     public static UserResponse fromDomain(User user) {
         UserResponse response = new UserResponse();
@@ -39,6 +42,11 @@ public class UserResponse {
         response.setRole(user.getRole());
         response.setRate(user.getRate());
         response.setActive(user.isActive());
+
+        response.setFinancialSetupCompleted(
+                user.hasCompletedFinancialSetup()
+        );
+
         // Disabled: income/financial setup flags removed from User (user_income / user_financial_profile tables removed).
         // response.setIncomeSetupCompleted(user.isIncomeSetupCompleted());
         // response.setFinancialSetupCompleted(user.isFinancialSetupCompleted());

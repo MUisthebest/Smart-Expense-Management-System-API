@@ -143,14 +143,15 @@ public class CreateSubPersonalProjectUseCase {
         safeSpendingService.requireCanAfford(actor, effectiveCapacity);
         */
 
-        // If income dropped, reduce the group project's target so auto-complete can still fire
-        BigDecimal capacityGap = capacitySnapshot.subtract(effectiveCapacity);
-        if (capacityGap.compareTo(BigDecimal.ZERO) > 0) {
-            gp.reduceTargetAmount(capacityGap.multiply(BigDecimal.valueOf(gp.getTotalMonths())));
-            groupProjectRepository.save(gp);
+        long joinedMemberCount = group.getMembers().stream()
+                .filter(m -> m.getInviteStatus() == GroupMemberInviteStatus.JOINED)
+                .count();
+        if (joinedMemberCount == 0) {
+            joinedMemberCount = 1;
         }
 
-        BigDecimal targetAmount = effectiveCapacity.multiply(BigDecimal.valueOf(gp.getTotalMonths()));
+        BigDecimal targetAmount = gp.getTargetAmount().divide(BigDecimal.valueOf(joinedMemberCount), 2, java.math.RoundingMode.HALF_UP);
+        BigDecimal monthlySavingCapacity = targetAmount.divide(BigDecimal.valueOf(gp.getTotalMonths()), 2, java.math.RoundingMode.HALF_UP);
 
         Project sub = Project.createSubPersonal(
                 actor,
@@ -168,7 +169,7 @@ public class CreateSubPersonalProjectUseCase {
                 ProjectId.of(saved.getId().toString()),
                 BigDecimal.ZERO,
                 1,
-                effectiveCapacity,
+                monthlySavingCapacity,
                 gp.getTotalMonths(),
                 BigDecimal.ZERO
         );

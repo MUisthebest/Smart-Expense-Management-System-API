@@ -14,19 +14,25 @@ import java.time.Instant;
 public class GroupMemberResponse {
     private String userId;
     private String username;
+    private String email;
     private GroupMemberRole role;
     private GroupMemberInviteStatus inviteStatus;
     private BigDecimal capacitySnapshot;
     private Instant joinedAt;
 
     public static GroupMemberResponse fromDomain(GroupMember m) {
-        return fromDomain(m, null);
+        return fromDomain(m, null, null);
     }
 
     public static GroupMemberResponse fromDomain(GroupMember m, String username) {
+        return fromDomain(m, username, null);
+    }
+
+    public static GroupMemberResponse fromDomain(GroupMember m, String username, String email) {
         return GroupMemberResponse.builder()
                 .userId(m.getUserId().toString())
                 .username(username)
+                .email(email)
                 .role(m.getRole())
                 .inviteStatus(m.getInviteStatus())
                 .capacitySnapshot(m.getCapacitySnapshot())

@@ -10,10 +10,8 @@ import com.example.smartmoney.application.dtos.requests.auth.VerifyEmailRequest;
 import com.example.smartmoney.application.dtos.requests.auth.VerifyOtpRequest;
 import com.example.smartmoney.application.dtos.requests.auth.GoogleLoginRequest;
 import com.example.smartmoney.application.dtos.requests.auth.FacebookLoginRequest;
-import com.example.smartmoney.application.dtos.responses.CheckResponse;
-import com.example.smartmoney.application.dtos.responses.UserResponse;
-import com.example.smartmoney.application.dtos.responses.VerifyOtpResponse;
-import com.example.smartmoney.application.dtos.responses.AuthResponse;
+import com.example.smartmoney.application.dtos.requests.users.UpdateFinancialSetupRequest;
+import com.example.smartmoney.application.dtos.responses.*;
 import com.example.smartmoney.application.usecases.auth.LoginUseCase;
 import com.example.smartmoney.application.usecases.auth.LogoutUseCase;
 import com.example.smartmoney.application.usecases.auth.RefreshTokenUseCase;
@@ -23,6 +21,9 @@ import com.example.smartmoney.application.usecases.auth.FacebookLoginUseCase;
 import com.example.smartmoney.application.usecases.auth.GetCurrentUserUseCase;
 import com.example.smartmoney.application.usecases.auth.VerifyEmailUseCase;
 import com.example.smartmoney.application.usecases.auth.VerifyOtpUseCase;
+import com.example.smartmoney.application.usecases.user.DeleteFinancialSetupUseCase;
+import com.example.smartmoney.application.usecases.user.GetFinancialSetupUseCase;
+import com.example.smartmoney.application.usecases.user.UpdateFinancialSetupUseCase;
 import com.example.smartmoney.domain.exceptions.DomainException;
 import com.example.smartmoney.application.usecases.auth.SendResetPasswordOtpUseCase;
 import com.example.smartmoney.application.usecases.auth.UserNotificationUseCase;
@@ -73,7 +74,9 @@ public class AuthController {
     private final VerifyOtpUseCase verifyOtpUseCase;
     private final UserNotificationUseCase notificationUseCase;
     private final JwtTokenProvider jwtTokenProvider;
-
+    private final GetFinancialSetupUseCase getFinancialSetupUseCase;
+    private final UpdateFinancialSetupUseCase updateFinancialSetupUseCase;
+    private final DeleteFinancialSetupUseCase deleteFinancialSetupUseCase;
     
     @InitBinder
     public void initBinder(WebDataBinder binder) {
@@ -768,5 +771,102 @@ public class AuthController {
             return jwtTokenProvider.getUserIdFromToken(token);
         }
         throw new IllegalArgumentException("Invalid Authorization header");
+    }
+
+    @Operation(
+            summary = "Get financial setup",
+            description = "Get financial setup information of currently authenticated user"
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Financial setup retrieved successfully"
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Unauthorized"
+            )
+    })
+    @GetMapping("/me/financial-setup")
+    public ResponseEntity<CheckResponse<FinancialSetupResponse>> getFinancialSetup(
+            @Parameter(hidden = true) @CurrentUser UUID userId
+    ) {
+        FinancialSetupResponse financialSetup =
+                getFinancialSetupUseCase.execute(userId);
+
+        CheckResponse<FinancialSetupResponse> response =
+                CheckResponse.<FinancialSetupResponse>builder()
+                        .success(true)
+                        .message("Financial setup retrieved successfully")
+                        .data(financialSetup)
+                        .build();
+
+        return ResponseEntity.ok(response);
+    }
+
+    @Operation(
+            summary = "Create or update financial setup",
+            description = "Create or update income, saving pace, intervention level, and focus mode of currently authenticated user"
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Financial setup updated successfully"
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Invalid financial setup data"
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Unauthorized"
+            )
+    })
+    @PutMapping("/me/financial-setup")
+    public ResponseEntity<CheckResponse<FinancialSetupResponse>> updateFinancialSetup(
+            @Parameter(hidden = true) @CurrentUser UUID userId,
+            @Valid @RequestBody UpdateFinancialSetupRequest request
+    ) {
+        FinancialSetupResponse financialSetup =
+                updateFinancialSetupUseCase.execute(userId, request);
+
+        CheckResponse<FinancialSetupResponse> response =
+                CheckResponse.<FinancialSetupResponse>builder()
+                        .success(true)
+                        .message("Financial setup updated successfully")
+                        .data(financialSetup)
+                        .build();
+
+        return ResponseEntity.ok(response);
+    }
+    @Operation(
+            summary = "Delete financial setup",
+            description = "Clear financial setup information of currently authenticated user"
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Financial setup deleted successfully"
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Unauthorized"
+            )
+    })
+    @DeleteMapping("/me/financial-setup")
+    public ResponseEntity<CheckResponse<FinancialSetupResponse>> deleteFinancialSetup(
+            @Parameter(hidden = true) @CurrentUser UUID userId
+    ) {
+        FinancialSetupResponse financialSetup =
+                deleteFinancialSetupUseCase.execute(userId);
+
+        CheckResponse<FinancialSetupResponse> response =
+                CheckResponse.<FinancialSetupResponse>builder()
+                        .success(true)
+                        .message("Financial setup deleted successfully")
+                        .data(financialSetup)
+                        .build();
+
+        return ResponseEntity.ok(response);
     }
 }
