@@ -208,11 +208,13 @@ tap** (Screen 4) or from a **suggestions inbox** you can build on the list endpo
     "type": "RAISE_BUDGET",
     "status": "PENDING",
     "dedupKey": "RAISE_BUDGET:FOOD:2026-07",
+    "narrative": null,
     "payload": {
       "insightSnapshot": { "type": "BUDGET_PACE", "severity": "WARN",
                            "code": "insight.budget_pace.food", "period": "2026-07",
                            "metrics": { "projectedEndOfMonth": 12400000.00, "limit": 10000000.00 } },
-      "proposedAction": { "category": "FOOD", "budgetId": "…-uuid", "resolvedValue": 12400000.00 }
+      "proposedAction": { "category": "FOOD", "budgetId": "…-uuid", "resolvedValue": 12400000.00 },
+      "narrative": null
     },
     "createdAt": "2026-07-05T03:00:00Z",
     "expiresAt": null,
@@ -220,6 +222,14 @@ tap** (Screen 4) or from a **suggestions inbox** you can build on the list endpo
   }
 ]}
 ```
+
+> **`narrative`** — an **optional** server-composed sentence (LLM), the same one used in the
+> suggestion's push body, frozen onto the card at ask time. Exposed both top-level (a peer of
+> `type`/`status`, use this) and inside `payload.narrative` (the raw snapshot). When non-null you
+> *may* show it as the card's headline instead of composing your own from `type` + `proposedAction`;
+> when `null` (narration off/unavailable — the default), compose the ask yourself as below. It is a
+> garnish, never a replacement: the `resolvedValue` and the per-`type` action are still the source of
+> truth for what the user consents to — see settled decision #3.
 
 ### Fetch one (for the deep-link route)
 There is no single-suggestion GET; fetch `?status=PENDING` and select by `id`, or list and cache.
@@ -394,8 +404,8 @@ suggestion `proposedAction`.
 - [ ] **Onboarding** — read/save `financial-setup`; gate the proactive UI on `interventionLevel`.
 - [ ] **Insights list** — `GET /insights`; localize `code` + `metrics`; render in returned order;
       severity styling; handle `category:null` and `narrative:null`.
-- [ ] **Suggestion card** — per-`type` ask from `proposedAction`; Yes/No → `respond`; idempotent;
-      read-only for non-PENDING.
+- [ ] **Suggestion card** — per-`type` ask from `proposedAction`; prefer `narrative` as the headline
+      when non-null, else compose from `type`; Yes/No → `respond`; idempotent; read-only for non-PENDING.
 - [ ] **Suggestions inbox** *(optional)* — `GET /suggestions?status=…` with tabs.
 - [ ] **Notifications** — inbox list; `deepLink` routing to the card; mark-read; localize `content`.
 - [ ] **Empty/gated states** — NOTIFY user sees insights but never a push; no history yet → empty

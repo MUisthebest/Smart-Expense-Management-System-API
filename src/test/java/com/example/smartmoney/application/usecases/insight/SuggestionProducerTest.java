@@ -3,6 +3,7 @@ package com.example.smartmoney.application.usecases.insight;
 import com.example.smartmoney.application.usecases.notification.CreateNotificationUseCase;
 import com.example.smartmoney.application.usecases.suggestion.SuggestionPayload;
 import com.example.smartmoney.domain.models.budget.Budget;
+import com.example.smartmoney.domain.models.insight.Insight;
 import com.example.smartmoney.domain.models.project.Project;
 import com.example.smartmoney.domain.models.project.ProjectContribution;
 import com.example.smartmoney.domain.models.project.enums.ProjectPriority;
@@ -138,6 +139,51 @@ class SuggestionProducerTest {
 
         verify(createNotificationUseCase).createNotification(eq(userId), anyString(),
                 startsWith("app://suggestions/"));
+    }
+
+    @Test
+    @DisplayName("Narration on: the LLM sentence is frozen onto the card payload AND reused as the push body")
+    void narrationRidesOnPayloadAndPush() throws Exception {
+        stubUser(Intervention_Level.GENTLE);
+        stubAnalysisData();
+        when(suggestionRepository.findOpenByUserIdAndDedupKey(eq(userId), anyString()))
+                .thenReturn(Optional.empty());
+        when(suggestionRepository.save(any(Suggestion.class))).thenAnswer(inv -> inv.getArgument(0));
+        String sentence = "Your food budget is on track to overspend this month.";
+        when(narrator.narrate(any(Insight.class))).thenReturn(sentence);
+
+        producer.maybeProduce(userId, Category.FOOD, AS_OF);
+
+        ArgumentCaptor<Suggestion> captor = ArgumentCaptor.forClass(Suggestion.class);
+        verify(suggestionRepository).save(captor.capture());
+        SuggestionPayload payload = objectMapper.readValue(captor.getValue().getPayloadJson(), SuggestionPayload.class);
+        // Frozen onto the persisted card so GET /suggestions can render it without another LLM call...
+        assertEquals(sentence, payload.getNarrative());
+        // ...and the very same sentence is the push body (not the i18n key) — the two never diverge.
+        verify(createNotificationUseCase).createNotification(eq(userId), eq(sentence),
+                startsWith("app://suggestions/"));
+        // Narrated exactly once for both surfaces.
+        verify(narrator, times(1)).narrate(any(Insight.class));
+    }
+
+    @Test
+    @DisplayName("Narration off (narrator returns null): payload.narrative is null and the push falls back to the i18n code")
+    void narrationOffLeavesNullAndFallsBackToCode() throws Exception {
+        stubUser(Intervention_Level.GENTLE);
+        stubAnalysisData();
+        when(suggestionRepository.findOpenByUserIdAndDedupKey(eq(userId), anyString()))
+                .thenReturn(Optional.empty());
+        when(suggestionRepository.save(any(Suggestion.class))).thenAnswer(inv -> inv.getArgument(0));
+        // narrator (mock) returns null by default → the disabled/unavailable narration path.
+
+        producer.maybeProduce(userId, Category.FOOD, AS_OF);
+
+        ArgumentCaptor<Suggestion> captor = ArgumentCaptor.forClass(Suggestion.class);
+        verify(suggestionRepository).save(captor.capture());
+        SuggestionPayload payload = objectMapper.readValue(captor.getValue().getPayloadJson(), SuggestionPayload.class);
+        assertNull(payload.getNarrative());
+        verify(createNotificationUseCase).createNotification(eq(userId),
+                eq("notification.suggestion.raise_budget|FOOD"), startsWith("app://suggestions/"));
     }
 
     @Test

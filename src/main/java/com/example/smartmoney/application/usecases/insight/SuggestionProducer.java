@@ -346,13 +346,9 @@ public class SuggestionProducer {
                 .resolvedValue(resolvedValue)
                 .build();
 
-        return Candidate.builder()
-                .type(SuggestionType.RAISE_BUDGET)
-                .severity(insight.getSeverity())
-                .dedupKey("RAISE_BUDGET:" + category.name() + ":" + period)
-                .payloadJson(payloadJson(insight, action))
-                .notificationContent(pushText(insight, "notification.suggestion.raise_budget|" + category.name()))
-                .build();
+        return candidate(SuggestionType.RAISE_BUDGET, insight, action,
+                "RAISE_BUDGET:" + category.name() + ":" + period,
+                "notification.suggestion.raise_budget|" + category.name());
     }
 
     /**
@@ -458,13 +454,9 @@ public class SuggestionProducer {
                 .budgetAdjustments(adjustments)
                 .build();
 
-        return Candidate.builder()
-                .type(SuggestionType.REALLOCATE_BUDGET)
-                .severity(pace.getSeverity())
-                .dedupKey("REALLOCATE_BUDGET:" + category.name() + ":" + period)
-                .payloadJson(payloadJson(pace, action))
-                .notificationContent(pushText(pace, "notification.suggestion.reallocate_budget|" + category.name()))
-                .build();
+        return candidate(SuggestionType.REALLOCATE_BUDGET, pace, action,
+                "REALLOCATE_BUDGET:" + category.name() + ":" + period,
+                "notification.suggestion.reallocate_budget|" + category.name());
     }
 
     /** A budget with spare headroom that can donate to a reallocation, and how much it can give. */
@@ -497,13 +489,9 @@ public class SuggestionProducer {
                 .resolvedValue(resolvedValue)
                 .build();
 
-        return Candidate.builder()
-                .type(SuggestionType.CREATE_BUDGET)
-                .severity(insight.getSeverity())
-                .dedupKey("CREATE_BUDGET:" + category.name() + ":" + period)
-                .payloadJson(payloadJson(insight, action))
-                .notificationContent(pushText(insight, "notification.suggestion.create_budget|" + category.name()))
-                .build();
+        return candidate(SuggestionType.CREATE_BUDGET, insight, action,
+                "CREATE_BUDGET:" + category.name() + ":" + period,
+                "notification.suggestion.create_budget|" + category.name());
     }
 
     /** SET_CATEGORY_LIMIT: CATEGORY_TREND on a budgetless category — set a first anchoring limit. */
@@ -532,13 +520,9 @@ public class SuggestionProducer {
                 .resolvedValue(resolvedValue)
                 .build();
 
-        return Candidate.builder()
-                .type(SuggestionType.SET_CATEGORY_LIMIT)
-                .severity(insight.getSeverity())
-                .dedupKey("SET_CATEGORY_LIMIT:" + category.name() + ":" + period)
-                .payloadJson(payloadJson(insight, action))
-                .notificationContent(pushText(insight, "notification.suggestion.set_category_limit|" + category.name()))
-                .build();
+        return candidate(SuggestionType.SET_CATEGORY_LIMIT, insight, action,
+                "SET_CATEGORY_LIMIT:" + category.name() + ":" + period,
+                "notification.suggestion.set_category_limit|" + category.name());
     }
 
     /**
@@ -567,13 +551,9 @@ public class SuggestionProducer {
                 .resolvedValue(resolvedValue)
                 .build();
 
-        return Candidate.builder()
-                .type(SuggestionType.REDUCE_BUDGET)
-                .severity(insight.getSeverity())
-                .dedupKey("REDUCE_BUDGET:" + category.name() + ":" + period)
-                .payloadJson(payloadJson(insight, action))
-                .notificationContent(pushText(insight, "notification.suggestion.reduce_budget|" + category.name()))
-                .build();
+        return candidate(SuggestionType.REDUCE_BUDGET, insight, action,
+                "REDUCE_BUDGET:" + category.name() + ":" + period,
+                "notification.suggestion.reduce_budget|" + category.name());
     }
 
     /** CONTRIBUTE_TO_PROJECT: SAVINGS_CAPACITY headroom toward a specific active project. */
@@ -583,13 +563,9 @@ public class SuggestionProducer {
                 .resolvedValue(amount)
                 .build();
 
-        return Candidate.builder()
-                .type(SuggestionType.CONTRIBUTE_TO_PROJECT)
-                .severity(insight.getSeverity())
-                .dedupKey("CONTRIBUTE_TO_PROJECT:" + target.getId().value() + ":" + period)
-                .payloadJson(payloadJson(insight, action))
-                .notificationContent(pushText(insight, "notification.suggestion.contribute_to_project|" + target.getName()))
-                .build();
+        return candidate(SuggestionType.CONTRIBUTE_TO_PROJECT, insight, action,
+                "CONTRIBUTE_TO_PROJECT:" + target.getId().value() + ":" + period,
+                "notification.suggestion.contribute_to_project|" + target.getName());
     }
 
     /**
@@ -640,13 +616,9 @@ public class SuggestionProducer {
                 .budgetAdjustments(adjustments)
                 .build();
 
-        return Candidate.builder()
-                .type(SuggestionType.REBALANCE_BUDGETS)
-                .severity(insight.getSeverity())
-                .dedupKey("REBALANCE_BUDGETS:" + period)
-                .payloadJson(payloadJson(insight, action))
-                .notificationContent(pushText(insight, "notification.suggestion.rebalance_budgets"))
-                .build();
+        return candidate(SuggestionType.REBALANCE_BUDGETS, insight, action,
+                "REBALANCE_BUDGETS:" + period,
+                "notification.suggestion.rebalance_budgets");
     }
 
     /**
@@ -735,13 +707,9 @@ public class SuggestionProducer {
                 .resolvedValue(amount)
                 .build();
 
-        return Candidate.builder()
-                .type(SuggestionType.INCREASE_CONTRIBUTION)
-                .severity(insight.getSeverity())
-                .dedupKey("INCREASE_CONTRIBUTION:" + project.getId().value() + ":" + period)
-                .payloadJson(payloadJson(insight, action))
-                .notificationContent(pushText(insight, "notification.suggestion.increase_contribution|" + project.getName()))
-                .build();
+        return candidate(SuggestionType.INCREASE_CONTRIBUTION, insight, action,
+                "INCREASE_CONTRIBUTION:" + project.getId().value() + ":" + period,
+                "notification.suggestion.increase_contribution|" + project.getName());
     }
 
     /**
@@ -759,13 +727,9 @@ public class SuggestionProducer {
         }
         String description = String.valueOf(insight.getMetrics().getOrDefault("description", ""));
 
-        return Candidate.builder()
-                .type(SuggestionType.REVIEW_SUBSCRIPTION)
-                .severity(insight.getSeverity())
-                .dedupKey("REVIEW_SUBSCRIPTION:" + category.name() + ":" + slug(description) + ":" + period)
-                .payloadJson(payloadJson(insight, null))
-                .notificationContent(pushText(insight, "notification.suggestion.review_subscription|" + description))
-                .build();
+        return candidate(SuggestionType.REVIEW_SUBSCRIPTION, insight, null,
+                "REVIEW_SUBSCRIPTION:" + category.name() + ":" + slug(description) + ":" + period,
+                "notification.suggestion.review_subscription|" + description);
     }
 
     /** Compact, key-safe form of a free-text description for use inside a dedup key. */
@@ -951,7 +915,27 @@ public class SuggestionProducer {
         return narrative != null ? narrative : fallbackCode;
     }
 
-    private String payloadJson(Insight insight, SuggestionPayload.ProposedAction action) {
+    /**
+     * Assemble a fully-resolved {@link Candidate}, narrating the driving insight <b>once</b> and
+     * reusing that sentence for both the persisted card ({@code payload.narrative}) and the push
+     * body — so the two never diverge, and only one LLM call is made. When narration is
+     * off/unavailable the narrative is {@code null} and the push falls back to {@code fallbackCode}
+     * (the i18n key the FE localizes), exactly as before.
+     */
+    private Candidate candidate(SuggestionType type, Insight insight,
+                                SuggestionPayload.ProposedAction action,
+                                String dedupKey, String fallbackCode) {
+        String narrative = narrator.narrate(insight);
+        return Candidate.builder()
+                .type(type)
+                .severity(insight.getSeverity())
+                .dedupKey(dedupKey)
+                .payloadJson(payloadJson(insight, action, narrative))
+                .notificationContent(narrative != null ? narrative : fallbackCode)
+                .build();
+    }
+
+    private String payloadJson(Insight insight, SuggestionPayload.ProposedAction action, String narrative) {
         Map<String, Object> snapshot = new LinkedHashMap<>();
         snapshot.put("type", insight.getType().name());
         snapshot.put("severity", insight.getSeverity().name());
@@ -962,6 +946,7 @@ public class SuggestionProducer {
         SuggestionPayload payload = SuggestionPayload.builder()
                 .insightSnapshot(snapshot)
                 .proposedAction(action)
+                .narrative(narrative)
                 .build();
         try {
             return objectMapper.writeValueAsString(payload);

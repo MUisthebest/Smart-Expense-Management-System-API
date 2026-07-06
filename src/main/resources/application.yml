@@ -140,7 +140,7 @@ app:
     # facts, never a number. Best-effort: a model outage falls back to the i18n code. OFF by
     # default (network + cost + the live insight path is still unproven).
     narration:
-      enabled: ${INSIGHT_NARRATION_ENABLED:false}
+      enabled: ${INSIGHT_NARRATION_ENABLED:true}
 
   # Suggestion fatigue ceiling (redesign Phase 3 P3-A). Layered on top of dedup (P1) and dismissal
   # suppression (P2-A): a per-user daily push cap and a per-topic cooldown (minimum hours between

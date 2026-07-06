@@ -24,6 +24,12 @@ public class SuggestionResponse {
     private SuggestionStatus status;
     private String dedupKey;
     private SuggestionPayload payload;
+    /**
+     * Server-composed human sentence (LLM) for the card, lifted from {@code payload.narrative} for
+     * FE convenience — a peer of {@code type}/{@code status}, mirroring {@code InsightResponse}.
+     * Null when narration is off/unavailable; the FE then localizes {@code payload.insightSnapshot.code}.
+     */
+    private String narrative;
     private Instant createdAt;
     private Instant expiresAt;
     private Instant decidedAt;
