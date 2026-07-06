@@ -91,6 +91,11 @@ public class AIController {
             if (result.get("confidence") != null)
                 response.put("confidence", result.get("confidence"));
 
+            if (result.get("userId") != null)
+                response.put("userId", result.get("userId"));
+
+            if (result.get("transactions") != null)
+                response.put("transactions", result.get("transactions"));
             if (result.get("status") != null)
                 response.put("status", result.get("status"));
 
