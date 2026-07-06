@@ -1,5 +1,9 @@
 package com.example.smartmoney.presentation.controllers;
 
+import com.example.smartmoney.application.dtos.requests.chat.ChatRequest;
+import com.example.smartmoney.application.dtos.responses.ChatResponse;
+import com.example.smartmoney.application.guardrails.GuardrailViolationException;
+import com.example.smartmoney.application.guardrails.RateLimitExceededException;
 import com.example.smartmoney.application.usecases.queue.ProcessQueueRequestUseCase;
 import com.example.smartmoney.application.usecases.chat.ChatWithAIUseCase;
 import com.example.smartmoney.application.usecases.chat.GetAISuggestionsUseCase;
@@ -16,10 +20,18 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.List;
 
+/**
+ * REST controller for all AI / chatbot endpoints.
+ *
+ * POST /chat  — sync, structured ChatResponse. History managed server-side in Redis.
+ * GET /chat/stream — SSE, cumulative reply tokens, ends event:done data:[DONE].
+ * GET /suggestions — returns {questions: string[]}, 3–5 chips.
+ * POST / and GET /{jobId} — legacy queue endpoints, unchanged.
+ */
 @RestController
 @RequestMapping("/api/v1/ai")
 @RequiredArgsConstructor
@@ -31,7 +43,8 @@ public class AIController {
     private final ProcessQueueRequestUseCase processQueueRequestUseCase;
     private final ChatWithAIUseCase chatWithAIUseCase;
     private final GetAISuggestionsUseCase getAISuggestionsUseCase;
-    // ── Legacy queue endpoint ─────────────────────────────────────────────────
+
+    // ── Legacy queue endpoints (unchanged) ───────────────────────────────────
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> submitAIJob(
@@ -47,13 +60,9 @@ public class AIController {
                     "tokenId", requested.getTokenId()));
 
         } catch (DuplicateJobException e) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of(
-                    "error", e.getMessage()));
-        }
-
-        catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
-                    "error", e.getMessage()));
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error", e.getMessage()));
         }
     }
 
@@ -63,12 +72,10 @@ public class AIController {
             @RequestHeader("Authorization") String authHeader) {
         try {
             UUID userId = transactionController.extractUserIdFromToken(authHeader);
-
             Map<String, Object> result = processQueueRequestUseCase.getResult(jobId, userId.toString());
 
             if (result == null) {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
-                        "error", "Job not found"));
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "Job not found"));
             }
 
             Map<String, Object> response = new HashMap<>();
@@ -108,30 +115,47 @@ public class AIController {
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
-                    "error", e.getMessage()));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error", e.getMessage()));
         }
     }
 
+    // ── Chat endpoints (UC1 / UC2 / UC3) ────────────────────────────────────
+
+    /**
+     * Sync chat. Body: {message, month?, year?}. History from Redis.
+     * UC1→BUDGET_UPDATE, UC2→SIMULATION, UC3→personalised tone, guardrails applied.
+     */
     @PostMapping("/chat")
     public ResponseEntity<?> chat(
-            @RequestBody Map<String, String> body,
+            @RequestBody ChatRequest chatRequest,
             @RequestHeader("Authorization") String authHeader) {
         try {
             UUID userId = transactionController.extractUserIdFromToken(authHeader);
+            ChatResponse response = chatWithAIUseCase.execute(chatRequest, userId);
+            return ResponseEntity.ok(response);
 
-            String message = body.get("message");
+        } catch (RateLimitExceededException e) {
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                    .body(Map.of("error", e.getMessage()));
 
-            String reply = chatWithAIUseCase.execute(message, userId);
-
-            return ResponseEntity.ok(Map.of(
-                    "reply", reply));
+        } catch (GuardrailViolationException e) {
+            String reply = e.getMessage() != null ? e.getMessage()
+                    : "Tôi chỉ hỗ trợ các câu hỏi về tài chính cá nhân như ngân sách, " +
+                      "chi tiêu, và mục tiêu tiết kiệm. Bạn muốn hỏi gì về tài chính không?";
+            return ResponseEntity.ok(ChatResponse.builder()
+                    .intent(ChatResponse.ChatIntent.OUT_OF_SCOPE)
+                    .reply(reply)
+                    .build());
 
         } catch (Exception e) {
+            Throwable cause = e.getCause() != null ? e.getCause() : e;
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", e.getMessage()));
+                    .body(Map.of("error", e.getMessage(),
+                                 "detail", cause.getMessage() != null ? cause.getMessage() : ""));
         }
     }
+
+    // ── Suggestions (unchanged) ──────────────────────────────────────────────
 
     @GetMapping("/suggestions")
     public ResponseEntity<?> getSuggestions(@RequestHeader("Authorization") String authHeader) {
@@ -145,41 +169,72 @@ public class AIController {
         }
     }
 
+    // ── Streaming chat (UC3 personalisation + UC1/UC2 context) ──────────────
+
+    /**
+     * SSE streaming chat endpoint.
+     *
+     * SSE stream. Tokens cumulative. Ends event:done data:[DONE].
+     * No structured payloads — use POST /chat for those.
+     * History loaded from Redis before stream; ASSISTANT turn appended after completion.
+     */
     @GetMapping(value = "/chat/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter streamChat(
             @RequestParam String message,
+            @RequestParam(required = false) Integer month,
+            @RequestParam(required = false) Integer year,
             @RequestHeader("Authorization") String authHeader) {
-        UUID userId = transactionController.extractUserIdFromToken(authHeader);
 
-        // Tạo emitter với timeout 120 giây
         SseEmitter emitter = new SseEmitter(120_000L);
 
-        // Gọi UseCase stream, truyền callback để đẩy dữ liệu về client
-        chatWithAIUseCase.streamChat(
-                message,
-                userId,
-                chunk -> {
-                    try {
-                        System.out.println("[" + chunk + "]");
-                        // Gửi từng mảnh chữ về client
-                        emitter.send(SseEmitter.event().data(chunk));
-                    } catch (IOException e) {
-                        emitter.completeWithError(e);
-                    }
-                },
-                error -> {
-                    // Xử lý lỗi
-                    emitter.completeWithError(error);
-                },
-                () -> {
-                    // Hoàn thành stream
-                    try {
-                        emitter.send(SseEmitter.event().name("done").data("[DONE]"));
-                    } catch (IOException ignored) {
-                    }
-                    emitter.complete();
-                    emitter.complete();
-                });
+        try {
+            UUID userId = transactionController.extractUserIdFromToken(authHeader);
+
+            ChatRequest chatRequest = ChatRequest.builder()
+                    .message(message)
+                    .month(month)
+                    .year(year)
+                    .build();
+
+            chatWithAIUseCase.streamChat(
+                    chatRequest,
+                    userId,
+                    chunk -> {
+                        try {
+                            emitter.send(SseEmitter.event().data(chunk));
+                        } catch (IOException e) {
+                            emitter.completeWithError(e);
+                        }
+                    },
+                    error -> emitter.completeWithError(error),
+                    () -> {
+                        try {
+                            emitter.send(SseEmitter.event().name("done").data("[DONE]"));
+                        } catch (IOException ignored) {
+                        }
+                        emitter.complete();
+                    });
+
+        } catch (RateLimitExceededException e) {
+            try {
+                emitter.send(SseEmitter.event().name("error").data("{\"error\":\"rate_limit\"}"));
+            } catch (IOException ignored) {
+            }
+            emitter.complete();
+
+        } catch (GuardrailViolationException e) {
+            try {
+                String reply = e.getMessage() != null ? e.getMessage()
+                        : "Tôi chỉ hỗ trợ câu hỏi về tài chính cá nhân.";
+                emitter.send(SseEmitter.event().data(reply));
+                emitter.send(SseEmitter.event().name("done").data("[DONE]"));
+            } catch (IOException ignored) {
+            }
+            emitter.complete();
+
+        } catch (Exception e) {
+            emitter.completeWithError(e);
+        }
 
         return emitter;
     }

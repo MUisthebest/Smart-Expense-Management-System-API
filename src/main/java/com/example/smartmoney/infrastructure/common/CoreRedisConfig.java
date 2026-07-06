@@ -43,7 +43,8 @@ public class CoreRedisConfig {
      * Core Redis Connection Factory
      */
     @Bean(name = "coreRedisConnectionFactory")
-    public RedisConnectionFactory coreRedisConnectionFactory() {
+    public RedisConnectionFactory coreRedisConnectionFactory(
+            io.lettuce.core.resource.ClientResources redisClientResources) {
         URI uri = URI.create(redisUri);
 
         RedisStandaloneConfiguration config = new RedisStandaloneConfiguration();
@@ -57,10 +58,38 @@ public class CoreRedisConfig {
         }
 
 
-        LettuceClientConfiguration clientConfig = LettuceClientConfiguration.builder()
+        SocketOptions socketOptions = SocketOptions.builder()
+                .connectTimeout(Duration.ofSeconds(10))
+                .keepAlive(true)
+                .tcpNoDelay(true)
                 .build();
 
-        return new LettuceConnectionFactory(config, clientConfig);
+        ClientOptions clientOptions = ClientOptions.builder()
+                .socketOptions(socketOptions)
+                .autoReconnect(true)
+                .build();
+
+        LettuceClientConfiguration.LettuceClientConfigurationBuilder clientConfigBuilder =
+                LettuceClientConfiguration.builder()
+                        .clientOptions(clientOptions)
+                        .clientResources(redisClientResources)
+                        .commandTimeout(Duration.ofSeconds(10));
+
+        // "rediss://" (e.g. Render, Upstash) requires TLS; connecting in
+        // plaintext gets the socket closed immediately during the Redis
+        // protocol handshake.
+        if ("rediss".equalsIgnoreCase(uri.getScheme())) {
+            clientConfigBuilder.useSsl();
+        }
+
+        LettuceClientConfiguration clientConfig = clientConfigBuilder.build();
+
+        LettuceConnectionFactory factory = new LettuceConnectionFactory(config, clientConfig);
+        // Validate the shared connection on every checkout so a broken/stale
+        // socket (idle timeout, NAT drop, provider restart) is detected and
+        // transparently re-established instead of surfacing as an error.
+        factory.setValidateConnection(true);
+        return factory;
     }
 
     @Bean

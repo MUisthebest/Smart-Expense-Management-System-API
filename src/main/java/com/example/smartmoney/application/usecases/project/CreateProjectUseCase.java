@@ -44,7 +44,7 @@ public class CreateProjectUseCase {
 
         Project p = Project.createNew(
                 UserId.of(actorId),
-                ProjectType.PERSONAL, // CreateProjectRequest no longer carries type; only PERSONAL exists
+                req.getType(),
                 req.getPriority(),
                 req.getName(),
                 req.getDescription(),
