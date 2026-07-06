@@ -315,11 +315,59 @@ public class User {
                 && focusMode != null;
     }
 
+    public BigDecimal getSavingCapacity() {
+        if (this.income == null || this.income.compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO;
+        }
+        BigDecimal rate = new BigDecimal("0.20"); // Default: BALANCED
+        if (this.savingPace == Saving_Pace.RELAXED || this.focusMode == Focus_Mode.TRACK_ONLY) {
+            rate = new BigDecimal("0.10");
+        } else if (this.savingPace == Saving_Pace.AGGRESIVE || this.focusMode == Focus_Mode.SAVE_MORE) {
+            rate = new BigDecimal("0.35");
+        }
+        return this.income.multiply(rate);
+    }
+
     public void clearFinancialSetup() {
         this.income = null;
         this.savingPace = null;
         this.interventionLevel = null;
         this.focusMode = null;
         this.updatedAt = LocalDateTime.now();
+    }
+
+    public BigDecimal calculateSafeSpending(
+            BigDecimal activeProjectMonthlyCommitment
+    ) {
+        if (this.income == null || this.income.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new DomainException(
+                    "Income must be configured before calculating safe spending"
+            );
+        }
+
+        BigDecimal commitment = activeProjectMonthlyCommitment != null
+                ? activeProjectMonthlyCommitment
+                : BigDecimal.ZERO;
+
+        if (commitment.compareTo(BigDecimal.ZERO) < 0) {
+            throw new DomainException(
+                    "Active project monthly commitment cannot be negative"
+            );
+        }
+
+        return this.income
+                .subtract(commitment)
+                .max(BigDecimal.ZERO);
+    }
+
+    public boolean isOverCommitted(
+            BigDecimal activeProjectMonthlyCommitment
+    ) {
+        BigDecimal commitment = activeProjectMonthlyCommitment != null
+                ? activeProjectMonthlyCommitment
+                : BigDecimal.ZERO;
+
+        return this.income != null
+                && commitment.compareTo(this.income) > 0;
     }
 }

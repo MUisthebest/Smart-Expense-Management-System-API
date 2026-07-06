@@ -52,17 +52,18 @@ public class Group {
         if (invitedUserId.equals(adminId)) {
             throw new ProjectException("Admin cannot be re-invited", ProjectErrorCode.PROJECT_DUPLICATE_MEMBER);
         }
-        boolean alreadyActive = members.stream()
+        boolean alreadyJoined = members.stream()
                 .anyMatch(m -> m.getUserId().equals(invitedUserId)
-                        && m.getInviteStatus() != GroupMemberInviteStatus.DECLINED);
-        if (alreadyActive) {
-            throw new ProjectException("Member already invited or joined", ProjectErrorCode.PROJECT_DUPLICATE_MEMBER);
+                        && m.getInviteStatus() == GroupMemberInviteStatus.JOINED);
+        if (alreadyJoined) {
+            throw new ProjectException("Member already joined", ProjectErrorCode.PROJECT_DUPLICATE_MEMBER);
         }
 
-        // Re-invite a previously declined member by resetting their status instead of adding a duplicate
+        // Re-invite a previously invited or declined member by resetting their status instead of adding a duplicate
         members.stream()
                 .filter(m -> m.getUserId().equals(invitedUserId)
-                        && m.getInviteStatus() == GroupMemberInviteStatus.DECLINED)
+                        && (m.getInviteStatus() == GroupMemberInviteStatus.DECLINED 
+                            || m.getInviteStatus() == GroupMemberInviteStatus.INVITED))
                 .findFirst()
                 .ifPresentOrElse(existing -> {
                     long activeCount = members.stream()
@@ -143,11 +144,21 @@ public class Group {
     }
 
     public BigDecimal totalCapacity() {
-        return members.stream()
+        List<BigDecimal> activeCapacities = members.stream()
                 .filter(m -> m.getInviteStatus() == GroupMemberInviteStatus.JOINED)
                 .map(GroupMember::getCapacitySnapshot)
                 .filter(Objects::nonNull)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+                .toList();
+
+        if (activeCapacities.isEmpty()) {
+            return BigDecimal.ZERO;
+        }
+
+        BigDecimal minCapacity = activeCapacities.stream()
+                .min(BigDecimal::compareTo)
+                .orElse(BigDecimal.ZERO);
+
+        return minCapacity.multiply(BigDecimal.valueOf(activeCapacities.size()));
     }
 
     public List<GroupMember> joinedMembers() {

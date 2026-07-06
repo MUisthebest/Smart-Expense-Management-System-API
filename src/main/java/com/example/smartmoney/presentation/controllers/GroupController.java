@@ -31,6 +31,7 @@ public class GroupController {
     private final AcceptGroupInviteUseCase acceptGroupInviteUseCase;
     private final DeclineGroupInviteUseCase declineGroupInviteUseCase;
     private final RemoveGroupMemberUseCase removeGroupMemberUseCase;
+    private final DeleteGroupUseCase deleteGroupUseCase;
 
     private String actorId(Authentication auth) {
         return auth.getName();
@@ -137,6 +138,18 @@ public class GroupController {
                 .success(true)
                 .message("Removed")
                 .data(data)
+                .build();
+    }
+
+    @Operation(summary = "Delete group", description = "Admin deletes the group if no group project has been created yet.")
+    @DeleteMapping("/{groupId}")
+    public CheckResponse<Void> delete(
+            Authentication auth,
+            @PathVariable String groupId) {
+        deleteGroupUseCase.execute(actorId(auth), groupId);
+        return CheckResponse.<Void>builder()
+                .success(true)
+                .message("Group deleted successfully")
                 .build();
     }
 }

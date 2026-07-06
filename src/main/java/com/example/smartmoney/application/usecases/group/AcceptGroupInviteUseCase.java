@@ -9,8 +9,12 @@ import com.example.smartmoney.domain.exceptions.ProjectException;
 import com.example.smartmoney.domain.models.group.Group;
 import com.example.smartmoney.domain.models.group.valueobjects.GroupId;
 import com.example.smartmoney.domain.models.project.valueobjects.UserId;
+// Disabled: user_income table removed.
+// import com.example.smartmoney.domain.models.user.UserIncome;
 import com.example.smartmoney.domain.repositories.GroupProjectRepository;
 import com.example.smartmoney.domain.repositories.GroupRepository;
+import com.example.smartmoney.domain.repositories.UserRepository;
+import com.example.smartmoney.domain.models.user.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -26,6 +30,7 @@ public class AcceptGroupInviteUseCase {
 
     private final GroupRepository groupRepository;
     private final GroupInviteTokenPort inviteTokenPort;
+    private final UserRepository userRepository;
     private final GroupProjectRepository groupProjectRepository;
 
     @Transactional
@@ -45,10 +50,15 @@ public class AcceptGroupInviteUseCase {
                 .orElseThrow(() -> new ProjectException("Group not found", ProjectErrorCode.PROJECT_NOT_FOUND));
 
         UserId actor = UserId.of(actorId);
+        UUID actorUuid = UUID.fromString(actorId);
 
-        // Group capacity is no longer income-derived (Pivot A — usable_income / safe_spending
-        // dropped): members join with zero capacity until a non-income capacity model is defined.
-        BigDecimal capacity = BigDecimal.ZERO;
+        User user = userRepository.findById(actorUuid)
+                .orElseThrow(() -> new ProjectException(
+                        "User not found",
+                        ProjectErrorCode.PROJECT_PERMISSION_DENIED
+                ));
+
+        BigDecimal capacity = user.getSavingCapacity();
 
         // NOTE: The 3-project cap is NOT checked here — accepting an invite does not
         // consume a project slot. The cap is enforced at sub-project creation time
