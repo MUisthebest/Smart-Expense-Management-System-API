@@ -11,6 +11,7 @@ import com.example.smartmoney.domain.models.project.valueobjects.UserId;
 import com.example.smartmoney.domain.repositories.GroupProjectRepository;
 import com.example.smartmoney.domain.repositories.GroupRepository;
 import com.example.smartmoney.domain.repositories.UserRepository;
+import com.example.smartmoney.domain.models.user.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -47,19 +48,30 @@ public class GetGroupDetailUseCase {
                 .map(gp -> gp.getId().toString())
                 .orElse(null);
 
-        // Batch-load usernames for all members in a single query
+        // Batch-load usernames and emails for all members in a single query
         Set<UUID> memberIds = group.getMembers().stream()
                 .map(m -> UUID.fromString(m.getUserId().toString()))
                 .collect(Collectors.toSet());
-        Map<String, String> usernameByUserId = userRepository.findAllByIds(memberIds).stream()
+        List<User> membersUsers = userRepository.findAllByIds(memberIds);
+        Map<String, String> usernameByUserId = membersUsers.stream()
                 .collect(Collectors.toMap(
                         u -> u.getId().toString(),
                         u -> u.getUsername(),
                         (a, b) -> a
                 ));
+        Map<String, String> emailByUserId = membersUsers.stream()
+                .collect(Collectors.toMap(
+                        u -> u.getId().toString(),
+                        u -> u.getEmail() != null ? u.getEmail().getValue() : null,
+                        (a, b) -> a
+                ));
 
         List<GroupMemberResponse> memberResponses = group.getMembers().stream()
-                .map(m -> GroupMemberResponse.fromDomain(m, usernameByUserId.get(m.getUserId().toString())))
+                .map(m -> GroupMemberResponse.fromDomain(
+                        m,
+                        usernameByUserId.get(m.getUserId().toString()),
+                        emailByUserId.get(m.getUserId().toString())
+                ))
                 .toList();
 
         return GroupDetailResponse.builder()
