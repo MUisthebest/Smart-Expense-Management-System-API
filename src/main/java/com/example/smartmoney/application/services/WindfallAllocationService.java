@@ -1,0 +1,295 @@
+package com.example.smartmoney.application.services;
+
+import com.example.smartmoney.application.dtos.responses.ChatResponse;
+import com.example.smartmoney.domain.models.budget.Budget;
+import com.example.smartmoney.domain.models.project.Project;
+import com.example.smartmoney.domain.models.project.ProjectTracking;
+import com.example.smartmoney.domain.models.project.valueobjects.UserId;
+import com.example.smartmoney.domain.repositories.BudgetRepository;
+import com.example.smartmoney.domain.repositories.ProjectRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
+import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+
+/**
+ * Computes structured allocation payloads for windfall income and large unplanned expenses.
+ *
+ * INCOME_WINDFALL: allocates a portion to savings projects (PUT .../tracking {moneySaved})
+ *   and the rest to budget limits (PUT /budgets/{id} {amountLimit}).
+ *
+ * LARGE_EXPENSE: identifies which budget to draw from (increase limit) and, if the
+ *   budget is insufficient, which project deadlines to extend to free monthly cash.
+ *
+ * All suggestions are read-only computations — this service never writes any data.
+ */
+@Service
+@RequiredArgsConstructor
+public class WindfallAllocationService {
+
+    private static final Pattern AMOUNT_PATTERN = Pattern.compile(
+            "([\\d][\\d,.]*)\\s*(tỷ|ty|billion|triệu|tr|M|m|K|k|nghìn|ngàn)?",
+            Pattern.UNICODE_CASE);
+
+    private static final BigDecimal DEFAULT_AMOUNT = BigDecimal.valueOf(5_000_000);
+    private static final double SAVINGS_RATIO  = 0.60;  // 60% windfall → projects
+    private static final double BUDGET_RATIO   = 0.40;  // 40% windfall → budget boosts
+    private static final int    DEFER_MONTHS   = 2;     // months to extend for large expense
+
+    private final BudgetRepository budgetRepository;
+    private final ProjectRepository projectRepository;
+
+    // ── INCOME_WINDFALL ───────────────────────────────────────────────────────
+
+    /**
+     * Computes project savings boosts for a windfall income event.
+     * 60% of the windfall is split across HIGH-priority active projects first,
+     * then MEDIUM, then LOW — greedy fill until the pool is exhausted.
+     */
+    public List<ChatResponse.SavingsPlanSuggestion> suggestSavingsBoost(
+            UUID userId, int month, int year, String messageLow) {
+
+        BigDecimal windfall = parseAmount(messageLow);
+        if (windfall.compareTo(BigDecimal.ZERO) == 0) windfall = DEFAULT_AMOUNT;
+
+        BigDecimal savingsPool = windfall.multiply(BigDecimal.valueOf(SAVINGS_RATIO))
+                .setScale(0, RoundingMode.HALF_UP);
+
+        List<Project> projects = activeProjects(userId);
+        if (projects.isEmpty()) return Collections.emptyList();
+
+        List<ChatResponse.SavingsPlanSuggestion> result = new ArrayList<>();
+        BigDecimal remaining = savingsPool;
+
+        for (Project p : projects) {
+            if (remaining.compareTo(BigDecimal.ZERO) <= 0) break;
+
+            BigDecimal projectNeed = p.remaining().amount();
+            if (projectNeed.compareTo(BigDecimal.ZERO) <= 0) continue;
+
+            ProjectTracking tracking = p.getTracking();
+            BigDecimal currentSaved = tracking != null && tracking.getMoneySaved() != null
+                    ? tracking.getMoneySaved() : BigDecimal.ZERO;
+
+            // Allocate at most what the project needs, cap at remaining pool
+            BigDecimal allocate = remaining.min(projectNeed).setScale(0, RoundingMode.HALF_UP);
+            remaining = remaining.subtract(allocate);
+
+            result.add(ChatResponse.SavingsPlanSuggestion.builder()
+                    .projectId(p.getId().toString())
+                    .projectName(p.getName())
+                    .currentMoneySaved(currentSaved.longValue())
+                    .suggestedAddAmount(allocate.longValue())
+                    .newMoneySaved(currentSaved.add(allocate).longValue())
+                    .suggestedMonthLeft(null)
+                    .reason(String.format(
+                            "Thêm %,.0f VND vào '%s' từ nguồn thu đột xuất — dự án hoàn thành nhanh hơn.",
+                            allocate, p.getName()))
+                    .build());
+        }
+        return result;
+    }
+
+    /**
+     * Computes budget limit increases for a windfall income event.
+     * 40% of the windfall is spread across top budget categories proportionally by limit size.
+     */
+    public List<ChatResponse.BudgetUpdateSuggestion> suggestBudgetBoosts(
+            UUID userId, int month, int year, String messageLow) {
+
+        BigDecimal windfall = parseAmount(messageLow);
+        if (windfall.compareTo(BigDecimal.ZERO) == 0) windfall = DEFAULT_AMOUNT;
+
+        BigDecimal budgetPool = windfall.multiply(BigDecimal.valueOf(BUDGET_RATIO))
+                .setScale(0, RoundingMode.HALF_UP);
+
+        List<Budget> budgets = budgetRepository.findByUserIdMonthYear(userId, month, year);
+        if (budgets.isEmpty()) return Collections.emptyList();
+
+        BigDecimal totalLimit = budgets.stream()
+                .map(Budget::getAmountLimit)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        if (totalLimit.compareTo(BigDecimal.ZERO) == 0) return Collections.emptyList();
+
+        // Top 3 budgets by limit — give them a proportional slice of the pool
+        return budgets.stream()
+                .sorted(Comparator.comparing(Budget::getAmountLimit).reversed())
+                .limit(3)
+                .map(b -> {
+                    BigDecimal share = budgetPool.multiply(b.getAmountLimit())
+                            .divide(totalLimit, 0, RoundingMode.HALF_UP);
+                    BigDecimal newLimit = b.getAmountLimit().add(share);
+                    return ChatResponse.BudgetUpdateSuggestion.builder()
+                            .budgetId(b.getId().toString())
+                            .category(b.getCategory().name())
+                            .currentAmount(b.getAmountLimit().longValue())
+                            .suggestedAmount(newLimit.longValue())
+                            .reason(String.format(
+                                    "Tăng ngân sách %s thêm %,.0f VND (%.0f%% khoản thu đột xuất) → giới hạn mới: %,.0f VND.",
+                                    b.getCategory().name(), share,
+                                    BUDGET_RATIO * 100, newLimit))
+                            .build();
+                })
+                .collect(Collectors.toList());
+    }
+
+    // ── LARGE_EXPENSE ─────────────────────────────────────────────────────────
+
+    /**
+     * Suggests which budget to draw from to cover a large expense.
+     * Targets the budget with the most headroom (limit − spent).
+     * If no single budget can cover the expense, returns multiple entries splitting the cost.
+     */
+    public List<ChatResponse.BudgetUpdateSuggestion> suggestExpenseCoverage(
+            UUID userId, int month, int year, String messageLow) {
+
+        BigDecimal expense = parseAmount(messageLow);
+        if (expense.compareTo(BigDecimal.ZERO) == 0) expense = DEFAULT_AMOUNT;
+
+        List<Budget> budgets = budgetRepository.findByUserIdMonthYear(userId, month, year);
+        if (budgets.isEmpty()) return Collections.emptyList();
+
+        // Sort by headroom descending
+        List<Budget> byHeadroom = budgets.stream()
+                .sorted(Comparator.comparing((Budget b) -> {
+                    BigDecimal spent = b.getSpent() != null ? b.getSpent() : BigDecimal.ZERO;
+                    return b.getAmountLimit().subtract(spent);
+                }).reversed())
+                .collect(Collectors.toList());
+
+        List<ChatResponse.BudgetUpdateSuggestion> result = new ArrayList<>();
+        BigDecimal remaining = expense;
+
+        for (Budget b : byHeadroom) {
+            if (remaining.compareTo(BigDecimal.ZERO) <= 0) break;
+            BigDecimal spent = b.getSpent() != null ? b.getSpent() : BigDecimal.ZERO;
+            BigDecimal headroom = b.getAmountLimit().subtract(spent).max(BigDecimal.ZERO);
+
+            // How much more limit to add so this budget can absorb its share
+            BigDecimal cover = remaining.min(headroom.compareTo(BigDecimal.ZERO) > 0
+                    ? headroom : remaining);
+            // If headroom is already enough, don't increase the limit — just flag it
+            if (headroom.compareTo(remaining) >= 0) {
+                result.add(ChatResponse.BudgetUpdateSuggestion.builder()
+                        .budgetId(b.getId().toString())
+                        .category(b.getCategory().name())
+                        .currentAmount(b.getAmountLimit().longValue())
+                        .suggestedAmount(b.getAmountLimit().longValue()) // no change needed
+                        .reason(String.format(
+                                "Ngân sách %s còn dư %,.0f VND — đủ để trang trải chi phí đột xuất %,.0f VND.",
+                                b.getCategory().name(), headroom, expense))
+                        .build());
+                remaining = BigDecimal.ZERO;
+            } else {
+                // Need to increase the limit
+                BigDecimal needed = remaining.subtract(headroom).max(BigDecimal.ZERO);
+                BigDecimal newLimit = b.getAmountLimit().add(needed);
+                result.add(ChatResponse.BudgetUpdateSuggestion.builder()
+                        .budgetId(b.getId().toString())
+                        .category(b.getCategory().name())
+                        .currentAmount(b.getAmountLimit().longValue())
+                        .suggestedAmount(newLimit.longValue())
+                        .reason(String.format(
+                                "Tăng hạn mức %s thêm %,.0f VND để trang trải chi phí đột xuất.",
+                                b.getCategory().name(), needed))
+                        .build());
+                remaining = remaining.subtract(headroom.add(needed));
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Suggests extending project deadlines to reduce monthly savings pressure
+     * when a large expense leaves insufficient cash flow.
+     */
+    public List<ChatResponse.SavingsPlanSuggestion> suggestProjectDeferral(
+            UUID userId, int month, int year, String messageLow) {
+
+        BigDecimal expense = parseAmount(messageLow);
+        if (expense.compareTo(BigDecimal.ZERO) == 0) expense = DEFAULT_AMOUNT;
+
+        List<Project> projects = activeProjects(userId);
+        if (projects.isEmpty()) return Collections.emptyList();
+
+        // Check if total budget already covers the expense — if yes, no deferral needed
+        List<Budget> budgets = budgetRepository.findByUserIdMonthYear(userId, month, year);
+        BigDecimal totalHeadroom = budgets.stream()
+                .map(b -> b.getAmountLimit().subtract(b.getSpent() != null ? b.getSpent() : BigDecimal.ZERO))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        if (totalHeadroom.compareTo(expense) >= 0) return Collections.emptyList();
+
+        // Suggest deferring LOW then MEDIUM priority projects by DEFER_MONTHS
+        List<ChatResponse.SavingsPlanSuggestion> result = new ArrayList<>();
+        BigDecimal shortfall = expense.subtract(totalHeadroom.max(BigDecimal.ZERO));
+
+        for (Project p : projects) {
+            if (shortfall.compareTo(BigDecimal.ZERO) <= 0) break;
+            ProjectTracking tracking = p.getTracking();
+            if (tracking == null) continue;
+
+            BigDecimal monthlySaving = tracking.getMonthlySaving() != null
+                    ? tracking.getMonthlySaving() : BigDecimal.ZERO;
+            if (monthlySaving.compareTo(BigDecimal.ZERO) == 0) continue;
+
+            int newMonthLeft = tracking.getMonthLeft() + DEFER_MONTHS;
+            BigDecimal freed = monthlySaving.multiply(BigDecimal.valueOf(DEFER_MONTHS));
+            shortfall = shortfall.subtract(freed);
+
+            result.add(ChatResponse.SavingsPlanSuggestion.builder()
+                    .projectId(p.getId().toString())
+                    .projectName(p.getName())
+                    .currentMoneySaved(tracking.getMoneySaved() != null
+                            ? tracking.getMoneySaved().longValue() : 0L)
+                    .suggestedAddAmount(null)
+                    .newMoneySaved(null)
+                    .suggestedMonthLeft(newMonthLeft)
+                    .reason(String.format(
+                            "Hoãn dự án '%s' thêm %d tháng → giải phóng %,.0f VND/tháng để trang trải chi phí đột xuất.",
+                            p.getName(), DEFER_MONTHS, monthlySaving))
+                    .build());
+        }
+        return result;
+    }
+
+    // ── Helpers ──────────────────────────────────────────────────────────────
+
+    private List<Project> activeProjects(UUID userId) {
+        LocalDate today = LocalDate.now();
+        return projectRepository.findAllByUser(UserId.of(userId.toString()))
+                .stream()
+                .filter(p -> p.getDeadline().isAfter(today)
+                        && ChronoUnit.MONTHS.between(today, p.getDeadline()) > 0)
+                .sorted(Comparator.comparingInt(p -> -p.getPriority().ordinal())) // HIGH first
+                .collect(Collectors.toList());
+    }
+
+    BigDecimal parseAmount(String text) {
+        Matcher m = AMOUNT_PATTERN.matcher(text);
+        while (m.find()) {
+            String numStr = m.group(1).replace(",", "");
+            String unit = m.group(2);
+            try {
+                BigDecimal num = new BigDecimal(numStr);
+                if (unit != null) {
+                    return switch (unit.toLowerCase()) {
+                        case "tỷ", "ty", "billion" -> num.multiply(BigDecimal.valueOf(1_000_000_000));
+                        case "triệu", "tr", "m" -> num.multiply(BigDecimal.valueOf(1_000_000));
+                        case "k", "nghìn", "ngàn" -> num.multiply(BigDecimal.valueOf(1_000));
+                        default -> num;
+                    };
+                }
+                if (num.compareTo(BigDecimal.valueOf(1_000)) >= 0) return num;
+            } catch (NumberFormatException ignored) {}
+        }
+        return BigDecimal.ZERO;
+    }
+}

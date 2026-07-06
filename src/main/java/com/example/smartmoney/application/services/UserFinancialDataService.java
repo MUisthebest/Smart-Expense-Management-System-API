@@ -1,23 +1,21 @@
 package com.example.smartmoney.application.services;
 
 
+import com.example.smartmoney.domain.models.budget.Budget;
 import com.example.smartmoney.domain.models.project.Project;
+import com.example.smartmoney.domain.models.project.ProjectTracking;
 import com.example.smartmoney.domain.models.project.valueobjects.Money;
 import com.example.smartmoney.domain.models.project.valueobjects.UserId;
 import com.example.smartmoney.domain.models.transaction.Transaction;
 import com.example.smartmoney.domain.models.transaction.enums.TransactionType;
-// Disabled: user_income / user_financial_profile tables removed.
-// import com.example.smartmoney.domain.models.user.UserIncome;
-// import com.example.smartmoney.domain.models.userprofile.UserFinancialProfile;
-import com.example.smartmoney.domain.repositories.ProjectContributionRepository;
+import com.example.smartmoney.domain.repositories.BudgetRepository;
 import com.example.smartmoney.domain.repositories.ProjectRepository;
 import com.example.smartmoney.domain.repositories.TransactionRepository;
-// import com.example.smartmoney.domain.repositories.UserFinancialProfileRepository;
-// import com.example.smartmoney.domain.repositories.UserIncomeRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -30,9 +28,7 @@ public class UserFinancialDataService {
 
     private final TransactionRepository transactionRepository;
     private final ProjectRepository projectRepository;
-    // Disabled: user_income / user_financial_profile tables removed.
-    // private final UserIncomeRepository userIncomeRepository;
-    // private final UserFinancialProfileRepository profileRepository;
+    private final BudgetRepository budgetRepository;
 
     public enum DataType {
         TRANSACTIONS, PROJECTS, INCOME, PROFILE
@@ -163,4 +159,95 @@ public class UserFinancialDataService {
 
         return sb.toString();
     }
-}    
+
+    /**
+     * Builds the full financial context block for the Gemini chat prompt.
+     * Covers: income (from INCOME transactions), safe_spending (budget remaining),
+     * budgets (with budgetId/category/spent/limit), and projects (with
+     * monthlySaving/moneyOwed/monthsLeft) for the given month/year.
+     */
+    public String buildChatContext(UUID userId, int month, int year) {
+        LocalDate monthStart = LocalDate.of(year, month, 1);
+        LocalDate monthEnd = monthStart.withDayOfMonth(monthStart.lengthOfMonth());
+        LocalDateTime start = monthStart.atStartOfDay();
+        LocalDateTime end = monthEnd.atTime(23, 59, 59);
+
+        // Income from INCOME-type transactions this month
+        List<Transaction> txs = transactionRepository.findByUserIdWithFilters(
+                userId, null, null, start, end, null, null);
+
+        BigDecimal totalIncome = txs.stream()
+                .filter(t -> t.getType() == TransactionType.INCOME)
+                .map(t -> t.getAmount().getValue())
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal totalExpense = txs.stream()
+                .filter(t -> t.getType() == TransactionType.EXPENSE)
+                .map(t -> t.getAmount().getValue())
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        // Budgets for the month
+        List<Budget> budgets = budgetRepository.findByUserIdMonthYear(userId, month, year);
+
+        BigDecimal totalBudgetLimit = budgets.stream()
+                .map(Budget::getAmountLimit)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal totalBudgetSpent = budgets.stream()
+                .map(b -> b.getSpent() != null ? b.getSpent() : BigDecimal.ZERO)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        // safe_spending = total budget limit - total spent (remaining budget this month)
+        BigDecimal safeSpending = totalBudgetLimit.subtract(totalBudgetSpent).max(BigDecimal.ZERO);
+
+        // Projects
+        List<Project> projects = projectRepository.findAllByUser(UserId.of(userId.toString()));
+        LocalDate today = LocalDate.now();
+
+        StringBuilder sb = new StringBuilder();
+        sb.append(String.format("Thu nhập tháng %d/%d: %,.0f VND\n", month, year, totalIncome));
+        sb.append(String.format("Chi tiêu thực tế: %,.0f VND\n", totalExpense));
+        sb.append(String.format("Chi tiêu an toàn còn lại (safe_spending): %,.0f VND\n", safeSpending));
+
+        // Budgets section
+        if (!budgets.isEmpty()) {
+            sb.append("\nNgân sách tháng ").append(month).append("/").append(year).append(":\n");
+            budgets.forEach(b -> {
+                BigDecimal spent = b.getSpent() != null ? b.getSpent() : BigDecimal.ZERO;
+                BigDecimal pct = b.getAmountLimit().compareTo(BigDecimal.ZERO) > 0
+                        ? spent.multiply(BigDecimal.valueOf(100))
+                               .divide(b.getAmountLimit(), 1, RoundingMode.HALF_UP)
+                        : BigDecimal.ZERO;
+                sb.append(String.format("  budgetId=%s category=%s spent=%,.0f limit=%,.0f (%.1f%%)\n",
+                        b.getId(), b.getCategory().name(), spent, b.getAmountLimit(), pct));
+            });
+        } else {
+            sb.append("Chưa thiết lập ngân sách tháng ").append(month).append("/").append(year).append(".\n");
+        }
+
+        // Projects section
+        if (!projects.isEmpty()) {
+            sb.append("\nDự án đang hoạt động:\n");
+            projects.stream()
+                    .filter(p -> p.getDeadline().isAfter(today))
+                    .limit(5)
+                    .forEach(p -> {
+                        long monthsLeft = ChronoUnit.MONTHS.between(today, p.getDeadline());
+                        ProjectTracking tracking = p.getTracking();
+                        BigDecimal monthlySaving = tracking != null ? tracking.getMonthlySaving() : BigDecimal.ZERO;
+                        BigDecimal moneyOwed = tracking != null ? tracking.getMoneyOwed() : BigDecimal.ZERO;
+                        sb.append(String.format(
+                                "  %s: target=%s remaining=%s monthlySaving=%,.0f moneyOwed=%,.0f monthsLeft=%d priority=%s\n",
+                                p.getName(),
+                                p.getTargetAmount(),
+                                p.remaining(),
+                                monthlySaving,
+                                moneyOwed,
+                                monthsLeft,
+                                p.getPriority()));
+                    });
+        }
+
+        return sb.toString();
+    }
+}
