@@ -16,12 +16,14 @@ public class SuggestionResponseAssembler {
     private final ObjectMapper objectMapper;
 
     public SuggestionResponse toResponse(Suggestion suggestion) {
+        SuggestionPayload payload = parse(suggestion.getPayloadJson());
         return SuggestionResponse.builder()
                 .id(suggestion.getId())
                 .type(suggestion.getType())
                 .status(suggestion.getStatus())
                 .dedupKey(suggestion.getDedupKey())
-                .payload(parse(suggestion.getPayloadJson()))
+                .payload(payload)
+                .narrative(payload != null ? payload.getNarrative() : null)
                 .createdAt(suggestion.getCreatedAt())
                 .expiresAt(suggestion.getExpiresAt())
                 .decidedAt(suggestion.getDecidedAt())

@@ -31,6 +31,13 @@ public class SuggestionPayload {
     private ProposedAction proposedAction;
 
     /**
+     * Human-readable one-liner from the {@code InsightNarrator} (LLM), captured once at ask time so
+     * the in-app card and the push body read the same sentence. {@code null} when narration is
+     * off/unavailable — the FE then localizes the insight {@code code} itself (Phase-1 behaviour).
+     */
+    private String narrative;
+
+    /**
      * The resolved action a suggestion proposes — a concrete number the user consents to, never
      * a recompute recipe. The shape is polymorphic across {@code SuggestionType}; each accept
      * branch validates only the fields it needs:
