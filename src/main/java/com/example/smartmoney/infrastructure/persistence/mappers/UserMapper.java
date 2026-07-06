@@ -121,6 +121,11 @@ public abstract class UserMapper {
             // Disabled: income/financial setup flags removed from User domain (user_income / user_financial_profile tables removed).
             // user.setIncomeSetupCompleted(entity.isIncomeSetupCompleted());
             // user.setFinancialSetupCompleted(entity.isFinancialSetupCompleted());
+
+            user.setIncome(entity.getIncome());
+            user.setSavingPace(entity.getSavingPace());
+            user.setInterventionLevel(entity.getInterventionLevel());
+            user.setFocusMode(entity.getFocusMode());
         }
     }
     
@@ -139,6 +144,11 @@ public abstract class UserMapper {
             // Disabled: income/financial setup flags removed from User domain (user_income / user_financial_profile tables removed).
             // entity.setIncomeSetupCompleted(domain.isIncomeSetupCompleted());
             // entity.setFinancialSetupCompleted(domain.isFinancialSetupCompleted());
+
+            entity.setIncome(entity.getIncome());
+            entity.setSavingPace(entity.getSavingPace());
+            entity.setInterventionLevel(entity.getInterventionLevel());
+            entity.setFocusMode(entity.getFocusMode());
         }
     }
 }
