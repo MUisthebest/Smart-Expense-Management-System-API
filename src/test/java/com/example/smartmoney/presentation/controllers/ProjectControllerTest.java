@@ -125,6 +125,15 @@ class ProjectControllerTest {
         }
 
         @Test
+        @DisplayName("CreateProjectRequest: null type fails validation")
+        void nullTypeFailsValidation() {
+            CreateProjectRequest req = validCreateProjectRequest();
+            req.setType(null);
+            Set<ConstraintViolation<CreateProjectRequest>> violations = validator.validate(req);
+            assertThat(violations).anyMatch(v -> v.getPropertyPath().toString().equals("type"));
+        }
+
+        @Test
         @DisplayName("CreateProjectRequest: null targetAmount fails validation")
         void nullTargetAmountFailsValidation() {
             CreateProjectRequest req = validCreateProjectRequest();
@@ -494,6 +503,7 @@ class ProjectControllerTest {
         CreateProjectRequest req = new CreateProjectRequest();
         req.setName("Vacation Fund");
         req.setDescription("Save for annual vacation");
+        req.setType(ProjectType.PERSONAL);
         req.setPriority(ProjectPriority.MEDIUM);
         req.setTargetAmount(new BigDecimal("5000.00"));
         req.setCurrency("VND");
