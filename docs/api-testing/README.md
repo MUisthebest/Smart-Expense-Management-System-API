@@ -42,7 +42,8 @@ Three code facts drive the whole design:
 | 2 | A **pre-verified** account in `email`/`password` | registration needs multipart + an email OTP (`/auth/verify-email`) that can't be automated here — register once by hand, verify, then reuse |
 | 3 | Trait `interventionLevel = GENTLE` (the collection sets this) | `NOTIFY`/null = pull-only → **no suggestions are ever pushed** |
 | 4 | **Recommended test profile:** `app.suggestion.daily-cap=0` and `app.suggestion.cooldown-hours=0` | otherwise the P3-A fatigue ceiling (default cap 3 / 24h cooldown) can legitimately suppress the 2nd–3rd suggestion in a single run and make the flow look broken |
-| 5 | `app.demo-triggers.enabled=true` (env `DEMO_TRIGGERS_ENABLED=true`) — **for folders 13–18** | the Wave 3/4 recap, sweep and project-health flows are scheduler-driven; the demo endpoints (`POST /api/v1/demo/adaptive/recap\|sweep\|project-health?asOf=…`) run the same code paths on demand. Without the flag the endpoints don't exist (404) |
+| 5 | `app.demo-triggers.enabled=true` (env `DEMO_TRIGGERS_ENABLED=true`) — **for folders 13–18 and 21** | the Wave 3/4 recap, sweep and project-health flows are scheduler-driven; the demo endpoints (`POST /api/v1/demo/adaptive/recap\|sweep\|project-health?asOf=…`) run the same code paths on demand. Without the flag the endpoints don't exist (404) |
+| 6 | An **ADMIN** account — **only for folder 20** | `POST /api/v1/admin/settlement/run` is admin-only and runs settlement globally; a non-admin token gets `403` (folder 20 tolerates it, but the settled-state check is then skipped). `SETTLEMENT_ENABLED` gates the *cron*, not this manual trigger |
 
 > The cap/cooldown use the **real** clock and count suggestion rows created *today*, independent of
 > the (back-dated) transaction dates. That is correct production behaviour — it just needs to be
@@ -81,6 +82,8 @@ state from the previous one:
 | `17 — GOOD_MONTH` | a quiet, budgeted October closes with every budget under its limit → one cheer (`app://budgets`) riding the recap; re-running the recap proves the once-per-month marker |
 | `18 — CREATE_SAVING_PROJECT nudge` | completes/deletes the projects (also proving a 2-threshold jump celebrates only the highest milestone), then the sweep finds capacity with **no active project** → deep-link nudge to the pre-filled create form (no suggestion card — item 10's resolved shape) |
 | `19 — REALLOCATE_BUDGET` | budgeted category over pace **plus** another budget confirmed underspent → `REALLOCATE_BUDGET` **instead of** `RAISE_BUDGET`: a zero-sum snapshot that raises the overflowing budget and lowers the underused one by the same amount → accept applies both atomically. Uses the fixed demo window (baseline in the seed months, trigger 15 July); **run on a fresh account** (its FOOD/ENTERTAINMENT July budgets collide with folders 2–3) |
+| `20 — Settlement engine (admin run)` | the revived monthly settlement engine: seed the **previous** month's income/expense, then `POST /admin/settlement/run` credits each project's monthly saving as an appended contribution (surplus auto-invested when `autoInvestSurplus=true`), accrues arrears on a shortfall, and freezes/expires. **ADMIN-only + global** (runs for every user) — a normal token gets `403`; the cron itself is gated by `SETTLEMENT_ENABLED` (off by default) but the admin trigger works regardless |
+| `21 — OVER_COMMITTED → REBALANCE_PROJECTS` | commit a project near capacity, then **lower income** so the committed monthly saving exceeds `getSavingCapacity()` → project-health raises one portfolio-level `OVER_COMMITTED` → `REBALANCE_PROJECTS` ask (per-project extended-deadline snapshot) → accept pushes each deadline out, recalibrating its monthly saving down. **Dynamic dates**; **run on a fresh account** (needs < 3 other active projects) |
 
 Folders 7–10 (Wave 1 of the expansion plan) each **seed their own disjoint categories** (TRANSPORTATION,
 CLOTHING, SHOPPING, UTILITIES), so they don't collide with the FOOD/ENTERTAINMENT state from folders 1–4.
@@ -127,6 +130,23 @@ over a raise**: the producer offers it whenever the underspent donor budgets can
 overflowing budget's gap, and only falls back to `RAISE_BUDGET` when they can't. Accept applies the
 multi-budget snapshot through the same executor as `REBALANCE_BUDGETS`, with a guard that rejects the
 whole ask if any lowered limit would fall below what that budget has already spent.
+
+Folders 20–21 cover the **settlement engine** (revived on the income + user-traits model) and its
+insight fallout. **Folder 20** drives the engine directly via the admin trigger: it seeds the
+*previous* calendar month (settlement always evaluates the month that just closed) and calls
+`POST /api/v1/admin/settlement/run`. That endpoint is **ADMIN-only and global** — it settles every
+user's ACTIVE/FROZEN projects, not just the caller's — so a normal token returns `403` (tolerated; the
+follow-up state check is skipped). The engine reads `income − expenses` for the closed month (ignoring
+the synthetic `PROJECT_CONTRIBUTION`/`PROJECT_REFUND` categories), and with `autoInvestSurplus=true`
+routes the surplus into the project as an **appended contribution** (progress moves through the same
+`sum(contributions)` the app already reads). The cron is off by default (`SETTLEMENT_ENABLED`), but the
+admin trigger works regardless. **Folder 21** shows the engine's headline insight, `OVER_COMMITTED`:
+because `CreateProjectUseCase` refuses to let you commit beyond `getSavingCapacity()`, over-commitment
+can only appear when income/pace *drops* afterwards — so the folder commits a project near capacity,
+then lowers income, then runs the project-health demo trigger to get one portfolio-level
+`REBALANCE_PROJECTS` ask (a per-project extended-deadline snapshot); accepting pushes each deadline out
+so the combined monthly saving fits the reduced capacity. Both use **dynamic, real-clock dates** (like
+folder 15) and should run on a **fresh account**.
 
 Because the scenario is pinned to **May 2026**, re-running on the same account hits the
 one-open-ask-per-topic **dedup** (a 2nd PENDING for the same topic is refused) and the accepted

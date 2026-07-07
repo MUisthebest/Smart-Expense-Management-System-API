@@ -61,10 +61,15 @@ public class PerformMonthlySettlementUseCase {
     }
 
     public void execute() {
-        List<Project> activeProjects = projectRepository.findAllByStatus(ProjectStatus.ACTIVE);
-        log.info("[Settlement] Starting monthly settlement for {} active project(s).", activeProjects.size());
+        // Settle both ACTIVE and FROZEN projects: a frozen project must still be re-evaluated each
+        // month so it can auto-unfreeze once its debt clears or expire after too long frozen — loading
+        // only ACTIVE would strand every frozen project forever (nothing to un-freeze or expire it).
+        List<Project> projects = new ArrayList<>();
+        projects.addAll(projectRepository.findAllByStatus(ProjectStatus.ACTIVE));
+        projects.addAll(projectRepository.findAllByStatus(ProjectStatus.FROZEN));
+        log.info("[Settlement] Starting monthly settlement for {} project(s).", projects.size());
 
-        Map<UserId, List<Project>> userProjects = activeProjects.stream()
+        Map<UserId, List<Project>> userProjects = projects.stream()
                 .collect(Collectors.groupingBy(Project::getOwnerId));
 
         for (Map.Entry<UserId, List<Project>> entry : userProjects.entrySet()) {
@@ -357,16 +362,25 @@ public class PerformMonthlySettlementUseCase {
             );
             projectHistoryRepository.save(snapshot);
 
-            // A project frozen (or expired) this same run must not also be flipped to COMPLETED:
-            // it still carries debt ≥ the freeze cap, and a contradictory frozen+completed pair of
-            // notifications would fire. It can complete in a later run once the debt clears.
-            if (!frozenThisMonth
-                    && p.getStatus() != ProjectStatus.EXPIRED
-                    && (newMonthLeft <= 0 || newSaved.compareTo(p.getTargetAmount().amount()) >= 0)) {
+            // Terminal transitions (skip a project already frozen or expired this run — it still
+            // carries debt and a contradictory pair of notifications would fire; it can settle in a
+            // later run once the debt clears):
+            //   - reached target  → COMPLETED;
+            //   - saving horizon elapsed (monthLeft ≤ 0) still under target → EXPIRED, NOT completed.
+            // The horizon-elapsed case is a deadline failure independent of debt, so it applies to
+            // every focus mode (mirrors the lazy deadline expiry elsewhere).
+            boolean funded = newSaved.compareTo(p.getTargetAmount().amount()) >= 0;
+            if (!frozenThisMonth && p.getStatus() != ProjectStatus.EXPIRED && funded) {
                 p.updateStatus(ownerId, ProjectStatus.COMPLETED);
                 projectRepository.save(p);
                 log.info("[Settlement] Project {} marked COMPLETED.", p.getId().value());
                 notifyIfEligible(user, p, SettlementEvent.COMPLETED);
+            } else if (!frozenThisMonth && p.getStatus() != ProjectStatus.EXPIRED && newMonthLeft <= 0) {
+                p.updateStatus(ownerId, ProjectStatus.EXPIRED);
+                projectRepository.save(p);
+                log.info("[Settlement] Project {} expired — saving horizon elapsed under target ({} of {}).",
+                        p.getId().value(), newSaved, p.getTargetAmount().amount());
+                notifyIfEligible(user, p, SettlementEvent.EXPIRED);
             } else {
                 projectRepository.save(p);
             }

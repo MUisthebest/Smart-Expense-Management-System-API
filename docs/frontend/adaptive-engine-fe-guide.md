@@ -345,6 +345,46 @@ Routing contract:
 
 ---
 
+## Screen 5 — Manual contribute button (press-to-contribute) — ⚠️ NOT BUILT YET
+
+**Status: the FE does not have this button yet — it's the main gap to close.** It's the *primary* way
+a user funds a saving goal, and it's what most of the project flow above quietly assumes exists. Until
+it ships, a goal can only gain progress two other ways: the user **accepts** a `CONTRIBUTE_TO_PROJECT`
+or `INCREASE_CONTRIBUTION` suggestion (Screen 3), or the monthly **settlement engine** auto-saves into
+it (server-side, off by default). All three write the **same** thing — a `ProjectContribution` — and
+progress is `sum(contributions)`, so they add up into one number.
+
+### The endpoint
+`POST /api/v1/projects/{projectId}/contributions`
+```json
+{ "amount": 1000000, "note": "optional, ≤255 chars" }
+```
+Returns the updated project (`data`, same `ProjectDetailResponse` as Appendix D): `totalContributed` /
+`netSaved` / `progressPercent` move by `amount`. `note` is optional.
+
+### Rules the button must respect
+- **`amount > 0`** (validated; `0.01` minimum). Currency is the project's.
+- **Only a contributable project accepts it.** A `FROZEN` / `EXPIRED` / `ABANDONED` / `COMPLETED`
+  project returns **400** ("project not contributable") — disable/hide the button for those states
+  (`status` from Appendix D).
+- **Reaching the target auto-completes** the project synchronously (`status → COMPLETED` in the
+  response) — reflect that immediately.
+- **Crossing a 25/50/75/100 % milestone** fires a one-time celebration **notification**
+  (`app://projects/{id}`, Screen 4) — no extra call needed; it just appears in the inbox.
+- Writes a real `EXPENSE` ledger row (`Category.PROJECT_CONTRIBUTION`) carrying the project id, so it
+  also shows in the transactions list — localize that category (Appendix A).
+
+### Why it's the same as accepting a contribute suggestion
+Accepting `CONTRIBUTE_TO_PROJECT` / `INCREASE_CONTRIBUTION` (Screen 3) calls this exact use case
+server-side with the consented `resolvedValue`. So the suggestion flow already works **without** the
+button — but the button is the everyday, unprompted path, and the milestone/completion behaviour above
+applies identically whether the contribution came from a press, a suggestion accept, or settlement.
+
+> Build it as: an **amount field + "Contribute" button** on the project detail screen, gated on
+> `status` being active/ongoing. On success, re-render progress from the returned `data`.
+
+---
+
 ## Appendix A — Enum reference (exact API spellings)
 
 | Enum | Values |
@@ -408,6 +448,9 @@ suggestion `proposedAction`.
       when non-null, else compose from `type`; Yes/No → `respond`; idempotent; read-only for non-PENDING.
 - [ ] **Suggestions inbox** *(optional)* — `GET /suggestions?status=…` with tabs.
 - [ ] **Notifications** — inbox list; `deepLink` routing to the card; mark-read; localize `content`.
+- [ ] **Manual contribute button** *(Screen 5 — currently missing)* — amount field + "Contribute" on
+      the project detail; `POST /projects/{id}/contributions`; gate on active status; re-render from
+      the returned project. The primary goal-funding action the suggestion accepts already reuse.
 - [ ] **Empty/gated states** — NOTIFY user sees insights but never a push; no history yet → empty
       insights (this is normal, not an error).
 
@@ -446,7 +489,11 @@ spec is in `openapi.json`):
 
 ### Still open
 
-1. No `GET /suggestions/{id}` today — deep-link handler must fetch the list and filter. Add a
+1. **Manual contribute button not built on the FE yet** (Screen 5). It's the primary way to fund a
+   saving goal; until it exists, goals only gain progress via accepting a `CONTRIBUTE_TO_PROJECT` /
+   `INCREASE_CONTRIBUTION` suggestion or the (off-by-default) settlement auto-save. The endpoint
+   (`POST /projects/{id}/contributions`) is live — this is a FE build item, not a backend gap.
+2. No `GET /suggestions/{id}` today — deep-link handler must fetch the list and filter. Add a
    by-id endpoint if the FE prefers.
-2. Per-user **locale** for `narrative` isn't plumbed yet (defaults to English). i18n via `code` is
+3. Per-user **locale** for `narrative` isn't plumbed yet (defaults to English). i18n via `code` is
    the reliable path.

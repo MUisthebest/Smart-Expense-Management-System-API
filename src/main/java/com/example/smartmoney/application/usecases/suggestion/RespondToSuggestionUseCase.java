@@ -11,10 +11,12 @@ import com.example.smartmoney.application.usecases.project.AddProjectContributio
 import com.example.smartmoney.application.usecases.project.UpdateProjectUseCase;
 import com.example.smartmoney.domain.exceptions.DomainException;
 import com.example.smartmoney.domain.models.budget.Budget;
+import com.example.smartmoney.domain.models.project.valueobjects.ProjectId;
 import com.example.smartmoney.domain.models.suggestion.Suggestion;
 import com.example.smartmoney.domain.models.suggestion.SuggestionStatus;
 import com.example.smartmoney.domain.models.suggestion.SuggestionTopicStat;
 import com.example.smartmoney.domain.repositories.BudgetRepository;
+import com.example.smartmoney.domain.repositories.ProjectRepository;
 import com.example.smartmoney.domain.repositories.SuggestionRepository;
 import com.example.smartmoney.domain.repositories.SuggestionTopicStatRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -50,6 +52,7 @@ public class RespondToSuggestionUseCase {
     private final CreateBudgetUseCase createBudgetUseCase;
     private final AddProjectContributionUseCase addProjectContributionUseCase;
     private final UpdateProjectUseCase updateProjectUseCase;
+    private final ProjectRepository projectRepository;
     private final SuggestionResponseAssembler assembler;
     private final ObjectMapper objectMapper;
 
@@ -209,6 +212,15 @@ public class RespondToSuggestionUseCase {
         for (SuggestionPayload.ProjectAdjustment adjustment : adjustments) {
             if (adjustment == null || adjustment.getProjectId() == null || adjustment.getNewDeadline() == null) {
                 throw new DomainException("REBALANCE_PROJECTS adjustment is missing projectId or newDeadline");
+            }
+            // Skip a project deleted since the ask (mirrors rebalanceBudgets). This MUST be a pre-check,
+            // not a try/catch around execute(): UpdateProjectUseCase is @Transactional, so a
+            // PROJECT_NOT_FOUND thrown from it marks the shared transaction rollback-only and catching
+            // it here wouldn't save the rest of the accept.
+            if (projectRepository.findById(new ProjectId(adjustment.getProjectId())).isEmpty()) {
+                log.info("[Suggestion] rebalance: project {} was deleted after the ask — skipping it",
+                        adjustment.getProjectId());
+                continue;
             }
             UpdateProjectRequest request = new UpdateProjectRequest();
             request.setDeadline(adjustment.getNewDeadline()); // the consented new deadline

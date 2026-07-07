@@ -119,6 +119,30 @@
     {
       "key": "phMilestoneCount",
       "value": ""
+    },
+    {
+      "key": "settlementProjectId",
+      "value": ""
+    },
+    {
+      "key": "settlePrevMonthDate",
+      "value": ""
+    },
+    {
+      "key": "settleDeadline",
+      "value": ""
+    },
+    {
+      "key": "ocProjectId",
+      "value": ""
+    },
+    {
+      "key": "ocSuggestionId",
+      "value": ""
+    },
+    {
+      "key": "ocDeadline",
+      "value": ""
     }
   ],
   "item": [
@@ -197,9 +221,9 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"income\": 20000000,\n  \"savingPace\": \"BALANCED\",\n  \"interventionLevel\": \"GENTLE\",\n  \"focusMode\": \"REDUCE_SPENDING\"\n}"
+              "raw": "{\n  \"income\": 20000000,\n  \"savingPace\": \"BALANCED\",\n  \"interventionLevel\": \"GENTLE\",\n  \"focusMode\": \"REDUCE_SPENDING\",\n  \"autoInvestSurplus\": false\n}"
             },
-            "description": "interventionLevel GENTLE is REQUIRED for pushed suggestions (NOTIFY / null = pull-only, no suggestions ever). GENTLE means the push gate = WARN. savingPace BALANCED scales CONTRIBUTE amounts to 20% of disposable. focusMode REDUCE_SPENDING orders GET /insights spending-first."
+            "description": "interventionLevel GENTLE is REQUIRED for pushed suggestions (NOTIFY / null = pull-only, no suggestions ever). GENTLE means the push gate = WARN. savingPace BALANCED scales CONTRIBUTE amounts to 20% of disposable. focusMode REDUCE_SPENDING orders GET /insights spending-first.\n\n`autoInvestSurplus` (settlement revival): whether the monthly settlement engine auto-invests a computed surplus into projects. Optional in the request — null coerces to TRUE (the always-invest default) and a later update that omits it PRESERVES the current value. Set to FALSE here so the manual contribute-nudge folders (4 / 14 / 15) keep firing even if you enable the settlement engine to test folder 20 — with settlement ON + autoInvestSurplus TRUE those nudges are suppressed (items 1 & 6, the engine funds goals itself). Folder 20 flips it to true to demo auto-investing."
           },
           "event": [
             {
@@ -210,7 +234,8 @@
                   "pm.test('traits saved', () => pm.response.to.have.status(200));",
                   "const j = pm.response.json();",
                   "pm.expect(j.data.financialSetupCompleted).to.be.true;",
-                  "pm.expect(j.data.interventionLevel).to.eql('GENTLE');"
+                  "pm.expect(j.data.interventionLevel).to.eql('GENTLE');",
+                  "pm.test('response echoes autoInvestSurplus', () => pm.expect(j.data.autoInvestSurplus).to.eql(false));"
                 ]
               }
             }
@@ -4408,6 +4433,381 @@
                   "  pm.test('ENTERTAINMENT limit lowered below its original 5,000,000', () => pm.expect(Number(ent.amountLimit)).to.be.below(5000000));",
                   "  pm.test('committed total unchanged (~8,000,000 — zero-sum move)', () => pm.expect(Math.abs(Number(food.amountLimit) + Number(ent.amountLimit) - 8000000)).to.be.below(1));",
                   "} else { pm.test('response has data', () => pm.expect(d).to.exist); }"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "20 — Settlement engine: manual admin run (autoInvestSurplus)",
+      "description": "The monthly settlement engine on the income + traits model (docs/settlement-revival-plan.md). \n\nREQUIRES AN ADMIN ACCOUNT: POST /api/v1/admin/settlement/run is admin-only and runs settlement GLOBALLY for every user's ACTIVE + FROZEN projects — it is NOT per-caller. A non-admin token returns 403 (the folder tolerates that). The cron (MonthlySettlementScheduler, 00:00 on the 1st) is gated by SETTLEMENT_ENABLED and OFF by default, but this admin trigger works regardless of that flag.\n\nWhat settlement does: it reads the PREVIOUS calendar month's (income − expenses) — excluding the synthetic PROJECT_CONTRIBUTION/PROJECT_REFUND categories — and compares it to the sum of the projects' monthly saving (capped at User.getSavingCapacity()). A surplus first repays any arrears, then (autoInvestSurplus=true) auto-invests into projects as an appended ProjectContribution; a shortfall accrues moneyOwed (unless focusMode=TRACK_ONLY) and can freeze/expire a project, gated-notifying by interventionLevel. This folder seeds the previous month for THIS user and fires the run.",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Settlement reads the PREVIOUS calendar month; seed a date in it (dd/MM/yyyy HH:mm) and a",
+              "// future project deadline, anchored to the real clock.",
+              "const now = new Date();",
+              "const p = n => String(n).padStart(2,'0');",
+              "const prev = new Date(now.getFullYear(), now.getMonth() - 1, 10, 10, 0);",
+              "pm.collectionVariables.set('settlePrevMonthDate', p(prev.getDate()) + '/' + p(prev.getMonth()+1) + '/' + prev.getFullYear() + ' 10:00');",
+              "const dl = new Date(now.getFullYear(), now.getMonth() + 12, 15);",
+              "pm.collectionVariables.set('settleDeadline', dl.getFullYear() + '-' + p(dl.getMonth()+1) + '-' + p(dl.getDate()));"
+            ]
+          }
+        }
+      ],
+      "item": [
+        {
+          "name": "Financial setup with autoInvestSurplus = true",
+          "request": {
+            "method": "PUT",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/me/financial-setup",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "v1", "auth", "me", "financial-setup" ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"income\": 20000000,\n  \"savingPace\": \"BALANCED\",\n  \"interventionLevel\": \"GENTLE\",\n  \"focusMode\": \"REDUCE_SPENDING\",\n  \"autoInvestSurplus\": true\n}"
+            },
+            "description": "Turn auto-invest ON so a computed surplus is routed into the project as a contribution."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('setup saved', () => pm.response.to.have.status(200));",
+                  "pm.test('autoInvestSurplus true', () => pm.expect(pm.response.json().data.autoInvestSurplus).to.eql(true));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create a saving project (target 12,000,000)",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/projects",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "v1", "projects" ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Settlement Demo\",\n  \"description\": \"settlement engine target\",\n  \"priority\": \"HIGH\",\n  \"targetAmount\": 12000000,\n  \"currency\": \"VND\",\n  \"deadline\": \"{{settleDeadline}}\"\n}"
+            },
+            "description": "Monthly saving ~= 12,000,000 / 12 = 1,000,000 (well under the 4,000,000 capacity, so create is allowed). priority HIGH to avoid colliding with a MEDIUM project from earlier folders."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('project created', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
+                  "const j = pm.response.json();",
+                  "const id = (j.data && (j.data.id || j.data.projectId));",
+                  "pm.collectionVariables.set('settlementProjectId', id);",
+                  "pm.test('captured settlementProjectId', () => pm.expect(id, JSON.stringify(j.data)).to.exist);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Seed PREVIOUS-month INCOME (20,000,000) → surplus",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/transactions",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "v1", "transactions" ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 20000000,\n  \"type\": \"INCOME\",\n  \"category\": \"OTHER\",\n  \"description\": \"salary\",\n  \"date\": \"{{settlePrevMonthDate}}\"\n}"
+            },
+            "description": "Settlement sums the previous month: income 20,000,000 − a small expense easily clears the ~1,000,000 monthly saving → surplus auto-invested."
+          },
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [ "pm.test('created', () => pm.response.to.have.status(201));" ] } }
+          ]
+        },
+        {
+          "name": "Seed PREVIOUS-month EXPENSE (2,000,000)",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/transactions",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "v1", "transactions" ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 2000000,\n  \"type\": \"EXPENSE\",\n  \"category\": \"FOOD\",\n  \"description\": \"groceries\",\n  \"date\": \"{{settlePrevMonthDate}}\"\n}"
+            }
+          },
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [ "pm.test('created', () => pm.response.to.have.status(201));" ] } }
+          ]
+        },
+        {
+          "name": "POST /admin/settlement/run (ADMIN)",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/settlement/run",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "v1", "admin", "settlement", "run" ]
+            },
+            "description": "Runs the monthly settlement immediately for ALL users (global). ADMIN role required — a normal account returns 403, which this test tolerates. 200 → the engine crossed the previous month for every ACTIVE/FROZEN project."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('settlement ran (200) or forbidden for non-admin (403)', () => pm.expect(pm.response.code).to.be.oneOf([200, 403]));",
+                  "if (pm.response.code === 200) { pm.test('reported success', () => pm.expect(pm.response.json().success).to.be.true); }",
+                  "else { console.log('403 — POST /admin/settlement/run needs an ADMIN account; skipping the settled-state check below.'); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /projects/{id} — verify settled state",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/projects/{{settlementProjectId}}",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "v1", "projects", "{{settlementProjectId}}" ]
+            },
+            "description": "After an ADMIN run, the project should show this month's auto-saved contribution (progress moved via an appended ProjectContribution, not a tracking bump) and/or advanced tracking. Soft assert — tighten to the real ProjectDetailResponse fields (contributions[]/tracking.moneySaved) once confirmed."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('project ok', () => pm.response.to.have.status(200));",
+                  "pm.test('response has data', () => pm.expect(pm.response.json().data).to.exist);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "21 — OVER_COMMITTED → REBALANCE_PROJECTS (settlement capacity cap)",
+      "description": "Run on a FRESH account (folder 0 first) or ensure the account has < 3 other ACTIVE projects. Needs app.demo-triggers.enabled=true and app.suggestion.daily-cap=0 like the other suggestion folders.\n\nDemonstrates the OVER_COMMITTED insight + the actionable REBALANCE_PROJECTS suggestion (docs/settlement-insights-followup.md item 4). You can never CREATE projects whose combined monthly saving exceeds User.getSavingCapacity() — CreateProjectUseCase blocks it — so over-commitment only arises when income/pace DROPS after committing. So: set income 20,000,000 (BALANCED → capacity 4,000,000), commit a project at ~3,500,000/mo (allowed), then LOWER income to 10,000,000 (capacity 2,000,000) so 3,500,000 > 2,000,000. The project-health pass (demo trigger) then raises ONE portfolio-level REBALANCE_PROJECTS ask proposing an extended deadline per project so the total fits capacity; accept applies each new deadline (which recalibrates its monthly saving down). This ask fires regardless of the item-1 auto-invest suppression.",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Deadline 11 months out → monthsToDeadline = 12 → monthly saving = target / 12.",
+              "const now = new Date();",
+              "const p = n => String(n).padStart(2,'0');",
+              "const dl = new Date(now.getFullYear(), now.getMonth() + 11, 15);",
+              "pm.collectionVariables.set('ocDeadline', dl.getFullYear() + '-' + p(dl.getMonth()+1) + '-' + p(dl.getDate()));"
+            ]
+          }
+        }
+      ],
+      "item": [
+        {
+          "name": "Financial setup: income 20,000,000 (capacity 4,000,000)",
+          "request": {
+            "method": "PUT",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/me/financial-setup",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "v1", "auth", "me", "financial-setup" ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"income\": 20000000,\n  \"savingPace\": \"BALANCED\",\n  \"interventionLevel\": \"GENTLE\",\n  \"focusMode\": \"REDUCE_SPENDING\"\n}"
+            },
+            "description": "BALANCED pace → getSavingCapacity = income x 0.20 = 4,000,000/mo."
+          },
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [ "pm.test('setup saved', () => pm.response.to.have.status(200));" ] } }
+          ]
+        },
+        {
+          "name": "Create project committing ~3,500,000/mo (target 42,000,000)",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/projects",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "v1", "projects" ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Over-commit Demo\",\n  \"description\": \"rebalance target\",\n  \"priority\": \"HIGH\",\n  \"targetAmount\": 42000000,\n  \"currency\": \"VND\",\n  \"deadline\": \"{{ocDeadline}}\"\n}"
+            },
+            "description": "42,000,000 / 12 months = 3,500,000/mo — under the current 4,000,000 capacity, so create is ALLOWED. This is the commitment that becomes over-budget once income drops."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('project created', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
+                  "const j = pm.response.json();",
+                  "const id = (j.data && (j.data.id || j.data.projectId));",
+                  "pm.collectionVariables.set('ocProjectId', id);",
+                  "pm.test('captured ocProjectId', () => pm.expect(id, JSON.stringify(j.data)).to.exist);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Lower income to 10,000,000 (capacity 2,000,000) → now over-committed",
+          "request": {
+            "method": "PUT",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/me/financial-setup",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "v1", "auth", "me", "financial-setup" ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"income\": 10000000,\n  \"savingPace\": \"BALANCED\",\n  \"interventionLevel\": \"GENTLE\",\n  \"focusMode\": \"REDUCE_SPENDING\"\n}"
+            },
+            "description": "Capacity drops to 10,000,000 x 0.20 = 2,000,000/mo. The project's 3,500,000/mo commitment (unchanged) now exceeds it → OVER_COMMITTED. autoInvestSurplus is omitted here and PRESERVED (not reset) by the domain."
+          },
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [ "pm.test('income lowered', () => pm.response.to.have.status(200));" ] } }
+          ]
+        },
+        {
+          "name": "Run project-health (demo) → OVER_COMMITTED",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/demo/adaptive/project-health",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "v1", "demo", "adaptive", "project-health" ]
+            },
+            "description": "Same code path ProjectHealthScheduler runs weekly, for the caller only (asOf defaults to today). The just-created project is too young for the per-project off-track pace nudge, so the only ask is the portfolio-level OVER_COMMITTED → REBALANCE_PROJECTS. 404? → app.demo-triggers.enabled is not set."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('project-health ran', () => pm.response.to.have.status(200));",
+                  "pm.test('endpoint reported success', () => pm.expect(pm.response.json().success).to.be.true);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /suggestions — capture the REBALANCE_PROJECTS ask",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/suggestions?status=PENDING",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "v1", "suggestions" ],
+              "query": [ { "key": "status", "value": "PENDING" } ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('suggestions ok', () => pm.response.to.have.status(200));",
+                  "const items = pm.response.json().data;",
+                  "const s = items.find(x => x.type === 'REBALANCE_PROJECTS');",
+                  "pm.test('REBALANCE_PROJECTS pending exists', () => pm.expect(s, JSON.stringify(items.map(x => x.type))).to.exist);",
+                  "pm.collectionVariables.set('ocSuggestionId', s.id);",
+                  "pm.test('dedupKey is per-month', () => pm.expect(s.dedupKey).to.include('REBALANCE_PROJECTS:'));",
+                  "const adj = s.payload.proposedAction.projectAdjustments;",
+                  "pm.test('carries per-project adjustments', () => pm.expect(adj.length, JSON.stringify(s.payload.proposedAction)).to.be.above(0));",
+                  "const a0 = adj.find(a => String(a.projectId) === String(pm.collectionVariables.get('ocProjectId'))) || adj[0];",
+                  "pm.test('deadline extended (before -> after)', () => pm.expect(new Date(a0.newDeadline).getTime()).to.be.above(new Date(a0.currentDeadline).getTime()));",
+                  "pm.test('monthly saving scaled down', () => pm.expect(Number(a0.newMonthlySaving)).to.be.below(Number(a0.currentMonthlySaving)));",
+                  "pm.test('snapshot is OVER_COMMITTED / WARN', () => { pm.expect(s.payload.insightSnapshot.type).to.eql('OVER_COMMITTED'); pm.expect(s.payload.insightSnapshot.severity).to.eql('WARN'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /suggestions/{id}/respond {accept:true}",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/suggestions/{{ocSuggestionId}}/respond",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "v1", "suggestions", "{{ocSuggestionId}}", "respond" ]
+            },
+            "body": { "mode": "raw", "raw": "{ \"accept\": true }" },
+            "description": "Applies each consented new deadline via UpdateProjectUseCase (all-or-nothing; a project deleted since the ask is skipped), recalibrating its monthly saving down so the portfolio fits capacity."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('accepted', () => pm.response.to.have.status(200));",
+                  "pm.expect(pm.response.json().data.status).to.eql('ACCEPTED');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /projects/{id} — assert deadline extended",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/projects/{{ocProjectId}}",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "v1", "projects", "{{ocProjectId}}" ]
+            },
+            "description": "The accepted rebalance pushed the deadline out (and recalibrated monthly saving down). Soft assert — tighten to the real ProjectDetailResponse deadline field once confirmed."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('project ok', () => pm.response.to.have.status(200));",
+                  "pm.test('response has data', () => pm.expect(pm.response.json().data).to.exist);"
                 ]
               }
             }
