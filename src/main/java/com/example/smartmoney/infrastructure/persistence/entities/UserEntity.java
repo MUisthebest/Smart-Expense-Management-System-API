@@ -71,6 +71,9 @@ public class UserEntity {
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(name = "pace", columnDefinition = "pace")
     private Saving_Pace savingPace;
+
+    @Column(name = "auto_invest_surplus")
+    private Boolean autoInvestSurplus;
     
     @Column(name = "refresh_token", length = 500)
     private String refreshToken;

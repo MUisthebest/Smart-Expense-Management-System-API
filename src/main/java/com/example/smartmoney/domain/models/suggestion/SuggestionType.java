@@ -50,5 +50,13 @@ public enum SuggestionType {
      * limit goes up and each donor's goes down by the consented amounts. Preferred over
      * {@link #RAISE_BUDGET} because it needs no new money.
      */
-    REALLOCATE_BUDGET
+    REALLOCATE_BUDGET,
+    /**
+     * Rebalance over-committed saving projects (OVER_COMMITTED) so their combined monthly saving
+     * fits the user's pace capacity — each project's deadline is extended (lowering its required
+     * monthly). The consented numbers are the per-project new deadlines snapshotted in
+     * {@code proposedAction.projectAdjustments}; accept applies exactly that snapshot, all-or-nothing
+     * (docs/settlement-insights-followup.md item 4).
+     */
+    REBALANCE_PROJECTS
 }

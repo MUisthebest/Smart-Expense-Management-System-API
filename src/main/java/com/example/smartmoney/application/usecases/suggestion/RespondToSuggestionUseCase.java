@@ -3,10 +3,12 @@ package com.example.smartmoney.application.usecases.suggestion;
 import com.example.smartmoney.application.dtos.requests.budgets.CreateBudgetRequest;
 import com.example.smartmoney.application.dtos.requests.budgets.UpdateBudgetRequest;
 import com.example.smartmoney.application.dtos.requests.project.AddProjectContributionRequest;
+import com.example.smartmoney.application.dtos.requests.project.UpdateProjectRequest;
 import com.example.smartmoney.application.dtos.responses.suggestion.SuggestionResponse;
 import com.example.smartmoney.application.usecases.budget.CreateBudgetUseCase;
 import com.example.smartmoney.application.usecases.budget.UpdateBudgetUseCase;
 import com.example.smartmoney.application.usecases.project.AddProjectContributionUseCase;
+import com.example.smartmoney.application.usecases.project.UpdateProjectUseCase;
 import com.example.smartmoney.domain.exceptions.DomainException;
 import com.example.smartmoney.domain.models.budget.Budget;
 import com.example.smartmoney.domain.models.suggestion.Suggestion;
@@ -47,6 +49,7 @@ public class RespondToSuggestionUseCase {
     private final UpdateBudgetUseCase updateBudgetUseCase;
     private final CreateBudgetUseCase createBudgetUseCase;
     private final AddProjectContributionUseCase addProjectContributionUseCase;
+    private final UpdateProjectUseCase updateProjectUseCase;
     private final SuggestionResponseAssembler assembler;
     private final ObjectMapper objectMapper;
 
@@ -99,6 +102,7 @@ public class RespondToSuggestionUseCase {
             case CREATE_BUDGET, SET_CATEGORY_LIMIT -> createBudget(payload, userId);
             case CONTRIBUTE_TO_PROJECT, INCREASE_CONTRIBUTION -> contributeToProject(payload, userId);
             case REBALANCE_BUDGETS, REALLOCATE_BUDGET -> rebalanceBudgets(payload, userId);
+            case REBALANCE_PROJECTS -> rebalanceProjects(payload, userId);
             // Acknowledge-only: the real action (cancelling the subscription) happens outside the
             // app; "yes" just marks it reviewed. The ACCEPTED flip is the entire effect.
             case REVIEW_SUBSCRIPTION -> { }
@@ -186,6 +190,30 @@ public class RespondToSuggestionUseCase {
             request.setAmountLimit(adjustment.getNewLimit()); // the consented snapshot number
             // No rebalance re-check mid-loop: the loop's end state is exactly the consented fit.
             updateBudgetUseCase.execute(adjustment.getBudgetId(), userId, request, false);
+        }
+    }
+
+    /**
+     * Apply a REBALANCE_PROJECTS snapshot: extend each listed project's deadline to the consented
+     * date, which recalibrates its monthly saving down so the portfolio fits the user's pace capacity.
+     * Runs inside the surrounding transaction, so any failure (e.g. a project deleted since the ask,
+     * or one that isn't the caller's) rolls back the whole accept — nothing is half-applied.
+     * {@link UpdateProjectUseCase} enforces ownership and the deadline rules.
+     */
+    private void rebalanceProjects(SuggestionPayload payload, UUID userId) {
+        SuggestionPayload.ProposedAction action = requireAction(payload);
+        List<SuggestionPayload.ProjectAdjustment> adjustments = action.getProjectAdjustments();
+        if (adjustments == null || adjustments.isEmpty()) {
+            throw new DomainException("REBALANCE_PROJECTS suggestion has no project adjustments");
+        }
+        for (SuggestionPayload.ProjectAdjustment adjustment : adjustments) {
+            if (adjustment == null || adjustment.getProjectId() == null || adjustment.getNewDeadline() == null) {
+                throw new DomainException("REBALANCE_PROJECTS adjustment is missing projectId or newDeadline");
+            }
+            UpdateProjectRequest request = new UpdateProjectRequest();
+            request.setDeadline(adjustment.getNewDeadline()); // the consented new deadline
+            updateProjectUseCase.execute(
+                    userId.toString(), adjustment.getProjectId().toString(), request);
         }
     }
 

@@ -19,6 +19,7 @@ public class FinancialSetupResponse {
     private Saving_Pace savingPace;
     private Intervention_Level interventionLevel;
     private Focus_Mode focusMode;
+    private boolean autoInvestSurplus;
     private boolean financialSetupCompleted;
 
     public static FinancialSetupResponse fromDomain(User user) {
@@ -27,6 +28,7 @@ public class FinancialSetupResponse {
                 user.getSavingPace(),
                 user.getInterventionLevel(),
                 user.getFocusMode(),
+                user.isAutoInvestSurplus(),
                 user.hasCompletedFinancialSetup()
         );
     }

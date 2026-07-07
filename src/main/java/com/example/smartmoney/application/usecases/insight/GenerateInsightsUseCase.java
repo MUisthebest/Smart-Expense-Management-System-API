@@ -116,6 +116,9 @@ public class GenerateInsightsUseCase {
                 case BUDGET_UNDERSPEND -> 10;
                 case SAVINGS_CAPACITY -> 11;
                 case PROJECT_OFF_TRACK -> 12;
+                // Over-committed saving goals are a savings-portfolio concern — low priority for a
+                // cut-waste user, alongside the other savings insights.
+                case OVER_COMMITTED -> 12;
                 // Positive pings are notification-only and never reach this list; ranked last.
                 case PROJECT_MILESTONE -> 13;
                 case GOOD_MONTH -> 14;
@@ -127,6 +130,9 @@ public class GenerateInsightsUseCase {
                 case SAVINGS_CAPACITY -> 0;
                 // A saving project falling behind its deadline is the save-mode headline.
                 case PROJECT_OFF_TRACK -> 1;
+                // Over-committing saving goals is front-and-centre for a save-more user, right
+                // alongside a project falling behind.
+                case OVER_COMMITTED -> 1;
                 case INCOME_DROP -> 2;
                 case CASHFLOW_NEGATIVE -> 3;
                 case BUDGET_UNDERSPEND -> 4;

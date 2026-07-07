@@ -75,6 +75,12 @@ public class SuggestionPayload {
          * recomputes, and a budget deleted since the ask is simply skipped.
          */
         private List<BudgetAdjustment> budgetAdjustments;
+        /**
+         * REBALANCE_PROJECTS only (null for every other type): the per-project new deadlines the user
+         * is consenting to, snapshotted at ask time. Accept applies each deadline verbatim (which
+         * recalibrates that project's monthly saving down); a project deleted since the ask is skipped.
+         */
+        private List<ProjectAdjustment> projectAdjustments;
     }
 
     /** One budget's consented new limit inside a REBALANCE_BUDGETS ask. */
@@ -91,5 +97,23 @@ public class SuggestionPayload {
         private BigDecimal currentLimit;
         /** The consented new limit the executor applies. */
         private BigDecimal newLimit;
+    }
+
+    /** One project's consented new deadline inside a REBALANCE_PROJECTS ask. */
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class ProjectAdjustment {
+        private UUID projectId;
+        /** For display on the card — the project name and its monthly saving before → after. */
+        private String projectName;
+        private BigDecimal currentMonthlySaving;
+        private BigDecimal newMonthlySaving;
+        /** The deadline at ask time, for a before → after rendering. */
+        private java.time.LocalDate currentDeadline;
+        /** The consented new deadline the executor applies (which recalibrates monthly saving down). */
+        private java.time.LocalDate newDeadline;
     }
 }
