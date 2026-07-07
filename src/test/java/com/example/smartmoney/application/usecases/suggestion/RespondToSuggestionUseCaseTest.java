@@ -10,6 +10,9 @@ import com.example.smartmoney.application.usecases.project.AddProjectContributio
 import com.example.smartmoney.application.usecases.project.UpdateProjectUseCase;
 import com.example.smartmoney.domain.exceptions.DomainException;
 import com.example.smartmoney.domain.models.budget.Budget;
+import com.example.smartmoney.domain.models.project.Project;
+import com.example.smartmoney.domain.models.project.valueobjects.ProjectId;
+import com.example.smartmoney.domain.repositories.ProjectRepository;
 import com.example.smartmoney.domain.models.suggestion.Suggestion;
 import com.example.smartmoney.domain.models.suggestion.SuggestionStatus;
 import com.example.smartmoney.domain.models.suggestion.SuggestionTopicStat;
@@ -49,6 +52,7 @@ class RespondToSuggestionUseCaseTest {
     @Mock private CreateBudgetUseCase createBudgetUseCase;
     @Mock private AddProjectContributionUseCase addProjectContributionUseCase;
     @Mock private UpdateProjectUseCase updateProjectUseCase;
+    @Mock private ProjectRepository projectRepository;
 
     private RespondToSuggestionUseCase useCase;
     private final ObjectMapper objectMapper = JsonMapper.builder().findAndAddModules().build();
@@ -61,7 +65,7 @@ class RespondToSuggestionUseCaseTest {
     void setUp() {
         useCase = new RespondToSuggestionUseCase(
                 suggestionRepository, topicStatRepository, budgetRepository, updateBudgetUseCase,
-                createBudgetUseCase, addProjectContributionUseCase, updateProjectUseCase,
+                createBudgetUseCase, addProjectContributionUseCase, updateProjectUseCase, projectRepository,
                 new SuggestionResponseAssembler(objectMapper), objectMapper);
         suggestion = raiseBudgetSuggestion(userId);
     }
@@ -250,6 +254,7 @@ class RespondToSuggestionUseCaseTest {
         when(suggestionRepository.findById(s.getId())).thenReturn(Optional.of(s));
         when(suggestionRepository.markDecidedIfPending(eq(s.getId()), eq(userId),
                 eq(SuggestionStatus.ACCEPTED), any())).thenReturn(1);
+        when(projectRepository.findById(any())).thenReturn(Optional.of(mock(Project.class))); // both still exist
 
         useCase.execute(userId, s.getId(), true);
 
@@ -259,6 +264,33 @@ class RespondToSuggestionUseCaseTest {
         verify(updateProjectUseCase).execute(eq(userId.toString()), eq(p1.toString()), captor.capture());
         verify(updateProjectUseCase).execute(eq(userId.toString()), eq(p2.toString()), any());
         assertEquals(d1, captor.getValue().getDeadline());
+    }
+
+    @Test
+    @DisplayName("Item 4: a project deleted since the ask is skipped, not fatal — the rest still rebalance")
+    void rebalanceProjectsSkipsDeletedProject() {
+        UUID alive = UUID.randomUUID();
+        UUID deleted = UUID.randomUUID();
+        SuggestionPayload payload = SuggestionPayload.builder()
+                .proposedAction(SuggestionPayload.ProposedAction.builder()
+                        .projectAdjustments(List.of(
+                                SuggestionPayload.ProjectAdjustment.builder()
+                                        .projectId(alive).newDeadline(LocalDate.of(2027, 6, 1)).build(),
+                                SuggestionPayload.ProjectAdjustment.builder()
+                                        .projectId(deleted).newDeadline(LocalDate.of(2027, 12, 1)).build()))
+                        .build())
+                .build();
+        Suggestion s = suggestionOf(userId, SuggestionType.REBALANCE_PROJECTS, payload, "REBALANCE_PROJECTS:2026-06");
+        when(suggestionRepository.findById(s.getId())).thenReturn(Optional.of(s));
+        when(suggestionRepository.markDecidedIfPending(eq(s.getId()), eq(userId),
+                eq(SuggestionStatus.ACCEPTED), any())).thenReturn(1);
+        when(projectRepository.findById(new ProjectId(alive))).thenReturn(Optional.of(mock(Project.class)));
+        when(projectRepository.findById(new ProjectId(deleted))).thenReturn(Optional.empty()); // gone since ask
+
+        useCase.execute(userId, s.getId(), true);
+
+        verify(updateProjectUseCase).execute(eq(userId.toString()), eq(alive.toString()), any());
+        verify(updateProjectUseCase, never()).execute(eq(userId.toString()), eq(deleted.toString()), any());
     }
 
     @Test

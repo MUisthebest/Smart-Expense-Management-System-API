@@ -1188,6 +1188,30 @@ class SuggestionProducerTest {
     }
 
     @Test
+    @DisplayName("Finding 1: off-track judges the re-fetched aggregate's contributions, not the contribution-less findAllByUser stub")
+    void offTrackUsesRefetchedContributions() {
+        stubUser(Intervention_Level.GENTLE);
+        UUID projectId = UUID.randomUUID();
+        // findAllByUser returns projects WITHOUT contributions (as it does in production).
+        Project stub = savingProject(projectId, "10000", LocalDate.of(2026, 9, 30),
+                Instant.parse("2026-03-01T00:00:00Z"), List.of());
+        // The re-fetched full aggregate has on-pace contributions (2000/mo vs 1000 required) → on track.
+        Project full = savingProject(projectId, "10000", LocalDate.of(2026, 9, 30),
+                Instant.parse("2026-03-01T00:00:00Z"),
+                List.of(contribution("2000", "2026-03-10T00:00:00Z"),
+                        contribution("2000", "2026-04-10T00:00:00Z"),
+                        contribution("2000", "2026-05-10T00:00:00Z")));
+        when(projectRepository.findAllByUser(any())).thenReturn(List.of(stub));
+        when(projectRepository.findById(new ProjectId(projectId))).thenReturn(Optional.of(full));
+
+        producer.maybeProduceProjectHealth(userId, AS_OF);
+
+        // Judging the contribution-less stub would read observed=0 → a bogus CRITICAL; the re-fetch
+        // shows the project is on pace → nothing fires.
+        verify(suggestionRepository, never()).save(any());
+    }
+
+    @Test
     @DisplayName("Wave 4: a project on (or ahead of) the required pace produces nothing")
     void onPaceProducesNothing() {
         stubUser(Intervention_Level.GENTLE);

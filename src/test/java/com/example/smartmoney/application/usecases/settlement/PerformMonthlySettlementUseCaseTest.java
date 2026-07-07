@@ -350,6 +350,21 @@ class PerformMonthlySettlementUseCaseTest {
     }
 
     @Test
+    @DisplayName("Finding 3: saving horizon elapses (monthLeft->0) still under target → EXPIRED, not COMPLETED")
+    void horizonElapsedUnderTargetExpires() {
+        stubUser(Saving_Pace.BALANCED, Intervention_Level.HARD, Focus_Mode.REDUCE_SPENDING, "1000", true);
+        stubExpenses("900"); // savings 100 = goal → no surplus/penalty, no freeze
+        // monthLeft 1; +100 credit puts saved at 400 of 1200 → monthLeft recalcs to 0, still under target.
+        Project p = project(ProjectStatus.ACTIVE, "1200", "100", "300", "0", 1, 0);
+
+        useCase.settleUserProjects(UserId.of(OWNER), List.of(p));
+
+        assertEquals(ProjectStatus.EXPIRED, p.getStatus()); // expired on the horizon, NOT completed
+        assertAmount("400", p.getTracking().getMoneySaved());
+        verify(createNotificationUseCase, times(1)).createNotification(any(UUID.class), anyString(), anyString());
+    }
+
+    @Test
     @DisplayName("EXPIRED always notifies, even at NOTIFY, and persists the status change once")
     void expiredAlwaysNotifies() {
         stubUser(Saving_Pace.BALANCED, Intervention_Level.NOTIFY, Focus_Mode.REDUCE_SPENDING, "1000", true);

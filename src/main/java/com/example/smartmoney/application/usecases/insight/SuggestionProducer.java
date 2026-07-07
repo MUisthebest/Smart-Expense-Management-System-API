@@ -290,9 +290,11 @@ public class SuggestionProducer {
             // OVER_COMMITTED is capacity-driven, not funding-driven — it runs regardless of the item-1
             // auto-invest suppression. It matters MORE when settlement is on and silently capping the
             // excess saving, so suppressing it there would hide exactly the state it exists to surface.
-            Insight overCommitted = overCommittedInsight(user, projects, period);
+            // The ACTIVE/positive-monthly filter is shared by the detector and the candidate builder.
+            List<Project> overCommitCandidates = overCommitmentProjects(projects);
+            Insight overCommitted = overCommittedInsight(user, overCommitCandidates, period);
             if (overCommitted != null && overCommitted.getSeverity().atLeast(gate)) {
-                persistAndPush(userId, rebalanceProjectsCandidate(overCommitted, user, projects, period));
+                persistAndPush(userId, rebalanceProjectsCandidate(overCommitted, user, overCommitCandidates, period));
             }
 
             // The per-project "contribute more" nudges assume manual funding — suppressed when
@@ -301,7 +303,11 @@ public class SuggestionProducer {
             if (suppressContributionNudges(user)) {
                 return;
             }
-            for (Project project : projects) {
+            for (Project stub : projects) {
+                // findAllByUser omits contributions, which offTrackInsight needs for the observed rate
+                // AND remaining; re-fetch the full aggregate (weekly batch — the N+1 cost is fine).
+                // Without this every eligible project reads 0 observed → a bogus CRITICAL every week.
+                Project project = projectRepository.findById(stub.getId()).orElse(stub);
                 Insight insight = offTrackInsight(project, asOf);
                 if (insight == null || !insight.getSeverity().atLeast(gate)) {
                     continue;
@@ -797,9 +803,9 @@ public class SuggestionProducer {
      * OVER_COMMITTED (item 4): the combined monthly saving of the user's ACTIVE projects exceeds their
      * pace capacity ({@code User.getSavingCapacity()} = income × pace — the item-2 authoritative
      * figure). Settlement silently caps the excess (revival Step 1), so without this the user just
-     * quietly under-saves. Pure math over the already-loaded project list — no I/O.
+     * quietly under-saves. Pure math over the already-filtered candidate list — no I/O.
      */
-    private Insight overCommittedInsight(User user, List<Project> projects, YearMonth period) {
+    private Insight overCommittedInsight(User user, List<Project> active, YearMonth period) {
         if (user == null) {
             return null;
         }
@@ -807,7 +813,6 @@ public class SuggestionProducer {
         if (capacity.compareTo(BigDecimal.ZERO) <= 0) {
             return null; // no income/pace configured → can't judge over-commitment
         }
-        List<Project> active = overCommitmentProjects(projects);
         BigDecimal committed = active.stream()
                 .map(p -> p.getTracking().getMonthlySaving())
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -838,9 +843,8 @@ public class SuggestionProducer {
      * them verbatim. Uses only loaded tracking fields (monthlySaving, monthLeft), so it never depends
      * on contributions the project list doesn't carry.
      */
-    private Candidate rebalanceProjectsCandidate(Insight insight, User user, List<Project> projects, YearMonth period) {
+    private Candidate rebalanceProjectsCandidate(Insight insight, User user, List<Project> active, YearMonth period) {
         BigDecimal capacity = user.getSavingCapacity();
-        List<Project> active = overCommitmentProjects(projects);
         BigDecimal committed = active.stream()
                 .map(p -> p.getTracking().getMonthlySaving())
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
