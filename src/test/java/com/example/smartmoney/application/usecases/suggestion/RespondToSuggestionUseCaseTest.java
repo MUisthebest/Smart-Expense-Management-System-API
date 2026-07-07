@@ -3,9 +3,11 @@ package com.example.smartmoney.application.usecases.suggestion;
 import com.example.smartmoney.application.dtos.requests.budgets.CreateBudgetRequest;
 import com.example.smartmoney.application.dtos.requests.budgets.UpdateBudgetRequest;
 import com.example.smartmoney.application.dtos.requests.project.AddProjectContributionRequest;
+import com.example.smartmoney.application.dtos.requests.project.UpdateProjectRequest;
 import com.example.smartmoney.application.usecases.budget.CreateBudgetUseCase;
 import com.example.smartmoney.application.usecases.budget.UpdateBudgetUseCase;
 import com.example.smartmoney.application.usecases.project.AddProjectContributionUseCase;
+import com.example.smartmoney.application.usecases.project.UpdateProjectUseCase;
 import com.example.smartmoney.domain.exceptions.DomainException;
 import com.example.smartmoney.domain.models.budget.Budget;
 import com.example.smartmoney.domain.models.suggestion.Suggestion;
@@ -27,6 +29,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -45,6 +48,7 @@ class RespondToSuggestionUseCaseTest {
     @Mock private UpdateBudgetUseCase updateBudgetUseCase;
     @Mock private CreateBudgetUseCase createBudgetUseCase;
     @Mock private AddProjectContributionUseCase addProjectContributionUseCase;
+    @Mock private UpdateProjectUseCase updateProjectUseCase;
 
     private RespondToSuggestionUseCase useCase;
     private final ObjectMapper objectMapper = JsonMapper.builder().findAndAddModules().build();
@@ -57,7 +61,7 @@ class RespondToSuggestionUseCaseTest {
     void setUp() {
         useCase = new RespondToSuggestionUseCase(
                 suggestionRepository, topicStatRepository, budgetRepository, updateBudgetUseCase,
-                createBudgetUseCase, addProjectContributionUseCase,
+                createBudgetUseCase, addProjectContributionUseCase, updateProjectUseCase,
                 new SuggestionResponseAssembler(objectMapper), objectMapper);
         suggestion = raiseBudgetSuggestion(userId);
     }
@@ -223,6 +227,38 @@ class RespondToSuggestionUseCaseTest {
         verify(addProjectContributionUseCase).execute(
                 eq(userId.toString()), eq(projectId.toString()), captor.capture());
         assertEquals(0, new BigDecimal("1750.00").compareTo(captor.getValue().getAmount()));
+    }
+
+    @Test
+    @DisplayName("Item 4: accepting a REBALANCE_PROJECTS applies each project's consented new deadline")
+    void acceptRebalanceProjects() {
+        UUID p1 = UUID.randomUUID();
+        UUID p2 = UUID.randomUUID();
+        LocalDate d1 = LocalDate.of(2027, 6, 1);
+        LocalDate d2 = LocalDate.of(2027, 12, 1);
+        SuggestionPayload payload = SuggestionPayload.builder()
+                .proposedAction(SuggestionPayload.ProposedAction.builder()
+                        .resolvedValue(new BigDecimal("600"))
+                        .projectAdjustments(List.of(
+                                SuggestionPayload.ProjectAdjustment.builder()
+                                        .projectId(p1).newDeadline(d1).build(),
+                                SuggestionPayload.ProjectAdjustment.builder()
+                                        .projectId(p2).newDeadline(d2).build()))
+                        .build())
+                .build();
+        Suggestion s = suggestionOf(userId, SuggestionType.REBALANCE_PROJECTS, payload, "REBALANCE_PROJECTS:2026-06");
+        when(suggestionRepository.findById(s.getId())).thenReturn(Optional.of(s));
+        when(suggestionRepository.markDecidedIfPending(eq(s.getId()), eq(userId),
+                eq(SuggestionStatus.ACCEPTED), any())).thenReturn(1);
+
+        useCase.execute(userId, s.getId(), true);
+
+        // Each consented new deadline is applied verbatim via UpdateProjectUseCase (which recalibrates
+        // that project's monthly saving down).
+        ArgumentCaptor<UpdateProjectRequest> captor = ArgumentCaptor.forClass(UpdateProjectRequest.class);
+        verify(updateProjectUseCase).execute(eq(userId.toString()), eq(p1.toString()), captor.capture());
+        verify(updateProjectUseCase).execute(eq(userId.toString()), eq(p2.toString()), any());
+        assertEquals(d1, captor.getValue().getDeadline());
     }
 
     @Test

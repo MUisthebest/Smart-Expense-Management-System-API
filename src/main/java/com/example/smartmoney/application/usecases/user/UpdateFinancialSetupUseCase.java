@@ -31,7 +31,8 @@ public class UpdateFinancialSetupUseCase {
                 request.income(),
                 request.savingPace(),
                 request.interventionLevel(),
-                request.focusMode()
+                request.focusMode(),
+                request.autoInvestSurplus()
         );
 
         User savedUser = userRepository.save(user);

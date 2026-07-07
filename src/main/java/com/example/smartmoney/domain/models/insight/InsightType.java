@@ -78,5 +78,14 @@ public enum InsightType {
      * fired). Positive reinforcement at month rollover, riding the recap; congratulated at most
      * once per month. Notification-only, never in {@code analyze()} (Wave 4).
      */
-    GOOD_MONTH
+    GOOD_MONTH,
+    /**
+     * The sum of the user's ACTIVE saving projects' monthly saving targets exceeds their pace
+     * capacity ({@code User.getSavingCapacity()} = income × pace rate) — they have committed to
+     * saving more than their pace allows, so settlement silently caps the excess and they quietly
+     * under-save. Surfaces the (otherwise invisible) cap so the user can rebalance. Needs project +
+     * tracking reads, so it is evaluated by the project-health pass, never by {@code analyze()}.
+     * Backs the REBALANCE_PROJECTS suggestion (docs/settlement-insights-followup.md item 4).
+     */
+    OVER_COMMITTED
 }

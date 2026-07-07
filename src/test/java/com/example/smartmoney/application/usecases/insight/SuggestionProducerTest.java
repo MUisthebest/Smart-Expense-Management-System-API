@@ -1,11 +1,13 @@
 package com.example.smartmoney.application.usecases.insight;
 
 import com.example.smartmoney.application.usecases.notification.CreateNotificationUseCase;
+import com.example.smartmoney.application.usecases.settlement.SettlementProperties;
 import com.example.smartmoney.application.usecases.suggestion.SuggestionPayload;
 import com.example.smartmoney.domain.models.budget.Budget;
 import com.example.smartmoney.domain.models.insight.Insight;
 import com.example.smartmoney.domain.models.project.Project;
 import com.example.smartmoney.domain.models.project.ProjectContribution;
+import com.example.smartmoney.domain.models.project.ProjectTracking;
 import com.example.smartmoney.domain.models.project.enums.ProjectPriority;
 import com.example.smartmoney.domain.models.project.enums.ProjectStatus;
 import com.example.smartmoney.domain.models.project.enums.ProjectType;
@@ -21,6 +23,7 @@ import com.example.smartmoney.domain.models.transaction.enums.Category;
 import com.example.smartmoney.domain.models.transaction.enums.TransactionType;
 import com.example.smartmoney.domain.models.transaction.valueobjects.Amount;
 import com.example.smartmoney.domain.models.user.User;
+import com.example.smartmoney.domain.models.user.enums.Focus_Mode;
 import com.example.smartmoney.domain.models.user.enums.Intervention_Level;
 import com.example.smartmoney.domain.models.user.enums.Saving_Pace;
 import com.example.smartmoney.domain.repositories.BudgetRepository;
@@ -47,6 +50,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -80,9 +84,14 @@ class SuggestionProducerTest {
 
     @BeforeEach
     void setUp() {
-        producer = new SuggestionProducer(new SpendingInsightAnalyzer(), transactionRepository,
+        producer = buildProducer(false); // settlement off by default (matches yaml)
+    }
+
+    private SuggestionProducer buildProducer(boolean settlementEnabled) {
+        return new SuggestionProducer(new SpendingInsightAnalyzer(), transactionRepository,
                 budgetRepository, userRepository, projectRepository, suggestionRepository,
-                topicStatRepository, createNotificationUseCase, objectMapper, fatigue, clock, narrator);
+                topicStatRepository, createNotificationUseCase, objectMapper, fatigue, clock, narrator,
+                new SettlementProperties(settlementEnabled));
     }
 
     /** FOOD budget projected to overshoot (600 by day 15 of 30 → 1200 vs 1000 limit) → WARN pace. */
@@ -531,6 +540,57 @@ class SuggestionProducerTest {
         verify(topicStatRepository, never()).save(any());
     }
 
+    // ---- item 1: gate contribute-nudges on autoInvestSurplus × settlement-enabled --------
+
+    @Test
+    @DisplayName("Item 1: settlement live + autoInvestSurplus on → CONTRIBUTE_TO_PROJECT nudge suppressed")
+    void settlementAutoInvestSuppressesContributionNudge() {
+        producer = buildProducer(true);                     // settlement engine live
+        stubUser(Intervention_Level.GENTLE, Saving_Pace.BALANCED); // autoInvestSurplus defaults on
+        producer.maybeProduceSavingsContribution(userId, AS_OF);
+        verify(suggestionRepository, never()).save(any());
+        verify(createNotificationUseCase, never()).createNotification(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("Item 1: settlement live but autoInvestSurplus OFF → contribute nudge still fires")
+    void settlementButAutoInvestOffKeepsContributionNudge() {
+        producer = buildProducer(true);
+        stubUser(Intervention_Level.GENTLE, Saving_Pace.BALANCED, false); // opted out of auto-invest
+        stubSavingsData(UUID.randomUUID(), "10000");
+        when(suggestionRepository.save(any(Suggestion.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        producer.maybeProduceSavingsContribution(userId, AS_OF);
+
+        ArgumentCaptor<Suggestion> captor = ArgumentCaptor.forClass(Suggestion.class);
+        verify(suggestionRepository).save(captor.capture());
+        assertEquals(SuggestionType.CONTRIBUTE_TO_PROJECT, captor.getValue().getType());
+    }
+
+    @Test
+    @DisplayName("Item 1: settlement OFF (default) → contribute nudge fires even with autoInvestSurplus on")
+    void settlementOffKeepsContributionNudge() {
+        // producer from setUp has settlement disabled; autoInvestSurplus defaults on. The nudge must
+        // survive: with settlement off it is the ONLY funding path (autoInvestSurplus defaults true).
+        stubUser(Intervention_Level.GENTLE, Saving_Pace.BALANCED);
+        stubSavingsData(UUID.randomUUID(), "10000");
+        when(suggestionRepository.save(any(Suggestion.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        producer.maybeProduceSavingsContribution(userId, AS_OF);
+
+        verify(suggestionRepository).save(any(Suggestion.class));
+    }
+
+    @Test
+    @DisplayName("Item 1: settlement live + autoInvestSurplus on → INCREASE_CONTRIBUTION (project-health) suppressed")
+    void settlementAutoInvestSuppressesProjectHealthNudge() {
+        producer = buildProducer(true);
+        stubUser(Intervention_Level.HARD, Saving_Pace.BALANCED); // autoInvestSurplus defaults on
+        producer.maybeProduceProjectHealth(userId, AS_OF);
+        verify(suggestionRepository, never()).save(any());
+        verify(createNotificationUseCase, never()).createNotification(any(), any(), any());
+    }
+
     // ---- helpers for the Phase-2 cases ---------------------------------------------------
 
     /** FOOD budget projected to 1400 (700 by day 15 of 30) vs 1000 limit → ratio 1.4 → CRITICAL. */
@@ -547,6 +607,12 @@ class SuggestionProducerTest {
     private void stubUser(Intervention_Level level, Saving_Pace pace) {
         when(userRepository.findById(userId)).thenReturn(Optional.of(
                 User.builder().id(userId).interventionLevel(level).savingPace(pace).build()));
+    }
+
+    private void stubUser(Intervention_Level level, Saving_Pace pace, boolean autoInvestSurplus) {
+        when(userRepository.findById(userId)).thenReturn(Optional.of(User.builder()
+                .id(userId).interventionLevel(level).savingPace(pace)
+                .autoInvestSurplus(autoInvestSurplus).build()));
     }
 
     private SuggestionTopicStat topicStat(String dedupKey, int dismissCount) {
@@ -1056,6 +1122,71 @@ class SuggestionProducerTest {
                 eq("notification.suggestion.increase_contribution|Trip"), startsWith("app://suggestions/"));
     }
 
+    /**
+     * On-pace-by-heuristic project (2000/mo observed, 1000/mo required) but carrying settlement
+     * arrears of {@code moneyOwed} and {@code frozenMonths}. Target 10000, deadline 2026-09-30,
+     * created 2026-03-01 — same shape as {@link #onPaceProducesNothing()}, so any suggestion it
+     * yields is driven purely by the settlement signal.
+     */
+    private Project onPaceProjectWithArrears(UUID projectId, String moneyOwed, int frozenMonths) {
+        ProjectTracking tracking = new ProjectTracking(UUID.randomUUID(), new ProjectId(projectId),
+                new BigDecimal("6000"), 4, new BigDecimal("1000"), 4,
+                new BigDecimal(moneyOwed), frozenMonths, Instant.now(), Instant.now());
+        return Project.rehydrate(new ProjectId(projectId), new UserId(userId), ProjectType.PERSONAL,
+                ProjectStatus.ACTIVE, ProjectPriority.MEDIUM, "Trip", null,
+                new Money(new BigDecimal("10000"), "VND"), LocalDate.of(2026, 9, 30), null,
+                List.of(contribution("2000", "2026-03-10T00:00:00Z"),
+                        contribution("2000", "2026-04-10T00:00:00Z"),
+                        contribution("2000", "2026-05-10T00:00:00Z")),
+                tracking, Instant.parse("2026-03-01T00:00:00Z"));
+    }
+
+    @Test
+    @DisplayName("Item 3: settlement arrears (moneyOwed>0) flags a project off-track even when the pace heuristic says on-pace")
+    void settlementArrearsOverridesOnPaceHeuristic() throws Exception {
+        stubUser(Intervention_Level.GENTLE);
+        UUID projectId = UUID.randomUUID();
+        // Heuristic alone (see onPaceProducesNothing) would yield nothing; the 500 arrears drives it.
+        Project project = onPaceProjectWithArrears(projectId, "500", 0);
+        when(projectRepository.findAllByUser(any())).thenReturn(List.of(project));
+        when(suggestionRepository.findOpenByUserIdAndDedupKey(eq(userId), anyString()))
+                .thenReturn(Optional.empty());
+        when(suggestionRepository.save(any(Suggestion.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        producer.maybeProduceProjectHealth(userId, AS_OF);
+
+        ArgumentCaptor<Suggestion> captor = ArgumentCaptor.forClass(Suggestion.class);
+        verify(suggestionRepository).save(captor.capture());
+        Suggestion saved = captor.getValue();
+        assertEquals(SuggestionType.INCREASE_CONTRIBUTION, saved.getType());
+        SuggestionPayload payload = objectMapper.readValue(saved.getPayloadJson(), SuggestionPayload.class);
+        assertEquals("WARN", payload.getInsightSnapshot().get("severity"));
+        @SuppressWarnings("unchecked")
+        Map<String, Object> metrics = (Map<String, Object>) payload.getInsightSnapshot().get("metrics");
+        assertEquals("settlement", metrics.get("source"));
+        // catch-up is the required monthly rate (1000), well under the 4000 remaining.
+        assertEquals(0, new BigDecimal("1000.00").compareTo(payload.getProposedAction().getResolvedValue()));
+    }
+
+    @Test
+    @DisplayName("Item 3: deep arrears (owe ≥ 2× required) escalates to CRITICAL — even a HARD user hears it")
+    void deepArrearsIsCriticalForHardUser() throws Exception {
+        stubUser(Intervention_Level.HARD); // gate = CRITICAL; heuristic-on-pace would be silent
+        UUID projectId = UUID.randomUUID();
+        Project project = onPaceProjectWithArrears(projectId, "2500", 0); // 2500 ≥ 2×1000
+        when(projectRepository.findAllByUser(any())).thenReturn(List.of(project));
+        when(suggestionRepository.findOpenByUserIdAndDedupKey(eq(userId), anyString()))
+                .thenReturn(Optional.empty());
+        when(suggestionRepository.save(any(Suggestion.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        producer.maybeProduceProjectHealth(userId, AS_OF);
+
+        ArgumentCaptor<Suggestion> captor = ArgumentCaptor.forClass(Suggestion.class);
+        verify(suggestionRepository).save(captor.capture());
+        SuggestionPayload payload = objectMapper.readValue(captor.getValue().getPayloadJson(), SuggestionPayload.class);
+        assertEquals("CRITICAL", payload.getInsightSnapshot().get("severity"));
+    }
+
     @Test
     @DisplayName("Wave 4: a project on (or ahead of) the required pace produces nothing")
     void onPaceProducesNothing() {
@@ -1118,6 +1249,115 @@ class SuggestionProducerTest {
         producer.maybeProduceProjectHealth(userId, AS_OF);
 
         verify(projectRepository, never()).findAllByUser(any());
+        verify(suggestionRepository, never()).save(any());
+    }
+
+    // ---- item 4: OVER_COMMITTED → REBALANCE_PROJECTS -------------------------------------
+
+    /** A just-created ACTIVE project (so the off-track heuristic doesn't judge it yet) with the given
+     *  monthly saving + months-left on its tracking, target 50000, deadline 2027-01-01. */
+    private Project activeSavingProject(UUID projectId, String monthlySaving, int monthLeft) {
+        ProjectTracking tracking = new ProjectTracking(UUID.randomUUID(), new ProjectId(projectId),
+                BigDecimal.ZERO, 1, new BigDecimal(monthlySaving), monthLeft,
+                BigDecimal.ZERO, 0, Instant.now(), Instant.now());
+        return Project.rehydrate(new ProjectId(projectId), new UserId(userId), ProjectType.PERSONAL,
+                ProjectStatus.ACTIVE, ProjectPriority.MEDIUM, "Goal", null,
+                new Money(new BigDecimal("50000"), "VND"), LocalDate.of(2027, 1, 1), null,
+                List.of(), tracking, Instant.parse("2026-06-01T00:00:00Z"));
+    }
+
+    @Test
+    @DisplayName("Item 4: combined monthly saving over pace capacity → one REBALANCE_PROJECTS ask with per-project extended deadlines")
+    void overCommittedProducesRebalanceProjects() throws Exception {
+        // income 10000 × BALANCED 0.20 = capacity 2000; two projects at 1500/mo = 3000 committed > 2000.
+        when(userRepository.findById(userId)).thenReturn(Optional.of(User.builder()
+                .id(userId).interventionLevel(Intervention_Level.GENTLE)
+                .savingPace(Saving_Pace.BALANCED).income(new BigDecimal("10000")).build()));
+        UUID p1 = UUID.randomUUID();
+        UUID p2 = UUID.randomUUID();
+        when(projectRepository.findAllByUser(any())).thenReturn(List.of(
+                activeSavingProject(p1, "1500", 10), activeSavingProject(p2, "1500", 10)));
+        when(suggestionRepository.findOpenByUserIdAndDedupKey(eq(userId), anyString()))
+                .thenReturn(Optional.empty());
+        when(suggestionRepository.save(any(Suggestion.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        producer.maybeProduceProjectHealth(userId, AS_OF);
+
+        // Exactly one portfolio-level ask (the young projects don't trip the per-project off-track pass).
+        ArgumentCaptor<Suggestion> captor = ArgumentCaptor.forClass(Suggestion.class);
+        verify(suggestionRepository).save(captor.capture());
+        Suggestion saved = captor.getValue();
+        assertEquals(SuggestionType.REBALANCE_PROJECTS, saved.getType());
+        assertEquals("REBALANCE_PROJECTS:2026-06", saved.getDedupKey());
+        SuggestionPayload payload = objectMapper.readValue(saved.getPayloadJson(), SuggestionPayload.class);
+        assertEquals(2, payload.getProposedAction().getProjectAdjustments().size());
+        // each project's monthly saving is scaled DOWN (via a later deadline) so the total fits capacity
+        payload.getProposedAction().getProjectAdjustments().forEach(a -> {
+            assertTrue(a.getNewMonthlySaving().compareTo(a.getCurrentMonthlySaving()) < 0);
+            assertTrue(a.getNewDeadline().isAfter(a.getCurrentDeadline()));
+        });
+    }
+
+    // ---- item 6: TRACK_ONLY softens the manual save/contribute nudges -------------------
+
+    private void stubUserWithFocus(Intervention_Level level, Focus_Mode focus) {
+        when(userRepository.findById(userId)).thenReturn(Optional.of(User.builder()
+                .id(userId).interventionLevel(level).focusMode(focus).build()));
+    }
+
+    @Test
+    @DisplayName("Item 6: TRACK_ONLY suppresses the CONTRIBUTE_TO_PROJECT nudge (passive tracking)")
+    void trackOnlySuppressesContributionNudge() {
+        stubUserWithFocus(Intervention_Level.GENTLE, Focus_Mode.TRACK_ONLY);
+        producer.maybeProduceSavingsContribution(userId, AS_OF);
+        verify(suggestionRepository, never()).save(any());
+        verify(createNotificationUseCase, never()).createNotification(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("Item 6: TRACK_ONLY suppresses the per-project INCREASE_CONTRIBUTION nudge")
+    void trackOnlySuppressesProjectHealthNudge() {
+        stubUserWithFocus(Intervention_Level.GENTLE, Focus_Mode.TRACK_ONLY); // no income → no OVER_COMMITTED
+        // A stalled project that would otherwise raise INCREASE_CONTRIBUTION.
+        Project project = savingProject(UUID.randomUUID(), "10000", LocalDate.of(2026, 9, 30),
+                Instant.parse("2026-03-01T00:00:00Z"), List.of());
+        when(projectRepository.findAllByUser(any())).thenReturn(List.of(project));
+
+        producer.maybeProduceProjectHealth(userId, AS_OF);
+
+        verify(suggestionRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Item 6: TRACK_ONLY still gets OVER_COMMITTED (rebalancing down fits passive tracking)")
+    void trackOnlyStillGetsOverCommitted() throws Exception {
+        // TRACK_ONLY → capacity rate 0.10; income 10000 → capacity 1000; one project at 1500 > 1000.
+        when(userRepository.findById(userId)).thenReturn(Optional.of(User.builder()
+                .id(userId).interventionLevel(Intervention_Level.GENTLE)
+                .savingPace(Saving_Pace.BALANCED).focusMode(Focus_Mode.TRACK_ONLY)
+                .income(new BigDecimal("10000")).build()));
+        when(projectRepository.findAllByUser(any())).thenReturn(List.of(
+                activeSavingProject(UUID.randomUUID(), "1500", 10)));
+        when(suggestionRepository.findOpenByUserIdAndDedupKey(eq(userId), anyString()))
+                .thenReturn(Optional.empty());
+        when(suggestionRepository.save(any(Suggestion.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        producer.maybeProduceProjectHealth(userId, AS_OF);
+
+        ArgumentCaptor<Suggestion> captor = ArgumentCaptor.forClass(Suggestion.class);
+        verify(suggestionRepository).save(captor.capture());
+        assertEquals(SuggestionType.REBALANCE_PROJECTS, captor.getValue().getType());
+    }
+
+    @Test
+    @DisplayName("Item 4: committed monthly within pace capacity → no OVER_COMMITTED ask")
+    void withinCapacityNoRebalance() {
+        when(userRepository.findById(userId)).thenReturn(Optional.of(User.builder()
+                .id(userId).interventionLevel(Intervention_Level.GENTLE)
+                .savingPace(Saving_Pace.BALANCED).income(new BigDecimal("10000")).build())); // capacity 2000
+        when(projectRepository.findAllByUser(any())).thenReturn(List.of(
+                activeSavingProject(UUID.randomUUID(), "800", 10))); // 800 ≤ 2000
+        producer.maybeProduceProjectHealth(userId, AS_OF);
         verify(suggestionRepository, never()).save(any());
     }
 }

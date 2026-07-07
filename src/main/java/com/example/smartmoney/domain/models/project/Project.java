@@ -180,6 +180,28 @@ public class Project {
         return c;
     }
 
+    /**
+     * System-driven auto-saving from the monthly settlement engine. Appends a
+     * {@link ProjectContribution} — the single source of progress — for the amount settlement
+     * credited this month, so the auto-engine and manual presses sum into the same progress bar
+     * (no divergence, full audit trail). Bypasses the owner-actor check because settlement, not a
+     * user, initiates it; still requires a contributable status and a positive amount. The
+     * contribution is attributed to the project owner. See docs/settlement-insights-followup.md item 0.
+     */
+    public ProjectContribution recordAutoSaving(BigDecimal amount, String note) {
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new ProjectException("Auto-saving amount must be > 0",
+                    ProjectErrorCode.PROJECT_CONTRIBUTION_INVALID_AMOUNT);
+        }
+        requireContributable();
+
+        Money money = new Money(amount, targetAmount.currency());
+        ProjectContribution c = new ProjectContribution(
+                ContributionId.newId(), ownerId, money, note, Instant.now());
+        contributions.add(c);
+        return c;
+    }
+
 
     /**
      * Total contributed = sum of the {@code contributions} list. This is the single

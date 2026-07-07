@@ -1,12 +1,14 @@
 package com.example.smartmoney.application.usecases.insight;
 
 import com.example.smartmoney.application.usecases.notification.CreateNotificationUseCase;
+import com.example.smartmoney.application.usecases.settlement.SettlementProperties;
 import com.example.smartmoney.application.usecases.suggestion.SuggestionPayload;
 import com.example.smartmoney.domain.models.budget.Budget;
 import com.example.smartmoney.domain.models.insight.Insight;
 import com.example.smartmoney.domain.models.insight.InsightType;
 import com.example.smartmoney.domain.models.insight.Severity;
 import com.example.smartmoney.domain.models.project.Project;
+import com.example.smartmoney.domain.models.project.ProjectTracking;
 import com.example.smartmoney.domain.models.project.enums.ProjectStatus;
 import com.example.smartmoney.domain.models.project.valueobjects.UserId;
 import com.example.smartmoney.domain.models.suggestion.Suggestion;
@@ -16,6 +18,7 @@ import com.example.smartmoney.domain.models.transaction.Transaction;
 import com.example.smartmoney.domain.models.transaction.enums.Category;
 import com.example.smartmoney.domain.models.transaction.enums.TransactionType;
 import com.example.smartmoney.domain.models.user.User;
+import com.example.smartmoney.domain.models.user.enums.Focus_Mode;
 import com.example.smartmoney.domain.models.user.enums.Intervention_Level;
 import com.example.smartmoney.domain.models.user.enums.Saving_Pace;
 import com.example.smartmoney.domain.repositories.BudgetRepository;
@@ -98,6 +101,36 @@ public class SuggestionProducer {
     private final SuggestionFatigueProperties fatigue;
     private final Clock clock;
     private final InsightNarrator narrator;
+    private final SettlementProperties settlement;
+
+    /**
+     * Item 1 (docs/settlement-insights-followup.md): the manual "contribute" nudges assume the user
+     * funds goals by hand. When the settlement engine is live AND the user has {@code autoInvestSurplus}
+     * on, settlement already routes surplus into projects, so nudging them to contribute more
+     * double-asks and reads as broken — suppress. When settlement is off (the default) OR the user
+     * opted out of auto-invest, the manual nudge is the primary funding path — keep it. The
+     * settlement-enabled half matters because {@code autoInvestSurplus} defaults to true: without it,
+     * every user's contribute nudges would vanish while settlement isn't even running.
+     */
+    private boolean settlementFundsProjectsFor(User user) {
+        return settlement.isEnabled() && user.isAutoInvestSurplus();
+    }
+
+    /**
+     * Item 6 (docs/settlement-insights-followup.md): whether to suppress the manual "save/contribute
+     * more toward a goal" nudges (CONTRIBUTE_TO_PROJECT, INCREASE_CONTRIBUTION) for this user. Two
+     * reasons combine:
+     * <ul>
+     *   <li><b>TRACK_ONLY</b> — the user opted into passive tracking; settlement never penalizes them,
+     *       so the suggestion system must not keep pushing them to fund goals either (trait consistency).</li>
+     *   <li><b>Settlement auto-invests</b> — see {@link #settlementFundsProjectsFor(User)} (item 1).</li>
+     * </ul>
+     * OVER_COMMITTED is deliberately <em>not</em> gated by this — suggesting a TRACK_ONLY user rebalance
+     * down to fit their pace aligns with passive tracking rather than nagging them to save more.
+     */
+    private boolean suppressContributionNudges(User user) {
+        return user.getFocusMode() == Focus_Mode.TRACK_ONLY || settlementFundsProjectsFor(user);
+    }
 
     /**
      * Evaluate the affected category after an expense create and maybe raise a budget-related
@@ -161,6 +194,9 @@ public class SuggestionProducer {
             User user = userRepository.findById(userId).orElse(null);
             if (user == null || pushGateFor(user.getInterventionLevel()) == null) {
                 return; // pull-only / unset → no push
+            }
+            if (suppressContributionNudges(user)) {
+                return; // items 1 & 6: settlement funds it, or TRACK_ONLY → don't nag to contribute
             }
 
             YearMonth period = YearMonth.from(asOf);
@@ -249,7 +285,23 @@ public class SuggestionProducer {
             }
 
             YearMonth period = YearMonth.from(asOf);
-            for (Project project : projectRepository.findAllByUser(new UserId(userId))) {
+            List<Project> projects = projectRepository.findAllByUser(new UserId(userId));
+
+            // OVER_COMMITTED is capacity-driven, not funding-driven — it runs regardless of the item-1
+            // auto-invest suppression. It matters MORE when settlement is on and silently capping the
+            // excess saving, so suppressing it there would hide exactly the state it exists to surface.
+            Insight overCommitted = overCommittedInsight(user, projects, period);
+            if (overCommitted != null && overCommitted.getSeverity().atLeast(gate)) {
+                persistAndPush(userId, rebalanceProjectsCandidate(overCommitted, user, projects, period));
+            }
+
+            // The per-project "contribute more" nudges assume manual funding — suppressed when
+            // settlement auto-invests surplus (item 1) or the user is TRACK_ONLY (item 6). OVER_COMMITTED
+            // above is intentionally exempt: rebalancing down fits passive tracking.
+            if (suppressContributionNudges(user)) {
+                return;
+            }
+            for (Project project : projects) {
                 Insight insight = offTrackInsight(project, asOf);
                 if (insight == null || !insight.getSeverity().atLeast(gate)) {
                     continue;
@@ -662,12 +714,30 @@ public class SuggestionProducer {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         BigDecimal observedMonthly = observedTotal.divide(BigDecimal.valueOf(windowMonths), 2, RoundingMode.HALF_UP);
 
-        if (requiredMonthly.compareTo(observedMonthly) <= 0) {
-            return null; // on pace
+        // Item 3 (docs/settlement-insights-followup.md): settlement holds the authoritative "behind"
+        // signal. When it has accrued arrears (moneyOwed > 0) on this project, that overrides the
+        // re-derived pace heuristic — a debt the engine actually booked is a stronger, truer off-track
+        // signal than observed-vs-required, and re-deriving risks the two systems disagreeing. Fall
+        // back to the heuristic only when settlement has said nothing (engine off, or no debt).
+        ProjectTracking tracking = project.getTracking();
+        BigDecimal moneyOwed = tracking != null && tracking.getMoneyOwed() != null
+                ? tracking.getMoneyOwed() : BigDecimal.ZERO;
+        int frozenMonths = tracking != null ? tracking.getFrozenMonths() : 0;
+        boolean settlementArrears = moneyOwed.compareTo(BigDecimal.ZERO) > 0;
+
+        boolean critical;
+        if (settlementArrears) {
+            // Deep arrears (owe ≥ 2× the required monthly) or months already frozen = real trouble.
+            critical = frozenMonths > 0
+                    || moneyOwed.compareTo(requiredMonthly.multiply(OFF_TRACK_CRITICAL_RATIO)) >= 0;
+        } else {
+            if (requiredMonthly.compareTo(observedMonthly) <= 0) {
+                return null; // on pace, and settlement has no debt to report
+            }
+            // Stalled (nothing in the whole window) or needing ≥2× the observed pace = real trouble.
+            critical = observedMonthly.compareTo(BigDecimal.ZERO) == 0
+                    || requiredMonthly.compareTo(observedMonthly.multiply(OFF_TRACK_CRITICAL_RATIO)) >= 0;
         }
-        // Stalled (nothing in the whole window) or needing ≥2× the observed pace = real trouble.
-        boolean critical = observedMonthly.compareTo(BigDecimal.ZERO) == 0
-                || requiredMonthly.compareTo(observedMonthly.multiply(OFF_TRACK_CRITICAL_RATIO)) >= 0;
 
         Map<String, Object> metrics = new LinkedHashMap<>();
         metrics.put("projectName", project.getName());
@@ -678,6 +748,8 @@ public class SuggestionProducer {
         metrics.put("observedMonthly", observedMonthly);
         metrics.put("shortfall", requiredMonthly.subtract(observedMonthly));
         metrics.put("observedWindowMonths", windowMonths);
+        metrics.put("moneyOwed", moneyOwed);                                  // settlement arrears (0 when clear/off)
+        metrics.put("source", settlementArrears ? "settlement" : "heuristic"); // which signal fired
 
         return Insight.builder()
                 .type(InsightType.PROJECT_OFF_TRACK)
@@ -710,6 +782,114 @@ public class SuggestionProducer {
         return candidate(SuggestionType.INCREASE_CONTRIBUTION, insight, action,
                 "INCREASE_CONTRIBUTION:" + project.getId().value() + ":" + period,
                 "notification.suggestion.increase_contribution|" + project.getName());
+    }
+
+    /** ACTIVE, non-group projects with a positive monthly saving target — the rebalance candidates. */
+    private List<Project> overCommitmentProjects(List<Project> projects) {
+        return projects.stream()
+                .filter(p -> p != null && p.getStatus() == ProjectStatus.ACTIVE && !p.isSubPersonal())
+                .filter(p -> p.getTracking() != null && p.getTracking().getMonthlySaving() != null
+                        && p.getTracking().getMonthlySaving().compareTo(BigDecimal.ZERO) > 0)
+                .toList();
+    }
+
+    /**
+     * OVER_COMMITTED (item 4): the combined monthly saving of the user's ACTIVE projects exceeds their
+     * pace capacity ({@code User.getSavingCapacity()} = income × pace — the item-2 authoritative
+     * figure). Settlement silently caps the excess (revival Step 1), so without this the user just
+     * quietly under-saves. Pure math over the already-loaded project list — no I/O.
+     */
+    private Insight overCommittedInsight(User user, List<Project> projects, YearMonth period) {
+        if (user == null) {
+            return null;
+        }
+        BigDecimal capacity = user.getSavingCapacity();
+        if (capacity.compareTo(BigDecimal.ZERO) <= 0) {
+            return null; // no income/pace configured → can't judge over-commitment
+        }
+        List<Project> active = overCommitmentProjects(projects);
+        BigDecimal committed = active.stream()
+                .map(p -> p.getTracking().getMonthlySaving())
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        if (committed.compareTo(capacity) <= 0) {
+            return null; // within pace capacity — nothing to surface
+        }
+
+        Map<String, Object> metrics = new LinkedHashMap<>();
+        metrics.put("capacity", capacity);
+        metrics.put("committedMonthly", committed);
+        metrics.put("excess", committed.subtract(capacity));
+        metrics.put("projectCount", active.size());
+
+        return Insight.builder()
+                .type(InsightType.OVER_COMMITTED)
+                .category(null)
+                .severity(Severity.WARN)
+                .period(period)
+                .metrics(metrics)
+                .code("insight.over_committed")
+                .build();
+    }
+
+    /**
+     * REBALANCE_PROJECTS: scale every over-committed project's monthly saving down to fit capacity by
+     * extending its deadline (monthly = remaining ÷ monthsLeft, so stretching the horizon lowers the
+     * monthly). Consent is to the concrete per-project new deadlines snapshotted here; accept applies
+     * them verbatim. Uses only loaded tracking fields (monthlySaving, monthLeft), so it never depends
+     * on contributions the project list doesn't carry.
+     */
+    private Candidate rebalanceProjectsCandidate(Insight insight, User user, List<Project> projects, YearMonth period) {
+        BigDecimal capacity = user.getSavingCapacity();
+        List<Project> active = overCommitmentProjects(projects);
+        BigDecimal committed = active.stream()
+                .map(p -> p.getTracking().getMonthlySaving())
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        if (capacity.compareTo(BigDecimal.ZERO) <= 0 || committed.compareTo(capacity) <= 0) {
+            return null;
+        }
+        // factor < 1: the fraction of its current pace each project keeps so the total fits capacity.
+        BigDecimal factor = capacity.divide(committed, 6, RoundingMode.DOWN);
+        LocalDate today = LocalDate.now(clock);
+
+        List<SuggestionPayload.ProjectAdjustment> adjustments = new ArrayList<>();
+        for (Project p : active) {
+            ProjectTracking t = p.getTracking();
+            int monthsLeft = t.getMonthLeft();
+            if (monthsLeft < 1) {
+                continue; // already at/past its horizon — extending it is meaningless
+            }
+            BigDecimal monthly = t.getMonthlySaving();
+            BigDecimal newMonthly = monthly.multiply(factor).setScale(2, RoundingMode.CEILING).max(MIN_LIMIT);
+            // newMonthsLeft = ceil(monthsLeft ÷ factor): the same remaining saved at the slower pace.
+            int newMonthsLeft = (int) Math.min(60, Math.ceil(monthsLeft / factor.doubleValue()));
+            if (newMonthsLeft <= monthsLeft) {
+                continue; // capped at the 60-month ceiling with no room to extend — no relief here
+            }
+            LocalDate newDeadline = today.plusMonths(newMonthsLeft - 1L);
+            if (p.getDeadline() != null && !newDeadline.isAfter(p.getDeadline())) {
+                continue; // the computed deadline doesn't actually extend this project
+            }
+            adjustments.add(SuggestionPayload.ProjectAdjustment.builder()
+                    .projectId(p.getId().value())
+                    .projectName(p.getName())
+                    .currentMonthlySaving(monthly)
+                    .newMonthlySaving(newMonthly)
+                    .currentDeadline(p.getDeadline())
+                    .newDeadline(newDeadline)
+                    .build());
+        }
+        if (adjustments.isEmpty()) {
+            return null; // nothing extendable (e.g. every project already at the 60-month ceiling)
+        }
+
+        SuggestionPayload.ProposedAction action = SuggestionPayload.ProposedAction.builder()
+                .resolvedValue(capacity) // the target combined monthly, for display
+                .projectAdjustments(adjustments)
+                .build();
+
+        return candidate(SuggestionType.REBALANCE_PROJECTS, insight, action,
+                "REBALANCE_PROJECTS:" + period,
+                "notification.suggestion.rebalance_projects");
     }
 
     /**

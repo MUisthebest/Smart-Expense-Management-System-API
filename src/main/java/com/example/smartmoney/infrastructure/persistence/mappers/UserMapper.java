@@ -122,6 +122,7 @@ public abstract class UserMapper {
             user.setInterventionLevel(entity.getInterventionLevel());
             user.setSavingPace(entity.getSavingPace());
             user.setIncome(entity.getIncome());
+            user.setAutoInvestSurplus(entity.getAutoInvestSurplus());
         }
     }
     
@@ -141,6 +142,7 @@ public abstract class UserMapper {
             entity.setInterventionLevel(domain.getInterventionLevel());
             entity.setSavingPace(domain.getSavingPace());
             entity.setIncome(domain.getIncome());
+            entity.setAutoInvestSurplus(domain.getAutoInvestSurplus());
         }
     }
 }
