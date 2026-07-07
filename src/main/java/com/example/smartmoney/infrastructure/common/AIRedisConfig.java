@@ -17,6 +17,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.lettuce.core.ClientOptions;
+import io.lettuce.core.SocketOptions;
+
+import java.time.Duration;
+
 /**
  * AI-specific Redis Configuration for AI/ML features
  * This config creates a separate Redis instance for AI-related caching and data storage
@@ -46,7 +51,8 @@ public class AIRedisConfig {
      * Creates a separate connection factory for AI Redis instance
      */
     @Bean(name = "aiRedisConnectionFactory")
-    public RedisConnectionFactory aiRedisConnectionFactory() {
+    public RedisConnectionFactory aiRedisConnectionFactory(
+            io.lettuce.core.resource.ClientResources redisClientResources) {
         RedisStandaloneConfiguration config = new RedisStandaloneConfiguration();
         config.setHostName(redisHost);
         config.setPort(redisPort);
@@ -62,8 +68,29 @@ public class AIRedisConfig {
                 false
         );
 
-        LettuceClientConfiguration clientConfig = LettuceClientConfiguration.builder().build();
-        return new LettuceConnectionFactory(config, clientConfig);
+        SocketOptions socketOptions = SocketOptions.builder()
+                .connectTimeout(Duration.ofSeconds(10))
+                .keepAlive(true)
+                .tcpNoDelay(true)
+                .build();
+
+        ClientOptions clientOptions = ClientOptions.builder()
+                .socketOptions(socketOptions)
+                .autoReconnect(true)
+                .build();
+
+        LettuceClientConfiguration clientConfig = LettuceClientConfiguration.builder()
+                .clientOptions(clientOptions)
+                .clientResources(redisClientResources)
+                .commandTimeout(Duration.ofSeconds(10))
+                .build();
+
+        LettuceConnectionFactory factory = new LettuceConnectionFactory(config, clientConfig);
+        // Validate the shared connection on every checkout so a broken/stale
+        // socket (idle timeout, NAT drop, provider restart) is detected and
+        // transparently re-established instead of surfacing as an error.
+        factory.setValidateConnection(true);
+        return factory;
     }
 
     /**
