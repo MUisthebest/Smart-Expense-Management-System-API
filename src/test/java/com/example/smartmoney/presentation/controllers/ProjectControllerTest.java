@@ -555,7 +555,6 @@ class ProjectControllerTest {
         req.setTargetAmount(new BigDecimal("10000.00"));
         req.setCurrency("VND");
         req.setDeadline(LocalDate.now().plusMonths(12));
-        req.setMode(ProjectBudgetAdvisorRequest.Mode.RELAXED);
         return req;
     }
 
