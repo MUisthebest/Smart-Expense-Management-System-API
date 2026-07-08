@@ -49,6 +49,9 @@ public class SuggestionPayload {
      *       {@code year}; {@code resolvedValue} is the new committed total, for display</li>
      *   <li>REVIEW_SUBSCRIPTION — no proposed action (acknowledge-only; the card renders from the
      *       insight snapshot)</li>
+     *   <li>CREATE_PROJECT — {@code resolvedValue} (seeded target total) + {@code monthlySaving}
+     *       (suggested monthly) + {@code deadline} (default-horizon date); navigate-only, so nothing
+     *       server-side applies these — the FE pre-fills the create form with them</li>
      * </ul>
      */
     @Data
@@ -81,6 +84,18 @@ public class SuggestionPayload {
          * recalibrates that project's monthly saving down); a project deleted since the ask is skipped.
          */
         private List<ProjectAdjustment> projectAdjustments;
+        /**
+         * CREATE_PROJECT only (null for every other type): the suggested monthly saving for the seeded
+         * goal — pace-scaled and clamped to the 20% monthly-obligation cap. For display / the FE's
+         * monthly field; {@code resolvedValue} carries the derived target total.
+         */
+        private BigDecimal monthlySaving;
+        /**
+         * CREATE_PROJECT only (null for every other type): the suggested deadline for the seeded goal
+         * (a default horizon out from ask time). Navigate-only — the FE pre-fills the create form with
+         * it; nothing server-side applies it.
+         */
+        private java.time.LocalDate deadline;
     }
 
     /** One budget's consented new limit inside a REBALANCE_BUDGETS ask. */

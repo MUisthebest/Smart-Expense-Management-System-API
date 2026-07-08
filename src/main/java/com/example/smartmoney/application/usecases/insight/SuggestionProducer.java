@@ -88,6 +88,10 @@ public class SuggestionProducer {
     static final int OFF_TRACK_OBSERVE_MONTHS = 3;
     /** Required-rate ÷ observed-rate at or above which an off-track project escalates to CRITICAL. */
     private static final BigDecimal OFF_TRACK_CRITICAL_RATIO = new BigDecimal("2");
+    /** Default horizon (months) over which a first saving project's target is seeded from the monthly. */
+    static final int CREATE_PROJECT_HORIZON_MONTHS = 6;
+    /** MonthlyObligationPolicy ceiling: a project's monthly saving must stay ≤ 20% of the user's income. */
+    private static final BigDecimal MONTHLY_OBLIGATION_RATE = new BigDecimal("0.20");
 
     private final SpendingInsightAnalyzer analyzer;
     private final TransactionRepository transactionRepository;
@@ -195,9 +199,6 @@ public class SuggestionProducer {
             if (user == null || pushGateFor(user.getInterventionLevel()) == null) {
                 return; // pull-only / unset → no push
             }
-            if (suppressContributionNudges(user)) {
-                return; // items 1 & 6: settlement funds it, or TRACK_ONLY → don't nag to contribute
-            }
 
             YearMonth period = YearMonth.from(asOf);
             List<Transaction> history = loadHistory(userId, asOf, period);
@@ -218,8 +219,24 @@ public class SuggestionProducer {
 
             Project target = pickContributionTarget(userId);
             if (target == null) {
-                // Wave 4 (item 10): capacity but nowhere to put it — nudge creating a project.
-                maybeNudgeCreateProject(userId, user, capacity, disposable, period);
+                // Wave 4 (item 10): capacity but nowhere to put it — nudge creating a project. This
+                // branch is deliberately NOT gated by suppressContributionNudges. That suppression
+                // exists because settlement auto-invests surplus into EXISTING active projects, but
+                // here the user has none — so auto-invest is a no-op (PerformMonthlySettlementUseCase
+                // iterates an empty project list and the surplus stays as idle cash). Suppressing the
+                // nudge here would silence the one signal that could put that capacity to work. Only
+                // TRACK_ONLY is still honored: a passive tracker opted out of goal-setting nudges.
+                if (user.getFocusMode() != Focus_Mode.TRACK_ONLY) {
+                    maybeNudgeCreateProject(userId, user, capacity, disposable, period);
+                }
+                return;
+            }
+
+            // The manual "contribute to a goal" nudge assumes manual funding — suppressed when
+            // settlement auto-invests surplus into this existing project (item 1) or the user is
+            // TRACK_ONLY (item 6). Unlike the create-project branch above, the target exists here,
+            // so settlement genuinely funds it and re-asking would double-nag.
+            if (suppressContributionNudges(user)) {
                 return;
             }
 
@@ -354,29 +371,57 @@ public class SuggestionProducer {
     }
 
     /**
-     * Wave 4 (item 10): the user has savings capacity but no active project to receive it — a
-     * deep-link nudge toward the pre-filled create-project screen, seeded with the pace-scaled
-     * amount. Deliberately <b>not</b> a suggestion row (per the resolved item-10 decision): a
-     * project needs a name, target and deadline only the user can choose, so there is nothing a
-     * server-side "yes" could execute. At most one nudge per month via a topic-stat marker.
+     * Wave 4 (item 10): the user has savings capacity but no active project to receive it — ask
+     * whether to start one. Persisted as a navigate-only CREATE_PROJECT suggestion (see
+     * {@link #createProjectCandidate}) rather than a bare notification, so it lives in the in-app
+     * list and inherits dedup, cooldown and dismissal-backoff. The seed (pace-scaled amount) rides
+     * in the payload for the FE to pre-fill the create form on accept.
      */
     private void maybeNudgeCreateProject(UUID userId, User user, Insight capacity,
-                                         BigDecimal disposable, YearMonth period) {
-        String markerKey = "CREATE_SAVING_PROJECT:" + period;
-        if (topicStatRepository.find(userId, markerKey).isPresent()) {
-            return; // already nudged this month
+                                         BigDecimal disposable, YearMonth period) throws Exception {
+        // The seed is a MONTHLY figure (pace-scaled disposable). Clamp it to 20% of income so the
+        // target we derive from it doesn't breach the MonthlyObligationPolicy cap when the user submits
+        // the pre-filled form (income is the available proxy for usableIncome, the policy's true basis).
+        BigDecimal monthly = scaleByPace(disposable, user.getSavingPace()).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal income = user.getIncome();
+        if (income != null && income.compareTo(BigDecimal.ZERO) > 0) {
+            monthly = monthly.min(income.multiply(MONTHLY_OBLIGATION_RATE).setScale(2, RoundingMode.DOWN));
         }
-        BigDecimal seed = scaleByPace(disposable, user.getSavingPace()).setScale(2, RoundingMode.HALF_UP);
-        if (seed.compareTo(BigDecimal.ZERO) <= 0) {
+        if (monthly.compareTo(BigDecimal.ZERO) <= 0) {
             return;
         }
 
-        createNotificationUseCase.createNotification(
-                userId,
-                pushText(capacity, "notification.nudge.create_saving_project"),
-                "app://projects/create?amount=" + seed.toPlainString());
-        recordPush(userId, markerKey);
-        log.info("[Suggestion] create-project nudge pushed for user={} period={} seed={}", userId, period, seed);
+        // A saving goal (target + deadline) is ultimately the user's intent; we can only seed a sensible,
+        // fully-editable draft from the one thing we know — the sustainable monthly. Over a default
+        // horizon: target = monthly × horizon, deadline = horizon months out. The deadline lands a month
+        // past that many contributions, so the project's derived monthly (target ÷ monthsToDeadline, which
+        // counts the current partial month) sits just UNDER the clamped monthly — never above it, keeping
+        // the seeded draft safely inside the 20% cap.
+        BigDecimal target = monthly.multiply(BigDecimal.valueOf(CREATE_PROJECT_HORIZON_MONTHS))
+                .setScale(2, RoundingMode.HALF_UP);
+        LocalDate deadline = LocalDate.now(clock).plusMonths(CREATE_PROJECT_HORIZON_MONTHS);
+
+        persistAndPush(userId, createProjectCandidate(capacity, target, monthly, deadline, period));
+    }
+
+    /**
+     * CREATE_PROJECT: SAVINGS_CAPACITY headroom with no active project to receive it. Navigate-only
+     * (like REVIEW_SUBSCRIPTION) — accept executes nothing server-side; the payload seeds the FE's
+     * pre-filled create form ({@code resolvedValue} = target total, plus the suggested monthly and
+     * deadline). INFO by nature, so it isn't gated by severity (the caller already confirmed the user
+     * gets pushes), mirroring the savings nudge.
+     */
+    private Candidate createProjectCandidate(Insight capacity, BigDecimal target, BigDecimal monthly,
+                                             LocalDate deadline, YearMonth period) {
+        SuggestionPayload.ProposedAction action = SuggestionPayload.ProposedAction.builder()
+                .resolvedValue(target)   // seeded target total — the create form's primary amount field
+                .monthlySaving(monthly)  // suggested monthly (for display / the FE's monthly field)
+                .deadline(deadline)      // suggested deadline (default horizon out)
+                .build();
+
+        return candidate(SuggestionType.CREATE_PROJECT, capacity, action,
+                "CREATE_PROJECT:" + period,
+                "notification.suggestion.create_project");
     }
 
     // ---- candidate builders --------------------------------------------------------------

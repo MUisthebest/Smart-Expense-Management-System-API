@@ -58,5 +58,14 @@ public enum SuggestionType {
      * {@code proposedAction.projectAdjustments}; accept applies exactly that snapshot, all-or-nothing
      * (docs/settlement-insights-followup.md item 4).
      */
-    REBALANCE_PROJECTS
+    REBALANCE_PROJECTS,
+    /**
+     * The user has savings headroom (SAVINGS_CAPACITY) but no active project to receive it — ask
+     * whether to start one. Navigate-only, like {@link #REVIEW_SUBSCRIPTION}: a project needs a name,
+     * target and deadline only the user can supply, so accept executes nothing server-side; the FE
+     * opens the pre-filled create form seeded with {@code proposedAction.resolvedValue} (the pace-
+     * scaled amount). Persisted as a card so it gets the in-app list, dedup, cooldown and
+     * dismissal-backoff every other savings ask has (Wave 4 item 10).
+     */
+    CREATE_PROJECT
 }
