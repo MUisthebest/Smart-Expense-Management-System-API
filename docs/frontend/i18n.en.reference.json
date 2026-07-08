@@ -1,0 +1,44 @@
+{
+  "_notes": [
+    "Starter English copy for every key in the FE guide's Appendix B (adaptive-engine-fe-guide.md).",
+    "Keys containing <category> are per-category insight codes: the API sends them with the category lower-cased (e.g. insight.budget_pace.food). Register one template and substitute, or expand per category.",
+    "Notification content arrives as key or key|arg (split on the first pipe). {placeholders} below are named after the real insight `metrics` / suggestion `proposedAction` fields (or the pipe arg where noted).",
+    "Render numbers exactly as given — never recompute or re-round the figures the API sends.",
+    "notification.nudge.* keys (Wave 4) are deep-link calls to action: no suggestion card, no accept step — the deep link (e.g. app://projects/create?amount=...) carries the pre-fill data."
+  ],
+
+  "insight.overspend_anomaly.<category>": "Unusually high {category} spending this month: {actual} vs your typical {baseline}.",
+  "insight.budget_pace.<category>": "On this pace, {category} will reach {projectedEndOfMonth} by month-end — over your {limit} budget.",
+  "insight.category_trend.<category>": "{category} spending has been creeping up by about {growthRatePerMonth} per month.",
+  "insight.recurring.<category>": "Recurring charge spotted: {description}, about {monthlyAmount} per month.",
+  "insight.savings_capacity": "You have roughly {disposable} spare this month after recurring costs and budgets.",
+  "insight.budget_over_income": "Your budgets total {committedBudgets} — {overBy} more than your declared income.",
+  "insight.budget_underspend.<category>": "You typically spend {medianActual} of your {limit} {category} budget — it could be trimmed.",
+  "insight.subscription_price_hike.<category>": "{description} charged {newAmount} this month, up from its usual {previousAmount}.",
+  "insight.project_off_track": "At this pace, {projectName} will miss its deadline — it needs about {requiredMonthly} per month; you've been saving {observedMonthly}.",
+
+  "notification.suggestion.raise_budget": "Your {arg} budget is on pace to overflow — raise it?",
+  "notification.suggestion.create_budget": "Unusually high {arg} spending — set a budget for it?",
+  "notification.suggestion.set_category_limit": "{arg} spending keeps climbing — set a first budget for it?",
+  "notification.suggestion.reduce_budget": "You rarely use your whole {arg} budget — lower it?",
+  "notification.suggestion.contribute_to_project": "Payday! Put something toward {arg}?",
+  "notification.suggestion.rebalance_budgets": "Your budgets add up to more than your income — shrink them to fit?",
+  "notification.suggestion.reallocate_budget": "Your {arg} budget is about to overflow — cover it from budgets you're not using?",
+  "notification.suggestion.review_subscription": "{arg} just charged more than usual — worth a quick review?",
+  "notification.suggestion.increase_contribution": "{arg} is falling behind its deadline — put in a bit extra this month?",
+  "notification.suggestion.create_project": "You have spare money this month — start a saving project for it?",
+
+  "notification.insight.large_transaction": "That {arg} charge was much larger than your usual.",
+  "notification.insight.duplicate_charge": "Possible double-charge on {arg} — check your recent transactions.",
+  "notification.insight.income_drop": "Last month's income came in well below your usual — worth a look.",
+  "notification.insight.cashflow_negative": "Last month you spent more than you earned.",
+  "notification.insight.project_milestone": "Nice one — {arg} just passed a savings milestone!",
+  "notification.insight.good_month": "You stayed under every budget last month. Keep it up!",
+
+  "notification.digest.pending_suggestions": "You have suggestions waiting for review.",
+  "notification.digest.weekly": "{arg} things worth a look in this week's insights.",
+
+  "notification.notification_done": "{typeKey} of {amount} recorded in {category}.",
+  "notification.expense": "Expense",
+  "notification.income": "Income"
+}

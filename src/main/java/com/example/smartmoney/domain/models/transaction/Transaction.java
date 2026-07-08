@@ -22,6 +22,8 @@ public class Transaction {
     private Category category;
     private String description;
     private LocalDateTime date;
+    /** Non-null only for project-contribution transactions (press-to-contribute). */
+    private UUID projectId;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -33,7 +35,19 @@ public class Transaction {
             Category category,
             String description,
             LocalDateTime date) {
-        
+        return create(userId, amount, type, category, description, date, null);
+    }
+
+    /** Factory carrying an optional {@code projectId} (set for PROJECT_CONTRIBUTION). */
+    public static Transaction create(
+            UUID userId,
+            Amount amount,
+            TransactionType type,
+            Category category,
+            String description,
+            LocalDateTime date,
+            UUID projectId) {
+
         if (userId == null) {
             throw new DomainException("UserId cannot be null");
         }
@@ -49,7 +63,7 @@ public class Transaction {
         if (date == null) {
             throw new DomainException("Date cannot be null");
         }
-        
+
         Transaction transaction = new Transaction();
         transaction.setUserId(userId);
         transaction.setAmount(amount);
@@ -57,9 +71,10 @@ public class Transaction {
         transaction.setCategory(category);
         transaction.setDescription(description);
         transaction.setDate(date);
+        transaction.setProjectId(projectId);
         transaction.setCreatedAt(LocalDateTime.now());
         transaction.setUpdatedAt(LocalDateTime.now());
-        
+
         return transaction;
     }
     

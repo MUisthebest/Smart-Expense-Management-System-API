@@ -21,6 +21,9 @@ public interface UserRepository {
     boolean existsByUsername(String username);
     boolean existsByPhone(Phone phone);
     boolean existsByPhoneAndIdNot(Phone phone, UUID id);
+
+    /** Active, notification-enabled users eligible for the weekly insight digest (P2-F). */
+    List<User> findAllForDigest();
 //    void markIncomeSetupCompleted(UUID userId, boolean completed);
 //    void markFinancialSetupCompleted(UUID userId, boolean completed);
 }

@@ -84,7 +84,70 @@ app:
   base-url: ${APP_BASE_URL:https://yourapp.com}
 
   # Set BYPASS_DATE_GATE=true in .env to skip the days 1-7 creation window (dev/testing only)
-  bypass-date-gate: ${BYPASS_DATE_GATE:false}
+  bypass-date-gate: ${BYPASS_DATE_GATE:true}
+
+  # Settlement engine (DEPRECATED by redesign Pivot B — press-to-contribute).
+  # Disabled by default: the monthly settlement cron (MonthlySettlementScheduler) only
+  # runs when enabled=true. Left as a reversible flag during the transition.
+  settlement:
+    enabled: ${SETTLEMENT_ENABLED:true}
+
+  # Weekly insight digest (redesign Phase 2 P2-F). Disabled by default: the digest cron
+  # (WeeklyInsightDigestScheduler) only runs when enabled=true. Keep off until the digest
+  # path is validated against a live DB.
+  digest:
+    enabled: ${DIGEST_ENABLED:true}
+
+  # Monthly recap (expansion Wave 3 item 6, MonthlyRecapScheduler): at month rollover, checks the
+  # just-closed month for INCOME_DROP / CASHFLOW_NEGATIVE and pushes notification-only recap pings.
+  # Disabled by default like the digest. The cron is overridable so a demo profile can fire it
+  # every minute (e.g. RECAP_CRON="0 * * * * *"); default 09:00 on the 1st.
+  recap:
+    enabled: ${RECAP_ENABLED:true}
+    cron: ${RECAP_CRON:0 0 9 1 * *}
+
+  # Month-end savings sweep (expansion Wave 3 item 7, MonthEndSweepScheduler): a late-month
+  # CONTRIBUTE_TO_PROJECT nudge decoupled from income arrival — reuses the existing savings
+  # producer, so all fatigue controls apply. Disabled by default; default cron 09:00 on the 25th.
+  sweep:
+    enabled: ${SWEEP_ENABLED:true}
+    cron: ${SWEEP_CRON:0 0 9 25 * *}
+
+  # Weekly project-health pass (expansion Wave 4 item 8, ProjectHealthScheduler): checks every
+  # active saving project's pace against its deadline and may raise an INCREASE_CONTRIBUTION
+  # catch-up ask per off-track project. Weekly so a stalled project is caught quickly; the ask
+  # itself is at most monthly per project (dedup key + cooldown). Disabled by default; default
+  # cron 09:00 every Monday.
+  project-health:
+    enabled: ${PROJECT_HEALTH_ENABLED:true}
+    cron: ${PROJECT_HEALTH_CRON:0 0 9 * * MON}
+
+  # On-demand triggers for the scheduled flows (AdaptiveEngineDemoController,
+  # POST /api/v1/demo/adaptive/recap|sweep|project-health?asOf=...). Testing/demo only — lets
+  # Postman run the scheduled code paths deterministically for the authenticated user. Keep OFF
+  # in production.
+  demo-triggers:
+    enabled: ${DEMO_TRIGGERS_ENABLED:true}
+
+  # Budget-pace forecast method (redesign Phase 3 P3-B). LINEAR = the original naive
+  # spent/day × daysInMonth projection (kept as the control). EXP_SMOOTHING = an exponentially
+  # smoothed daily burn rate carried over the remaining days — steadier and far less sensitive to a
+  # single early spike. Pure analyzer choice; defaults to LINEAR so live behaviour is unchanged.
+  insight:
+    forecast-method: ${INSIGHT_FORECAST_METHOD:LINEAR}
+    # LLM narration (redesign Phase 3 P3-C). When on, insights/suggestions get a human sentence
+    # (InsightResponse.narrative, push body) via Gemini; the LLM only phrases the pre-computed
+    # facts, never a number. Best-effort: a model outage falls back to the i18n code. OFF by
+    # default (network + cost + the live insight path is still unproven).
+    narration:
+      enabled: ${INSIGHT_NARRATION_ENABLED:true}
+
+  # Suggestion fatigue ceiling (redesign Phase 3 P3-A). Layered on top of dedup (P1) and dismissal
+  # suppression (P2-A): a per-user daily push cap and a per-topic cooldown (minimum hours between
+  # pushes on the same topic). A CRITICAL escalation bypasses both. Tune down to nudge less.
+  suggestion:
+    daily-cap: ${SUGGESTION_DAILY_CAP:3}
+    cooldown-hours: ${SUGGESTION_COOLDOWN_HOURS:24}
 
   # All-auto project tracking tunables (see docs/project-tracking-all-auto-plan.md §10)
   project:
