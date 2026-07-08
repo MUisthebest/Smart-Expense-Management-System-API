@@ -109,6 +109,10 @@ public class RespondToSuggestionUseCase {
             // Acknowledge-only: the real action (cancelling the subscription) happens outside the
             // app; "yes" just marks it reviewed. The ACCEPTED flip is the entire effect.
             case REVIEW_SUBSCRIPTION -> { }
+            // Navigate-only: a project needs a name, target and deadline only the user can supply, so
+            // there is nothing to execute here. "Yes" flips to ACCEPTED and the FE opens the pre-filled
+            // create form (seeded from proposedAction.resolvedValue); the ACCEPTED flip is the effect.
+            case CREATE_PROJECT -> { }
         }
     }
 

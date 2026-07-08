@@ -499,45 +499,79 @@ class SuggestionProducerTest {
     }
 
     @Test
-    @DisplayName("P2-B → Wave 4 item 10: no active saving project → no contribution ask; a create-project deep-link nudge instead")
-    void noProjectNudgesCreateProject() {
+    @DisplayName("Wave 4 item 10: no active saving project → a navigate-only CREATE_PROJECT suggestion (not a contribution ask)")
+    void noProjectNudgesCreateProject() throws Exception {
         stubUser(Intervention_Level.GENTLE, Saving_Pace.BALANCED);
         when(transactionRepository.findByUserIdWithFilters(any(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(incomeHistory());
         when(budgetRepository.findByUserIdMonthYear(eq(userId), eq(6), eq(2026))).thenReturn(List.of());
         when(projectRepository.findAllByUser(any())).thenReturn(List.of());
-        when(topicStatRepository.find(userId, "CREATE_SAVING_PROJECT:2026-06"))
+        when(suggestionRepository.findOpenByUserIdAndDedupKey(eq(userId), anyString()))
                 .thenReturn(Optional.empty());
+        when(suggestionRepository.save(any(Suggestion.class))).thenAnswer(inv -> inv.getArgument(0));
 
         producer.maybeProduceSavingsContribution(userId, AS_OF);
 
-        // No suggestion row — there is nothing a server-side "yes" could execute (item 10 decision).
-        verify(suggestionRepository, never()).save(any());
-        // The nudge deep-links to the pre-filled create form, seeded pace-scaled (5000 × 0.20).
-        verify(createNotificationUseCase).createNotification(eq(userId),
-                eq("notification.nudge.create_saving_project"),
-                eq("app://projects/create?amount=1000.00"));
-        // Marked so the nudge fires at most once per month.
-        ArgumentCaptor<SuggestionTopicStat> marker = ArgumentCaptor.forClass(SuggestionTopicStat.class);
-        verify(topicStatRepository).save(marker.capture());
-        assertEquals("CREATE_SAVING_PROJECT:2026-06", marker.getValue().getDedupKey());
+        // Now a persisted card, not a bare notification: it lives in GET /suggestions and inherits
+        // dedup/cooldown/dismissal-backoff. Accept is inert (navigate-only) — the FE reads the seed.
+        ArgumentCaptor<Suggestion> captor = ArgumentCaptor.forClass(Suggestion.class);
+        verify(suggestionRepository).save(captor.capture());
+        Suggestion saved = captor.getValue();
+        assertEquals(SuggestionType.CREATE_PROJECT, saved.getType());
+        assertEquals("CREATE_PROJECT:2026-06", saved.getDedupKey());
+
+        // The pre-fill draft rides in the payload: monthly = 5000 × BALANCED 0.20 = 1000 (no income cap,
+        // income unset); target = monthly × 6-month horizon = 6000; deadline = 6 months past AS_OF.
+        SuggestionPayload payload = objectMapper.readValue(saved.getPayloadJson(), SuggestionPayload.class);
+        SuggestionPayload.ProposedAction action = payload.getProposedAction();
+        assertEquals(0, new BigDecimal("6000.00").compareTo(action.getResolvedValue()));
+        assertEquals(0, new BigDecimal("1000.00").compareTo(action.getMonthlySaving()));
+        assertEquals(LocalDate.of(2026, 12, 15), action.getDeadline());
+
+        // Pushed like any suggestion: the notification deep-links to the in-app card.
+        verify(createNotificationUseCase).createNotification(eq(userId), any(), startsWith("app://suggestions/"));
     }
 
     @Test
-    @DisplayName("Wave 4 item 10: the create-project nudge fires at most once per month")
-    void createProjectNudgeOncePerMonth() {
+    @DisplayName("Wave 4 item 10: the seeded monthly is clamped to 20% of income so the derived project stays inside the obligation cap")
+    void createProjectSeedClampedToIncomeCap() throws Exception {
+        // AGGRESIVE would seed 0.30 × 5000 disposable = 1500/mo, but 20% of income (5000) caps it at 1000/mo.
+        when(userRepository.findById(userId)).thenReturn(Optional.of(User.builder()
+                .id(userId).interventionLevel(Intervention_Level.GENTLE)
+                .savingPace(Saving_Pace.AGGRESIVE).income(new BigDecimal("5000")).build()));
+        when(transactionRepository.findByUserIdWithFilters(any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(incomeHistory());
+        when(budgetRepository.findByUserIdMonthYear(eq(userId), eq(6), eq(2026))).thenReturn(List.of());
+        when(projectRepository.findAllByUser(any())).thenReturn(List.of());
+        when(suggestionRepository.findOpenByUserIdAndDedupKey(eq(userId), anyString()))
+                .thenReturn(Optional.empty());
+        when(suggestionRepository.save(any(Suggestion.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        producer.maybeProduceSavingsContribution(userId, AS_OF);
+
+        ArgumentCaptor<Suggestion> captor = ArgumentCaptor.forClass(Suggestion.class);
+        verify(suggestionRepository).save(captor.capture());
+        SuggestionPayload.ProposedAction action = objectMapper
+                .readValue(captor.getValue().getPayloadJson(), SuggestionPayload.class).getProposedAction();
+        assertEquals(0, new BigDecimal("1000.00").compareTo(action.getMonthlySaving())); // 1500 clamped to 1000
+        assertEquals(0, new BigDecimal("6000.00").compareTo(action.getResolvedValue())); // 1000 × 6-month horizon
+    }
+
+    @Test
+    @DisplayName("Wave 4 item 10: an already-open CREATE_PROJECT ask is not duplicated (dedup)")
+    void createProjectNudgeDedup() {
         stubUser(Intervention_Level.GENTLE, Saving_Pace.BALANCED);
         when(transactionRepository.findByUserIdWithFilters(any(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(incomeHistory());
         when(budgetRepository.findByUserIdMonthYear(eq(userId), eq(6), eq(2026))).thenReturn(List.of());
         when(projectRepository.findAllByUser(any())).thenReturn(List.of());
-        when(topicStatRepository.find(userId, "CREATE_SAVING_PROJECT:2026-06"))
-                .thenReturn(Optional.of(topicStat("CREATE_SAVING_PROJECT:2026-06", 0)));
+        when(suggestionRepository.findOpenByUserIdAndDedupKey(userId, "CREATE_PROJECT:2026-06"))
+                .thenReturn(Optional.of(mock(Suggestion.class)));
 
         producer.maybeProduceSavingsContribution(userId, AS_OF);
 
+        verify(suggestionRepository, never()).save(any());
         verify(createNotificationUseCase, never()).createNotification(any(), any(), any());
-        verify(topicStatRepository, never()).save(any());
     }
 
     // ---- item 1: gate contribute-nudges on autoInvestSurplus × settlement-enabled --------
@@ -550,6 +584,28 @@ class SuggestionProducerTest {
         producer.maybeProduceSavingsContribution(userId, AS_OF);
         verify(suggestionRepository, never()).save(any());
         verify(createNotificationUseCase, never()).createNotification(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("Item 1 gap: settlement live + autoInvestSurplus on but NO project → CREATE_PROJECT suggestion still fires (auto-invest has nothing to fund)")
+    void settlementAutoInvestStillNudgesCreateProjectWhenNoProject() {
+        producer = buildProducer(true);                            // settlement engine live
+        stubUser(Intervention_Level.GENTLE, Saving_Pace.BALANCED); // autoInvestSurplus defaults on
+        when(transactionRepository.findByUserIdWithFilters(any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(incomeHistory());
+        when(budgetRepository.findByUserIdMonthYear(eq(userId), eq(6), eq(2026))).thenReturn(List.of());
+        when(projectRepository.findAllByUser(any())).thenReturn(List.of());  // no project to invest into
+        when(suggestionRepository.findOpenByUserIdAndDedupKey(eq(userId), anyString()))
+                .thenReturn(Optional.empty());
+        when(suggestionRepository.save(any(Suggestion.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        producer.maybeProduceSavingsContribution(userId, AS_OF);
+
+        // The contribute-suppression must NOT reach here: with no project, settlement's auto-invest is
+        // a no-op, so the create-project ask is the only path that puts the surplus to work.
+        ArgumentCaptor<Suggestion> captor = ArgumentCaptor.forClass(Suggestion.class);
+        verify(suggestionRepository).save(captor.capture());
+        assertEquals(SuggestionType.CREATE_PROJECT, captor.getValue().getType());
     }
 
     @Test
@@ -1334,6 +1390,21 @@ class SuggestionProducerTest {
     void trackOnlySuppressesContributionNudge() {
         stubUserWithFocus(Intervention_Level.GENTLE, Focus_Mode.TRACK_ONLY);
         producer.maybeProduceSavingsContribution(userId, AS_OF);
+        verify(suggestionRepository, never()).save(any());
+        verify(createNotificationUseCase, never()).createNotification(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("Item 6: TRACK_ONLY still suppresses the create-project nudge (retained gate — passive tracking opts out of goal-setting)")
+    void trackOnlySuppressesCreateProjectNudge() {
+        stubUserWithFocus(Intervention_Level.GENTLE, Focus_Mode.TRACK_ONLY);
+        when(transactionRepository.findByUserIdWithFilters(any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(incomeHistory());
+        when(budgetRepository.findByUserIdMonthYear(eq(userId), eq(6), eq(2026))).thenReturn(List.of());
+        when(projectRepository.findAllByUser(any())).thenReturn(List.of());  // capacity but no project
+
+        producer.maybeProduceSavingsContribution(userId, AS_OF);
+
         verify(suggestionRepository, never()).save(any());
         verify(createNotificationUseCase, never()).createNotification(any(), any(), any());
     }

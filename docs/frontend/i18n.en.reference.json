@@ -26,6 +26,7 @@
   "notification.suggestion.reallocate_budget": "Your {arg} budget is about to overflow — cover it from budgets you're not using?",
   "notification.suggestion.review_subscription": "{arg} just charged more than usual — worth a quick review?",
   "notification.suggestion.increase_contribution": "{arg} is falling behind its deadline — put in a bit extra this month?",
+  "notification.suggestion.create_project": "You have spare money this month — start a saving project for it?",
 
   "notification.insight.large_transaction": "That {arg} charge was much larger than your usual.",
   "notification.insight.duplicate_charge": "Possible double-charge on {arg} — check your recent transactions.",
@@ -33,8 +34,6 @@
   "notification.insight.cashflow_negative": "Last month you spent more than you earned.",
   "notification.insight.project_milestone": "Nice one — {arg} just passed a savings milestone!",
   "notification.insight.good_month": "You stayed under every budget last month. Keep it up!",
-
-  "notification.nudge.create_saving_project": "You have spare money this month — start a saving project for it?",
 
   "notification.digest.pending_suggestions": "You have suggestions waiting for review.",
   "notification.digest.weekly": "{arg} things worth a look in this week's insights.",

@@ -84,13 +84,13 @@ app:
   base-url: ${APP_BASE_URL:https://yourapp.com}
 
   # Set BYPASS_DATE_GATE=true in .env to skip the days 1-7 creation window (dev/testing only)
-  bypass-date-gate: ${BYPASS_DATE_GATE:false}
+  bypass-date-gate: ${BYPASS_DATE_GATE:true}
 
   # Settlement engine (DEPRECATED by redesign Pivot B — press-to-contribute).
   # Disabled by default: the monthly settlement cron (MonthlySettlementScheduler) only
   # runs when enabled=true. Left as a reversible flag during the transition.
   settlement:
-    enabled: ${SETTLEMENT_ENABLED:false}
+    enabled: ${SETTLEMENT_ENABLED:true}
 
   # Weekly insight digest (redesign Phase 2 P2-F). Disabled by default: the digest cron
   # (WeeklyInsightDigestScheduler) only runs when enabled=true. Keep off until the digest
