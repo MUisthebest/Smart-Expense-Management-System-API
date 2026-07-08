@@ -1,6 +1,7 @@
 package com.example.smartmoney.domain.models.transaction.enums;
 
 public enum Category {
+    // Expense categories.
     FOOD,
     TRANSPORTATION,
     CLOTHING,
@@ -10,6 +11,14 @@ public enum Category {
     EDUCATION,
     SHOPPING,
     OTHER,
+    // Income categories. Paired with TransactionType.INCOME on manually-entered
+    // income transactions. Persisted the same way as expense categories:
+    // transactions.category is a plain VARCHAR(20) with no CHECK constraint, so
+    // these are a code-only addition (no migration). See V19 migration comment.
+    SALARY,
+    BONUS,
+    INVESTMENT,
+    GIFT,
     /**
      * System-generated INCOME transactions emitted when a project is abandoned —
      * one per past contribution. Restores the contributor's safe-spending headroom
