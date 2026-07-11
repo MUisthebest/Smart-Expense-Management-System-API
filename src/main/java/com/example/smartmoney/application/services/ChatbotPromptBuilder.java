@@ -125,8 +125,8 @@ public class ChatbotPromptBuilder {
             // RELAXED: encourage without pressure; prioritise long-term comfort
             tone.append("- Tốc độ tiết kiệm: RELAXED. Giọng nhẹ nhàng, khích lệ, không tạo áp lực. ")
                 .append("Ưu tiên sự thoải mái và bền vững dài hạn hơn là tốc độ tích lũy.\n");
-        } else if (pace == Saving_Pace.AGGRESIVE) {
-            // AGGRESIVE: direct numbers, name consequences, no sugarcoating
+        } else if (pace == Saving_Pace.AGGRESSIVE) {
+            // AGGRESSIVE: direct numbers, name consequences, no sugarcoating
             tone.append("- Tốc độ tiết kiệm: AGGRESSIVE. Giọng thẳng thắn, tập trung vào con số cụ thể. ")
                 .append("Nêu rõ hậu quả nếu không hành động ngay. Dùng ngôn ngữ quyết đoán, ngắn gọn.\n");
         } else {
