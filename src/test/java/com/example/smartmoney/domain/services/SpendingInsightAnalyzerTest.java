@@ -120,6 +120,25 @@ class SpendingInsightAnalyzerTest {
         assertTrue(overspend(history).isEmpty());
     }
 
+    // ---- recurring cost by category (feeds the deterministic allocator) ------------------
+
+    @Test
+    @DisplayName("recurringCostByCategory returns the per-category monthly recurring amount")
+    void recurringCostByCategoryGroupsPerCategory() {
+        List<Transaction> history = new ArrayList<>();
+        // A stable Netflix charge in UTILITIES across 3 months → recurring.
+        history.add(expense(Category.UTILITIES, 2026, 3, new BigDecimal("200000"), "netflix"));
+        history.add(expense(Category.UTILITIES, 2026, 4, new BigDecimal("200000"), "netflix"));
+        history.add(expense(Category.UTILITIES, 2026, 5, new BigDecimal("200000"), "netflix"));
+        // A one-off FOOD charge → not recurring, must be absent.
+        history.add(expense(Category.FOOD, 2026, 5, new BigDecimal("999000"), "dinner"));
+
+        var byCategory = analyzer.recurringCostByCategory(history, PERIOD);
+
+        assertEquals(0, new BigDecimal("200000").compareTo(byCategory.get(Category.UTILITIES)));
+        assertFalse(byCategory.containsKey(Category.FOOD));
+    }
+
     // ---- budget pace ---------------------------------------------------------------------
 
     private Optional<Insight> pace(Budget budget) {
