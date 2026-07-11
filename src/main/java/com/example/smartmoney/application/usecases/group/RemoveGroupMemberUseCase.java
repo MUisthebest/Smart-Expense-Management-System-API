@@ -22,7 +22,7 @@ public class RemoveGroupMemberUseCase {
         Group group = groupRepository.findById(GroupId.of(groupId))
                 .orElseThrow(() -> new ProjectException("Group not found", ProjectErrorCode.PROJECT_NOT_FOUND));
 
-        group.removeDeclinedMember(UserId.of(actorId), UserId.of(targetUserId));
+        group.removeOrKickMember(UserId.of(actorId), UserId.of(targetUserId));
         groupRepository.save(group);
         return GroupDetailResponse.fromDomain(group);
     }
