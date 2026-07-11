@@ -479,14 +479,14 @@ class SuggestionProducerTest {
     @Test
     @DisplayName("P2-E: AGGRESIVE suggests 30% of disposable")
     void aggresivePaceScales() {
-        assertEquals(0, new BigDecimal("1500.00").compareTo(contributionAmountFor(Saving_Pace.AGGRESIVE)));
+        assertEquals(0, new BigDecimal("1500.00").compareTo(contributionAmountFor(Saving_Pace.AGGRESSIVE)));
     }
 
     @Test
     @DisplayName("P2-E: the suggested contribution never exceeds what the project still needs")
     void contributionCappedAtProjectRemaining() throws Exception {
         UUID projectId = UUID.randomUUID();
-        stubUser(Intervention_Level.GENTLE, Saving_Pace.AGGRESIVE); // 0.30 × 5000 = 1500
+        stubUser(Intervention_Level.GENTLE, Saving_Pace.AGGRESSIVE); // 0.30 × 5000 = 1500
         stubSavingsData(projectId, "400"); // project only needs 400
         when(suggestionRepository.save(any(Suggestion.class))).thenAnswer(inv -> inv.getArgument(0));
 
@@ -538,7 +538,7 @@ class SuggestionProducerTest {
         // AGGRESIVE would seed 0.30 × 5000 disposable = 1500/mo, but 20% of income (5000) caps it at 1000/mo.
         when(userRepository.findById(userId)).thenReturn(Optional.of(User.builder()
                 .id(userId).interventionLevel(Intervention_Level.GENTLE)
-                .savingPace(Saving_Pace.AGGRESIVE).income(new BigDecimal("5000")).build()));
+                .savingPace(Saving_Pace.AGGRESSIVE).income(new BigDecimal("5000")).build()));
         when(transactionRepository.findByUserIdWithFilters(any(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(incomeHistory());
         when(budgetRepository.findByUserIdMonthYear(eq(userId), eq(6), eq(2026))).thenReturn(List.of());

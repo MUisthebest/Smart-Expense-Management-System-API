@@ -1130,7 +1130,7 @@ public class SuggestionProducer {
         BigDecimal fraction = switch (pace == null ? Saving_Pace.BALANCED : pace) {
             case RELAXED -> new BigDecimal("0.10");
             case BALANCED -> new BigDecimal("0.20");
-            case AGGRESIVE -> new BigDecimal("0.30");
+            case AGGRESSIVE -> new BigDecimal("0.30");
         };
         return disposable.multiply(fraction);
     }
