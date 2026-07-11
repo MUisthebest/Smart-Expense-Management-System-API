@@ -27,6 +27,7 @@ public class GroupController {
     private final CreateGroupUseCase createGroupUseCase;
     private final GetGroupDetailUseCase getGroupDetailUseCase;
     private final LockGroupUseCase lockGroupUseCase;
+    private final UnlockGroupUseCase unlockGroupUseCase;
     private final InviteGroupMemberUseCase inviteGroupMemberUseCase;
     private final AcceptGroupInviteUseCase acceptGroupInviteUseCase;
     private final DeclineGroupInviteUseCase declineGroupInviteUseCase;
@@ -83,6 +84,19 @@ public class GroupController {
         return CheckResponse.<GroupDetailResponse>builder()
                 .success(true)
                 .message("Locked")
+                .data(data)
+                .build();
+    }
+
+    @Operation(summary = "Unlock the group", description = "Admin unlocks the group to add more members. Only allowed if no group project exists yet.")
+    @PostMapping("/{groupId}/unlock")
+    public CheckResponse<GroupDetailResponse> unlock(
+            Authentication auth,
+            @PathVariable String groupId) {
+        GroupDetailResponse data = unlockGroupUseCase.execute(actorId(auth), groupId);
+        return CheckResponse.<GroupDetailResponse>builder()
+                .success(true)
+                .message("Unlocked")
                 .data(data)
                 .build();
     }
