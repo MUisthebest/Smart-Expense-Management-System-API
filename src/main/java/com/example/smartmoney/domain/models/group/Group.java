@@ -107,12 +107,13 @@ public class Group {
         updatedAt = Instant.now();
     }
 
-    public void removeDeclinedMember(UserId actorId, UserId targetUserId) {
+    public void removeOrKickMember(UserId actorId, UserId targetUserId) {
         requireAdmin(actorId);
         requireForming();
         GroupMember member = findMember(targetUserId);
-        if (member.getInviteStatus() != GroupMemberInviteStatus.DECLINED) {
-            throw new ProjectException("Only DECLINED members can be removed",
+        if (member.getInviteStatus() != GroupMemberInviteStatus.DECLINED
+                && member.getInviteStatus() != GroupMemberInviteStatus.INVITED) {
+            throw new ProjectException("Only pending or declined members can be removed",
                     ProjectErrorCode.PROJECT_PERMISSION_DENIED);
         }
         members.remove(member);
@@ -134,7 +135,19 @@ public class Group {
                     "Cannot lock group: at least one non-admin member must have joined",
                     ProjectErrorCode.PROJECT_PERMISSION_DENIED);
         }
+        // Automatically remove all pending invites when locking
+        members.removeIf(m -> m.getInviteStatus() == GroupMemberInviteStatus.INVITED);
         this.status = GroupStatus.LOCKED;
+        this.updatedAt = Instant.now();
+    }
+
+    public void unlock(UserId actorId) {
+        requireAdmin(actorId);
+        if (this.status != GroupStatus.LOCKED) {
+            throw new ProjectException("Group is not locked",
+                    ProjectErrorCode.PROJECT_PERMISSION_DENIED);
+        }
+        this.status = GroupStatus.FORMING;
         this.updatedAt = Instant.now();
     }
 
