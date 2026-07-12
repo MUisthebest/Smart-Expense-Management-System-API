@@ -19,7 +19,7 @@ public class ListMyProjectsUseCase {
 
     private final ProjectRepository projectRepository;
 
-    @Transactional(readOnly = true)
+    @Transactional
     public List<ProjectListItemResponse> execute(String actorId, ProjectFilterRequest filter) {
         List<Project> projects =
                 projectRepository.findAllByUser(UserId.of(actorId), filter);
@@ -31,6 +31,14 @@ public class ListMyProjectsUseCase {
             );
         }
 
+        // Lazy-on-read expiry (replaces the settlement cron's expiry pass). Persist any
+        // project that just crossed its deadline under target; the in-memory status is
+        // already updated, so the mapped response reflects EXPIRED either way.
+        projects.forEach(p -> {
+            if (p.expireIfDeadlinePassed()) {
+                projectRepository.save(p);
+            }
+        });
 
         return projects.stream()
                 .map(ProjectListItemResponse::fromDomain)

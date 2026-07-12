@@ -180,22 +180,46 @@ public class Project {
         return c;
     }
 
-
     /**
-     * Net savings = money_saved − money_owed, floored at zero. This is the single
-     * source of truth for progress and completion in the all-auto model: a project
-     * only counts what it has actually put away net of overspend debt.
-     * See docs/project-tracking-all-auto-plan.md §2.
+     * System-driven auto-saving from the monthly settlement engine. Appends a
+     * {@link ProjectContribution} — the single source of progress — for the amount settlement
+     * credited this month, so the auto-engine and manual presses sum into the same progress bar
+     * (no divergence, full audit trail). Bypasses the owner-actor check because settlement, not a
+     * user, initiates it; still requires a contributable status and a positive amount. The
+     * contribution is attributed to the project owner. See docs/settlement-insights-followup.md item 0.
      */
-    public BigDecimal netSavedAmount() {
-        if (tracking == null) return BigDecimal.ZERO;
-        BigDecimal saved = tracking.getMoneySaved() != null ? tracking.getMoneySaved() : BigDecimal.ZERO;
-        BigDecimal owed = tracking.getMoneyOwed() != null ? tracking.getMoneyOwed() : BigDecimal.ZERO;
-        return saved.subtract(owed).max(BigDecimal.ZERO);
+    public ProjectContribution recordAutoSaving(BigDecimal amount, String note) {
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new ProjectException("Auto-saving amount must be > 0",
+                    ProjectErrorCode.PROJECT_CONTRIBUTION_INVALID_AMOUNT);
+        }
+        requireContributable();
+
+        Money money = new Money(amount, targetAmount.currency());
+        ProjectContribution c = new ProjectContribution(
+                ContributionId.newId(), ownerId, money, note, Instant.now());
+        contributions.add(c);
+        return c;
     }
 
+
+    /**
+     * Total contributed = sum of the {@code contributions} list. This is the single
+     * source of truth for progress and completion under the press-to-contribute model:
+     * pressing "contribute" appends a {@link ProjectContribution}, and the progress bar
+     * tracks exactly that. Settlement {@code tracking} (moneySaved/moneyOwed) no longer
+     * feeds progress — see docs/redesign-technical-implementation.md §5.1.
+     */
     public Money totalContributed() {
-        return new Money(netSavedAmount(), targetAmount.currency());
+        BigDecimal sum = contributions.stream()
+                .map(c -> c.getMoney().amount())
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        return new Money(sum, targetAmount.currency());
+    }
+
+    /** Backwards-compatible alias; progress now derives from contributions, not tracking. */
+    public BigDecimal netSavedAmount() {
+        return totalContributed().amount();
     }
 
     public Money remaining() {
@@ -304,6 +328,23 @@ public class Project {
         if (status == ProjectStatus.ACTIVE || status == ProjectStatus.FROZEN) {
             this.status = ProjectStatus.EXPIRED;
         }
+    }
+
+    /**
+     * Lazy-on-read expiry: a still-live project whose deadline has passed without
+     * reaching its target transitions to EXPIRED. Returns {@code true} when the status
+     * actually changed, so callers can persist it. Replaces the settlement cron's expiry
+     * pass — evaluated whenever a project is read/accessed.
+     * See docs/redesign-technical-implementation.md §5.3.
+     */
+    public boolean expireIfDeadlinePassed() {
+        boolean shouldExpire = (status == ProjectStatus.ACTIVE || status == ProjectStatus.FROZEN)
+                && deadline.isBefore(LocalDate.now())
+                && progressPercent().compareTo(new BigDecimal("100")) < 0;
+        if (shouldExpire) {
+            expire();
+        }
+        return shouldExpire;
     }
 
     public boolean isTerminal() {

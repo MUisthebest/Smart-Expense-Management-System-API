@@ -22,7 +22,7 @@ public class GetProjectDetailUseCase {
     private final ProjectRepository projectRepository;
     private final ProjectHistoryRepository projectHistoryRepository;
 
-    @Transactional(readOnly = true)
+    @Transactional
     public ProjectDetailResponse execute(String actorId, String projectId) {
         Project p = projectRepository.findById(ProjectId.of(projectId))
                 .orElseThrow(() -> new ProjectException("Project not found", ProjectErrorCode.PROJECT_NOT_FOUND));
@@ -30,6 +30,11 @@ public class GetProjectDetailUseCase {
         UserId actor = UserId.of(actorId);
         if (!actor.equals(p.getOwnerId())) {
             throw new ProjectException("Permission denied", ProjectErrorCode.PROJECT_PERMISSION_DENIED);
+        }
+
+        // Lazy-on-read expiry (replaces the settlement cron's expiry pass).
+        if (p.expireIfDeadlinePassed()) {
+            p = projectRepository.save(p);
         }
 
         List<ProjectHistoryResponse> histories = projectHistoryRepository.findAllByProjectId(p.getId())

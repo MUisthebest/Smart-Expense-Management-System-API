@@ -43,6 +43,7 @@ public class User {
     private Focus_Mode focusMode;    //New attributes
     private Intervention_Level interventionLevel;   //New attributes
     private Saving_Pace savingPace;  //New attributes.
+    private Boolean autoInvestSurplus; // null = auto-invest surplus (today's always-invest default)
     
     // Factory method for registration
     public static User create(
@@ -291,7 +292,8 @@ public class User {
             BigDecimal income,
             Saving_Pace savingPace,
             Intervention_Level interventionLevel,
-            Focus_Mode focusMode
+            Focus_Mode focusMode,
+            Boolean autoInvestSurplus
     ) {
         if (income == null || income.compareTo(BigDecimal.ZERO) <= 0) {
             throw new DomainException("Income must be greater than zero");
@@ -305,7 +307,22 @@ public class User {
         this.savingPace = savingPace;
         this.interventionLevel = interventionLevel;
         this.focusMode = focusMode;
+        // Auto-invest has a safe default (on, via isAutoInvestSurplus()) so it does not gate
+        // hasCompletedFinancialSetup(). Only overwrite when an explicit value is supplied — a null
+        // (e.g. an update that omits the field) preserves the user's existing preference rather than
+        // silently flipping it back on.
+        if (autoInvestSurplus != null) {
+            this.autoInvestSurplus = autoInvestSurplus;
+        }
         this.updatedAt = LocalDateTime.now();
+    }
+
+    /**
+     * Whether monthly settlement should auto-invest a computed surplus into the user's
+     * projects. Null (never configured) preserves today's always-invest behaviour.
+     */
+    public boolean isAutoInvestSurplus() {
+        return autoInvestSurplus == null ? true : autoInvestSurplus;
     }
 
     public boolean hasCompletedFinancialSetup() {
@@ -315,11 +332,25 @@ public class User {
                 && focusMode != null;
     }
 
+    public BigDecimal getSavingCapacity() {
+        if (this.income == null || this.income.compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO;
+        }
+        BigDecimal rate = new BigDecimal("0.20"); // Default: BALANCED
+        if (this.savingPace == Saving_Pace.RELAXED || this.focusMode == Focus_Mode.TRACK_ONLY) {
+            rate = new BigDecimal("0.10");
+        } else if (this.savingPace == Saving_Pace.AGGRESSIVE || this.focusMode == Focus_Mode.SAVE_MORE) {
+            rate = new BigDecimal("0.35");
+        }
+        return this.income.multiply(rate);
+    }
+
     public void clearFinancialSetup() {
         this.income = null;
         this.savingPace = null;
         this.interventionLevel = null;
         this.focusMode = null;
+        this.autoInvestSurplus = null;
         this.updatedAt = LocalDateTime.now();
     }
 

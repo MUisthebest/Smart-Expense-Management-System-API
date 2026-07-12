@@ -45,6 +45,8 @@ public class ProjectController {
     private final FreezeProjectUseCase freezeProjectUseCase;
     private final UnfreezeProjectUseCase unfreezeProjectUseCase;
 
+    private final AddProjectContributionUseCase addProjectContributionUseCase;
+
     private String actorId(Authentication auth) {
         return auth.getName();
     }
@@ -205,8 +207,9 @@ public class ProjectController {
     // ===== AI Budget Advisor =====
 
     @Operation(
-            summary = "AI project budget advisor",
-            description = "Given project parameters and a mode (URGENT / RELAXED), computes the adjusted monthly saving and number of months."
+            summary = "Project budget advisor",
+            description = "Given project parameters, suggests a monthly saving plan (amount + number of months). " +
+                    "The savings pace comes from the user's savingPace trait; this is advisory and never blocks."
     )
     @PostMapping("/project-advisor")
     public CheckResponse<ProjectBudgetAdvisorResponse> projectAdvisor(
@@ -216,6 +219,32 @@ public class ProjectController {
         return CheckResponse.<ProjectBudgetAdvisorResponse>builder()
                 .success(true)
                 .message("OK")
+                .data(data)
+                .build();
+    }
+
+    // ===== Contributions (press-to-contribute) =====
+
+    @Operation(
+            summary = "Contribute to a project",
+            description = "Press-to-contribute: records a real EXPENSE ledger transaction and " +
+                    "advances the project atomically. Completes the project synchronously if the " +
+                    "target is reached. Owner only."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Contribution recorded"),
+            @ApiResponse(responseCode = "400", description = "Validation error / project not contributable"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized")
+    })
+    @PostMapping("/{projectId}/contributions")
+    public CheckResponse<ProjectDetailResponse> contribute(
+            Authentication auth,
+            @PathVariable String projectId,
+            @Valid @RequestBody AddProjectContributionRequest req) {
+        ProjectDetailResponse data = addProjectContributionUseCase.execute(actorId(auth), projectId, req);
+        return CheckResponse.<ProjectDetailResponse>builder()
+                .success(true)
+                .message("Contributed")
                 .data(data)
                 .build();
     }

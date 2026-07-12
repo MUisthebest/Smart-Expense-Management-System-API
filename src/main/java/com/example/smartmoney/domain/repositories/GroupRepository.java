@@ -12,4 +12,5 @@ public interface GroupRepository {
     List<Group> findAllByAdmin(UserId adminId);
     List<Group> findAllByMember(UserId userId);
     Group save(Group group);
+    void delete(GroupId id);
 }

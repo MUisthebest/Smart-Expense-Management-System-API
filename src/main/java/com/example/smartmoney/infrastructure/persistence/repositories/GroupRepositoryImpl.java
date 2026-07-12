@@ -99,6 +99,13 @@ public class GroupRepositoryImpl implements GroupRepository {
                 .orElseThrow(() -> new IllegalStateException("Group not found after save"));
     }
 
+    @Override
+    @Transactional
+    public void delete(GroupId id) {
+        jpaGroupMemberRepository.deleteByGroupId(id.value());
+        jpaGroupRepository.deleteById(id.value());
+    }
+
     private void syncMembers(Group group, UUID groupId, Instant now) {
         List<GroupMember> domainMembers = group.getMembers();
         Set<UUID> incomingIds = domainMembers.stream()

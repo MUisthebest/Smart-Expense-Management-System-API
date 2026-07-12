@@ -39,6 +39,9 @@ public class TransactionEntity {
     @Column(name = "date", nullable = false)
     private LocalDateTime date;
 
+    @Column(name = "project_id")
+    private UUID projectId;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
