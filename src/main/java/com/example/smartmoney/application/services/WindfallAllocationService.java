@@ -4,6 +4,7 @@ import com.example.smartmoney.application.dtos.responses.ChatResponse;
 import com.example.smartmoney.domain.models.budget.Budget;
 import com.example.smartmoney.domain.models.project.Project;
 import com.example.smartmoney.domain.models.project.ProjectTracking;
+import com.example.smartmoney.domain.models.project.enums.ProjectStatus;
 import com.example.smartmoney.domain.models.project.valueobjects.UserId;
 import com.example.smartmoney.domain.repositories.BudgetRepository;
 import com.example.smartmoney.domain.repositories.ProjectRepository;
@@ -231,6 +232,17 @@ public class WindfallAllocationService {
      */
     public List<ChatResponse.SavingsPlanSuggestion> suggestProjectDeferral(
             UUID userId, int month, int year, String messageLow) {
+        return suggestProjectDeferral(userId, month, year, messageLow, BigDecimal.ZERO);
+    }
+
+    /**
+     * Same as {@link #suggestProjectDeferral(UUID, int, int, String)} but treats
+     * {@code extraCoverage} (e.g. idle funds freed from an abandoned project via
+     * {@link #suggestAbandonedProjectFunds}) as additional headroom, so an ACTIVE project is only
+     * deferred for whatever shortfall remains after that idle cash is counted.
+     */
+    public List<ChatResponse.SavingsPlanSuggestion> suggestProjectDeferral(
+            UUID userId, int month, int year, String messageLow, BigDecimal extraCoverage) {
 
         BigDecimal expense = parseAmount(messageLow);
         if (expense.compareTo(BigDecimal.ZERO) == 0) expense = DEFAULT_AMOUNT;
@@ -238,11 +250,13 @@ public class WindfallAllocationService {
         List<Project> projects = activeProjects(userId);
         if (projects.isEmpty()) return Collections.emptyList();
 
-        // Check if total budget already covers the expense — if yes, no deferral needed
+        // Check if total budget headroom + any idle abandoned-project funds already covers the
+        // expense — if yes, no deferral of an ACTIVE project is needed.
         List<Budget> budgets = budgetRepository.findByUserIdMonthYear(userId, month, year);
         BigDecimal totalHeadroom = budgets.stream()
                 .map(b -> b.getAmountLimit().subtract(b.getSpent() != null ? b.getSpent() : BigDecimal.ZERO))
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .add(extraCoverage != null ? extraCoverage : BigDecimal.ZERO);
 
         if (totalHeadroom.compareTo(expense) >= 0) return Collections.emptyList();
 
@@ -284,13 +298,61 @@ public class WindfallAllocationService {
         return result;
     }
 
+    /**
+     * Suggests using money already saved in an ABANDONED project to cover a large expense instead
+     * of leaving it idle. An abandoned project no longer accrues monthly saving and can't take new
+     * contributions ({@link Project#contribute} rejects it), but its tracked {@code moneySaved} is a
+     * real lump sum sitting unused — a better source for a one-off expense than deferring an ACTIVE
+     * project's future savings. (A hard-deleted project has nothing left to suggest — its tracking
+     * row is gone — so this only ever looks at ABANDONED, not DELETE.)
+     */
+    public List<ChatResponse.SavingsPlanSuggestion> suggestAbandonedProjectFunds(
+            UUID userId, String messageLow) {
+
+        List<Project> abandoned = projectRepository.findAllByUser(UserId.of(userId.toString()))
+                .stream()
+                .filter(p -> p.getStatus() == ProjectStatus.ABANDONED)
+                .filter(p -> {
+                    ProjectTracking t = p.getTracking();
+                    return t != null && t.getMoneySaved() != null
+                            && t.getMoneySaved().compareTo(BigDecimal.ZERO) > 0;
+                })
+                .collect(Collectors.toList());
+        if (abandoned.isEmpty()) return Collections.emptyList();
+
+        boolean english = MessageLanguageDetector.isEnglish(messageLow);
+        return abandoned.stream()
+                .map(p -> {
+                    BigDecimal saved = p.getTracking().getMoneySaved();
+                    return ChatResponse.SavingsPlanSuggestion.builder()
+                            .projectId(p.getId().toString())
+                            .projectName(p.getName())
+                            .currentMoneySaved(saved.longValue())
+                            .suggestedAddAmount(saved.negate().longValue()) // negative = withdrawal
+                            .newMoneySaved(0L)
+                            .suggestedMonthLeft(null)
+                            .reason(english
+                                    ? String.format(
+                                            "Project '%s' is abandoned but still has %,.0f VND saved — use it to cover the expense instead of leaving it idle.",
+                                            p.getName(), saved)
+                                    : String.format(
+                                            "Dự án '%s' đã bị hủy nhưng vẫn còn %,.0f VND đã tiết kiệm — dùng số tiền này để trang trải chi phí thay vì để không.",
+                                            p.getName(), saved))
+                            .build();
+                })
+                .collect(Collectors.toList());
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────────────
 
+    /** Active projects (status ACTIVE — excludes COMPLETED/ABANDONED/FROZEN/EXPIRED/CANCELLED,
+     *  future deadline), highest priority first (HIGH &gt; MEDIUM &gt; LOW). */
     private List<Project> activeProjects(UUID userId) {
         LocalDate today = LocalDate.now();
         return projectRepository.findAllByUser(UserId.of(userId.toString()))
                 .stream()
-                .filter(p -> p.getDeadline().isAfter(today)
+                .filter(p -> p.getStatus() == ProjectStatus.ACTIVE
+                        && p.getDeadline().isAfter(today)
                         && ChronoUnit.MONTHS.between(today, p.getDeadline()) > 0)
                 .sorted(Comparator.comparingInt(p -> -p.getPriority().ordinal())) // HIGH first
                 .collect(Collectors.toList());

@@ -21,23 +21,21 @@ import java.util.stream.Collectors;
  * The summary is purely a prompt-injection aid — {@link #load} returns it to the caller only so
  * it can be placed at the top of the prompt; it is never surfaced in any API response.
  *
- * Compression is model-agnostic: it applies the same way regardless of whether the conversation
- * turns being folded were answered by Claude Haiku or Gemini Flash. The summarisation call itself
- * is routed through {@link LlmRouter} using the same heuristic as the main chat turn, based on the
- * content being folded — so a run of budget/project-heavy turns gets summarised by Claude Haiku
- * just like the original replies were, not unconditionally by Gemini Flash.
+ * Maintains a fixed 5-slot window: 1 rolling summary + the 4 most recent raw messages (2
+ * user/assistant pairs). The summarisation call itself is routed through {@link LlmRouter}, same
+ * as the main chat turn.
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class ChatHistoryCacheService {
 
-    // Trigger + fold-size are read literally from the raw message count (this is a List of
-    // ChatMessageDto — 1 "turn" advertised elsewhere in this codebase == 1 user+assistant pair
-    // == 2 messages). Folding the oldest 4 raw messages (2 pairs) each time a compression fires
-    // keeps steady-state history oscillating around 3-5 pairs (6-10 messages) plus one summary.
-    private static final int COMPRESS_TRIGGER_SIZE = 8;
-    private static final int FOLD_COUNT = 4;
+    // Fixed 5-slot window: 1 rolling summary + 4 raw messages (2 user/assistant pairs). Folding
+    // the oldest pair (2 messages) every time a new pair would push the raw count past 4 keeps
+    // the stored history at exactly 5 entries after every turn — trigger and fold-size were
+    // chosen together so raw count returns to 4 immediately after each fold (add 2, fold 2).
+    private static final int COMPRESS_TRIGGER_SIZE = 4;
+    private static final int FOLD_COUNT = 2;
 
     private final ChatHistoryPort chatHistoryPort;
     private final LlmRouter llmRouter;

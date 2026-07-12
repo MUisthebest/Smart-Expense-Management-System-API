@@ -4,6 +4,7 @@ package com.example.smartmoney.application.services;
 import com.example.smartmoney.domain.models.budget.Budget;
 import com.example.smartmoney.domain.models.project.Project;
 import com.example.smartmoney.domain.models.project.ProjectTracking;
+import com.example.smartmoney.domain.models.project.enums.ProjectStatus;
 import com.example.smartmoney.domain.models.project.valueobjects.Money;
 import com.example.smartmoney.domain.models.project.valueobjects.UserId;
 import com.example.smartmoney.domain.models.transaction.Transaction;
@@ -247,7 +248,8 @@ public class UserFinancialDataService {
         sb.append(String.format("Chi tiêu an toàn còn lại (safe_spending): %,.0f VND\n", safeSpending));
         sb.append(String.format("Today: %s, Days left: %d\n", today, daysLeft));
 
-        // Budgets section
+        // Budgets section — includes alertLevel (SAFE/CAUTION/WARNING/EXCEEDED) so the AI can see
+        // which categories are already under pressure without being told separately.
         if (!budgets.isEmpty()) {
             sb.append("\nNgân sách tháng ").append(month).append("/").append(year).append(":\n");
             budgets.forEach(b -> {
@@ -256,18 +258,21 @@ public class UserFinancialDataService {
                         ? spent.multiply(BigDecimal.valueOf(100))
                                .divide(b.getAmountLimit(), 1, RoundingMode.HALF_UP)
                         : BigDecimal.ZERO;
-                sb.append(String.format("  budgetId=%s category=%s spent=%,.0f limit=%,.0f (%.1f%%)\n",
-                        b.getId(), b.getCategory().name(), spent, b.getAmountLimit(), pct));
+                sb.append(String.format("  budgetId=%s category=%s spent=%,.0f limit=%,.0f (%.1f%%) status=%s\n",
+                        b.getId(), b.getCategory().name(), spent, b.getAmountLimit(), pct, b.getAlertLevel(spent)));
             });
         } else {
             sb.append("Chưa thiết lập ngân sách tháng ").append(month).append("/").append(year).append(".\n");
         }
 
-        // Projects section
+        // Projects section — includes status (ACTIVE/COMPLETED/ABANDONED/FROZEN/EXPIRED) so the AI
+        // can recognize a project the user names is no longer active and say so directly, instead
+        // of only the backend's own deterministic suggestion services knowing that. ACTIVE projects
+        // are listed first so they aren't crowded out of the cap by stale ones.
         if (!projects.isEmpty()) {
-            sb.append("\nDự án đang hoạt động:\n");
+            sb.append("\nDự án:\n");
             projects.stream()
-                    .filter(p -> p.getDeadline().isAfter(today))
+                    .sorted(Comparator.comparingInt(p -> p.getStatus() == ProjectStatus.ACTIVE ? 0 : 1))
                     .limit(5)
                     .forEach(p -> {
                         long monthsLeft = ChronoUnit.MONTHS.between(today, p.getDeadline());
@@ -275,14 +280,15 @@ public class UserFinancialDataService {
                         BigDecimal monthlySaving = tracking != null ? tracking.getMonthlySaving() : BigDecimal.ZERO;
                         BigDecimal moneyOwed = tracking != null ? tracking.getMoneyOwed() : BigDecimal.ZERO;
                         sb.append(String.format(
-                                "  %s: target=%s remaining=%s monthlySaving=%,.0f moneyOwed=%,.0f monthsLeft=%d priority=%s\n",
+                                "  %s: status=%s priority=%s target=%s remaining=%s monthlySaving=%,.0f moneyOwed=%,.0f monthsLeft=%d\n",
                                 p.getName(),
+                                p.getStatus(),
+                                p.getPriority(),
                                 p.getTargetAmount(),
                                 p.remaining(),
                                 monthlySaving,
                                 moneyOwed,
-                                monthsLeft,
-                                p.getPriority()));
+                                monthsLeft));
                     });
         }
 

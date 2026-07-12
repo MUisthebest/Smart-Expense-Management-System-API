@@ -3,6 +3,7 @@ package com.example.smartmoney.application.services;
 import com.example.smartmoney.application.dtos.responses.ChatResponse;
 import com.example.smartmoney.domain.models.project.Project;
 import com.example.smartmoney.domain.models.project.ProjectTracking;
+import com.example.smartmoney.domain.models.project.enums.ProjectStatus;
 import com.example.smartmoney.domain.models.project.valueobjects.UserId;
 import com.example.smartmoney.domain.repositories.ProjectRepository;
 import com.example.smartmoney.domain.repositories.TransactionRepository;
@@ -77,8 +78,37 @@ public class ProjectUpdateSuggestionService {
      *                   and contribution-vs-debt direction detection
      * @return zero-or-one-element list (empty when the user has no projects)
      */
+    /**
+     * When a suggestion computation comes back empty because the user named a specific project
+     * that exists but isn't ACTIVE (completed/abandoned/frozen/expired), this finds it so the
+     * caller can tell the user clearly why nothing was suggested — instead of silently no-op'ing,
+     * which reads as the request being ignored.
+     *
+     * @return the named project, only if its status isn't ACTIVE; empty if no name in the
+     *         message matches any of the user's projects, or the match is itself ACTIVE
+     */
+    public Optional<Project> findNamedInactiveProject(UUID userId, String messageLow) {
+        return projectRepository.findAllByUser(UserId.of(userId.toString())).stream()
+                .filter(p -> p.getStatus() != ProjectStatus.ACTIVE)
+                .filter(p -> messageLow.contains(p.getName().toLowerCase()))
+                .findFirst();
+    }
+
+    /** Short human-readable phrase for a non-ACTIVE project status, VI/EN. */
+    public static String statusPhrase(ProjectStatus status, boolean english) {
+        return switch (status) {
+            case COMPLETED -> english ? "already completed" : "đã hoàn tất";
+            case ABANDONED, CANCELLED -> english ? "already cancelled" : "đã bị hủy";
+            case FROZEN -> english ? "currently frozen" : "đang tạm dừng";
+            case EXPIRED -> english ? "already expired" : "đã hết hạn";
+            default -> english ? "not active" : "không còn hoạt động";
+        };
+    }
+
     public List<ChatResponse.SavingsPlanSuggestion> suggest(UUID userId, String messageLow) {
-        List<Project> projects = projectRepository.findAllByUser(UserId.of(userId.toString()));
+        // Only ACTIVE projects are eligible targets — a COMPLETED/ABANDONED/FROZEN/EXPIRED project
+        // shouldn't receive a new contribution or debt suggestion even if the user names it.
+        List<Project> projects = activeProjects(userId);
         if (projects.isEmpty()) return Collections.emptyList();
 
         Project target = pickTargetProject(projects, messageLow);
@@ -253,10 +283,13 @@ public class ProjectUpdateSuggestionService {
     }
 
     /** Active projects (future deadline, has tracking), highest priority first. */
+    /** Active projects (status ACTIVE — excludes COMPLETED/ABANDONED/FROZEN/EXPIRED/CANCELLED,
+     *  future deadline, has tracking), highest priority first (HIGH &gt; MEDIUM &gt; LOW). */
     private List<Project> activeProjects(UUID userId) {
         LocalDate today = LocalDate.now();
         return projectRepository.findAllByUser(UserId.of(userId.toString())).stream()
-                .filter(p -> p.getDeadline().isAfter(today) && p.getTracking() != null
+                .filter(p -> p.getStatus() == ProjectStatus.ACTIVE
+                        && p.getDeadline().isAfter(today) && p.getTracking() != null
                         && ChronoUnit.MONTHS.between(today, p.getDeadline()) > 0)
                 .sorted(Comparator.comparingInt(p -> -p.getPriority().ordinal()))
                 .toList();

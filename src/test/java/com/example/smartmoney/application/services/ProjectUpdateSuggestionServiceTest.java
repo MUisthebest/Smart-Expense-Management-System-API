@@ -107,6 +107,23 @@ class ProjectUpdateSuggestionServiceTest {
         assertThat(service.suggest(UUID.randomUUID(), "góp thêm 2 triệu vào dự án")).isEmpty();
     }
 
+    @Test
+    @DisplayName("suggest() ignores a COMPLETED project even when it's the only one and is named explicitly")
+    void ignoresCompletedProjectEvenWhenNamed() {
+        ProjectId projectId = ProjectId.newId();
+        ProjectTracking tracking = new ProjectTracking(
+                UUID.randomUUID(), projectId, BigDecimal.valueOf(20_000_000), 1,
+                BigDecimal.ZERO, 0, BigDecimal.ZERO, 0, Instant.now(), Instant.now());
+        Project completed = Project.rehydrate(
+                projectId, UserId.of(UUID.randomUUID().toString()), ProjectType.PERSONAL,
+                ProjectStatus.COMPLETED, ProjectPriority.HIGH, "Mua nhà", "desc",
+                new Money(BigDecimal.valueOf(20_000_000), "VND"),
+                LocalDate.now().plusMonths(12), null, List.of(), tracking, Instant.now());
+        when(projectRepository.findAllByUser(org.mockito.ArgumentMatchers.any())).thenReturn(List.of(completed));
+
+        assertThat(service.suggest(UUID.randomUUID(), "tôi vừa góp thêm 2 triệu vào dự án mua nhà")).isEmpty();
+    }
+
     // ── checkFeasibility ──────────────────────────────────────────────────────
 
     @Test

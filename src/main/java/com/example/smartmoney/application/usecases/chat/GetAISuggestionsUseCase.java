@@ -17,7 +17,7 @@ public class GetAISuggestionsUseCase {
 
     public GetAISuggestionsUseCase(
             UserFinancialDataService dataProvider,
-            @Qualifier("geminiFlashAdapter") AIChatPort aiChatPort) {
+            @Qualifier("claudeHaikuAdapter") AIChatPort aiChatPort) {
         this.dataProvider = dataProvider;
         this.aiChatPort = aiChatPort;
     }

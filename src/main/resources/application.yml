@@ -192,11 +192,17 @@ app:
           starttls:
             enable: ${MAIL_SMTP_STARTTLS_ENABLE:}
 
-  # Gemini (Google AI) Configuration
+  # Gemini (Google AI) Configuration — used by the unrelated LlmPort / ProjectBudgetAdvisorUseCase
+  # feature only. The chat endpoints (/api/v1/ai/**) use Claude, configured below.
   gemini:
     api-key: ${GEMINI_API_KEY:}
     model-transactional: ${GEMINI_MODEL_TRANSACTIONAL:gemini-2.5-flash}
     model-general: ${GEMINI_MODEL_GENERAL:gemini-2.5-flash-lite}
+
+  # Anthropic Claude Configuration — powers all /api/v1/ai/** chat endpoints.
+  claude:
+    api-key: ${CLAUDE_API_KEY:}
+    model: ${CLAUDE_MODEL:claude-haiku-4-5}
 
   # Cloudinary Configuration
   cloudinary:
