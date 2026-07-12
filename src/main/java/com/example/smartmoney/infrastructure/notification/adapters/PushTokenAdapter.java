@@ -5,12 +5,14 @@ import com.example.smartmoney.domain.models.notification.PushToken;
 import com.example.smartmoney.infrastructure.persistence.entities.PushTokenEntity;
 import com.example.smartmoney.infrastructure.persistence.mappers.PushTokenMapper;
 import com.example.smartmoney.infrastructure.persistence.repositories.JpaPushTokenRepository;
+import com.example.smartmoney.domain.models.project.valueobjects.UserId;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Repository
@@ -44,7 +46,7 @@ public class PushTokenAdapter implements PushTokenPort {
 
     @Override
     public List<PushToken> findByUserId(String userId) {
-        return jpaRepo.findByUserId(userId)
+        return jpaRepo.findByUserId(UUID.fromString(userId))
                 .stream()
                 .map(PushTokenMapper::toDomain)
                 .collect(Collectors.toList());

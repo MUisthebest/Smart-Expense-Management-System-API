@@ -12,6 +12,8 @@ import com.example.smartmoney.domain.models.project.valueobjects.Money;
 import com.example.smartmoney.domain.models.project.valueobjects.UserId;
 import com.example.smartmoney.domain.repositories.ProjectRepository;
 import com.example.smartmoney.domain.repositories.ProjectTrackingRepository;
+import com.example.smartmoney.domain.repositories.UserRepository;
+import com.example.smartmoney.domain.models.user.User;
 import com.example.smartmoney.domain.services.SafeSpendingService;
 import com.example.smartmoney.domain.models.project.ProjectTracking;
 import com.example.smartmoney.domain.models.project.valueobjects.ProjectId;
@@ -25,6 +27,7 @@ import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -32,7 +35,7 @@ public class CreateProjectUseCase {
 
     private final ProjectRepository projectRepository;
     private final ProjectTrackingRepository projectTrackingRepository;
-    // private final UserIncomeRepository userIncomeRepository;  // Disabled: user_income table removed
+    private final UserRepository userRepository;
     private final SafeSpendingService safeSpendingService;
 
     @Transactional
@@ -71,10 +74,21 @@ public class CreateProjectUseCase {
     }
 
     private void validateCreate(String actorId, CreateProjectRequest req) {
-        // Disabled: user_income validation removed (user_income table removed)
-        // Income check and 20% monthly obligation rule are no longer enforced
-
         UserId actor = UserId.of(actorId);
+        
+        User user = userRepository.findById(UUID.fromString(actorId))
+                .orElseThrow(() -> new ProjectException(
+                        "User not found",
+                        ProjectErrorCode.PROJECT_PERMISSION_DENIED
+                ));
+
+        if (!user.hasCompletedFinancialSetup()) {
+            throw new ProjectException(
+                    "Vui lòng hoàn thành thiết lập tài chính của bạn trước khi tạo dự án",
+                    ProjectErrorCode.PROJECT_USER_INCOME_REQUIRED
+            );
+        }
+
         List<Project> all = projectRepository.findAllByUser(actor);
         List<Project> activeOwned = all.stream()
                 .filter(p -> actor.equals(p.getOwnerId()))
@@ -94,6 +108,22 @@ public class CreateProjectUseCase {
             throw new ProjectException(
                     "Max deadline is 60 months",
                     ProjectErrorCode.PROJECT_INVALID_DEADLINE
+                );
+        }
+
+        // Calculate total monthly target for active projects + new project
+        BigDecimal newProjectMonthlyTarget = monthlyTarget(req.getTargetAmount(), req.getDeadline());
+        BigDecimal totalActiveMonthlyCommitment = BigDecimal.ZERO;
+        for (Project p : activeOwned) {
+            BigDecimal activeMonthlyTarget = monthlyTarget(p.getTargetAmount().amount(), p.getDeadline());
+            totalActiveMonthlyCommitment = totalActiveMonthlyCommitment.add(activeMonthlyTarget);
+        }
+
+        BigDecimal totalCommitmentWithNew = totalActiveMonthlyCommitment.add(newProjectMonthlyTarget);
+        if (totalCommitmentWithNew.compareTo(user.getSavingCapacity()) > 0) {
+            throw new ProjectException(
+                    "Với mức thu nhập hiện tại của bạn, mục tiêu này chưa thực sự phù hợp. Bạn nên cân nhắc giảm số tiền mục tiêu hoặc kéo dài thời gian tích lũy để đạt được hiệu quả tốt nhất nhé!",
+                    ProjectErrorCode.PROJECT_USER_INCOME_REQUIRED
             );
         }
 

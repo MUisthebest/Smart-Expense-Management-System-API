@@ -63,7 +63,7 @@ public class ProjectDetailResponse {
 
     public static ProjectDetailResponse fromDomain(Project p, List<ProjectHistoryResponse> histories) {
         BigDecimal targetAmount = p.getTargetAmount().amount();
-        // Net savings (money_saved − money_owed) is the source of truth for progress.
+        // Sum of contributions is the source of truth for progress (press-to-contribute).
         BigDecimal totalContributed = p.netSavedAmount();
         BigDecimal progressPercent = p.progressPercent();
         BigDecimal remaining = targetAmount.subtract(totalContributed).max(BigDecimal.ZERO);

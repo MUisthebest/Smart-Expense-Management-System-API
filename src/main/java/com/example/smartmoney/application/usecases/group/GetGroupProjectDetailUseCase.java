@@ -36,8 +36,9 @@ public class GetGroupProjectDetailUseCase {
     private final GroupRepository groupRepository;
     private final ProjectRepository projectRepository;
     private final UserRepository userRepository;
+    private final GroupProjectCompletionService groupProjectCompletionService;
 
-    @Transactional(readOnly = true)
+    @Transactional
     public GroupProjectDetailResponse execute(String actorId, String groupProjectId) {
         GroupProject gp = groupProjectRepository.findById(GroupProjectId.of(groupProjectId))
                 .orElseThrow(() -> new ProjectException("Group project not found", ProjectErrorCode.PROJECT_NOT_FOUND));
@@ -54,7 +55,10 @@ public class GetGroupProjectDetailUseCase {
             throw new ProjectException("Permission denied", ProjectErrorCode.PROJECT_PERMISSION_DENIED);
         }
 
-        List<Project> subProjects = projectRepository.findAllByGroupProjectId(gp.getId().value());
+        // Lazy-on-read: expire any sub-project past its deadline, then drive group-project
+        // completion/expiry off the contributions ledger (replaces the deprecated settlement cron).
+        List<Project> subProjects = groupProjectCompletionService.loadAndExpireSubProjects(gp);
+        gp = groupProjectCompletionService.evaluate(gp, subProjects);
 
         // Completion is driven by still-participating members: a member whose sub-project
         // is EXPIRED/ABANDONED drops out of BOTH the required target and the aggregate, so

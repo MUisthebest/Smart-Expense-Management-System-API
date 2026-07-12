@@ -26,6 +26,11 @@ public record UpdateFinancialSetupRequest(
         Intervention_Level interventionLevel,
 
         @NotNull(message = "Focus is required")
-        Focus_Mode focusMode
+        Focus_Mode focusMode,
+
+        // Optional: whether monthly settlement auto-invests a surplus into projects.
+        // Null coerces to TRUE (always-invest) in the domain, so existing onboarding
+        // payloads stay valid while the field becomes part of the contract.
+        Boolean autoInvestSurplus
 ) {
 }

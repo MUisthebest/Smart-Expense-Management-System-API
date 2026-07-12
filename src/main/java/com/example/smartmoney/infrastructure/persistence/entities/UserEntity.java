@@ -71,6 +71,9 @@ public class UserEntity {
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(name = "pace", columnDefinition = "pace")
     private Saving_Pace savingPace;
+
+    @Column(name = "auto_invest_surplus")
+    private Boolean autoInvestSurplus;
     
     @Column(name = "refresh_token", length = 500)
     private String refreshToken;
@@ -95,12 +98,6 @@ public class UserEntity {
     
     @Column(name = "notification_enabled", nullable = false)
     private boolean notificationEnabled = true;
-
-//    @Column(name = "income_setup_completed", nullable = false)
-//    private boolean incomeSetupCompleted = false;
-//
-//    @Column(name = "financial_setup_completed", nullable = false)
-//    private boolean financialSetupCompleted = false;
 
     // Enum phải là public để MapStruct truy cập được
     public enum Role {

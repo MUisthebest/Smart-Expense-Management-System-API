@@ -79,12 +79,39 @@ public class AIController {
             }
 
             Map<String, Object> response = new HashMap<>();
-            if (result.get("jobId")      != null) response.put("jobId",      result.get("jobId"));
-            if (result.get("text")       != null) response.put("text",       result.get("text"));
-            if (result.get("expense")    != null) response.put("expense",    result.get("expense"));
-            if (result.get("type")       != null) response.put("type",       result.get("type"));
-            if (result.get("category")   != null) response.put("category",   result.get("category"));
-            if (result.get("confidence") != null) response.put("confidence", result.get("confidence"));
+
+            if (result.get("jobId") != null)
+                response.put("jobId", result.get("jobId"));
+
+            if (result.get("text") != null)
+                response.put("text", result.get("text"));
+
+            if (result.get("expense") != null)
+                response.put("expense", result.get("expense"));
+
+            if (result.get("type") != null)
+                response.put("type", result.get("type"));
+
+            if (result.get("category") != null)
+                response.put("category", result.get("category"));
+
+            if (result.get("confidence") != null)
+                response.put("confidence", result.get("confidence"));
+
+            if (result.get("userId") != null)
+                response.put("userId", result.get("userId"));
+
+            if (result.get("transactions") != null)
+                response.put("transactions", result.get("transactions"));
+            if (result.get("status") != null)
+                response.put("status", result.get("status"));
+
+            if (result.get("result") != null)
+                response.put("result", result.get("result"));
+
+            if (result.get("error") != null)
+                response.put("error", result.get("error"));
+
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {

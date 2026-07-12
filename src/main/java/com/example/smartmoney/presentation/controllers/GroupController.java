@@ -27,10 +27,12 @@ public class GroupController {
     private final CreateGroupUseCase createGroupUseCase;
     private final GetGroupDetailUseCase getGroupDetailUseCase;
     private final LockGroupUseCase lockGroupUseCase;
+    private final UnlockGroupUseCase unlockGroupUseCase;
     private final InviteGroupMemberUseCase inviteGroupMemberUseCase;
     private final AcceptGroupInviteUseCase acceptGroupInviteUseCase;
     private final DeclineGroupInviteUseCase declineGroupInviteUseCase;
     private final RemoveGroupMemberUseCase removeGroupMemberUseCase;
+    private final DeleteGroupUseCase deleteGroupUseCase;
 
     private String actorId(Authentication auth) {
         return auth.getName();
@@ -86,6 +88,19 @@ public class GroupController {
                 .build();
     }
 
+    @Operation(summary = "Unlock the group", description = "Admin unlocks the group to add more members. Only allowed if no group project exists yet.")
+    @PostMapping("/{groupId}/unlock")
+    public CheckResponse<GroupDetailResponse> unlock(
+            Authentication auth,
+            @PathVariable String groupId) {
+        GroupDetailResponse data = unlockGroupUseCase.execute(actorId(auth), groupId);
+        return CheckResponse.<GroupDetailResponse>builder()
+                .success(true)
+                .message("Unlocked")
+                .data(data)
+                .build();
+    }
+
     @Operation(summary = "Invite a member to the group", description = "Admin invites a user by email. A one-time invite token (7-day TTL) is generated and sent via push + email.")
     @PostMapping("/{groupId}/members/invite")
     public CheckResponse<GroupInviteResponse> invite(
@@ -137,6 +152,18 @@ public class GroupController {
                 .success(true)
                 .message("Removed")
                 .data(data)
+                .build();
+    }
+
+    @Operation(summary = "Delete group", description = "Admin deletes the group if no group project has been created yet.")
+    @DeleteMapping("/{groupId}")
+    public CheckResponse<Void> delete(
+            Authentication auth,
+            @PathVariable String groupId) {
+        deleteGroupUseCase.execute(actorId(auth), groupId);
+        return CheckResponse.<Void>builder()
+                .success(true)
+                .message("Group deleted successfully")
                 .build();
     }
 }
