@@ -69,7 +69,20 @@ public class ScopeGuardrail implements PromptGuardrail {
             // Large expense keywords
             "chi lớn", "khoản lớn", "chi đột xuất", "mua xe", "mua nhà",
             "sửa chữa", "viện phí", "y tế", "large expense", "big purchase",
-            "khoản tiền lớn", "thanh toán lớn", "chi phí đột xuất"
+            "khoản tiền lớn", "thanh toán lớn", "chi phí đột xuất",
+            // In-app project/budget management verbs — a request to create/update/extend/
+            // shorten/delete the user's OWN project or budget, even phrased as a short
+            // command ("xóa dự án du lịch giúp tôi", "delete my car project") rather than a
+            // question. ".*" between the verb and the entity word so words in between (a
+            // project name, "my", "the", ...) don't break the match; compound with the
+            // entity word (dự án/ngân sách/project/budget) to avoid over-broadening the
+            // allowlist with bare verbs like "xóa"/"delete" alone.
+            "xóa.*(dự án|ngân sách)", "delete.*(project|budget)", "remove.*(project|budget)",
+            "hủy.*dự án", "cancel.*project",
+            "tạo.*(dự án|ngân sách)", "create.*(project|budget)",
+            "cập nhật.*(dự án|ngân sách)", "update.*(project|budget)",
+            "rút ngắn.*(dự án|thời hạn)", "kéo dài.*(dự án|thời hạn)",
+            "shorten.*(project|deadline)", "extend.*(project|deadline)"
         };
         allowlistPatterns = toPatterns(allow);
 

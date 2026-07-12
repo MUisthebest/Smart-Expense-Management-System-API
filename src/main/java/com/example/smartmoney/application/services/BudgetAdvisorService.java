@@ -9,6 +9,9 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
  * UC1 — Budget Adjustment:
@@ -159,6 +162,107 @@ public class BudgetAdvisorService {
                 .suggestedAmount(suggested.longValue())
                 .reason(reason)
                 .build());
+    }
+
+    // ── Budget category increase → suggest a swap instead ───────────────────
+
+    private static final Pattern AMOUNT_PATTERN = Pattern.compile(
+            "([\\d][\\d,.]*)\\s*(tỷ|ty|billion|triệu|tr|M|m|K|k|nghìn|ngàn)?",
+            Pattern.UNICODE_CASE);
+    private static final BigDecimal DEFAULT_INCREASE_AMOUNT = BigDecimal.valueOf(500_000);
+
+    /**
+     * When the user asks to raise the limit on 1-2 categories, don't approve the increase
+     * outright — suggest reducing the 1-2 categories with the LOWEST historical spending this
+     * month by the same amount instead, keeping the total budget neutral. Returns the increase
+     * entries followed by the offsetting decrease entries; empty when either side can't be
+     * determined (no category keyword matched, or no other category exists to offset from) so a
+     * non-neutral suggestion is never proposed.
+     */
+    public List<ChatResponse.BudgetUpdateSuggestion> suggestIncreaseSwap(
+            UUID userId, int month, int year, String messageLow) {
+
+        List<Budget> budgets = budgetRepository.findByUserIdMonthYear(userId, month, year);
+        if (budgets.isEmpty()) return Collections.emptyList();
+
+        List<Budget> requested = budgets.stream()
+                .filter(b -> messageLow.contains(b.getCategory().name().toLowerCase())
+                          || messageLow.contains(translateCategoryToVietnamese(b.getCategory().name())))
+                .limit(2)
+                .collect(Collectors.toList());
+        if (requested.isEmpty()) return Collections.emptyList();
+
+        Set<String> requestedCategories = requested.stream()
+                .map(b -> b.getCategory().name()).collect(Collectors.toSet());
+        List<Budget> offsetCandidates = budgets.stream()
+                .filter(b -> !requestedCategories.contains(b.getCategory().name()))
+                .sorted(Comparator.comparing(b -> b.getSpent() != null ? b.getSpent() : BigDecimal.ZERO))
+                .limit(2)
+                .collect(Collectors.toList());
+        if (offsetCandidates.isEmpty()) return Collections.emptyList();
+
+        BigDecimal amount = parseIncreaseAmount(messageLow);
+        if (amount.compareTo(BigDecimal.ZERO) == 0) amount = DEFAULT_INCREASE_AMOUNT;
+
+        boolean english = MessageLanguageDetector.isEnglish(messageLow);
+        BigDecimal perRequested = amount.divide(BigDecimal.valueOf(requested.size()), 0, RoundingMode.HALF_UP);
+        BigDecimal perOffset = amount.divide(BigDecimal.valueOf(offsetCandidates.size()), 0, RoundingMode.HALF_UP);
+
+        List<ChatResponse.BudgetUpdateSuggestion> result = new ArrayList<>();
+        for (Budget b : requested) {
+            BigDecimal newLimit = b.getAmountLimit().add(perRequested);
+            result.add(ChatResponse.BudgetUpdateSuggestion.builder()
+                    .budgetId(b.getId().toString())
+                    .category(b.getCategory().name())
+                    .currentAmount(b.getAmountLimit().longValue())
+                    .suggestedAmount(newLimit.longValue())
+                    .reason(english
+                            ? String.format("Increase %s by %,.0f VND -> new limit %,.0f VND.",
+                                    b.getCategory().name(), perRequested, newLimit)
+                            : String.format("Tăng %s thêm %,.0f VND → hạn mức mới %,.0f VND.",
+                                    b.getCategory().name(), perRequested, newLimit))
+                    .build());
+        }
+        for (Budget b : offsetCandidates) {
+            BigDecimal newLimit = b.getAmountLimit().subtract(perOffset).max(BigDecimal.ZERO);
+            result.add(ChatResponse.BudgetUpdateSuggestion.builder()
+                    .budgetId(b.getId().toString())
+                    .category(b.getCategory().name())
+                    .currentAmount(b.getAmountLimit().longValue())
+                    .suggestedAmount(newLimit.longValue())
+                    .reason(english
+                            ? String.format(
+                                    "%s has the lowest spending this month — reduce it by %,.0f VND -> " +
+                                    "%,.0f VND to keep your total budget unchanged.",
+                                    b.getCategory().name(), perOffset, newLimit)
+                            : String.format(
+                                    "%s có mức chi thấp nhất tháng này — giảm %,.0f VND → %,.0f VND để giữ " +
+                                    "tổng ngân sách không đổi.",
+                                    b.getCategory().name(), perOffset, newLimit))
+                    .build());
+        }
+        return result;
+    }
+
+    private BigDecimal parseIncreaseAmount(String text) {
+        Matcher m = AMOUNT_PATTERN.matcher(text);
+        while (m.find()) {
+            String numStr = m.group(1).replace(",", "");
+            String unit = m.group(2);
+            try {
+                BigDecimal num = new BigDecimal(numStr);
+                if (unit != null) {
+                    return switch (unit.toLowerCase()) {
+                        case "tỷ", "ty", "billion" -> num.multiply(BigDecimal.valueOf(1_000_000_000));
+                        case "triệu", "tr", "m" -> num.multiply(BigDecimal.valueOf(1_000_000));
+                        case "k", "nghìn", "ngàn" -> num.multiply(BigDecimal.valueOf(1_000));
+                        default -> num;
+                    };
+                }
+                if (num.compareTo(BigDecimal.valueOf(1_000)) >= 0) return num;
+            } catch (NumberFormatException ignored) {}
+        }
+        return BigDecimal.ZERO;
     }
 
     private BigDecimal pctUsed(Budget b) {

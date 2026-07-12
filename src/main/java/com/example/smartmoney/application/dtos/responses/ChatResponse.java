@@ -5,6 +5,7 @@ package com.example.smartmoney.application.dtos.responses;
 import lombok.Builder;
 import lombok.Value;
 
+import java.time.LocalDate;
 import java.util.List;
 
 /**
@@ -17,11 +18,14 @@ import java.util.List;
  *   <li>{@code SIMULATION}      — what-if result panel.</li>
  *   <li>{@code PROJECT_UPDATE}  — confirm card; on accept, call
  *       {@code PUT /api/v1/projects/{projectId}/tracking}.</li>
+ *   <li>{@code PROJECT_HYPOTHESIS} — confirm card for a structural change (create/shorten/
+ *       extend/delete); on accept, POST the returned {@code pendingActionId} to
+ *       {@code /api/v1/ai/chat/confirm} — the backend executes it directly.</li>
  *   <li>{@code OUT_OF_SCOPE}    — polite redirect message.</li>
  * </ul>
  */
 @Value
-@Builder
+@Builder(toBuilder = true)
 public class ChatResponse {
 
     /** Natural-language reply in Vietnamese, personalised to pace / focus / intervention. */
@@ -38,6 +42,16 @@ public class ChatResponse {
     List<BudgetUpdateSuggestion> budgetSuggestions;
 
     /**
+     * Set alongside {@code budgetSuggestions} only when those suggestions target a month other
+     * than the one the turn was asked about — currently: a budget-cut request always computes a
+     * full per-category plan for the FOLLOWING month only (never the current month, never more
+     * than one month ahead), via {@code ComputeBudgetAllocationUseCase}. Null when the
+     * suggestions apply to the queried month as usual (e.g. the increase-swap path).
+     */
+    Integer suggestedMonth;
+    Integer suggestedYear;
+
+    /**
      * Populated only when {@code intent == SIMULATION}.
      */
     SimulationResult simulationResult;
@@ -48,6 +62,23 @@ public class ChatResponse {
      * {@code PUT /api/v1/projects/{projectId}/tracking}.
      */
     List<SavingsPlanSuggestion> savingsSuggestions;
+
+    /**
+     * Populated only when {@code intent == PROJECT_HYPOTHESIS} — a structural project change
+     * (create / shorten / extend / delete), as opposed to {@code PROJECT_UPDATE}'s
+     * contribution/debt-amount adjustments.
+     */
+    List<ProjectChangeSuggestion> projectChangeSuggestions;
+
+    /**
+     * Set only when this turn's suggestion is one the backend can execute itself: a
+     * {@code PROJECT_HYPOTHESIS} change or a budget-increase swap. The client calls
+     * {@code POST /api/v1/ai/chat/confirm} with this id to actually apply (or discard) it —
+     * the chatbot never mutates data on its own without that explicit second call. Null for
+     * every other suggestion type, which stay advisory-only (frontend calls the real endpoint
+     * itself after its own confirm UI, unchanged from before).
+     */
+    String pendingActionId;
 
     /**
      * True when {@code budgetSuggestions} or {@code savingsSuggestions} is non-empty —
@@ -64,6 +95,15 @@ public class ChatResponse {
      */
     List<String> relatedQuestions;
 
+    /**
+     * True when {@code reply} (and this turn's message) is in English, false for Vietnamese —
+     * from {@code MessageLanguageDetector}, same "default to Vietnamese when inconclusive"
+     * convention as everywhere else this is detected. Lets the frontend pick the confirm/deny
+     * button wording ("Có"/"Không" vs "Yes"/"No") to match the actual conversation language
+     * instead of the app's fixed UI locale, which may differ from what the user is typing in.
+     */
+    boolean english;
+
     // ── Nested types ──────────────────────────────────────────────────────────
 
     public enum ChatIntent {
@@ -73,7 +113,38 @@ public class ChatResponse {
         INCOME_WINDFALL,
         LARGE_EXPENSE,
         PROJECT_UPDATE,
+        PROJECT_HYPOTHESIS,
         OUT_OF_SCOPE
+    }
+
+    public enum ProjectChangeOperation { CREATE, SHORTEN, EXTEND, DELETE }
+
+    /**
+     * One structural project-change preview (create / shorten / extend / delete a project),
+     * paired with its before/after impact on {@code available_budget = net_income −
+     * Σ monthly_saving of all active projects}. Distinct from {@link SavingsPlanSuggestion},
+     * which covers contribution/debt amount adjustments to an existing project's tracking.
+     */
+    @Value
+    @Builder
+    public static class ProjectChangeSuggestion {
+        /** Null for CREATE — the project doesn't exist yet. */
+        String projectId;
+        String projectName;
+        ProjectChangeOperation operation;
+        /** Target amount in VND. Set for CREATE; echoed for SHORTEN/EXTEND when unchanged. */
+        Long targetAmount;
+        /** Null for CREATE. */
+        LocalDate currentDeadline;
+        /** Null for DELETE. */
+        LocalDate newDeadline;
+        /** Null for CREATE. */
+        Long currentMonthlySaving;
+        /** Null for DELETE. */
+        Long newMonthlySaving;
+        Long availableBudgetBefore;
+        Long availableBudgetAfter;
+        String reason;
     }
 
     @Value
@@ -122,7 +193,7 @@ public class ChatResponse {
         String projectId;
         String projectName;
         Long currentMoneySaved;
-        Long suggestedAddAmount;     // > 0 for windfall/contribution; null when unrelated to moneySaved
+        Long suggestedAddAmount;     // > 0 for windfall/contribution, < 0 for withdrawing idle funds from an abandoned project; null when unrelated to moneySaved
         Long newMoneySaved;          // currentMoneySaved + suggestedAddAmount; null when unrelated to moneySaved
         Integer suggestedMonthLeft;  // extended months left (null unless deferring)
         Long currentMoneyOwed;       // project's tracked debt before the change; null unless PROJECT_UPDATE expense

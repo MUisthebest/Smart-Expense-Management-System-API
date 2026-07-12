@@ -70,4 +70,24 @@ class ScopeGuardrailTest {
                 "Đội tuyển bóng đá nào sẽ vô địch World Cup năm sau?", userId))
                 .isInstanceOf(GuardrailViolationException.class);
     }
+
+    @ParameterizedTest
+    @DisplayName("allows in-app project/budget management commands (create/update/delete), " +
+            "even phrased as a short imperative rather than a question")
+    @ValueSource(strings = {
+        "xóa dự án du lịch giúp tôi",
+        "delete my car project",
+        "hủy dự án mua nhà",
+        "cancel my project please",
+        "tạo dự án mới mua xe 200 triệu",
+        "create a new project for my wedding fund",
+        "cập nhật dự án mua nhà",
+        "update my project deadline",
+        "rút ngắn dự án mua xe 3 tháng",
+        "extend the deadline for my house project"
+    })
+    void allowsProjectManagementCommands(String message) {
+        assertThatCode(() -> guardrail.validate(message, userId))
+                .doesNotThrowAnyException();
+    }
 }
