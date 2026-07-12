@@ -82,6 +82,7 @@ public class WindfallAllocationService {
             BigDecimal allocate = remaining.min(projectNeed).setScale(0, RoundingMode.HALF_UP);
             remaining = remaining.subtract(allocate);
 
+            boolean english = MessageLanguageDetector.isEnglish(messageLow);
             result.add(ChatResponse.SavingsPlanSuggestion.builder()
                     .projectId(p.getId().toString())
                     .projectName(p.getName())
@@ -89,9 +90,13 @@ public class WindfallAllocationService {
                     .suggestedAddAmount(allocate.longValue())
                     .newMoneySaved(currentSaved.add(allocate).longValue())
                     .suggestedMonthLeft(null)
-                    .reason(String.format(
-                            "Thêm %,.0f VND vào '%s' từ nguồn thu đột xuất — dự án hoàn thành nhanh hơn.",
-                            allocate, p.getName()))
+                    .reason(english
+                            ? String.format(
+                                    "Add %,.0f VND to '%s' from the windfall income — the project finishes sooner.",
+                                    allocate, p.getName())
+                            : String.format(
+                                    "Thêm %,.0f VND vào '%s' từ nguồn thu đột xuất — dự án hoàn thành nhanh hơn.",
+                                    allocate, p.getName()))
                     .build());
         }
         return result;
@@ -126,15 +131,20 @@ public class WindfallAllocationService {
                     BigDecimal share = budgetPool.multiply(b.getAmountLimit())
                             .divide(totalLimit, 0, RoundingMode.HALF_UP);
                     BigDecimal newLimit = b.getAmountLimit().add(share);
+                    boolean english = MessageLanguageDetector.isEnglish(messageLow);
                     return ChatResponse.BudgetUpdateSuggestion.builder()
                             .budgetId(b.getId().toString())
                             .category(b.getCategory().name())
                             .currentAmount(b.getAmountLimit().longValue())
                             .suggestedAmount(newLimit.longValue())
-                            .reason(String.format(
-                                    "Tăng ngân sách %s thêm %,.0f VND (%.0f%% khoản thu đột xuất) → giới hạn mới: %,.0f VND.",
-                                    b.getCategory().name(), share,
-                                    BUDGET_RATIO * 100, newLimit))
+                            .reason(english
+                                    ? String.format(
+                                            "Increase %s budget by %,.0f VND (%.0f%% of the windfall) -> new limit: %,.0f VND.",
+                                            b.getCategory().name(), share, BUDGET_RATIO * 100, newLimit)
+                                    : String.format(
+                                            "Tăng ngân sách %s thêm %,.0f VND (%.0f%% khoản thu đột xuất) → giới hạn mới: %,.0f VND.",
+                                            b.getCategory().name(), share,
+                                            BUDGET_RATIO * 100, newLimit))
                             .build();
                 })
                 .collect(Collectors.toList());
@@ -166,6 +176,7 @@ public class WindfallAllocationService {
 
         List<ChatResponse.BudgetUpdateSuggestion> result = new ArrayList<>();
         BigDecimal remaining = expense;
+        boolean english = MessageLanguageDetector.isEnglish(messageLow);
 
         for (Budget b : byHeadroom) {
             if (remaining.compareTo(BigDecimal.ZERO) <= 0) break;
@@ -182,9 +193,13 @@ public class WindfallAllocationService {
                         .category(b.getCategory().name())
                         .currentAmount(b.getAmountLimit().longValue())
                         .suggestedAmount(b.getAmountLimit().longValue()) // no change needed
-                        .reason(String.format(
-                                "Ngân sách %s còn dư %,.0f VND — đủ để trang trải chi phí đột xuất %,.0f VND.",
-                                b.getCategory().name(), headroom, expense))
+                        .reason(english
+                                ? String.format(
+                                        "%s budget has %,.0f VND headroom left — enough to cover the %,.0f VND unplanned expense.",
+                                        b.getCategory().name(), headroom, expense)
+                                : String.format(
+                                        "Ngân sách %s còn dư %,.0f VND — đủ để trang trải chi phí đột xuất %,.0f VND.",
+                                        b.getCategory().name(), headroom, expense))
                         .build());
                 remaining = BigDecimal.ZERO;
             } else {
@@ -196,9 +211,13 @@ public class WindfallAllocationService {
                         .category(b.getCategory().name())
                         .currentAmount(b.getAmountLimit().longValue())
                         .suggestedAmount(newLimit.longValue())
-                        .reason(String.format(
-                                "Tăng hạn mức %s thêm %,.0f VND để trang trải chi phí đột xuất.",
-                                b.getCategory().name(), needed))
+                        .reason(english
+                                ? String.format(
+                                        "Increase %s limit by %,.0f VND to cover the unplanned expense.",
+                                        b.getCategory().name(), needed)
+                                : String.format(
+                                        "Tăng hạn mức %s thêm %,.0f VND để trang trải chi phí đột xuất.",
+                                        b.getCategory().name(), needed))
                         .build());
                 remaining = remaining.subtract(headroom.add(needed));
             }
@@ -244,6 +263,7 @@ public class WindfallAllocationService {
             BigDecimal freed = monthlySaving.multiply(BigDecimal.valueOf(DEFER_MONTHS));
             shortfall = shortfall.subtract(freed);
 
+            boolean english = MessageLanguageDetector.isEnglish(messageLow);
             result.add(ChatResponse.SavingsPlanSuggestion.builder()
                     .projectId(p.getId().toString())
                     .projectName(p.getName())
@@ -252,9 +272,13 @@ public class WindfallAllocationService {
                     .suggestedAddAmount(null)
                     .newMoneySaved(null)
                     .suggestedMonthLeft(newMonthLeft)
-                    .reason(String.format(
-                            "Hoãn dự án '%s' thêm %d tháng → giải phóng %,.0f VND/tháng để trang trải chi phí đột xuất.",
-                            p.getName(), DEFER_MONTHS, monthlySaving))
+                    .reason(english
+                            ? String.format(
+                                    "Defer project '%s' by %d months -> frees up %,.0f VND/month to cover the unplanned expense.",
+                                    p.getName(), DEFER_MONTHS, monthlySaving)
+                            : String.format(
+                                    "Hoãn dự án '%s' thêm %d tháng → giải phóng %,.0f VND/tháng để trang trải chi phí đột xuất.",
+                                    p.getName(), DEFER_MONTHS, monthlySaving))
                     .build());
         }
         return result;
@@ -272,7 +296,7 @@ public class WindfallAllocationService {
                 .collect(Collectors.toList());
     }
 
-    BigDecimal parseAmount(String text) {
+    public BigDecimal parseAmount(String text) {
         Matcher m = AMOUNT_PATTERN.matcher(text);
         while (m.find()) {
             String numStr = m.group(1).replace(",", "");

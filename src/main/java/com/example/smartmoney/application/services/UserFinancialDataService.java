@@ -8,9 +8,11 @@ import com.example.smartmoney.domain.models.project.valueobjects.Money;
 import com.example.smartmoney.domain.models.project.valueobjects.UserId;
 import com.example.smartmoney.domain.models.transaction.Transaction;
 import com.example.smartmoney.domain.models.transaction.enums.TransactionType;
+import com.example.smartmoney.domain.models.user.User;
 import com.example.smartmoney.domain.repositories.BudgetRepository;
 import com.example.smartmoney.domain.repositories.ProjectRepository;
 import com.example.smartmoney.domain.repositories.TransactionRepository;
+import com.example.smartmoney.domain.repositories.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -29,6 +31,7 @@ public class UserFinancialDataService {
     private final TransactionRepository transactionRepository;
     private final ProjectRepository projectRepository;
     private final BudgetRepository budgetRepository;
+    private final UserRepository userRepository;
 
     public enum DataType {
         TRANSACTIONS, PROJECTS, INCOME, PROFILE
@@ -160,6 +163,45 @@ public class UserFinancialDataService {
         return sb.toString();
     }
 
+    /** Income, safe-spending headroom, and days-left for a month — the numeric values behind
+     *  {@link #buildChatContext}'s prompt text, exposed so callers can run proactive checks
+     *  (near-limit, feasibility, month-end leftover, surplus trend) without re-deriving them. */
+    public record FinancialSnapshot(BigDecimal monthlyIncome, BigDecimal safeSpending, int daysLeft) {}
+
+    public FinancialSnapshot getFinancialSnapshot(UUID userId, int month, int year) {
+        List<Budget> budgets = budgetRepository.findByUserIdMonthYear(userId, month, year);
+        BigDecimal totalBudgetLimit = budgets.stream()
+                .map(Budget::getAmountLimit)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalBudgetSpent = budgets.stream()
+                .map(b -> b.getSpent() != null ? b.getSpent() : BigDecimal.ZERO)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        List<Project> projects = projectRepository.findAllByUser(UserId.of(userId.toString()));
+        LocalDate today = LocalDate.now();
+
+        User user = userRepository.findById(userId).orElse(null);
+        BigDecimal monthlyIncome = user != null && user.getIncome() != null ? user.getIncome() : BigDecimal.ZERO;
+
+        // safe_spending = income - active projects' monthly saving commitments, when the user
+        // has completed financial onboarding; otherwise fall back to remaining budget headroom
+        // this month so the prompt still has a sensible number.
+        BigDecimal safeSpending;
+        if (user != null && user.hasCompletedFinancialSetup()) {
+            BigDecimal activeProjectMonthlyCommitment = projects.stream()
+                    .filter(p -> p.getDeadline().isAfter(today) && p.getTracking() != null)
+                    .map(p -> p.getTracking().getMonthlySaving())
+                    .filter(Objects::nonNull)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            safeSpending = user.calculateSafeSpending(activeProjectMonthlyCommitment);
+        } else {
+            safeSpending = totalBudgetLimit.subtract(totalBudgetSpent).max(BigDecimal.ZERO);
+        }
+
+        int daysLeft = today.lengthOfMonth() - today.getDayOfMonth();
+        return new FinancialSnapshot(monthlyIncome, safeSpending, daysLeft);
+    }
+
     /**
      * Builds the full financial context block for the Gemini chat prompt.
      * Covers: income (from INCOME transactions), safe_spending (budget remaining),
@@ -189,25 +231,21 @@ public class UserFinancialDataService {
         // Budgets for the month
         List<Budget> budgets = budgetRepository.findByUserIdMonthYear(userId, month, year);
 
-        BigDecimal totalBudgetLimit = budgets.stream()
-                .map(Budget::getAmountLimit)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        BigDecimal totalBudgetSpent = budgets.stream()
-                .map(b -> b.getSpent() != null ? b.getSpent() : BigDecimal.ZERO)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        // safe_spending = total budget limit - total spent (remaining budget this month)
-        BigDecimal safeSpending = totalBudgetLimit.subtract(totalBudgetSpent).max(BigDecimal.ZERO);
-
         // Projects
         List<Project> projects = projectRepository.findAllByUser(UserId.of(userId.toString()));
         LocalDate today = LocalDate.now();
 
+        FinancialSnapshot snapshot = getFinancialSnapshot(userId, month, year);
+        BigDecimal monthlyIncome = snapshot.monthlyIncome();
+        BigDecimal safeSpending = snapshot.safeSpending();
+        int daysLeft = snapshot.daysLeft();
+
         StringBuilder sb = new StringBuilder();
-        sb.append(String.format("Thu nhập tháng %d/%d: %,.0f VND\n", month, year, totalIncome));
+        sb.append(String.format("Thu nhập tháng %d/%d (giao dịch): %,.0f VND\n", month, year, totalIncome));
+        sb.append(String.format("Thu nhập hàng tháng: %,.0f VND\n", monthlyIncome));
         sb.append(String.format("Chi tiêu thực tế: %,.0f VND\n", totalExpense));
         sb.append(String.format("Chi tiêu an toàn còn lại (safe_spending): %,.0f VND\n", safeSpending));
+        sb.append(String.format("Today: %s, Days left: %d\n", today, daysLeft));
 
         // Budgets section
         if (!budgets.isEmpty()) {

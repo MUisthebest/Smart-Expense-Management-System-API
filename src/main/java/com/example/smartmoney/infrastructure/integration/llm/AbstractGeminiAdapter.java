@@ -4,9 +4,6 @@ import com.example.smartmoney.application.ports.chat.AIChatPort;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -21,19 +18,16 @@ import java.util.Map;
 import java.util.function.Consumer;
 
 /**
- * AIChatPort implementation that calls Google Gemini directly.
- *
- * Sync:   POST .../gemini-2.5-flash-lite:generateContent
- * Stream: POST .../gemini-2.5-flash-lite:streamGenerateContent?alt=sse
+ * Shared Google Generative Language API HTTP/SSE plumbing for the two model-specific
+ * {@link AIChatPort} adapters ({@code GeminiTransactionalAdapter}, {@code GeminiGeneralAdapter}).
+ * The only thing that differs between them is which Gemini model id is called — routing between
+ * them is decided upfront by {@code LlmRouter}, before either adapter is called.
  */
-@Slf4j
-// @Component — disabled; OpenRouterAIAdapter (routed to google/gemini-2.5-flash-lite)
-// is the active AIChatPort bean. Direct Gemini calls were dropped due to repeated
-// per-project 403 PERMISSION_DENIED errors from Google's API key/project setup.
-public class GeminiAIChatAdapter implements AIChatPort {
+public abstract class AbstractGeminiAdapter implements AIChatPort {
 
-    private static final String BASE_URL =
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite";
+    private static final String BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models/";
+    // Vietnamese BPE tokenization needs ~1.5-2x tokens/word vs English, so headroom is kept high
+    // even though replies are now capped at ~150 words by the system prompt.
     private static final int MAX_OUTPUT_TOKENS = 2048;
     private static final double TEMPERATURE = 0.3;
 
@@ -41,27 +35,28 @@ public class GeminiAIChatAdapter implements AIChatPort {
     private final String apiKey;
     private final HttpClient httpClient;
 
-    public GeminiAIChatAdapter(
-            ObjectMapper objectMapper,
-            @Value("${app.gemini.api-key}") String apiKey) {
+    protected AbstractGeminiAdapter(ObjectMapper objectMapper, GeminiProperties properties) {
         this.objectMapper = objectMapper;
-        this.apiKey = apiKey;
+        this.apiKey = properties.getApiKey();
         this.httpClient = HttpClient.newBuilder()
                 .version(HttpClient.Version.HTTP_2)
                 .connectTimeout(Duration.ofSeconds(10))
                 .build();
     }
 
+    /** Gemini model id, e.g. {@code "gemini-2.5-flash"} or {@code "gemini-2.5-flash-lite"}. */
+    protected abstract String model();
+
     // ── Synchronous chat ─────────────────────────────────────────────────────
 
     @Override
     public String chat(String systemPrompt, String userMessage, String userId) {
         try {
-            Map<String, Object> body = buildBody(systemPrompt, userMessage, false);
+            Map<String, Object> body = buildBody(systemPrompt, userMessage);
             String rawBody = objectMapper.writeValueAsString(body);
 
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(BASE_URL + ":generateContent?key=" + apiKey))
+                    .uri(URI.create(BASE_URL + model() + ":generateContent?key=" + apiKey))
                     .header("Content-Type", "application/json")
                     .timeout(Duration.ofMinutes(2))
                     .POST(HttpRequest.BodyPublishers.ofString(rawBody))
@@ -77,7 +72,7 @@ public class GeminiAIChatAdapter implements AIChatPort {
         } catch (RuntimeException e) {
             throw e;
         } catch (Exception e) {
-            throw new RuntimeException("Gemini chat failed: " + e.getMessage(), e);
+            throw new RuntimeException("Failed to call AI service: " + e.getMessage(), e);
         }
     }
 
@@ -85,13 +80,13 @@ public class GeminiAIChatAdapter implements AIChatPort {
 
     @Override
     public void chatStream(String systemPrompt, String userMessage, String userId,
-                           Consumer<String> onNext, Consumer<Throwable> onError, Runnable onComplete) {
+                            Consumer<String> onNext, Consumer<Throwable> onError, Runnable onComplete) {
         try {
-            Map<String, Object> body = buildBody(systemPrompt, userMessage, false);
+            Map<String, Object> body = buildBody(systemPrompt, userMessage);
             String rawBody = objectMapper.writeValueAsString(body);
 
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(BASE_URL + ":streamGenerateContent?key=" + apiKey + "&alt=sse"))
+                    .uri(URI.create(BASE_URL + model() + ":streamGenerateContent?key=" + apiKey + "&alt=sse"))
                     .header("Content-Type", "application/json")
                     .timeout(Duration.ofMinutes(2))
                     .POST(HttpRequest.BodyPublishers.ofString(rawBody))
@@ -148,11 +143,11 @@ public class GeminiAIChatAdapter implements AIChatPort {
                 ["câu hỏi 1","câu hỏi 2","câu hỏi 3"]
                 """;
         try {
-            Map<String, Object> body = buildBody(systemInstruction, userData, false);
+            Map<String, Object> body = buildBody(systemInstruction, userData);
             String rawBody = objectMapper.writeValueAsString(body);
 
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(BASE_URL + ":generateContent?key=" + apiKey))
+                    .uri(URI.create(BASE_URL + model() + ":generateContent?key=" + apiKey))
                     .header("Content-Type", "application/json")
                     .timeout(Duration.ofSeconds(30))
                     .POST(HttpRequest.BodyPublishers.ofString(rawBody))
@@ -167,11 +162,10 @@ public class GeminiAIChatAdapter implements AIChatPort {
                 int last = raw.lastIndexOf("```");
                 if (nl > 0 && last > nl) raw = raw.substring(nl + 1, last).trim();
             }
-            List<String> questions = objectMapper.readValue(raw, new TypeReference<>() {});
+            List<String> questions = objectMapper.readValue(raw, new TypeReference<List<String>>() {});
             return questions.subList(0, Math.min(5, questions.size()));
 
         } catch (Exception e) {
-            log.warn("Gemini suggestions failed, using fallback: {}", e.getMessage());
             return List.of(
                     "Tôi có thể cắt giảm chi tiêu ở danh mục nào tháng này?",
                     "Tiến độ các dự án tiết kiệm của tôi đang như thế nào?",
@@ -181,7 +175,7 @@ public class GeminiAIChatAdapter implements AIChatPort {
 
     // ── Helpers ──────────────────────────────────────────────────────────────
 
-    private Map<String, Object> buildBody(String systemPrompt, String userMessage, boolean stream) {
+    private Map<String, Object> buildBody(String systemPrompt, String userMessage) {
         Map<String, Object> systemInstruction = Map.of(
                 "parts", List.of(Map.of("text", systemPrompt)));
 
@@ -189,9 +183,13 @@ public class GeminiAIChatAdapter implements AIChatPort {
                 "role", "user",
                 "parts", List.of(Map.of("text", userMessage)));
 
+        // Gemini 2.5 models "think" before answering by default, silently spending part of
+        // maxOutputTokens on internal reasoning — with a small budget this can leave nothing
+        // for the actual reply and truncate mid-JSON. Disabled since we only need the final answer.
         Map<String, Object> genConfig = Map.of(
                 "maxOutputTokens", MAX_OUTPUT_TOKENS,
-                "temperature", TEMPERATURE);
+                "temperature", TEMPERATURE,
+                "thinkingConfig", Map.of("thinkingBudget", 0));
 
         return Map.of(
                 "systemInstruction", systemInstruction,

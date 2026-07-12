@@ -16,7 +16,8 @@ import lombok.Setter;
 @AllArgsConstructor
 public class ChatMessageDto {
 
-    public enum Role { USER, ASSISTANT }
+    /** SYSTEM holds the rolling compressed-history summary (see ChatHistoryCacheService). */
+    public enum Role { USER, ASSISTANT, SYSTEM }
 
     private Role role;
     private String content;
@@ -29,11 +30,21 @@ public class ChatMessageDto {
         return new ChatMessageDto(Role.ASSISTANT, content);
     }
 
+    public static ChatMessageDto summary(String content) {
+        return new ChatMessageDto(Role.SYSTEM, content);
+    }
+
     /**
      * Formats this turn into a single prompt line for multi-turn Gemini prompts.
      * Example: {@code "User: I want to cut food spending this month"}
+     * A SYSTEM entry is the rolling summary and is already self-labelled ("[SUMMARY] ..."),
+     * so it's emitted verbatim with no extra prefix.
      */
     public String toPromptLine() {
-        return (role == Role.USER ? "User" : "Assistant") + ": " + content;
+        return switch (role) {
+            case USER -> "User: " + content;
+            case ASSISTANT -> "Assistant: " + content;
+            case SYSTEM -> content;
+        };
     }
 }
