@@ -1,8 +1,8 @@
 package com.example.smartmoney.application.guardrails;
 
 import com.example.smartmoney.application.ports.chat.AIChatPort;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
@@ -36,7 +36,6 @@ import java.util.UUID;
 @Slf4j
 @Component
 @Order(3)
-@RequiredArgsConstructor
 public class SemanticScopeGuardrail implements PromptGuardrail {
 
     private static final String CLASSIFIER_PROMPT = """
@@ -67,6 +66,10 @@ public class SemanticScopeGuardrail implements PromptGuardrail {
             """;
 
     private final AIChatPort aiChatPort;
+
+    public SemanticScopeGuardrail(@Qualifier("geminiFlashAdapter") AIChatPort aiChatPort) {
+        this.aiChatPort = aiChatPort;
+    }
 
     @Override
     public void validate(String message, UUID userId) {

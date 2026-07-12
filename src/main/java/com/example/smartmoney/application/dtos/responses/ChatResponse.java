@@ -12,10 +12,12 @@ import java.util.List;
  *
  * <p>The frontend uses {@code intent} to decide which UI to render:
  * <ul>
- *   <li>{@code GENERAL_ADVICE} — plain chat bubble.</li>
- *   <li>{@code BUDGET_UPDATE}  — confirm card; on accept, call {@code PUT /api/v1/budgets/{id}}.</li>
- *   <li>{@code SIMULATION}     — what-if result panel.</li>
- *   <li>{@code OUT_OF_SCOPE}   — polite redirect message.</li>
+ *   <li>{@code GENERAL_ADVICE}  — plain chat bubble.</li>
+ *   <li>{@code BUDGET_UPDATE}   — confirm card; on accept, call {@code PUT /api/v1/budgets/{id}}.</li>
+ *   <li>{@code SIMULATION}      — what-if result panel.</li>
+ *   <li>{@code PROJECT_UPDATE}  — confirm card; on accept, call
+ *       {@code PUT /api/v1/projects/{projectId}/tracking}.</li>
+ *   <li>{@code OUT_OF_SCOPE}    — polite redirect message.</li>
  * </ul>
  */
 @Value
@@ -41,8 +43,9 @@ public class ChatResponse {
     SimulationResult simulationResult;
 
     /**
-     * Populated when {@code intent == INCOME_WINDFALL} or {@code LARGE_EXPENSE}.
-     * Each entry maps to {@code PUT /api/v1/projects/{projectId}/tracking}.
+     * Populated when {@code intent == INCOME_WINDFALL}, {@code LARGE_EXPENSE}, or
+     * {@code PROJECT_UPDATE}. Each entry maps to
+     * {@code PUT /api/v1/projects/{projectId}/tracking}.
      */
     List<SavingsPlanSuggestion> savingsSuggestions;
 
@@ -69,6 +72,7 @@ public class ChatResponse {
         SIMULATION,
         INCOME_WINDFALL,
         LARGE_EXPENSE,
+        PROJECT_UPDATE,
         OUT_OF_SCOPE
     }
 
@@ -93,7 +97,6 @@ public class ChatResponse {
         String scenario;
         Long newSafeSpending;
         String projectImpact;
-        boolean violates20Rule;
     }
 
     /**
@@ -106,6 +109,12 @@ public class ChatResponse {
      * <p>LARGE_EXPENSE: {@code suggestedMonthLeft} set — extend deadline to lower monthly pressure.
      * Frontend calls {@code PUT /api/v1/projects/{projectId}/tracking}
      * with body {@code {monthLeft: suggestedMonthLeft}}.
+     *
+     * <p>PROJECT_UPDATE: the user directly asked to adjust a project's tracked income
+     * (extra contribution — same {@code moneySaved} fields as INCOME_WINDFALL) or expense
+     * ({@code currentMoneyOwed}/{@code suggestedMoneyOwed} set — debt increase/payoff).
+     * Frontend calls {@code PUT /api/v1/projects/{projectId}/tracking}
+     * with body {@code {moneyOwed: suggestedMoneyOwed}}.
      */
     @Value
     @Builder
@@ -113,9 +122,11 @@ public class ChatResponse {
         String projectId;
         String projectName;
         Long currentMoneySaved;
-        Long suggestedAddAmount;     // > 0 for windfall; null for large-expense deferral
-        Long newMoneySaved;          // currentMoneySaved + suggestedAddAmount (null for deferral)
-        Integer suggestedMonthLeft;  // extended months left (null for windfall)
+        Long suggestedAddAmount;     // > 0 for windfall/contribution; null when unrelated to moneySaved
+        Long newMoneySaved;          // currentMoneySaved + suggestedAddAmount; null when unrelated to moneySaved
+        Integer suggestedMonthLeft;  // extended months left (null unless deferring)
+        Long currentMoneyOwed;       // project's tracked debt before the change; null unless PROJECT_UPDATE expense
+        Long suggestedMoneyOwed;     // project's tracked debt after the change; null unless PROJECT_UPDATE expense
         String reason;
     }
 }

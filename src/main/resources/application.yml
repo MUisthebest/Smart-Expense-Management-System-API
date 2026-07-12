@@ -132,9 +132,8 @@ app:
   # Gemini (Google AI) Configuration
   gemini:
     api-key: ${GEMINI_API_KEY:}
-
-  openrouter:
-    api-key: ${OPENROUTER_API_KEY:}
+    model-transactional: ${GEMINI_MODEL_TRANSACTIONAL:gemini-2.5-flash}
+    model-general: ${GEMINI_MODEL_GENERAL:gemini-2.5-flash-lite}
 
   # Cloudinary Configuration
   cloudinary:

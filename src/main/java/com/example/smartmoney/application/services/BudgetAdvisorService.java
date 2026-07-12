@@ -33,6 +33,9 @@ public class BudgetAdvisorService {
     // Suggest cutting the identified category by this fraction (20% reduction)
     private static final double REDUCTION_RATIO = 0.20;
 
+    // Proactive near-limit nudge fires once a budget category crosses this % used
+    private static final BigDecimal NEAR_LIMIT_THRESHOLD_PCT = BigDecimal.valueOf(80);
+
     /**
      * Returns a list of budget reduction suggestions based on the user's message.
      *
@@ -90,10 +93,15 @@ public class BudgetAdvisorService {
 
         // UC1: reason string displayed in the confirm card and given to the AI for context.
         // Matches the spec: "Food is 2.8M (35%). Cut to 2M, freeing 800K — move to which fund?"
-        String reason = String.format(
-                "%s hiện là %,.0f VND (%.1f%% tổng ngân sách). " +
-                "Giảm xuống %,.0f VND, giải phóng %,.0f VND — bạn muốn chuyển khoản này sang quỹ nào?",
-                b.getCategory().name(), current, pct, suggested, freed);
+        String reason = MessageLanguageDetector.isEnglish(messageLow)
+                ? String.format(
+                        "%s is currently %,.0f VND (%.1f%% of total budget). " +
+                        "Cut it to %,.0f VND, freeing up %,.0f VND — which fund should it go to?",
+                        b.getCategory().name(), current, pct, suggested, freed)
+                : String.format(
+                        "%s hiện là %,.0f VND (%.1f%% tổng ngân sách). " +
+                        "Giảm xuống %,.0f VND, giải phóng %,.0f VND — bạn muốn chuyển khoản này sang quỹ nào?",
+                        b.getCategory().name(), current, pct, suggested, freed);
 
         return List.of(ChatResponse.BudgetUpdateSuggestion.builder()
                 .budgetId(b.getId().toString())
@@ -102,6 +110,62 @@ public class BudgetAdvisorService {
                 .suggestedAmount(suggested.longValue())
                 .reason(reason)
                 .build());
+    }
+
+    /**
+     * Proactive safety-net check (not tied to any keyword match): flags the most
+     * over-threshold budget category this month, if any has crossed
+     * {@link #NEAR_LIMIT_THRESHOLD_PCT}% used. Used to volunteer a nudge on a turn where the
+     * user didn't explicitly ask about their budget, mirroring the spec's
+     * "Bạn đã dùng 85% budget ăn uống ... muốn điều chỉnh không?" example.
+     *
+     * @return empty when no budget is near/over its limit
+     */
+    public Optional<ChatResponse.BudgetUpdateSuggestion> checkNearLimit(
+            UUID userId, int month, int year, int daysLeft, boolean english) {
+
+        List<Budget> budgets = budgetRepository.findByUserIdMonthYear(userId, month, year);
+        if (budgets.isEmpty()) return Optional.empty();
+
+        Optional<Budget> worst = budgets.stream()
+                .filter(b -> b.getAmountLimit().compareTo(BigDecimal.ZERO) > 0)
+                .max(Comparator.comparing(b -> pctUsed(b)));
+
+        if (worst.isEmpty()) return Optional.empty();
+
+        Budget b = worst.get();
+        BigDecimal pct = pctUsed(b);
+        if (pct.compareTo(NEAR_LIMIT_THRESHOLD_PCT) < 0) return Optional.empty();
+
+        BigDecimal current = b.getAmountLimit();
+        BigDecimal suggested = current
+                .multiply(BigDecimal.valueOf(1.0 - REDUCTION_RATIO))
+                .setScale(0, RoundingMode.HALF_UP);
+
+        String reason = english
+                ? String.format(
+                        "You've used %.0f%% of your %s budget with %d day(s) left this month — " +
+                        "want to lower the limit to %,.0f VND?",
+                        pct, b.getCategory().name(), daysLeft, suggested)
+                : String.format(
+                        "Bạn đã dùng %.0f%% ngân sách %s, còn %d ngày nữa trong tháng — " +
+                        "bạn có muốn điều chỉnh xuống %,.0f VND không?",
+                        pct, b.getCategory().name(), daysLeft, suggested);
+
+        return Optional.of(ChatResponse.BudgetUpdateSuggestion.builder()
+                .budgetId(b.getId().toString())
+                .category(b.getCategory().name())
+                .currentAmount(current.longValue())
+                .suggestedAmount(suggested.longValue())
+                .reason(reason)
+                .build());
+    }
+
+    private BigDecimal pctUsed(Budget b) {
+        BigDecimal spent = b.getSpent() != null ? b.getSpent() : BigDecimal.ZERO;
+        return b.getAmountLimit().compareTo(BigDecimal.ZERO) > 0
+                ? spent.multiply(BigDecimal.valueOf(100)).divide(b.getAmountLimit(), 1, RoundingMode.HALF_UP)
+                : BigDecimal.ZERO;
     }
 
     /**
