@@ -1,5 +1,6 @@
 package com.example.smartmoney.config;
 
+import com.example.smartmoney.domain.services.BudgetAllocationCalculator;
 import com.example.smartmoney.domain.services.ForecastMethod;
 import com.example.smartmoney.domain.services.SpendingInsightAnalyzer;
 import org.springframework.beans.factory.annotation.Value;
@@ -24,6 +25,15 @@ public class DomainServiceConfig {
     public SpendingInsightAnalyzer spendingInsightAnalyzer(
             @Value("${app.insight.forecast-method:LINEAR}") ForecastMethod forecastMethod) {
         return new SpendingInsightAnalyzer(forecastMethod);
+    }
+
+    /**
+     * Pure deterministic budget allocator — the LLM-free path behind
+     * {@code POST /api/v1/budgets/allocation/compute}. Stateless, so a single bean is safe to share.
+     */
+    @Bean
+    public BudgetAllocationCalculator budgetAllocationCalculator() {
+        return new BudgetAllocationCalculator();
     }
 
     /**

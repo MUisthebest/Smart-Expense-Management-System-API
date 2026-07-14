@@ -1,17 +1,21 @@
 package com.example.smartmoney.presentation.controllers;
 
 import com.example.smartmoney.application.dtos.requests.chat.ChatRequest;
+import com.example.smartmoney.application.dtos.requests.chat.ConfirmChatActionRequest;
+import com.example.smartmoney.application.dtos.responses.ChatActionConfirmResponse;
 import com.example.smartmoney.application.dtos.responses.ChatResponse;
 import com.example.smartmoney.application.guardrails.GuardrailViolationException;
 import com.example.smartmoney.application.guardrails.RateLimitExceededException;
 import com.example.smartmoney.application.usecases.queue.ProcessQueueRequestUseCase;
 import com.example.smartmoney.application.usecases.chat.ChatWithAIUseCase;
+import com.example.smartmoney.application.usecases.chat.ConfirmChatActionUseCase;
 import com.example.smartmoney.application.usecases.chat.GetAISuggestionsUseCase;
 import com.example.smartmoney.domain.exceptions.DuplicateJobException;
 import com.example.smartmoney.domain.models.message.MessageRecord;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -32,6 +36,7 @@ import java.util.UUID;
  * GET /suggestions — returns {questions: string[]}, 3–5 chips.
  * POST / and GET /{jobId} — legacy queue endpoints, unchanged.
  */
+@Slf4j
 @RestController
 @RequestMapping("/api/v1/ai")
 @RequiredArgsConstructor
@@ -42,6 +47,7 @@ public class AIController {
     private final TransactionController transactionController;
     private final ProcessQueueRequestUseCase processQueueRequestUseCase;
     private final ChatWithAIUseCase chatWithAIUseCase;
+    private final ConfirmChatActionUseCase confirmChatActionUseCase;
     private final GetAISuggestionsUseCase getAISuggestionsUseCase;
 
     // ── Legacy queue endpoints (unchanged) ───────────────────────────────────
@@ -155,6 +161,25 @@ public class AIController {
         }
     }
 
+    /**
+     * Confirm (or deny) a {@code pendingActionId} returned by a previous {@code POST /chat} turn
+     * (a project-hypothesis or budget-increase-swap suggestion). Only on {@code confirm: true}
+     * does the backend execute the real mutation — see {@link ConfirmChatActionUseCase}.
+     */
+    @PostMapping("/chat/confirm")
+    public ResponseEntity<?> confirmChatAction(
+            @RequestBody ConfirmChatActionRequest request,
+            @RequestHeader("Authorization") String authHeader) {
+        try {
+            UUID userId = transactionController.extractUserIdFromToken(authHeader);
+            ChatActionConfirmResponse response = confirmChatActionUseCase.execute(userId, request);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", e.getMessage()));
+        }
+    }
+
     // ── Suggestions (unchanged) ──────────────────────────────────────────────
 
     @GetMapping("/suggestions")
@@ -206,7 +231,15 @@ public class AIController {
                             emitter.completeWithError(e);
                         }
                     },
-                    error -> emitter.completeWithError(error),
+                    error -> {
+                        // Same rationale as the sync /chat fallback: a network blip or an
+                        // overloaded/rate-limited Claude call shouldn't surface as a raw stream
+                        // error the client can't render — send a friendly reply and end the
+                        // stream normally instead.
+                        log.warn("streamChat: LLM stream failed: {}", error.getMessage());
+                        sendReplyThenDone(emitter, "Xin lỗi, trợ lý AI đang gặp sự cố kết nối tạm thời. " +
+                                "Bạn vui lòng thử lại sau ít phút nhé.");
+                    },
                     () -> {
                         try {
                             emitter.send(SseEmitter.event().name("done").data("[DONE]"));
@@ -223,19 +256,24 @@ public class AIController {
             emitter.complete();
 
         } catch (GuardrailViolationException e) {
-            try {
-                String reply = e.getMessage() != null ? e.getMessage()
-                        : "Tôi chỉ hỗ trợ câu hỏi về tài chính cá nhân.";
-                emitter.send(SseEmitter.event().data(reply));
-                emitter.send(SseEmitter.event().name("done").data("[DONE]"));
-            } catch (IOException ignored) {
-            }
-            emitter.complete();
+            String reply = e.getMessage() != null ? e.getMessage()
+                    : "Tôi chỉ hỗ trợ câu hỏi về tài chính cá nhân.";
+            sendReplyThenDone(emitter, reply);
 
         } catch (Exception e) {
             emitter.completeWithError(e);
         }
 
         return emitter;
+    }
+
+    /** Sends one text chunk followed by the {@code done} terminator, then completes normally. */
+    private void sendReplyThenDone(SseEmitter emitter, String reply) {
+        try {
+            emitter.send(SseEmitter.event().data(reply));
+            emitter.send(SseEmitter.event().name("done").data("[DONE]"));
+        } catch (IOException ignored) {
+        }
+        emitter.complete();
     }
 }
