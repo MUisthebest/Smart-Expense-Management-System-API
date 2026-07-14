@@ -123,6 +123,11 @@ app:
   gemini:
     api-key: "test-gemini-key"
 
+  # Claude Configuration
+  claude:
+    api-key: "test-claude-key"
+    model: "claude-haiku-4-5"
+
 
 # Logging Configuration
 logging:

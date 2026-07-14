@@ -4,6 +4,7 @@ import com.example.smartmoney.application.dtos.responses.ChatResponse;
 import com.example.smartmoney.domain.models.budget.Budget;
 import com.example.smartmoney.domain.models.project.Project;
 import com.example.smartmoney.domain.models.project.ProjectTracking;
+import com.example.smartmoney.domain.models.project.enums.ProjectStatus;
 import com.example.smartmoney.domain.models.project.valueobjects.UserId;
 import com.example.smartmoney.domain.repositories.BudgetRepository;
 import com.example.smartmoney.domain.repositories.ProjectRepository;
@@ -82,6 +83,7 @@ public class WindfallAllocationService {
             BigDecimal allocate = remaining.min(projectNeed).setScale(0, RoundingMode.HALF_UP);
             remaining = remaining.subtract(allocate);
 
+            boolean english = MessageLanguageDetector.isEnglish(messageLow);
             result.add(ChatResponse.SavingsPlanSuggestion.builder()
                     .projectId(p.getId().toString())
                     .projectName(p.getName())
@@ -89,9 +91,13 @@ public class WindfallAllocationService {
                     .suggestedAddAmount(allocate.longValue())
                     .newMoneySaved(currentSaved.add(allocate).longValue())
                     .suggestedMonthLeft(null)
-                    .reason(String.format(
-                            "Thêm %,.0f VND vào '%s' từ nguồn thu đột xuất — dự án hoàn thành nhanh hơn.",
-                            allocate, p.getName()))
+                    .reason(english
+                            ? String.format(
+                                    "Add %,.0f VND to '%s' from the windfall income — the project finishes sooner.",
+                                    allocate, p.getName())
+                            : String.format(
+                                    "Thêm %,.0f VND vào '%s' từ nguồn thu đột xuất — dự án hoàn thành nhanh hơn.",
+                                    allocate, p.getName()))
                     .build());
         }
         return result;
@@ -126,15 +132,20 @@ public class WindfallAllocationService {
                     BigDecimal share = budgetPool.multiply(b.getAmountLimit())
                             .divide(totalLimit, 0, RoundingMode.HALF_UP);
                     BigDecimal newLimit = b.getAmountLimit().add(share);
+                    boolean english = MessageLanguageDetector.isEnglish(messageLow);
                     return ChatResponse.BudgetUpdateSuggestion.builder()
                             .budgetId(b.getId().toString())
                             .category(b.getCategory().name())
                             .currentAmount(b.getAmountLimit().longValue())
                             .suggestedAmount(newLimit.longValue())
-                            .reason(String.format(
-                                    "Tăng ngân sách %s thêm %,.0f VND (%.0f%% khoản thu đột xuất) → giới hạn mới: %,.0f VND.",
-                                    b.getCategory().name(), share,
-                                    BUDGET_RATIO * 100, newLimit))
+                            .reason(english
+                                    ? String.format(
+                                            "Increase %s budget by %,.0f VND (%.0f%% of the windfall) -> new limit: %,.0f VND.",
+                                            b.getCategory().name(), share, BUDGET_RATIO * 100, newLimit)
+                                    : String.format(
+                                            "Tăng ngân sách %s thêm %,.0f VND (%.0f%% khoản thu đột xuất) → giới hạn mới: %,.0f VND.",
+                                            b.getCategory().name(), share,
+                                            BUDGET_RATIO * 100, newLimit))
                             .build();
                 })
                 .collect(Collectors.toList());
@@ -166,6 +177,7 @@ public class WindfallAllocationService {
 
         List<ChatResponse.BudgetUpdateSuggestion> result = new ArrayList<>();
         BigDecimal remaining = expense;
+        boolean english = MessageLanguageDetector.isEnglish(messageLow);
 
         for (Budget b : byHeadroom) {
             if (remaining.compareTo(BigDecimal.ZERO) <= 0) break;
@@ -182,9 +194,13 @@ public class WindfallAllocationService {
                         .category(b.getCategory().name())
                         .currentAmount(b.getAmountLimit().longValue())
                         .suggestedAmount(b.getAmountLimit().longValue()) // no change needed
-                        .reason(String.format(
-                                "Ngân sách %s còn dư %,.0f VND — đủ để trang trải chi phí đột xuất %,.0f VND.",
-                                b.getCategory().name(), headroom, expense))
+                        .reason(english
+                                ? String.format(
+                                        "%s budget has %,.0f VND headroom left — enough to cover the %,.0f VND unplanned expense.",
+                                        b.getCategory().name(), headroom, expense)
+                                : String.format(
+                                        "Ngân sách %s còn dư %,.0f VND — đủ để trang trải chi phí đột xuất %,.0f VND.",
+                                        b.getCategory().name(), headroom, expense))
                         .build());
                 remaining = BigDecimal.ZERO;
             } else {
@@ -196,9 +212,13 @@ public class WindfallAllocationService {
                         .category(b.getCategory().name())
                         .currentAmount(b.getAmountLimit().longValue())
                         .suggestedAmount(newLimit.longValue())
-                        .reason(String.format(
-                                "Tăng hạn mức %s thêm %,.0f VND để trang trải chi phí đột xuất.",
-                                b.getCategory().name(), needed))
+                        .reason(english
+                                ? String.format(
+                                        "Increase %s limit by %,.0f VND to cover the unplanned expense.",
+                                        b.getCategory().name(), needed)
+                                : String.format(
+                                        "Tăng hạn mức %s thêm %,.0f VND để trang trải chi phí đột xuất.",
+                                        b.getCategory().name(), needed))
                         .build());
                 remaining = remaining.subtract(headroom.add(needed));
             }
@@ -212,6 +232,17 @@ public class WindfallAllocationService {
      */
     public List<ChatResponse.SavingsPlanSuggestion> suggestProjectDeferral(
             UUID userId, int month, int year, String messageLow) {
+        return suggestProjectDeferral(userId, month, year, messageLow, BigDecimal.ZERO);
+    }
+
+    /**
+     * Same as {@link #suggestProjectDeferral(UUID, int, int, String)} but treats
+     * {@code extraCoverage} (e.g. idle funds freed from an abandoned project via
+     * {@link #suggestAbandonedProjectFunds}) as additional headroom, so an ACTIVE project is only
+     * deferred for whatever shortfall remains after that idle cash is counted.
+     */
+    public List<ChatResponse.SavingsPlanSuggestion> suggestProjectDeferral(
+            UUID userId, int month, int year, String messageLow, BigDecimal extraCoverage) {
 
         BigDecimal expense = parseAmount(messageLow);
         if (expense.compareTo(BigDecimal.ZERO) == 0) expense = DEFAULT_AMOUNT;
@@ -219,11 +250,13 @@ public class WindfallAllocationService {
         List<Project> projects = activeProjects(userId);
         if (projects.isEmpty()) return Collections.emptyList();
 
-        // Check if total budget already covers the expense — if yes, no deferral needed
+        // Check if total budget headroom + any idle abandoned-project funds already covers the
+        // expense — if yes, no deferral of an ACTIVE project is needed.
         List<Budget> budgets = budgetRepository.findByUserIdMonthYear(userId, month, year);
         BigDecimal totalHeadroom = budgets.stream()
                 .map(b -> b.getAmountLimit().subtract(b.getSpent() != null ? b.getSpent() : BigDecimal.ZERO))
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .add(extraCoverage != null ? extraCoverage : BigDecimal.ZERO);
 
         if (totalHeadroom.compareTo(expense) >= 0) return Collections.emptyList();
 
@@ -244,6 +277,7 @@ public class WindfallAllocationService {
             BigDecimal freed = monthlySaving.multiply(BigDecimal.valueOf(DEFER_MONTHS));
             shortfall = shortfall.subtract(freed);
 
+            boolean english = MessageLanguageDetector.isEnglish(messageLow);
             result.add(ChatResponse.SavingsPlanSuggestion.builder()
                     .projectId(p.getId().toString())
                     .projectName(p.getName())
@@ -252,27 +286,79 @@ public class WindfallAllocationService {
                     .suggestedAddAmount(null)
                     .newMoneySaved(null)
                     .suggestedMonthLeft(newMonthLeft)
-                    .reason(String.format(
-                            "Hoãn dự án '%s' thêm %d tháng → giải phóng %,.0f VND/tháng để trang trải chi phí đột xuất.",
-                            p.getName(), DEFER_MONTHS, monthlySaving))
+                    .reason(english
+                            ? String.format(
+                                    "Defer project '%s' by %d months -> frees up %,.0f VND/month to cover the unplanned expense.",
+                                    p.getName(), DEFER_MONTHS, monthlySaving)
+                            : String.format(
+                                    "Hoãn dự án '%s' thêm %d tháng → giải phóng %,.0f VND/tháng để trang trải chi phí đột xuất.",
+                                    p.getName(), DEFER_MONTHS, monthlySaving))
                     .build());
         }
         return result;
     }
 
+    /**
+     * Suggests using money already saved in an ABANDONED project to cover a large expense instead
+     * of leaving it idle. An abandoned project no longer accrues monthly saving and can't take new
+     * contributions ({@link Project#contribute} rejects it), but its tracked {@code moneySaved} is a
+     * real lump sum sitting unused — a better source for a one-off expense than deferring an ACTIVE
+     * project's future savings. (A hard-deleted project has nothing left to suggest — its tracking
+     * row is gone — so this only ever looks at ABANDONED, not DELETE.)
+     */
+    public List<ChatResponse.SavingsPlanSuggestion> suggestAbandonedProjectFunds(
+            UUID userId, String messageLow) {
+
+        List<Project> abandoned = projectRepository.findAllByUser(UserId.of(userId.toString()))
+                .stream()
+                .filter(p -> p.getStatus() == ProjectStatus.ABANDONED)
+                .filter(p -> {
+                    ProjectTracking t = p.getTracking();
+                    return t != null && t.getMoneySaved() != null
+                            && t.getMoneySaved().compareTo(BigDecimal.ZERO) > 0;
+                })
+                .collect(Collectors.toList());
+        if (abandoned.isEmpty()) return Collections.emptyList();
+
+        boolean english = MessageLanguageDetector.isEnglish(messageLow);
+        return abandoned.stream()
+                .map(p -> {
+                    BigDecimal saved = p.getTracking().getMoneySaved();
+                    return ChatResponse.SavingsPlanSuggestion.builder()
+                            .projectId(p.getId().toString())
+                            .projectName(p.getName())
+                            .currentMoneySaved(saved.longValue())
+                            .suggestedAddAmount(saved.negate().longValue()) // negative = withdrawal
+                            .newMoneySaved(0L)
+                            .suggestedMonthLeft(null)
+                            .reason(english
+                                    ? String.format(
+                                            "Project '%s' is abandoned but still has %,.0f VND saved — use it to cover the expense instead of leaving it idle.",
+                                            p.getName(), saved)
+                                    : String.format(
+                                            "Dự án '%s' đã bị hủy nhưng vẫn còn %,.0f VND đã tiết kiệm — dùng số tiền này để trang trải chi phí thay vì để không.",
+                                            p.getName(), saved))
+                            .build();
+                })
+                .collect(Collectors.toList());
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────────────
 
+    /** Active projects (status ACTIVE — excludes COMPLETED/ABANDONED/FROZEN/EXPIRED/CANCELLED,
+     *  future deadline), highest priority first (HIGH &gt; MEDIUM &gt; LOW). */
     private List<Project> activeProjects(UUID userId) {
         LocalDate today = LocalDate.now();
         return projectRepository.findAllByUser(UserId.of(userId.toString()))
                 .stream()
-                .filter(p -> p.getDeadline().isAfter(today)
+                .filter(p -> p.getStatus() == ProjectStatus.ACTIVE
+                        && p.getDeadline().isAfter(today)
                         && ChronoUnit.MONTHS.between(today, p.getDeadline()) > 0)
                 .sorted(Comparator.comparingInt(p -> -p.getPriority().ordinal())) // HIGH first
                 .collect(Collectors.toList());
     }
 
-    BigDecimal parseAmount(String text) {
+    public BigDecimal parseAmount(String text) {
         Matcher m = AMOUNT_PATTERN.matcher(text);
         while (m.find()) {
             String numStr = m.group(1).replace(",", "");

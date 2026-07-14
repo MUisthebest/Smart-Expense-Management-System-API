@@ -22,14 +22,10 @@ import java.util.stream.Collectors;
 
 /**
  * UC2 — What-if Simulation:
- * Given a hypothetical extra spend, computes whether it would violate the 20%
- * safety rule and which saving projects would be delayed.
+ * Given a hypothetical extra spend, computes the resulting safe-spending balance and
+ * which saving projects would be delayed.
  *
  * This service is PURELY READ-ONLY — no data is written.
- *
- * 20% rule (adapted since income data is unavailable):
- *   The extra spend is flagged as risky when it exceeds 20% of the user's
- *   total monthly budget allocation, leaving insufficient buffer for projects.
  *
  * Project-impact algorithm:
  *   Projects are sorted HIGH → LOW priority. Starting from the remaining budget
@@ -88,13 +84,7 @@ public class SpendingSimulationService {
         // UC2 step 5: Remaining after the hypothetical extra spend (can go negative)
         BigDecimal newSafeSpending = remainingBudget.subtract(extraAmount);
 
-        // UC2 step 6: 20% rule check — extra spend is "risky" when it consumes
-        // more than 20% of the total monthly budget allocation
-        boolean violates20Rule = totalBudget.compareTo(BigDecimal.ZERO) > 0
-                && extraAmount.divide(totalBudget, 4, RoundingMode.HALF_UP)
-                              .compareTo(BigDecimal.valueOf(0.20)) > 0;
-
-        // UC2 step 7: Determine which projects (if any) would be delayed
+        // UC2 step 6: Determine which projects (if any) would be delayed
         String projectImpact = analyseProjectImpact(userId, newSafeSpending);
 
         String scenario = String.format(
@@ -105,7 +95,6 @@ public class SpendingSimulationService {
                 .scenario(scenario)
                 .newSafeSpending(newSafeSpending.longValue())
                 .projectImpact(projectImpact)
-                .violates20Rule(violates20Rule)
                 .build();
     }
 
@@ -119,13 +108,9 @@ public class SpendingSimulationService {
                 "Kết quả mô phỏng kịch bản:\n" +
                 "- %s\n" +
                 "- Ngân sách an toàn còn lại: %,.0f VND\n" +
-                "- Vi phạm quy tắc 20%%: %s\n" +
                 "- Tác động đến dự án: %s\n",
                 result.getScenario(),
                 (double) result.getNewSafeSpending(),
-                result.isViolates20Rule()
-                        ? "CÓ — khoản chi này vượt quá 20%% tổng ngân sách tháng, rủi ro cho các quỹ tiết kiệm"
-                        : "Không",
                 result.getProjectImpact());
     }
 

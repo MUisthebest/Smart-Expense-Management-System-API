@@ -638,6 +638,21 @@ public class SpendingInsightAnalyzer {
     }
 
     /**
+     * Estimated monthly recurring cost broken down by category — the per-category form of
+     * {@link #estimatedMonthlyRecurringCost}. The deterministic budget allocator uses it to floor
+     * each category at its fixed obligations before distributing discretionary headroom, so a
+     * subscription-heavy category is never starved by a proportional split. Categories with no
+     * detected recurring charge are simply absent from the map.
+     */
+    public Map<Category, BigDecimal> recurringCostByCategory(List<Transaction> history, YearMonth period) {
+        Map<Category, BigDecimal> byCategory = new EnumMap<>(Category.class);
+        for (RecurringCharge charge : findRecurringCharges(history, period)) {
+            byCategory.merge(charge.category(), charge.monthlyAmount(), BigDecimal::add);
+        }
+        return byCategory;
+    }
+
+    /**
      * Identifiable charges grouped by (category, normalized description), summed per month over
      * [period - window, period]. Shared by the recurring detector and the price-hike detector.
      */
