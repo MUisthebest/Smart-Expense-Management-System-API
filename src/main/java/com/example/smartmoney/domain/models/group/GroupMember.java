@@ -15,18 +15,23 @@ public class GroupMember {
     private final GroupMemberRole role;
     private GroupMemberInviteStatus inviteStatus;
     private BigDecimal capacitySnapshot;
+    private Boolean autoSponsorEnabled;
+    private BigDecimal autoSponsorLimit;
     private Instant joinedAt;
     private final Instant createdAt;
     private Instant updatedAt;
 
     public GroupMember(UUID id, UserId userId, GroupMemberRole role,
                        GroupMemberInviteStatus inviteStatus, BigDecimal capacitySnapshot,
+                       Boolean autoSponsorEnabled, BigDecimal autoSponsorLimit,
                        Instant joinedAt, Instant createdAt, Instant updatedAt) {
         this.id = id;
         this.userId = userId;
         this.role = role;
         this.inviteStatus = inviteStatus;
         this.capacitySnapshot = capacitySnapshot;
+        this.autoSponsorEnabled = autoSponsorEnabled != null ? autoSponsorEnabled : false;
+        this.autoSponsorLimit = autoSponsorLimit;
         this.joinedAt = joinedAt;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
@@ -35,13 +40,13 @@ public class GroupMember {
     public static GroupMember invited(UserId userId, GroupMemberRole role) {
         Instant now = Instant.now();
         return new GroupMember(UUID.randomUUID(), userId, role,
-                GroupMemberInviteStatus.INVITED, null, null, now, now);
+                GroupMemberInviteStatus.INVITED, null, false, null, null, now, now);
     }
 
     public static GroupMember joinedAdmin(UserId userId, BigDecimal capacitySnapshot) {
         Instant now = Instant.now();
         return new GroupMember(UUID.randomUUID(), userId, GroupMemberRole.ADMIN,
-                GroupMemberInviteStatus.JOINED, capacitySnapshot, now, now, now);
+                GroupMemberInviteStatus.JOINED, capacitySnapshot, false, null, now, now, now);
     }
 
     public void accept(BigDecimal capacitySnapshot) {
@@ -63,6 +68,12 @@ public class GroupMember {
         this.updatedAt = Instant.now();
     }
 
+    public void updateAutoSponsorship(boolean enabled, BigDecimal limit) {
+        this.autoSponsorEnabled = enabled;
+        this.autoSponsorLimit = limit;
+        this.updatedAt = Instant.now();
+    }
+
     public boolean isResolved() {
         return inviteStatus == GroupMemberInviteStatus.JOINED
                 || inviteStatus == GroupMemberInviteStatus.DECLINED;
@@ -77,6 +88,8 @@ public class GroupMember {
     public GroupMemberRole getRole() { return role; }
     public GroupMemberInviteStatus getInviteStatus() { return inviteStatus; }
     public BigDecimal getCapacitySnapshot() { return capacitySnapshot; }
+    public Boolean getAutoSponsorEnabled() { return autoSponsorEnabled; }
+    public BigDecimal getAutoSponsorLimit() { return autoSponsorLimit; }
     public Instant getJoinedAt() { return joinedAt; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
