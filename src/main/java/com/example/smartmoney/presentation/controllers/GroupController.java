@@ -33,6 +33,7 @@ public class GroupController {
     private final DeclineGroupInviteUseCase declineGroupInviteUseCase;
     private final RemoveGroupMemberUseCase removeGroupMemberUseCase;
     private final DeleteGroupUseCase deleteGroupUseCase;
+    private final UpdateAutoSponsorshipUseCase updateAutoSponsorshipUseCase;
 
     private String actorId(Authentication auth) {
         return auth.getName();
@@ -164,6 +165,19 @@ public class GroupController {
         return CheckResponse.<Void>builder()
                 .success(true)
                 .message("Group deleted successfully")
+                .build();
+    }
+
+    @Operation(summary = "Update auto-sponsorship settings")
+    @PutMapping("/{groupId}/auto-sponsorship")
+    public CheckResponse<Void> updateAutoSponsorship(
+            Authentication auth,
+            @PathVariable String groupId,
+            @Valid @RequestBody UpdateAutoSponsorshipRequest req) {
+        updateAutoSponsorshipUseCase.execute(actorId(auth), groupId, req);
+        return CheckResponse.<Void>builder()
+                .success(true)
+                .message("Updated auto-sponsorship settings")
                 .build();
     }
 }

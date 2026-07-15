@@ -42,6 +42,13 @@ public class GroupMemberEntity {
     @Column(name = "capacity_snapshot", precision = 19, scale = 2)
     private BigDecimal capacitySnapshot;
 
+    @Column(name = "auto_sponsor_enabled")
+    @Builder.Default
+    private Boolean autoSponsorEnabled = false;
+
+    @Column(name = "auto_sponsor_limit", precision = 19, scale = 2)
+    private BigDecimal autoSponsorLimit;
+
     @Column(name = "joined_at")
     private Instant joinedAt;
 
