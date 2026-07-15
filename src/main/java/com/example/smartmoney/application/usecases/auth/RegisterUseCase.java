@@ -59,7 +59,7 @@ public class RegisterUseCase {
             }
         }
 
-        String avatarUrl = null;
+        String avatarUrl = "https://res.cloudinary.com/drjlezbo7/image/upload/v1781800787/smart-money/users/avatar_0a3ad74f-f949-4ca5-a885-5aef16a2b1b1_1781800787245.png";
 
         if (request.getAvatar() != null && !request.getAvatar().isEmpty()) {
             avatarUrl = cloudinaryPort.uploadAvatar(request.getAvatar());
