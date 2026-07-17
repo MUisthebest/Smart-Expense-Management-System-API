@@ -1,0 +1,77 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: smartmoney-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-smartmoney}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-smartmoney}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - smartmoney-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: smartmoney-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - smartmoney-net
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: smartmoney-app
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      # Point the app at the containers below instead of whatever DATABASE_URL/REDIS_*
+      # values happen to be in .env (e.g. a remote Neon/Redis Cloud instance).
+      DATABASE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-smartmoney}
+      DATABASE_USERNAME: ${POSTGRES_USER:-postgres}
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      REDIS_URI: redis://redis:6379
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_USERNAME: ""
+      REDIS_PASSWORD: ""
+      # No Flyway migrations are checked into the repo yet; let Hibernate create/update
+      # the schema from the JPA entities against the fresh local Postgres container.
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - smartmoney-net
+
+volumes:
+  postgres-data:
+  redis-data:
+
+networks:
+  smartmoney-net:
+    driver: bridge
