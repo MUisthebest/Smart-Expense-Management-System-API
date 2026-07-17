@@ -27,6 +27,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.*;
@@ -60,6 +61,9 @@ public class ChatWithAIUseCase {
     private final JsonSchemaGuardrail jsonSchemaGuardrail;
     private final ChatPendingActionPort chatPendingActionPort;
     private final ComputeBudgetAllocationUseCase computeBudgetAllocationUseCase;
+    // Injected so the days-left month-end gate is testable at a pinned date rather than being
+    // silently coupled to the wall-clock (see DomainServiceConfig's systemDefaultZone bean).
+    private final Clock clock;
 
     // Suppress current-month BUDGET_UPDATE/PROJECT_UPDATE suggestions once this few days remain —
     // the reply steers the user toward a next-month plan instead (req: never touch a month that
@@ -86,7 +90,7 @@ public class ChatWithAIUseCase {
         // why it can't live inside this method body anymore.
         String message = request.getMessage();
 
-        LocalDate now = LocalDate.now();
+        LocalDate now = LocalDate.now(clock);
         int month = request.getMonth() != null ? request.getMonth() : now.getMonthValue();
         int year  = request.getYear()  != null ? request.getYear()  : now.getYear();
 
@@ -151,7 +155,7 @@ public class ChatWithAIUseCase {
 
         String message = request.getMessage();
 
-        LocalDate now = LocalDate.now();
+        LocalDate now = LocalDate.now(clock);
         int month = request.getMonth() != null ? request.getMonth() : now.getMonthValue();
         int year  = request.getYear()  != null ? request.getYear()  : now.getYear();
 

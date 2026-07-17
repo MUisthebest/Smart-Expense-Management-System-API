@@ -67,6 +67,7 @@ class ComputeBudgetAllocationUseCaseTest {
                 .savingPace(Saving_Pace.BALANCED)
                 .focusMode(Focus_Mode.REDUCE_SPENDING)
                 .interventionLevel(Intervention_Level.GENTLE)
+                .autoInvestSurplus(true)
                 .build();
     }
 
