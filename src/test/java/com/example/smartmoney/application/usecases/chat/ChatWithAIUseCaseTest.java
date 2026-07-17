@@ -34,8 +34,10 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -57,6 +59,13 @@ import static org.mockito.Mockito.when;
 @DisplayName("ChatWithAIUseCase.attachImplicitEventSuggestions")
 class ChatWithAIUseCaseTest {
 
+    // Pinned early in a 31-day month so the days-left month-end gate (suppresses current-month
+    // BUDGET_UPDATE/PROJECT_UPDATE/PROJECT_HYPOTHESIS suggestions once <= 15 days remain) never
+    // fires here — otherwise these tests would pass early in the month and fail after the 16th.
+    private static final Clock FIXED_CLOCK = Clock.fixed(
+            LocalDate.of(2026, 1, 6).atStartOfDay(ZoneId.systemDefault()).toInstant(),
+            ZoneId.systemDefault());
+
     private final BudgetRepository budgetRepository = mock(BudgetRepository.class);
     private final ProjectRepository projectRepository = mock(ProjectRepository.class);
     private final WindfallAllocationService windfallAllocationService =
@@ -74,7 +83,7 @@ class ChatWithAIUseCaseTest {
             mock(UserRepository.class),
             mock(ChatHistoryCacheService.class),
             mock(JsonSchemaGuardrail.class),
-            mock(ChatPendingActionPort.class), mock(ComputeBudgetAllocationUseCase.class));
+            mock(ChatPendingActionPort.class), mock(ComputeBudgetAllocationUseCase.class), FIXED_CLOCK);
 
     private Budget budget(Category category, long limit, long spent) {
         return Budget.builder()
@@ -210,7 +219,7 @@ class ChatWithAIUseCaseTest {
                 dataProvider, router, mock(BudgetAdvisorService.class), mock(SpendingSimulationService.class),
                 windfallAllocationService, mock(ProjectUpdateSuggestionService.class),
                 mock(ProjectHypothesisService.class), promptBuilder, userRepo, historyService, guardrail,
-                mock(ChatPendingActionPort.class), mock(ComputeBudgetAllocationUseCase.class));
+                mock(ChatPendingActionPort.class), mock(ComputeBudgetAllocationUseCase.class), FIXED_CLOCK);
 
         ChatResponse response = uc.execute(
                 ChatRequest.builder().message("ngân sách tháng này của tôi thế nào?").build(),
@@ -244,7 +253,7 @@ class ChatWithAIUseCaseTest {
                 dataProvider, router, mock(BudgetAdvisorService.class), mock(SpendingSimulationService.class),
                 windfallAllocationService, mock(ProjectUpdateSuggestionService.class),
                 mock(ProjectHypothesisService.class), mock(ChatbotPromptBuilder.class), userRepo, historyService,
-                guardrail, mock(ChatPendingActionPort.class), mock(ComputeBudgetAllocationUseCase.class));
+                guardrail, mock(ChatPendingActionPort.class), mock(ComputeBudgetAllocationUseCase.class), FIXED_CLOCK);
 
         ChatResponse response = uc.execute(
                 ChatRequest.builder().message("how is my budget this month?").build(), UUID.randomUUID());
@@ -271,7 +280,7 @@ class ChatWithAIUseCaseTest {
                 mock(SpendingSimulationService.class), windfallAllocationService,
                 mock(ProjectUpdateSuggestionService.class), realHypothesisService, mock(ChatbotPromptBuilder.class),
                 mock(UserRepository.class), mock(ChatHistoryCacheService.class), mock(JsonSchemaGuardrail.class),
-                mock(ChatPendingActionPort.class), mock(ComputeBudgetAllocationUseCase.class));
+                mock(ChatPendingActionPort.class), mock(ComputeBudgetAllocationUseCase.class), FIXED_CLOCK);
 
         var builder = ChatResponse.builder().reply("ok").intent(ChatResponse.ChatIntent.GENERAL_ADVICE);
         boolean handled = uc.attachImplicitProjectHypothesis(
@@ -318,7 +327,7 @@ class ChatWithAIUseCaseTest {
                 dataProvider, router, mock(BudgetAdvisorService.class), mock(SpendingSimulationService.class),
                 windfallAllocationService, mock(ProjectUpdateSuggestionService.class), realHypothesisService,
                 mock(ChatbotPromptBuilder.class), userRepoMain, historyService, guardrail,
-                mock(ChatPendingActionPort.class), mock(ComputeBudgetAllocationUseCase.class));
+                mock(ChatPendingActionPort.class), mock(ComputeBudgetAllocationUseCase.class), FIXED_CLOCK);
 
         // Contains BOTH the "mua xe" expense-event substring AND a large amount — without the
         // structural-change priority fix, this used to fire the windfall/expense safety net
@@ -357,7 +366,7 @@ class ChatWithAIUseCaseTest {
         when(userRepoMain.findById(any())).thenReturn(java.util.Optional.empty());
 
         ComputeBudgetAllocationUseCase computeUseCase = mock(ComputeBudgetAllocationUseCase.class);
-        LocalDate now = LocalDate.now();
+        LocalDate now = LocalDate.now(FIXED_CLOCK);
         LocalDate expectedNextMonth = now.plusMonths(1);
         var plan = com.example.smartmoney.application.dtos.responses.budgets.BudgetAllocationPlanResponse.builder()
                 .month(expectedNextMonth.getMonthValue())
@@ -376,7 +385,7 @@ class ChatWithAIUseCaseTest {
                 dataProvider, router, mock(BudgetAdvisorService.class), mock(SpendingSimulationService.class),
                 windfallAllocationService, mock(ProjectUpdateSuggestionService.class),
                 mock(ProjectHypothesisService.class), mock(ChatbotPromptBuilder.class), userRepoMain,
-                historyService, guardrail, mock(ChatPendingActionPort.class), computeUseCase);
+                historyService, guardrail, mock(ChatPendingActionPort.class), computeUseCase, FIXED_CLOCK);
 
         ChatResponse response = uc.execute(
                 ChatRequest.builder().message("tôi muốn cắt giảm ngân sách tháng này").build(), UUID.randomUUID());
@@ -409,7 +418,7 @@ class ChatWithAIUseCaseTest {
                 windfallAllocationService, mock(ProjectUpdateSuggestionService.class),
                 mock(ProjectHypothesisService.class), mock(ChatbotPromptBuilder.class), mock(UserRepository.class),
                 mock(ChatHistoryCacheService.class), mock(JsonSchemaGuardrail.class),
-                mock(ChatPendingActionPort.class), mock(ComputeBudgetAllocationUseCase.class));
+                mock(ChatPendingActionPort.class), mock(ComputeBudgetAllocationUseCase.class), FIXED_CLOCK);
 
         var builder = ChatResponse.builder().reply("Chào bạn, tôi có thể giúp gì?")
                 .intent(ChatResponse.ChatIntent.GENERAL_ADVICE);
@@ -456,7 +465,7 @@ class ChatWithAIUseCaseTest {
                 dataProvider, router, mock(BudgetAdvisorService.class), mock(SpendingSimulationService.class),
                 windfallAllocationService, realProjectUpdateService, mock(ProjectHypothesisService.class),
                 mock(ChatbotPromptBuilder.class), userRepoMain, historyService, guardrail,
-                mock(ChatPendingActionPort.class), mock(ComputeBudgetAllocationUseCase.class));
+                mock(ChatPendingActionPort.class), mock(ComputeBudgetAllocationUseCase.class), FIXED_CLOCK);
 
         ChatResponse response = uc.execute(
                 ChatRequest.builder().message("tôi vừa góp thêm 2 triệu vào dự án mua nhà").build(),
@@ -507,7 +516,7 @@ class ChatWithAIUseCaseTest {
                 dataProvider, router, mock(BudgetAdvisorService.class), mock(SpendingSimulationService.class),
                 windfallAllocationService, realProjectUpdateService, mock(ProjectHypothesisService.class),
                 mock(ChatbotPromptBuilder.class), userRepoMain, historyService, guardrail,
-                mock(ChatPendingActionPort.class), mock(ComputeBudgetAllocationUseCase.class));
+                mock(ChatPendingActionPort.class), mock(ComputeBudgetAllocationUseCase.class), FIXED_CLOCK);
 
         ChatResponse response = uc.execute(
                 ChatRequest.builder().message("tôi vừa góp thêm 2 triệu vào dự án du lịch").build(),
@@ -555,7 +564,7 @@ class ChatWithAIUseCaseTest {
                 windfallAllocationService, mock(ProjectUpdateSuggestionService.class),
                 mock(ProjectHypothesisService.class), mock(ChatbotPromptBuilder.class), userRepoMain,
                 historyService, guardrail, mock(ChatPendingActionPort.class),
-                mock(ComputeBudgetAllocationUseCase.class));
+                mock(ComputeBudgetAllocationUseCase.class), FIXED_CLOCK);
 
         // Requested increase (3 triệu on a 1M FOOD limit) is a 4x jump — well past the 2x threshold.
         ChatResponse response = uc.execute(

@@ -307,10 +307,11 @@ public class User {
         this.savingPace = savingPace;
         this.interventionLevel = interventionLevel;
         this.focusMode = focusMode;
-        // Auto-invest has a safe default (on, via isAutoInvestSurplus()) so it does not gate
-        // hasCompletedFinancialSetup(). Only overwrite when an explicit value is supplied — a null
-        // (e.g. an update that omits the field) preserves the user's existing preference rather than
-        // silently flipping it back on.
+        // autoInvestSurplus gates hasCompletedFinancialSetup(): setup is only complete once the user
+        // has explicitly chosen whether monthly settlement sweeps leftover money into their projects.
+        // isAutoInvestSurplus() still defaults a null (never-chosen) value to on for runtime behaviour.
+        // Only overwrite when an explicit value is supplied — a null (e.g. an update that omits the
+        // field) preserves the user's existing choice rather than silently clearing/flipping it.
         if (autoInvestSurplus != null) {
             this.autoInvestSurplus = autoInvestSurplus;
         }
@@ -329,7 +330,8 @@ public class User {
         return income != null
                 && savingPace != null
                 && interventionLevel != null
-                && focusMode != null;
+                && focusMode != null
+                && autoInvestSurplus != null;
     }
 
     public BigDecimal getSavingCapacity() {
