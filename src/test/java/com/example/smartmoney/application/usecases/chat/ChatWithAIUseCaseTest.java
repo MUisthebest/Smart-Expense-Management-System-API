@@ -32,6 +32,7 @@ import com.example.smartmoney.domain.repositories.ProjectRepository;
 import com.example.smartmoney.domain.repositories.UserRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -45,6 +46,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -83,6 +85,18 @@ class ChatWithAIUseCaseTest {
                 .amountLimit(BigDecimal.valueOf(limit))
                 .spent(BigDecimal.valueOf(spent))
                 .build();
+    }
+
+    // ChatWithAIUseCase.execute() computes daysLeft from the real LocalDate.now() (not from the
+    // request's month/year), and suppresses current-month suggestions once daysLeft <= 15. Tests
+    // that assert on a current-month suggestion pin "today" to a date with plenty of days left in
+    // its month so they don't flake depending on which real-world day the suite runs on.
+    private static final LocalDate PLENTY_OF_DAYS_LEFT = LocalDate.of(2026, 6, 1);
+
+    private MockedStatic<LocalDate> mockPlentyOfDaysLeft() {
+        MockedStatic<LocalDate> mocked = mockStatic(LocalDate.class, org.mockito.Mockito.CALLS_REAL_METHODS);
+        mocked.when(LocalDate::now).thenReturn(PLENTY_OF_DAYS_LEFT);
+        return mocked;
     }
 
     private Project project(String name) {
@@ -458,9 +472,12 @@ class ChatWithAIUseCaseTest {
                 mock(ChatbotPromptBuilder.class), userRepoMain, historyService, guardrail,
                 mock(ChatPendingActionPort.class), mock(ComputeBudgetAllocationUseCase.class));
 
-        ChatResponse response = uc.execute(
-                ChatRequest.builder().message("tôi vừa góp thêm 2 triệu vào dự án mua nhà").build(),
-                UUID.randomUUID());
+        ChatResponse response;
+        try (MockedStatic<LocalDate> mockedDate = mockPlentyOfDaysLeft()) {
+            response = uc.execute(
+                    ChatRequest.builder().message("tôi vừa góp thêm 2 triệu vào dự án mua nhà").build(),
+                    UUID.randomUUID());
+        }
 
         assertThat(response.getSavingsSuggestions()).isNotNull().hasSize(1);
         assertThat(response.getPendingActionId()).isNotNull();
@@ -509,9 +526,12 @@ class ChatWithAIUseCaseTest {
                 mock(ChatbotPromptBuilder.class), userRepoMain, historyService, guardrail,
                 mock(ChatPendingActionPort.class), mock(ComputeBudgetAllocationUseCase.class));
 
-        ChatResponse response = uc.execute(
-                ChatRequest.builder().message("tôi vừa góp thêm 2 triệu vào dự án du lịch").build(),
-                UUID.randomUUID());
+        ChatResponse response;
+        try (MockedStatic<LocalDate> mockedDate = mockPlentyOfDaysLeft()) {
+            response = uc.execute(
+                    ChatRequest.builder().message("tôi vừa góp thêm 2 triệu vào dự án du lịch").build(),
+                    UUID.randomUUID());
+        }
 
         assertThat(response.getSavingsSuggestions()).isNull();
         assertThat(response.getPendingActionId()).isNull();
@@ -558,9 +578,12 @@ class ChatWithAIUseCaseTest {
                 mock(ComputeBudgetAllocationUseCase.class));
 
         // Requested increase (3 triệu on a 1M FOOD limit) is a 4x jump — well past the 2x threshold.
-        ChatResponse response = uc.execute(
-                ChatRequest.builder().message("tôi muốn tăng ngân sách ăn thêm 3 triệu").build(),
-                UUID.randomUUID());
+        ChatResponse response;
+        try (MockedStatic<LocalDate> mockedDate = mockPlentyOfDaysLeft()) {
+            response = uc.execute(
+                    ChatRequest.builder().message("tôi muốn tăng ngân sách ăn thêm 3 triệu").build(),
+                    UUID.randomUUID());
+        }
 
         assertThat(response.getReply()).contains("Cảnh báo").contains("FOOD");
     }

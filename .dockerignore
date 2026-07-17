@@ -1,0 +1,17 @@
+.git
+.gitignore
+.idea
+.vscode
+target
+logs
+*.log
+*.log.
+
+docs
+*.md
+scripts
+api_test.sh
+build.log
+
+.env
+.env.example
