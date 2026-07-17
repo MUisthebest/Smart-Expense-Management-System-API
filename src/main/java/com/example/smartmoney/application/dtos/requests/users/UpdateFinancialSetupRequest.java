@@ -28,9 +28,10 @@ public record UpdateFinancialSetupRequest(
         @NotNull(message = "Focus is required")
         Focus_Mode focusMode,
 
-        // Optional: whether monthly settlement auto-invests a surplus into projects.
-        // Null coerces to TRUE (always-invest) in the domain, so existing onboarding
-        // payloads stay valid while the field becomes part of the contract.
+        // Whether monthly settlement sweeps leftover money into the user's projects.
+        // Required: it gates hasCompletedFinancialSetup(), so onboarding must have the
+        // user make an explicit choice rather than silently defaulting them to always-invest.
+        @NotNull(message = "Auto-invest surplus preference is required")
         Boolean autoInvestSurplus
 ) {
 }
