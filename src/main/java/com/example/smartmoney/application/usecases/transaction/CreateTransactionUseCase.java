@@ -63,7 +63,6 @@ public class CreateTransactionUseCase {
                 budgetRepository.save(budget);
             });
 
-            // Proactive insight → suggestion (workstream C). Best-effort: gated by the user's
             // interventionLevel trait and never allowed to break the transaction-create flow.
             suggestionProducer.maybeProduce(userId, request.getCategory(), transactionDate.toLocalDate());
             // Wave 1: immediate per-transaction anomaly pings (large charge / duplicate). Notification-
