@@ -24,7 +24,6 @@ public class Budget {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
-    // Factory method
     public static Budget create(
             UUID userId,
             Category category,
