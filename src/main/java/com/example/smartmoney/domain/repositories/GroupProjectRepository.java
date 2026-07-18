@@ -13,4 +13,5 @@ public interface GroupProjectRepository {
     Optional<GroupProject> findByGroupId(UUID groupId);
     List<GroupProject> findAllByStatus(GroupProjectStatus status);
     GroupProject save(GroupProject groupProject);
+    void delete(GroupProjectId id);
 }

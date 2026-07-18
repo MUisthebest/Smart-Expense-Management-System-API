@@ -70,5 +70,13 @@ public class GroupProjectRepositoryImpl implements GroupProjectRepository {
 
         GroupProjectEntity saved = jpaGroupProjectRepository.save(entity);
         return groupProjectPersistenceMapper.toDomain(saved);
+     }
+
+    @Override
+    @Transactional
+    public void delete(GroupProjectId id) {
+        jpaGroupProjectRepository.deleteById(id.value());
+        jpaGroupProjectRepository.flush();
     }
 }
+

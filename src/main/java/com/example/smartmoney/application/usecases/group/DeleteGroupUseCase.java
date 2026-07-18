@@ -33,8 +33,10 @@ public class DeleteGroupUseCase {
         }
 
         // Check if group has a group project created
-        boolean hasProject = groupProjectRepository.findByGroupId(gId.value()).isPresent();
-        if (hasProject) {
+        boolean hasActiveProject = groupProjectRepository.findByGroupId(gId.value())
+                .map(gp -> gp.getStatus() != com.example.smartmoney.domain.models.group.enums.GroupProjectStatus.DISSOLVED)
+                .orElse(false);
+        if (hasActiveProject) {
             throw new ProjectException("Cannot delete group: group project has already been created",
                     ProjectErrorCode.PROJECT_PERMISSION_DENIED);
         }

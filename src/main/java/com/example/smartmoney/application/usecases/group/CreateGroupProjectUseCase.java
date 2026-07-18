@@ -69,10 +69,17 @@ public class CreateGroupProjectUseCase {
                     ProjectErrorCode.PROJECT_PERMISSION_DENIED);
         }
 
-        // Ensure no group project exists yet for this group
+        // Ensure no active group project exists yet for this group
         groupProjectRepository.findByGroupId(group.getId().value()).ifPresent(existing -> {
-            throw new ProjectException("A group project already exists for this group",
-                    ProjectErrorCode.PROJECT_PERMISSION_DENIED);
+            if (existing.getStatus() != GroupProjectStatus.DISSOLVED) {
+                throw new ProjectException("A group project already exists for this group",
+                        ProjectErrorCode.PROJECT_PERMISSION_DENIED);
+            }
+            // Delete all associated sponsorship requests first to prevent foreign key constraint violations
+            List<GroupProjectSponsorshipRequest> oldReqs = sponsorshipRequestRepository.findAllByGroupProjectId(existing.getId().value());
+            sponsorshipRequestRepository.deleteAll(oldReqs);
+
+            groupProjectRepository.delete(existing.getId());
         });
 
         // Run sponsorship allocation to verify feasibility
