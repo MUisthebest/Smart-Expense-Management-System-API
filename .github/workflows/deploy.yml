@@ -1,0 +1,33 @@
+name: Deploy Spring Boot to VPS
+
+on:
+  push:
+    branches:
+      - test # đổi nếu branch của bạn là master
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: SSH Deploy
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+
+          script: |
+            cd /opt/Smart-Expense-Management-System-API
+
+            echo "Pull newest code..."
+            git pull origin test
+
+            echo "Build project..."
+            chmod +x mvnw
+            ./mvnw clean package -DskipTests
+
+            echo "Restart service..."
+            systemctl restart smartmoney
+
+            echo "Done!"
