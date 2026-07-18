@@ -64,6 +64,7 @@ public class GroupProjectSponsorshipRequestRepositoryImpl implements GroupProjec
                 .map(this::toEntity)
                 .toList();
         jpaRepository.deleteAll(entities);
+        jpaRepository.flush();
     }
 
     private GroupProjectSponsorshipRequest toDomain(GroupProjectSponsorshipRequestEntity entity) {

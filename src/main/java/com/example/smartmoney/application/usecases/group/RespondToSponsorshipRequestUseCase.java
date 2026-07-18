@@ -171,9 +171,12 @@ public class RespondToSponsorshipRequestUseCase {
                     notifyMembersPendingSponsorship(group, gp, pendingSurveyMembers, originalShare, alloc.getProposedShares());
                 }
             } else {
-                // Sponsorship failed! Set state to SPONSORSHIP_FAILED and notify Admin
-                gp.failSponsorship();
-                groupProjectRepository.save(gp);
+                // Delete all associated sponsorship requests first to prevent foreign key constraint violations
+                List<GroupProjectSponsorshipRequest> requests = sponsorshipRequestRepository.findAllByGroupProjectId(gp.getId().value());
+                sponsorshipRequestRepository.deleteAll(requests);
+
+                // Sponsorship failed! Delete the project directly so that the unique constraint is released and admin can re-create immediately
+                groupProjectRepository.delete(gp.getId());
                 notifyAdminFailed(group, gp);
             }
         }
