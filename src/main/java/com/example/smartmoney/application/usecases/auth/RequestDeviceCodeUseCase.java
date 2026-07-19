@@ -24,8 +24,8 @@ public class RequestDeviceCodeUseCase {
 
     private final DeviceFlowCachePort deviceFlowCache;
 
-    @Value("${app.base-url:http://localhost:8080}")
-    private String baseUrl;
+    @Value("${app.frontend-url:http://localhost:3000}")
+    private String frontendUrl;
 
     private static final int EXPIRES_IN = 300;  // 5 minutes
     private static final int INTERVAL   = 5;    // poll every 5 seconds
@@ -48,10 +48,12 @@ public class RequestDeviceCodeUseCase {
 
         log.info("Device flow initiated: userCode={}, clientId={}", userCode, request.getClientId());
 
+        String base = frontendUrl.endsWith("/") ? frontendUrl.substring(0, frontendUrl.length() - 1) : frontendUrl;
+
         return DeviceCodeResponse.builder()
                 .deviceCode(deviceCode)
                 .userCode(userCode)
-                .verificationUri(baseUrl + "/activate")
+                .verificationUri(base + "/en/activate?code=" + userCode)
                 .expiresIn(EXPIRES_IN)
                 .interval(INTERVAL)
                 .build();
