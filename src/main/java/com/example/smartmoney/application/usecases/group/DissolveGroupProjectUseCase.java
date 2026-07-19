@@ -71,10 +71,14 @@ public class DissolveGroupProjectUseCase {
             safeSpendingService.recalculateAndSaveSafeSpending(ownerId);
         }
 
-        gp.dissolve();
-        groupProjectRepository.save(gp);
-
-        group.dissolve();
-        groupRepository.save(group);
+        GroupProjectStatus oldStatus = gp.getStatus();
+        if (oldStatus == GroupProjectStatus.ACTIVE) {
+            gp.dissolve();
+            groupProjectRepository.save(gp);
+            group.dissolve();
+            groupRepository.save(group);
+        } else {
+            groupProjectRepository.delete(gp.getId());
+        }
     }
 }

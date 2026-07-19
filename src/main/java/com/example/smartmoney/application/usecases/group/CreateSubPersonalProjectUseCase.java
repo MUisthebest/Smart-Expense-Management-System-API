@@ -26,6 +26,7 @@ import com.example.smartmoney.domain.repositories.ProjectRepository;
 import com.example.smartmoney.domain.repositories.ProjectTrackingRepository;
 // import com.example.smartmoney.domain.repositories.UserIncomeRepository;
 import com.example.smartmoney.domain.services.SafeSpendingService;
+import com.example.smartmoney.domain.services.SponsorshipAllocationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,6 +46,7 @@ public class CreateSubPersonalProjectUseCase {
     // Disabled: user_income table removed.
     // private final UserIncomeRepository userIncomeRepository;
     private final SafeSpendingService safeSpendingService;
+    private final SponsorshipAllocationService sponsorshipAllocationService;
 
     @Transactional
     public ProjectDetailResponse execute(String actorId, String groupProjectId,
@@ -150,8 +152,17 @@ public class CreateSubPersonalProjectUseCase {
             joinedMemberCount = 1;
         }
 
-        BigDecimal targetAmount = gp.getTargetAmount().divide(BigDecimal.valueOf(joinedMemberCount), 2, java.math.RoundingMode.HALF_UP);
-        BigDecimal monthlySavingCapacity = targetAmount.divide(BigDecimal.valueOf(gp.getTotalMonths()), 2, java.math.RoundingMode.HALF_UP);
+        SponsorshipAllocationService.AllocationResult alloc = sponsorshipAllocationService.allocate(
+                gp.getTargetAmount(), gp.getTotalMonths(), group.joinedMembers()
+        );
+        BigDecimal monthlySavingCapacity = alloc.getProposedShares().get(actorUuid);
+        if (monthlySavingCapacity == null) {
+            monthlySavingCapacity = gp.getTargetAmount().divide(
+                    BigDecimal.valueOf(joinedMemberCount).multiply(BigDecimal.valueOf(gp.getTotalMonths())),
+                    2, java.math.RoundingMode.HALF_UP
+            );
+        }
+        BigDecimal targetAmount = monthlySavingCapacity.multiply(BigDecimal.valueOf(gp.getTotalMonths()));
 
         Project sub = Project.createSubPersonal(
                 actor,

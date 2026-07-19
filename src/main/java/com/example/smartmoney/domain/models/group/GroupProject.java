@@ -45,10 +45,27 @@ public class GroupProject {
     public static GroupProject createNew(UUID groupId, String name, String description,
                                          BigDecimal targetAmount, BigDecimal totalCapacity,
                                          String currency, int totalMonths, LocalDate deadline) {
+        return createNew(groupId, name, description, targetAmount, totalCapacity, currency, totalMonths, deadline, GroupProjectStatus.ACTIVE);
+    }
+
+    public static GroupProject createNew(UUID groupId, String name, String description,
+                                         BigDecimal targetAmount, BigDecimal totalCapacity,
+                                         String currency, int totalMonths, LocalDate deadline,
+                                         GroupProjectStatus status) {
         Instant now = Instant.now();
         return new GroupProject(GroupProjectId.newId(), groupId, name.trim(), description,
                 targetAmount, totalCapacity, currency.toUpperCase(), totalMonths, deadline,
-                GroupProjectStatus.ACTIVE, now, now);
+                status, now, now);
+    }
+
+    public void activate() {
+        this.status = GroupProjectStatus.ACTIVE;
+        this.updatedAt = Instant.now();
+    }
+
+    public void failSponsorship() {
+        this.status = GroupProjectStatus.SPONSORSHIP_FAILED;
+        this.updatedAt = Instant.now();
     }
 
     public void reduceTargetAmount(BigDecimal reduction) {

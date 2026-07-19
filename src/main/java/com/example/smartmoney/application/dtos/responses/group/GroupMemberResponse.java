@@ -19,6 +19,8 @@ public class GroupMemberResponse {
     private GroupMemberInviteStatus inviteStatus;
     private BigDecimal capacitySnapshot;
     private Instant joinedAt;
+    private Boolean autoSponsorEnabled;
+    private BigDecimal autoSponsorLimit;
 
     public static GroupMemberResponse fromDomain(GroupMember m) {
         return fromDomain(m, null, null);
@@ -37,6 +39,8 @@ public class GroupMemberResponse {
                 .inviteStatus(m.getInviteStatus())
                 .capacitySnapshot(m.getCapacitySnapshot())
                 .joinedAt(m.getJoinedAt())
+                .autoSponsorEnabled(m.getAutoSponsorEnabled())
+                .autoSponsorLimit(m.getAutoSponsorLimit())
                 .build();
     }
 }

@@ -39,6 +39,8 @@ public class GroupPersistenceMapper {
                 e.getRole(),
                 e.getInviteStatus(),
                 e.getCapacitySnapshot(),
+                e.getAutoSponsorEnabled(),
+                e.getAutoSponsorLimit(),
                 e.getJoinedAt(),
                 e.getCreatedAt(),
                 e.getUpdatedAt()
@@ -65,6 +67,8 @@ public class GroupPersistenceMapper {
                 .role(member.getRole())
                 .inviteStatus(member.getInviteStatus())
                 .capacitySnapshot(member.getCapacitySnapshot())
+                .autoSponsorEnabled(member.getAutoSponsorEnabled())
+                .autoSponsorLimit(member.getAutoSponsorLimit())
                 .joinedAt(member.getJoinedAt())
                 .createdAt(member.getCreatedAt() != null ? member.getCreatedAt() : Instant.now())
                 .updatedAt(member.getUpdatedAt() != null ? member.getUpdatedAt() : Instant.now())
