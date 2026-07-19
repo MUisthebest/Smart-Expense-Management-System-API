@@ -83,6 +83,10 @@ app:
   # Base URL used for deep-link invite generation
   base-url: ${APP_BASE_URL:https://yourapp.com}
 
+  # Frontend base URL used for Device Flow activation links (must match the
+  # Next.js app's locale-prefixed routing, e.g. /en/activate)
+  frontend-url: ${APP_FRONTEND_URL:http://localhost:3000}
+
   # Set BYPASS_DATE_GATE=true in .env to skip the days 1-7 creation window (dev/testing only)
   bypass-date-gate: ${BYPASS_DATE_GATE:true}
 
