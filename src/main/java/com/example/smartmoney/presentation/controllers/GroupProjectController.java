@@ -13,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/group-projects")
@@ -27,6 +28,8 @@ public class GroupProjectController {
     private final GetGroupProjectDetailUseCase getGroupProjectDetailUseCase;
     private final CreateSubPersonalProjectUseCase createSubPersonalProjectUseCase;
     private final DissolveGroupProjectUseCase dissolveGroupProjectUseCase;
+    private final RespondToSponsorshipRequestUseCase respondToSponsorshipRequestUseCase;
+    private final GetPendingSponsorshipRequestsUseCase getPendingSponsorshipRequestsUseCase;
 
     private String actorId(Authentication auth) {
         return auth.getName();
@@ -106,6 +109,30 @@ public class GroupProjectController {
         return CheckResponse.<Void>builder()
                 .success(true)
                 .message("Dissolved")
+                .build();
+    }
+
+    @Operation(summary = "Respond to sponsorship request")
+    @PostMapping("/sponsorship/{requestId}/respond")
+    public CheckResponse<Void> respond(
+            Authentication auth,
+            @PathVariable String requestId,
+            @Valid @RequestBody RespondToSponsorshipRequest req) {
+        respondToSponsorshipRequestUseCase.execute(actorId(auth), requestId, req.getAgreed());
+        return CheckResponse.<Void>builder()
+                .success(true)
+                .message("Responded successfully")
+                .build();
+    }
+
+    @Operation(summary = "Get pending sponsorship requests for current user")
+    @GetMapping("/sponsorship/pending")
+    public CheckResponse<List<GroupProjectSponsorshipRequestResponse>> getPending(Authentication auth) {
+        List<GroupProjectSponsorshipRequestResponse> data = getPendingSponsorshipRequestsUseCase.execute(actorId(auth));
+        return CheckResponse.<List<GroupProjectSponsorshipRequestResponse>>builder()
+                .success(true)
+                .message("OK")
+                .data(data)
                 .build();
     }
 }

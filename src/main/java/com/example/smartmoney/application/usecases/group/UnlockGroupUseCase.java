@@ -28,10 +28,12 @@ public class UnlockGroupUseCase {
                         ProjectErrorCode.PROJECT_NOT_FOUND));
 
         // Check if group has a project
-        if (groupProjectRepository.findByGroupId(group.getId().value()).isPresent()) {
-            throw new ProjectException("Cannot unlock group: a project has already been created for this group",
-                    ProjectErrorCode.PROJECT_PERMISSION_DENIED);
-        }
+        groupProjectRepository.findByGroupId(group.getId().value()).ifPresent(gp -> {
+            if (gp.getStatus() != com.example.smartmoney.domain.models.group.enums.GroupProjectStatus.DISSOLVED) {
+                throw new ProjectException("Cannot unlock group: a project has already been created for this group",
+                        ProjectErrorCode.PROJECT_PERMISSION_DENIED);
+            }
+        });
 
         group.unlock(actor);
 

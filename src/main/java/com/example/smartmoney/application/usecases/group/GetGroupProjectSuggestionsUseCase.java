@@ -5,22 +5,28 @@ import com.example.smartmoney.application.dtos.responses.group.GroupProjectSugge
 import com.example.smartmoney.domain.exceptions.ProjectErrorCode;
 import com.example.smartmoney.domain.exceptions.ProjectException;
 import com.example.smartmoney.domain.models.group.Group;
+import com.example.smartmoney.domain.models.group.GroupMember;
 import com.example.smartmoney.domain.models.group.enums.GroupStatus;
 import com.example.smartmoney.domain.models.group.valueobjects.GroupId;
 import com.example.smartmoney.domain.models.project.valueobjects.UserId;
 import com.example.smartmoney.domain.repositories.GroupRepository;
+import com.example.smartmoney.domain.repositories.UserRepository;
+import com.example.smartmoney.domain.services.SponsorshipAllocationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 public class GetGroupProjectSuggestionsUseCase {
 
     private final GroupRepository groupRepository;
+    private final UserRepository userRepository;
+    private final SponsorshipAllocationService sponsorshipAllocationService;
 
     @Transactional(readOnly = true)
     public GroupProjectSuggestionsResponse execute(String actorId, GetGroupProjectSuggestionsRequest req) {
@@ -51,10 +57,53 @@ public class GetGroupProjectSuggestionsUseCase {
                     .setScale(2, RoundingMode.HALF_UP);
         }
 
+        // Run simulation if possible
+        Boolean isFeasible = null;
+        BigDecimal totalDeficit = null;
+        List<GroupProjectSuggestionsResponse.MemberSimulationDto> sims = null;
+
+        BigDecimal simAmount = req.getInputAmount() != null ? req.getInputAmount() : suggestedAmount;
+        Integer simMonths = req.getInputMonths() != null ? req.getInputMonths() : suggestedMonths;
+
+        if (simAmount != null && simMonths != null && simMonths > 0) {
+            SponsorshipAllocationService.AllocationResult alloc = sponsorshipAllocationService.allocate(
+                    simAmount, simMonths, group.joinedMembers()
+            );
+            isFeasible = alloc.isFeasible();
+            totalDeficit = alloc.getTotalDeficit();
+            sims = new java.util.ArrayList<>();
+            for (GroupMember member : group.joinedMembers()) {
+                BigDecimal originalShare = alloc.getOriginalShare();
+                BigDecimal proposedShare = alloc.getProposedShares().get(member.getUserId().value());
+                BigDecimal capacity = member.getCapacitySnapshot() != null ? member.getCapacitySnapshot() : BigDecimal.ZERO;
+                BigDecimal deficit = originalShare.compareTo(capacity) > 0 ? originalShare.subtract(capacity) : BigDecimal.ZERO;
+
+                var userOpt = userRepository.findById(member.getUserId().value());
+                String username = userOpt.map(com.example.smartmoney.domain.models.user.User::getUsername).orElse("unknown");
+                String fullName = userOpt.map(com.example.smartmoney.domain.models.user.User::getFullName).orElse("Unknown User");
+
+                sims.add(GroupProjectSuggestionsResponse.MemberSimulationDto.builder()
+                        .userId(member.getUserId().toString())
+                        .username(username)
+                        .fullName(fullName)
+                        .capacity(capacity)
+                        .originalShare(originalShare)
+                        .proposedShare(proposedShare)
+                        .deficit(deficit)
+                        .needsSponsorship(deficit.compareTo(BigDecimal.ZERO) > 0)
+                        .autoSponsorEnabled(member.getAutoSponsorEnabled())
+                        .autoSponsorLimit(member.getAutoSponsorLimit())
+                        .build());
+            }
+        }
+
         return GroupProjectSuggestionsResponse.builder()
                 .totalCapacity(A)
                 .suggestedMonths(suggestedMonths)
                 .suggestedAmount(suggestedAmount)
+                .isFeasible(isFeasible)
+                .totalDeficit(totalDeficit)
+                .memberSimulations(sims)
                 .build();
     }
 }
