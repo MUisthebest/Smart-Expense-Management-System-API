@@ -21,6 +21,7 @@ import com.example.smartmoney.application.usecases.auth.FacebookLoginUseCase;
 import com.example.smartmoney.application.usecases.auth.GetCurrentUserUseCase;
 import com.example.smartmoney.application.usecases.auth.VerifyEmailUseCase;
 import com.example.smartmoney.application.usecases.auth.VerifyOtpUseCase;
+import com.example.smartmoney.application.usecases.auth.CheckOtpExistsUseCase;
 import com.example.smartmoney.application.usecases.user.DeleteFinancialSetupUseCase;
 import com.example.smartmoney.application.usecases.user.GetFinancialSetupUseCase;
 import com.example.smartmoney.application.usecases.user.UpdateFinancialSetupUseCase;
@@ -39,7 +40,6 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -52,7 +52,6 @@ import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/v1/auth")
-@RequiredArgsConstructor
 @Slf4j
 @Tag(
     name = "Authentication",
@@ -72,11 +71,51 @@ public class AuthController {
     private final SendResetPasswordOtpUseCase sendResetPasswordOtpUseCase;
     private final ResetPasswordUseCase resetPasswordUseCase;
     private final VerifyOtpUseCase verifyOtpUseCase;
+    private final CheckOtpExistsUseCase checkOtpExistsUseCase;
     private final UserNotificationUseCase notificationUseCase;
     private final JwtTokenProvider jwtTokenProvider;
     private final GetFinancialSetupUseCase getFinancialSetupUseCase;
     private final UpdateFinancialSetupUseCase updateFinancialSetupUseCase;
     private final DeleteFinancialSetupUseCase deleteFinancialSetupUseCase;
+
+    public AuthController(
+            RegisterUseCase registerUseCase,
+            LoginUseCase loginUseCase,
+            RefreshTokenUseCase refreshTokenUseCase,
+            LogoutUseCase logoutUseCase,
+            GoogleLoginUseCase googleLoginUseCase,
+            Optional<FacebookLoginUseCase> facebookLoginUseCase,
+            GetCurrentUserUseCase getCurrentUserUseCase,
+            VerifyEmailUseCase verifyEmailUseCase,
+            UpdateUserUseCase updateUserUseCase,
+            SendResetPasswordOtpUseCase sendResetPasswordOtpUseCase,
+            ResetPasswordUseCase resetPasswordUseCase,
+            VerifyOtpUseCase verifyOtpUseCase,
+            CheckOtpExistsUseCase checkOtpExistsUseCase,
+            UserNotificationUseCase notificationUseCase,
+            JwtTokenProvider jwtTokenProvider,
+            GetFinancialSetupUseCase getFinancialSetupUseCase,
+            UpdateFinancialSetupUseCase updateFinancialSetupUseCase,
+            DeleteFinancialSetupUseCase deleteFinancialSetupUseCase) {
+        this.registerUseCase = registerUseCase;
+        this.loginUseCase = loginUseCase;
+        this.refreshTokenUseCase = refreshTokenUseCase;
+        this.logoutUseCase = logoutUseCase;
+        this.googleLoginUseCase = googleLoginUseCase;
+        this.facebookLoginUseCase = facebookLoginUseCase;
+        this.getCurrentUserUseCase = getCurrentUserUseCase;
+        this.verifyEmailUseCase = verifyEmailUseCase;
+        this.updateUserUseCase = updateUserUseCase;
+        this.sendResetPasswordOtpUseCase = sendResetPasswordOtpUseCase;
+        this.resetPasswordUseCase = resetPasswordUseCase;
+        this.verifyOtpUseCase = verifyOtpUseCase;
+        this.checkOtpExistsUseCase = checkOtpExistsUseCase;
+        this.notificationUseCase = notificationUseCase;
+        this.jwtTokenProvider = jwtTokenProvider;
+        this.getFinancialSetupUseCase = getFinancialSetupUseCase;
+        this.updateFinancialSetupUseCase = updateFinancialSetupUseCase;
+        this.deleteFinancialSetupUseCase = deleteFinancialSetupUseCase;
+    }
     
     @InitBinder
     public void initBinder(WebDataBinder binder) {
@@ -192,6 +231,29 @@ public class AuthController {
     }
     
     
+    @Operation(
+        summary = "Check whether OTP still exists in Redis",
+        description = "Check if an OTP for the provided email is still stored in Redis"
+    )
+    @ApiResponses({
+        @ApiResponse(
+            responseCode = "200",
+            description = "Check completed",
+            content = @Content(schema = @Schema(implementation = CheckResponse.class))
+        )
+    })
+    @GetMapping("/otp-exists")
+    public ResponseEntity<CheckResponse<Boolean>> checkOtpExists(@RequestParam String email) {
+        boolean exists = checkOtpExistsUseCase.execute(email);
+        return ResponseEntity.ok(
+            CheckResponse.<Boolean>builder()
+                .success(true)
+                .message(exists ? "OTP exists in Redis" : "OTP not found in Redis")
+                .data(exists)
+                .build()
+        );
+    }
+
     @Operation(
         summary = "User login",
         description = "Authenticate user with email and password"
