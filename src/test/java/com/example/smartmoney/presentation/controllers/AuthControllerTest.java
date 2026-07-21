@@ -18,6 +18,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
@@ -47,12 +48,14 @@ class AuthControllerTest {
     @Mock private SendResetPasswordOtpUseCase sendResetPasswordOtpUseCase;
     @Mock private ResetPasswordUseCase resetPasswordUseCase;
     @Mock private VerifyOtpUseCase verifyOtpUseCase;
+    @Mock private CheckOtpExistsUseCase checkOtpExistsUseCase;
     @Mock private UserNotificationUseCase notificationUseCase;
     @Mock private JwtTokenProvider jwtTokenProvider;
     @Mock private GetCurrentUserUseCase getCurrentUserUseCase;
     @Mock private GetFinancialSetupUseCase getFinancialSetupUseCase;
     @Mock private UpdateFinancialSetupUseCase updateFinancialSetupUseCase;
     @Mock private DeleteFinancialSetupUseCase deleteFinancialSetupUseCase;
+    @InjectMocks
     private AuthController controller;
     private Validator validator;
 
@@ -62,26 +65,6 @@ class AuthControllerTest {
 
     @BeforeEach
     void setUp() {
-        controller = new AuthController(
-            registerUseCase,
-            loginUseCase,
-            refreshTokenUseCase,
-            logoutUseCase,
-            googleLoginUseCase,
-            Optional.of(facebookLoginUseCase),   // ✅ FIX
-            getCurrentUserUseCase,               // ✅ THÊM
-            verifyEmailUseCase,
-            updateUserUseCase,
-            sendResetPasswordOtpUseCase,
-            resetPasswordUseCase,
-            verifyOtpUseCase,
-            notificationUseCase,
-            jwtTokenProvider,
-            getFinancialSetupUseCase,
-            updateFinancialSetupUseCase,
-            deleteFinancialSetupUseCase
-        );
-
         ValidatorFactory factory = Validation.buildDefaultValidatorFactory();
         validator = factory.getValidator();
     }
@@ -362,9 +345,9 @@ class AuthControllerTest {
         void facebookLoginDisabledWhenOptionalEmpty() {
             AuthController controllerWithoutFacebook = new AuthController(
                     registerUseCase, loginUseCase, refreshTokenUseCase, logoutUseCase,
-                    googleLoginUseCase, Optional.empty(), getCurrentUserUseCase,
+                    googleLoginUseCase, Optional.<FacebookLoginUseCase>empty(), getCurrentUserUseCase,
                     verifyEmailUseCase, updateUserUseCase, sendResetPasswordOtpUseCase,
-                    resetPasswordUseCase, verifyOtpUseCase, notificationUseCase, jwtTokenProvider, getFinancialSetupUseCase,
+                    resetPasswordUseCase, verifyOtpUseCase, checkOtpExistsUseCase, notificationUseCase, jwtTokenProvider, getFinancialSetupUseCase,
                     updateFinancialSetupUseCase, deleteFinancialSetupUseCase);
 
             FacebookLoginRequest req = new FacebookLoginRequest();
