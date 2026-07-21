@@ -57,6 +57,12 @@ public class RedisOtpCacheAdapter implements OtpCachePort {
     }
 
     @Override
+    public boolean exists(Email email) {
+        String key = KEY_PREFIX + email.getValue();
+        return Boolean.TRUE.equals(redisTemplate.hasKey(key));
+    }
+
+    @Override
     public void deleteByEmail(Email email) {
         redisTemplate.delete(KEY_PREFIX + email.getValue());
     }
