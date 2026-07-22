@@ -8,6 +8,7 @@ import com.example.smartmoney.domain.models.user.*;
 import com.example.smartmoney.domain.models.user.valueobjects.*;
 import com.example.smartmoney.domain.repositories.UserRepository;
 import com.example.smartmoney.domain.exceptions.DomainException;
+import com.example.smartmoney.domain.exceptions.EmailNotVerifiedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,7 +33,7 @@ public class LoginUseCase {
 
         // Check if email is verified
         if (!user.isEmailVerified()) {
-            throw new DomainException("Please verify your email first");
+            throw new EmailNotVerifiedException();
         }
         
         // Validate password
