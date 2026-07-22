@@ -24,13 +24,6 @@ public class ListMyProjectsUseCase {
         List<Project> projects =
                 projectRepository.findAllByUser(UserId.of(actorId), filter);
 
-        if (projects.isEmpty()) {
-            throw new ProjectException(
-                    "No projects found matching the given filters",
-                    ProjectErrorCode.PROJECT_NOT_FOUND
-            );
-        }
-
         // Lazy-on-read expiry (replaces the settlement cron's expiry pass). Persist any
         // project that just crossed its deadline under target; the in-memory status is
         // already updated, so the mapped response reflects EXPIRED either way.
