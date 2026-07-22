@@ -3,6 +3,7 @@ package com.example.smartmoney.application.usecases.auth;
 import com.example.smartmoney.application.dtos.requests.auth.RefreshTokenRequest;
 import com.example.smartmoney.application.dtos.responses.AuthResponse;
 import com.example.smartmoney.application.dtos.responses.UserResponse;
+import com.example.smartmoney.domain.exceptions.InvalidRefreshTokenException;
 import com.example.smartmoney.application.ports.auth.AuthPort;
 import com.example.smartmoney.domain.models.user.User;
 import lombok.RequiredArgsConstructor;
@@ -21,9 +22,7 @@ public class RefreshTokenUseCase {
         User user = authPort.validateRefreshToken(request.getRefreshToken());
         
         if (user == null) {
-            throw new com.example.smartmoney.domain.exceptions.AuthenticationException(
-                "Invalid or expired refresh token"
-            );
+             throw new InvalidRefreshTokenException();
         }
         
         // Check if user is active
