@@ -34,7 +34,7 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
             description = "Local Development Server"
         ),
         @Server(
-            url = "https://api.smartmoney.com",
+            url = "https://smartmoney-haibang.duckdns.org",
             description = "Production Server"
         )
     }
