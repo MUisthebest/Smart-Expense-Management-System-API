@@ -81,7 +81,8 @@ app:
     token-prefix: "Bearer "
   
   # Base URL used for deep-link invite generation
-  base-url: ${APP_BASE_URL:https://yourapp.com}
+  base-url: ${APP_BASE_URL:http://localhost:8080}
+  web-url: ${APP_WEB_URL:http://localhost:3000}
 
   # Frontend base URL used for Device Flow activation links (must match the
   # Next.js app's locale-prefixed routing, e.g. /en/activate)
