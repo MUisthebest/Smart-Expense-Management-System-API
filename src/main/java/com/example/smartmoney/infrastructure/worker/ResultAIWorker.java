@@ -28,6 +28,7 @@ public class ResultAIWorker {
         private final SimpMessagingTemplate messagingTemplate;
         private final ObjectMapper objectMapper;
         private final String streamKey;
+        private volatile boolean groupReady = false;
 
         public ResultAIWorker(
                         @Qualifier("aiStringRedisTemplate") RedisTemplate<String, String> redisTemplate,
@@ -57,30 +58,8 @@ public class ResultAIWorker {
 
         @PostConstruct
         public void init() {
-                try {
-                        // đảm bảo stream tồn tại trước khi tạo group
-                        redisTemplate.opsForStream().add(streamKey, Map.of("init", "true"));
-
-                        var groups = redisTemplate.opsForStream()
-                                        .groups(streamKey);
-
-                        boolean exists = groups.stream()
-                                        .anyMatch(g -> GROUP.equals(g.groupName()));
-
-                        if (!exists) {
-                                redisTemplate.opsForStream()
-                                                .createGroup(streamKey, GROUP);
-                        }
-                        logger.info("Created Redis Stream consumer group={} stream={}", GROUP, streamKey);
-
-                } catch (RedisSystemException e) {
-                        if (e.getMessage().contains("BUSYGROUP")) {
-                                logger.info("Group already exists");
-                        } else {
-                                throw e;
-                        }
-                }
-
+                ensureConsumerGroup();
+                groupReady = true;
                 workerThread = new Thread(
                                 this::consume,
                                 "ResultAIWorker-Consumer");
@@ -89,6 +68,31 @@ public class ResultAIWorker {
                 workerThread.start();
 
                 logger.info("ResultAIWorker started stream={}", streamKey);
+        }
+
+        private void ensureConsumerGroup() {
+                try {
+                        // tạo stream nếu chưa có
+                        redisTemplate.opsForStream().add(streamKey, Map.of("init", "true"));
+
+                        var groups = redisTemplate.opsForStream().groups(streamKey);
+
+                        boolean exists = groups.stream()
+                                        .anyMatch(g -> GROUP.equals(g.groupName()));
+
+                        if (!exists) {
+                                redisTemplate.opsForStream().createGroup(streamKey, GROUP);
+                                logger.info("Created consumer group {} for {}", GROUP, streamKey);
+                        }
+
+                } catch (RedisSystemException e) {
+                        if (e.getMessage() != null && e.getMessage().contains("BUSYGROUP")) {
+                                return;
+                        }
+                        throw e;
+                } catch (Exception e) {
+                        throw new RuntimeException("Cannot ensure Redis consumer group", e);
+                }
         }
 
         @PreDestroy
@@ -103,6 +107,10 @@ public class ResultAIWorker {
         }
 
         private void consume() {
+                if (!groupReady) {
+                        ensureConsumerGroup();
+                        groupReady = true;
+                }
                 while (running.get()) {
                         try {
                                 List<MapRecord<String, Object, Object>> messages = redisTemplate.opsForStream().read(
@@ -125,17 +133,24 @@ public class ResultAIWorker {
                                 }
 
                         } catch (Exception exception) {
-                                if (!running.get()) {
-                                        break;
+
+                                String message = exception.getMessage();
+
+                                if (message != null && message.contains("NOGROUP")) {
+                                        logger.warn("Consumer group missing, recreating...");
+
+                                        groupReady = false;
+                                        ensureConsumerGroup();
+                                        groupReady = true;
+
+                                        continue;
                                 }
 
-                                logger.error(
-                                                "Error consuming AI result stream",
-                                                exception);
+                                logger.error("Error consuming AI result stream", exception);
 
                                 try {
                                         Thread.sleep(500);
-                                } catch (InterruptedException interruptedException) {
+                                } catch (InterruptedException e) {
                                         Thread.currentThread().interrupt();
                                         break;
                                 }
