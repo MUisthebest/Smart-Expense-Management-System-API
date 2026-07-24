@@ -41,8 +41,11 @@ public class InviteGroupMemberUseCase {
     private final PushNotificationSenderPort pushSender;
     private final CreateNotificationUseCase createNotificationUseCase;
 
-    @Value("${app.base-url:https://yourapp.com}")
+    @Value("${app.base-url:http://localhost:8080}")
     private String baseUrl;
+
+    @Value("${app.web-url:http://localhost:3000}")
+    private String webUrl;
 
     @Value("${app.mobile-scheme:smartmoney}")
     private String mobileScheme;
@@ -65,7 +68,7 @@ public class InviteGroupMemberUseCase {
 
         String token = UUID.randomUUID().toString().replace("-", "");
         String mobileDeepLink = mobileScheme + "://group-invite?token=" + token;
-        String webFallbackUrl = baseUrl + "/api/v1/groups/invites/accept-direct?token=" + token;
+        String webFallbackUrl = webUrl + "/vi/invites/group?token=" + token;
         String groupName = group.getName();
 
         // Persist the in-app notification as part of THIS transaction so it commits atomically
