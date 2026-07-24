@@ -38,23 +38,33 @@ public class NotificationWorker {
     private static final int BATCH_SIZE = 10;
 
     private volatile boolean running = true;
+    private volatile boolean groupReady = false;
 
-    // 👉 tạo group (chỉ 1 lần)
-    @PostConstruct
-    public void initGroup() {
+    private void ensureConsumerGroup() {
         try {
-            redisTemplate.opsForStream().createGroup(
-                STREAM,
-                ReadOffset.latest(),
-                GROUP
-            );
-        } catch (Exception ignored) {
-            // group đã tồn tại
+            // Tạo stream nếu chưa có
+            redisTemplate.opsForStream().add(STREAM, Map.of("init", "true"));
+
+            var groups = redisTemplate.opsForStream().groups(STREAM);
+
+            boolean exists = groups.stream()
+                    .anyMatch(g -> GROUP.equals(g.groupName()));
+
+            if (!exists) {
+                redisTemplate.opsForStream().createGroup(STREAM, GROUP);
+                System.out.println("Created consumer group: " + GROUP);
+            }
+
+        } catch (Exception e) {
+            throw new RuntimeException("Cannot ensure notification consumer group", e);
         }
     }
 
     @PostConstruct
     public void init() {
+        ensureConsumerGroup();
+        groupReady = true;
+
         for (int i = 0; i < CONSUMER_COUNT; i++) {
             String consumerName = "consumer-" + i;
             executor.submit(() -> runWorker(consumerName));
@@ -65,16 +75,14 @@ public class NotificationWorker {
         while (running) {
             try {
                 @SuppressWarnings("unchecked")
-                List<MapRecord<String, Object, Object>> messages =
-                    redisTemplate.opsForStream().read(
+                List<MapRecord<String, Object, Object>> messages = redisTemplate.opsForStream().read(
                         Consumer.from(GROUP, consumerName),
                         StreamReadOptions.empty()
-                            .count(BATCH_SIZE)
-                            // Must stay below CoreRedisConfig's 10s client-side commandTimeout,
-                            // or every idle poll throws RedisCommandTimeoutException.
-                            .block(Duration.ofSeconds(8)),
-                        StreamOffset.create(STREAM, ReadOffset.lastConsumed())
-                    );
+                                .count(BATCH_SIZE)
+                                // Must stay below CoreRedisConfig's 10s client-side commandTimeout,
+                                // or every idle poll throws RedisCommandTimeoutException.
+                                .block(Duration.ofSeconds(8)),
+                        StreamOffset.create(STREAM, ReadOffset.lastConsumed()));
 
                 if (messages == null || messages.isEmpty()) {
                     continue;
@@ -82,13 +90,12 @@ public class NotificationWorker {
 
                 for (MapRecord<String, Object, Object> msg : messages) {
                     try {
-                        Notification notification =
-                            objectMapper.convertValue(msg.getValue(), Notification.class);
+                        Notification notification = objectMapper.convertValue(msg.getValue(), Notification.class);
                         notificationService.process(notification, 40);
 
                         // ✅ ACK sau khi xử lý xong
                         redisTemplate.opsForStream()
-                            .acknowledge(STREAM, GROUP, msg.getId());
+                                .acknowledge(STREAM, GROUP, msg.getId());
 
                         redisTemplate.opsForStream().delete(STREAM, msg.getId());
                     } catch (Exception e) {
@@ -98,11 +105,27 @@ public class NotificationWorker {
                 }
 
             } catch (Exception e) {
+
+                String message = e.getMessage();
+
+                if (message != null && message.contains("NOGROUP")) {
+                    System.out.println("Notification consumer group missing, recreating...");
+
+                    groupReady = false;
+                    ensureConsumerGroup();
+                    groupReady = true;
+
+                    continue;
+                }
+
                 e.printStackTrace();
 
                 try {
-                    Thread.sleep(5000); // 🔥 tránh spam Redis
-                } catch (InterruptedException ignored) {}
+                    Thread.sleep(5000);
+                } catch (InterruptedException ex) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
             }
         }
     }
