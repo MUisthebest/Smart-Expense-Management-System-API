@@ -3,6 +3,7 @@ package com.example.smartmoney.application.services;
 import com.example.smartmoney.application.dtos.responses.ChatResponse;
 import com.example.smartmoney.domain.models.project.Project;
 import com.example.smartmoney.domain.models.project.ProjectTracking;
+import com.example.smartmoney.domain.models.project.enums.ProjectPriority;
 import com.example.smartmoney.domain.models.project.enums.ProjectStatus;
 import com.example.smartmoney.domain.models.project.valueobjects.UserId;
 import com.example.smartmoney.domain.models.user.User;
@@ -178,6 +179,30 @@ public class ProjectHypothesisService {
                                 "sẽ làm giảm ngân sách khả dụng — chi tiêu sẽ eo hẹp hơn.",
                                 name, amount, newMonthLeft, newMonthlySaving))
                 .build());
+    }
+
+    /**
+     * BUG: {@code CreateProjectUseCase.validateCreate()} rejects a new ACTIVE project whose
+     * priority collides with an existing ACTIVE project's priority ("each ACTIVE project must
+     * have a unique priority"). The chat preview never surfaced or picked a priority at all, so
+     * {@code ConfirmChatActionUseCase} always defaulted a chat-created project to MEDIUM — which
+     * silently fails confirm with {@code PROJECT_ACTIVE_PRIORITY_CONFLICT} for any user who
+     * already has an ACTIVE MEDIUM-priority project (a very common case, not an edge case).
+     * Picks the lowest-ordinal priority not already used by one of the user's ACTIVE projects,
+     * mirroring what a user filling the create form themselves would naturally do. Falls back to
+     * MEDIUM only when all three are already taken — in that case {@code CreateProjectUseCase}
+     * will already have rejected the request earlier via the separate "max 3 ACTIVE projects"
+     * check, so this fallback is unreachable in practice, not a silent wrong guess.
+     */
+    public ProjectPriority pickAvailablePriorityForNewProject(UUID userId) {
+        var usedByActive = projectRepository.findAllByUser(UserId.of(userId.toString())).stream()
+                .filter(p -> p.getStatus() == ProjectStatus.ACTIVE)
+                .map(Project::getPriority)
+                .collect(java.util.stream.Collectors.toSet());
+        return java.util.Arrays.stream(ProjectPriority.values())
+                .filter(pr -> !usedByActive.contains(pr))
+                .findFirst()
+                .orElse(ProjectPriority.MEDIUM);
     }
 
     // ── Delete ────────────────────────────────────────────────────────────────

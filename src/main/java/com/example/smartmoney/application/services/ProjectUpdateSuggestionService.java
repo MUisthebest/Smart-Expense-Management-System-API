@@ -127,7 +127,7 @@ public class ProjectUpdateSuggestionService {
             return List.of(buildDebtSuggestion(target, tracking, amount, english));
         }
         // Default: treat as an extra contribution to moneySaved (the "project income" case).
-        return List.of(buildContributionSuggestion(target, tracking, amount, english));
+        return List.of(buildContributionSuggestion(target, amount, english));
     }
 
     /**
@@ -200,8 +200,9 @@ public class ProjectUpdateSuggestionService {
 
     private ChatResponse.SavingsPlanSuggestion buildLeftoverSuggestion(
             Project project, BigDecimal amount, int daysLeft, boolean english) {
-        ProjectTracking tracking = project.getTracking();
-        BigDecimal current = tracking.getMoneySaved() != null ? tracking.getMoneySaved() : BigDecimal.ZERO;
+        // Same contributions-based basis as buildContributionSuggestion — an explicit "yes" to
+        // this nudge is a new contribution turn, confirmed via AddProjectContributionUseCase.
+        BigDecimal current = project.totalContributed().amount();
         BigDecimal updated = current.add(amount);
 
         return ChatResponse.SavingsPlanSuggestion.builder()
@@ -260,8 +261,7 @@ public class ProjectUpdateSuggestionService {
 
     private ChatResponse.SavingsPlanSuggestion buildSurplusSuggestion(
             Project project, BigDecimal averageSurplus, boolean english) {
-        ProjectTracking tracking = project.getTracking();
-        BigDecimal current = tracking.getMoneySaved() != null ? tracking.getMoneySaved() : BigDecimal.ZERO;
+        BigDecimal current = project.totalContributed().amount();
         BigDecimal updated = current.add(averageSurplus);
 
         return ChatResponse.SavingsPlanSuggestion.builder()
@@ -296,8 +296,13 @@ public class ProjectUpdateSuggestionService {
     }
 
     private ChatResponse.SavingsPlanSuggestion buildContributionSuggestion(
-            Project project, ProjectTracking tracking, BigDecimal amount, boolean english) {
-        BigDecimal current = tracking.getMoneySaved() != null ? tracking.getMoneySaved() : BigDecimal.ZERO;
+            Project project, BigDecimal amount, boolean english) {
+        // Confirming this goes through AddProjectContributionUseCase (ProjectFilters →
+        // Project.contributions + a ledger Transaction), never ProjectTracking — so "current"/
+        // "new" must be based on the same contributions total the confirm step and the project's
+        // real progress bar both read, not the separate (and never-updated-by-a-contribution)
+        // tracking.moneySaved, which would show a stale figure.
+        BigDecimal current = project.totalContributed().amount();
         BigDecimal updated = current.add(amount);
 
         return ChatResponse.SavingsPlanSuggestion.builder()
