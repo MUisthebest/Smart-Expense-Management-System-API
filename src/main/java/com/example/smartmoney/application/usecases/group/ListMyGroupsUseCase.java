@@ -2,8 +2,10 @@ package com.example.smartmoney.application.usecases.group;
 
 import com.example.smartmoney.application.dtos.responses.group.GroupSummaryResponse;
 import com.example.smartmoney.domain.models.group.Group;
+import com.example.smartmoney.domain.models.group.GroupProject;
 import com.example.smartmoney.domain.models.group.enums.GroupStatus;
 import com.example.smartmoney.domain.models.project.valueobjects.UserId;
+import com.example.smartmoney.domain.repositories.GroupProjectRepository;
 import com.example.smartmoney.domain.repositories.GroupRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -11,7 +13,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -19,6 +20,7 @@ import java.util.stream.Collectors;
 public class ListMyGroupsUseCase {
 
     private final GroupRepository groupRepository;
+    private final GroupProjectRepository groupProjectRepository;
 
     @Transactional(readOnly = true)
     public List<GroupSummaryResponse> execute(String actorId) {
@@ -31,7 +33,11 @@ public class ListMyGroupsUseCase {
         return groups.stream()
                 .filter(g -> g.getStatus() != GroupStatus.DISSOLVED)
                 .sorted(Comparator.comparing(Group::getCreatedAt).reversed())
-                .map(g -> GroupSummaryResponse.fromDomain(g, actor))
+                .map(g -> {
+                    GroupProject gp = groupProjectRepository.findByGroupId(g.getId().value()).orElse(null);
+                    return GroupSummaryResponse.fromDomain(g, actor, gp);
+                })
                 .collect(Collectors.toList());
     }
 }
+

@@ -173,6 +173,12 @@ public class Project {
             throw new ProjectException("Permission denied", ProjectErrorCode.PROJECT_PERMISSION_DENIED);
         }
 
+        Money remainingNeeded = remaining();
+        if (amount.compareTo(remainingNeeded.amount()) > 0) {
+            throw new ProjectException("Contribution amount exceeds remaining project target",
+                    ProjectErrorCode.PROJECT_CONTRIBUTION_EXCEEDS_REMAINING);
+        }
+
         Money money = new Money(amount, targetAmount.currency());
         ProjectContribution c = new ProjectContribution(
                 ContributionId.newId(), actorId, money, note, Instant.now());

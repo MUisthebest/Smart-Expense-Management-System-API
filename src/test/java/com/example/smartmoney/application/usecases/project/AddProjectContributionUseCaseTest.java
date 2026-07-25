@@ -181,4 +181,17 @@ class AddProjectContributionUseCaseTest {
         assertEquals(ProjectErrorCode.PROJECT_FROZEN.name(), ex.getErrorCode());
         verify(transactionRepository, never()).save(any());
     }
+
+    @Test
+    @DisplayName("Rejects contributing an amount exceeding remaining project target")
+    void rejectsExceedingRemaining() {
+        Project project = activeProject(new BigDecimal("1000"));
+        String projectId = project.getId().toString();
+        when(projectRepository.findById(ProjectId.of(projectId))).thenReturn(Optional.of(project));
+
+        ProjectException ex = assertThrows(ProjectException.class,
+                () -> useCase.execute(ownerId, projectId, req(new BigDecimal("1500"), null)));
+        assertEquals(ProjectErrorCode.PROJECT_CONTRIBUTION_EXCEEDS_REMAINING.name(), ex.getErrorCode());
+        verify(transactionRepository, never()).save(any());
+    }
 }
