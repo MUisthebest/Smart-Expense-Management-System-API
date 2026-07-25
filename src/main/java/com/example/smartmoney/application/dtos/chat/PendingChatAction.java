@@ -37,6 +37,14 @@ public class PendingChatAction {
         PROJECT_UPDATE_DEADLINE,
         PROJECT_DELETE,
         PROJECT_TRACKING_UPDATE,
+        /** A positive amount actually being added TO a project (windfall boost, an explicit
+         *  "tôi vừa góp thêm X" contribution, ...) — routes through {@code
+         *  AddProjectContributionUseCase} so it creates a real {@code ProjectContribution} +
+         *  ledger {@code Transaction}, the same source of truth {@code Project.totalContributed()}
+         *  (and every progress/completion display) reads from. {@code PROJECT_TRACKING_UPDATE}'s
+         *  {@code trackingMoneySaved} only touches the separate pace-tracking row, which no longer
+         *  feeds visible progress — confirming that one alone looks like nothing happened. */
+        PROJECT_CONTRIBUTION_ADD,
         BATCH
     }
 
@@ -64,6 +72,10 @@ public class PendingChatAction {
     private BigDecimal trackingMoneySaved;
     private Integer trackingMonthLeft;
     private BigDecimal trackingMoneyOwed;
+
+    // ── PROJECT_CONTRIBUTION_ADD — POST /api/v1/projects/{id}/contributions ──────
+    private BigDecimal contributionAmount;
+    private String contributionNote;
 
     // ── PROJECT_CREATE ────────────────────────────────────────────────────────
     private String name;

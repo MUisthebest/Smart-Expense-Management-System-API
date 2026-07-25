@@ -130,4 +130,21 @@ class WindfallAllocationServiceTest {
                 UUID.randomUUID(), 7, 2026, "chi phí đột xuất 3 triệu", BigDecimal.valueOf(3_000_000));
         assertThat(withExtra).isEmpty();
     }
+
+    @Test
+    @DisplayName("suggestProjectDeferral defers the LOWEST-priority project first, not the highest")
+    void defersLowestPriorityProjectFirst() {
+        when(projectRepository.findAllByUser(any())).thenReturn(List.of(
+                project("Thấp", ProjectStatus.ACTIVE, ProjectPriority.LOW),
+                project("Cao", ProjectStatus.ACTIVE, ProjectPriority.HIGH)));
+        when(budgetRepository.findByUserIdMonthYear(any(), anyInt(), anyInt())).thenReturn(List.of());
+
+        // Each project's monthlySaving is 500,000 (see project() helper) -> deferring one by
+        // DEFER_MONTHS=2 frees 1,000,000, enough to cover an 800,000 shortfall in one project —
+        // asserts which single project gets picked.
+        var result = service.suggestProjectDeferral(UUID.randomUUID(), 7, 2026, "chi phí đột xuất 800 nghìn");
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getProjectName()).isEqualTo("Thấp");
+    }
 }

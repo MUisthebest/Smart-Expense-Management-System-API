@@ -2,10 +2,12 @@ package com.example.smartmoney.application.services;
 
 import com.example.smartmoney.application.dtos.responses.ChatResponse;
 import com.example.smartmoney.domain.models.project.Project;
+import com.example.smartmoney.domain.models.project.ProjectContribution;
 import com.example.smartmoney.domain.models.project.ProjectTracking;
 import com.example.smartmoney.domain.models.project.enums.ProjectPriority;
 import com.example.smartmoney.domain.models.project.enums.ProjectStatus;
 import com.example.smartmoney.domain.models.project.enums.ProjectType;
+import com.example.smartmoney.domain.models.project.valueobjects.ContributionId;
 import com.example.smartmoney.domain.models.project.valueobjects.Money;
 import com.example.smartmoney.domain.models.project.valueobjects.ProjectId;
 import com.example.smartmoney.domain.models.project.valueobjects.UserId;
@@ -39,15 +41,25 @@ class ProjectUpdateSuggestionServiceTest {
     private Project project(String name, BigDecimal moneySaved, BigDecimal moneyOwed,
                              BigDecimal monthlySaving, int monthLeft) {
         ProjectId projectId = ProjectId.newId();
+        UserId ownerId = UserId.of(UUID.randomUUID().toString());
         ProjectTracking tracking = new ProjectTracking(
                 UUID.randomUUID(), projectId, moneySaved, 1,
                 monthlySaving, monthLeft, moneyOwed, 0,
                 Instant.now(), Instant.now());
+        // "Current progress" is read from Project.contributions (Project.totalContributed()),
+        // not ProjectTracking.moneySaved, since AddProjectContributionUseCase (what a real
+        // contribution confirm now calls) only ever writes contributions. Seed a matching
+        // contribution here so this fixture's `moneySaved` still means "already saved so far"
+        // the way every test below assumes, under the current (contributions-based) model.
+        List<ProjectContribution> contributions = moneySaved.compareTo(BigDecimal.ZERO) > 0
+                ? List.of(new ProjectContribution(ContributionId.newId(), ownerId,
+                        new Money(moneySaved, "VND"), null, Instant.now()))
+                : List.of();
         Project project = Project.rehydrate(
-                projectId, UserId.of(UUID.randomUUID().toString()), ProjectType.PERSONAL,
+                projectId, ownerId, ProjectType.PERSONAL,
                 ProjectStatus.ACTIVE, ProjectPriority.HIGH, name, "desc",
                 new Money(BigDecimal.valueOf(20_000_000), "VND"),
-                LocalDate.now().plusMonths(Math.max(monthLeft, 1)), null, List.of(), tracking, Instant.now());
+                LocalDate.now().plusMonths(Math.max(monthLeft, 1)), null, contributions, tracking, Instant.now());
         return project;
     }
 

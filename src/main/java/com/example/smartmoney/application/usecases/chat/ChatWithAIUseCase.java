@@ -20,6 +20,7 @@ import com.example.smartmoney.application.services.UserFinancialDataService;
 import com.example.smartmoney.application.services.WindfallAllocationService;
 import com.example.smartmoney.application.usecases.budget.ComputeBudgetAllocationUseCase;
 import com.example.smartmoney.domain.models.user.User;
+import com.example.smartmoney.domain.models.user.enums.Focus_Mode;
 import com.example.smartmoney.domain.models.user.enums.Saving_Pace;
 import com.example.smartmoney.domain.repositories.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -317,12 +318,33 @@ public class ChatWithAIUseCase {
                         .build();
             }
             case INCOME_WINDFALL -> {
+                // A hypothetical/future windfall ("nếu tôi được thưởng KPI thì sao") must never
+                // get a real, confirmable suggestion — see HYPOTHETICAL_PATTERN's doc comment.
+                // The LLM's own reply already carries advisory-only text for this case per
+                // ChatbotPromptBuilder's rule; just pass it through with no suggestion attached.
+                if (isHypothetical(messageLow)) {
+                    yield ChatResponse.builder()
+                            .reply(reply).intent(intent).relatedQuestions(relatedQuestions).build();
+                }
+                // Real money, but the user explicitly frames applying it as a FUTURE plan — see
+                // FUTURE_INTENT_PATTERN's doc comment. No suggestion card (nothing to schedule
+                // for a later month here), but unlike the hypothetical branch above the amount is
+                // real/known, so the LLM's reply is still expected to state it.
+                if (looksFutureDated(messageLow)) {
+                    yield ChatResponse.builder()
+                            .reply(reply).intent(intent).relatedQuestions(relatedQuestions).build();
+                }
                 // AI detected sudden income → allocate 60% to savings, 40% to budget limits.
                 // Only surface the side(s) the user actually asked about; if neither budget
-                // nor project is explicitly mentioned, show both (helpful default).
+                // nor project is explicitly mentioned, default to the user's financial-setup
+                // profile (see windfallShouldPreferSavingsOnly) before falling back to "show both".
                 boolean showBudget = wantsBudgetSuggestion(messageLow);
                 boolean showProject = wantsProjectSuggestion(messageLow);
                 boolean scoped = showBudget || showProject;
+                if (!scoped && windfallShouldPreferSavingsOnly(user, userId, month, year)) {
+                    scoped = true;
+                    showProject = true;
+                }
 
                 var savingsSuggestions = (!scoped || showProject)
                         ? windfallAllocationService.suggestSavingsBoost(userId, month, year, messageLow)
@@ -343,6 +365,18 @@ public class ChatWithAIUseCase {
                         .build();
             }
             case LARGE_EXPENSE -> {
+                // Same hypothetical/future gate as INCOME_WINDFALL above — a "nếu tôi phải mua xe
+                // thì sao" expense hasn't actually happened, so no real suggestion is attached.
+                if (isHypothetical(messageLow)) {
+                    yield ChatResponse.builder()
+                            .reply(reply).intent(intent).relatedQuestions(relatedQuestions).build();
+                }
+                // Real expense, but explicitly planned to be COVERED later ("tháng sau tôi sẽ trả
+                // khoản này") — same reasoning as INCOME_WINDFALL's future-dated gate above.
+                if (looksFutureDated(messageLow)) {
+                    yield ChatResponse.builder()
+                            .reply(reply).intent(intent).relatedQuestions(relatedQuestions).build();
+                }
                 // AI detected large unplanned expense → suggest budget coverage + idle
                 // abandoned-project funds + (only if still short) active-project deferral.
                 // Same scoping rule as INCOME_WINDFALL above.
@@ -391,7 +425,7 @@ public class ChatWithAIUseCase {
                 }
                 var suggestions = computeProjectHypothesisSuggestions(userId, messageLow);
                 String actionId = suggestions.isEmpty() ? null
-                        : storePendingAction(userId, pendingActionForSuggestions(suggestions), messageLow);
+                        : storePendingAction(userId, pendingActionForSuggestions(userId, suggestions), messageLow);
                 String hypothesisReply = reply;
                 if (suggestions.isEmpty()) {
                     String note = namedInactiveProjectNote(userId, messageLow);
@@ -438,7 +472,7 @@ public class ChatWithAIUseCase {
                     if (note != null) builder.reply(appendToReply(reply, note));
                 }
                 if (!handled && !looksStructural) {
-                    handled = attachImplicitEventSuggestions(builder, userId, month, year, messageLow);
+                    handled = attachImplicitEventSuggestions(builder, user, userId, month, year, messageLow);
                 }
                 // Don't pile a second, unrelated suggestion onto a turn that already got one, and
                 // never volunteer one on a bare greeting/farewell or a structural-change request
@@ -478,6 +512,72 @@ public class ChatWithAIUseCase {
             "tăng|nâng (mức|hạn mức)|thêm hạn mức|increase|raise the limit|more budget",
             Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
 
+    // A message phrased as a hypothetical ("nếu tôi được thưởng KPI thì sao", "what if I get a
+    // bonus") describes an income/expense event that HASN'T actually happened yet — unlike an
+    // already-received windfall or already-incurred expense, it must never get a real, confirmable
+    // suggestion. The suggestion-computation services below (WindfallAllocationService) only ever
+    // target the CURRENT month's real budget/project rows; confirming a suggestion built from money
+    // the user doesn't actually have yet would incorrectly fold a future what-if into the current
+    // month's real data. Only advisory text (already tone-adjusted by ChatbotPromptBuilder per the
+    // user's saving pace / intervention level / focus mode) is appropriate for a pure hypothetical.
+    private static final Pattern HYPOTHETICAL_PATTERN = Pattern.compile(
+            "\\bnếu\\b|giả sử|giả định|trong trường hợp|what if|in case",
+            Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
+
+    private boolean isHypothetical(String messageLow) {
+        return HYPOTHETICAL_PATTERN.matcher(messageLow).find();
+    }
+
+    // A message describing a REAL (non-hypothetical) income/expense event that the user
+    // explicitly says will only be APPLIED at some later, unspecified time ("tháng sau tôi định
+    // góp vào...", "sắp tới sẽ dùng để..."). The money/expense itself is real and its amount is
+    // known, but — unlike BUDGET_UPDATE's cut path, which has a dedicated next-month mechanism
+    // (APPLY_NEXT_MONTH_BUDGET_PLAN) — there is no way to schedule a windfall/expense allocation
+    // for a later month here, so no confirmable suggestion is attached. Distinct from
+    // HYPOTHETICAL_PATTERN: this is real money, just deferred application, so the reply should
+    // still state the known amount — only the actionable card is suppressed, not the number.
+    private static final Pattern FUTURE_INTENT_PATTERN = Pattern.compile(
+            "tháng sau|tháng tới|tháng kế|kỳ tới|sắp tới sẽ|dự định|định sẽ|tính sẽ|kế hoạch sẽ|" +
+            "sẽ dùng để|sẽ dùng vào|next month|plan to|planning to|going to use it",
+            Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
+
+    private boolean looksFutureDated(String messageLow) {
+        return FUTURE_INTENT_PATTERN.matcher(messageLow).find();
+    }
+
+    // "Ample" safe spending for the windfall-allocation profile check below — same income-ratio
+    // style threshold this codebase already uses elsewhere (e.g. ProjectUpdateSuggestionService's
+    // leftover/surplus nudges), not a new convention.
+    private static final BigDecimal AMPLE_SAFE_SPENDING_RATIO = BigDecimal.valueOf(0.20);
+    private static final BigDecimal AMPLE_SAFE_SPENDING_FALLBACK = BigDecimal.valueOf(2_000_000);
+
+    /**
+     * Financial-setup profile as an ALLOCATION factor, not just tone: when the user hasn't said
+     * which side (budget vs project) an unscoped windfall should go to, a REDUCE_SPENDING/
+     * SAVE_MORE focus — or auto-invest-surplus being on — signals they'd rather bank it than
+     * loosen a spending limit, PROVIDED safe spending already has comfortable headroom (if
+     * money's already tight, defaulting to "show both" so the user sees the budget-relief option
+     * too is still the safer default). An explicit ask ("tăng ngân sách X") always overrides this
+     * regardless of profile — this only changes the UNSCOPED default.
+     */
+    private boolean windfallShouldPreferSavingsOnly(User user, UUID userId, int month, int year) {
+        if (user == null) return false;
+        Focus_Mode focus = user.getFocusMode();
+        boolean profileFavorsSaving = focus == Focus_Mode.REDUCE_SPENDING
+                || focus == Focus_Mode.SAVE_MORE
+                || user.isAutoInvestSurplus();
+        if (!profileFavorsSaving) return false;
+
+        var snapshot = dataProvider.getFinancialSnapshot(userId, month, year);
+        BigDecimal safeSpending = snapshot.safeSpending();
+        if (safeSpending == null) return false;
+        BigDecimal monthlyIncome = snapshot.monthlyIncome();
+        BigDecimal threshold = (monthlyIncome != null && monthlyIncome.compareTo(BigDecimal.ZERO) > 0)
+                ? monthlyIncome.multiply(AMPLE_SAFE_SPENDING_RATIO)
+                : AMPLE_SAFE_SPENDING_FALLBACK;
+        return safeSpending.compareTo(threshold) >= 0;
+    }
+
     /**
      * When intent resolved to GENERAL_ADVICE, checks whether the message still describes a
      * large (>= 1,000,000 VND) income or expense event and, if so, computes the same
@@ -488,7 +588,7 @@ public class ChatWithAIUseCase {
      *         suggestion lists ended up empty) — signals the caller not to also run the
      *         lower-priority proactive safety-net checks on this same turn
      */
-    boolean attachImplicitEventSuggestions(ChatResponse.ChatResponseBuilder builder,
+    boolean attachImplicitEventSuggestions(ChatResponse.ChatResponseBuilder builder, User user,
                                                 UUID userId, int month, int year, String messageLow) {
         BigDecimal amount = windfallAllocationService.parseAmount(messageLow);
         if (amount.compareTo(LARGE_AMOUNT_THRESHOLD) < 0) return false;
@@ -498,6 +598,16 @@ public class ChatWithAIUseCase {
         boolean scoped = showBudget || showProject;
 
         if (INCOME_EVENT_PATTERN.matcher(messageLow).find()) {
+            // Hypothetical/future event ("nếu lương tháng này tăng 3 triệu thì sao") — the LLM's
+            // own (already advisory-tuned) reply stands as-is; treat this turn as "handled" so no
+            // unrelated proactive nudge piles on top, but attach no real suggestion.
+            if (isHypothetical(messageLow)) return true;
+            // Real income, but explicitly earmarked for a later month — see FUTURE_INTENT_PATTERN.
+            if (looksFutureDated(messageLow)) return true;
+            if (!scoped && windfallShouldPreferSavingsOnly(user, userId, month, year)) {
+                scoped = true;
+                showProject = true;
+            }
             var savings = (!scoped || showProject)
                     ? windfallAllocationService.suggestSavingsBoost(userId, month, year, messageLow)
                     : Collections.<ChatResponse.SavingsPlanSuggestion>emptyList();
@@ -511,6 +621,8 @@ public class ChatWithAIUseCase {
                    .actionRequired(!budgets.isEmpty() || !savings.isEmpty());
             return true;
         } else if (EXPENSE_EVENT_PATTERN.matcher(messageLow).find()) {
+            if (isHypothetical(messageLow)) return true;
+            if (looksFutureDated(messageLow)) return true;
             var coverage = computeExpenseCoverage(userId, month, year, messageLow, scoped, showBudget, showProject);
             String actionId = storePendingActionIfAny(userId, coverage.budgetCoverage(), coverage.savings(), messageLow);
             builder.budgetSuggestions(coverage.budgetCoverage().isEmpty() ? null : coverage.budgetCoverage())
@@ -564,7 +676,7 @@ public class ChatWithAIUseCase {
                                              UUID userId, String messageLow) {
         var suggestions = computeProjectHypothesisSuggestions(userId, messageLow);
         if (suggestions.isEmpty()) return false;
-        String actionId = storePendingAction(userId, pendingActionForSuggestions(suggestions), messageLow);
+        String actionId = storePendingAction(userId, pendingActionForSuggestions(userId, suggestions), messageLow);
         builder.projectChangeSuggestions(suggestions).pendingActionId(actionId).actionRequired(true);
         return true;
     }
@@ -585,11 +697,12 @@ public class ChatWithAIUseCase {
                 .orElse(Collections.emptyList());
     }
 
-    private PendingChatAction pendingActionForSuggestions(List<ChatResponse.ProjectChangeSuggestion> suggestions) {
-        if (suggestions.size() == 1) return toPendingAction(suggestions.get(0));
+    private PendingChatAction pendingActionForSuggestions(
+            UUID userId, List<ChatResponse.ProjectChangeSuggestion> suggestions) {
+        if (suggestions.size() == 1) return toPendingAction(userId, suggestions.get(0));
         return PendingChatAction.builder()
                 .type(PendingChatAction.Type.BATCH)
-                .batchActions(suggestions.stream().map(this::toPendingAction).toList())
+                .batchActions(suggestions.stream().map(s -> toPendingAction(userId, s)).toList())
                 .build();
     }
 
@@ -619,15 +732,7 @@ public class ChatWithAIUseCase {
         }
         if (savingsSuggestions != null) {
             for (var s : savingsSuggestions) {
-                subActions.add(PendingChatAction.builder()
-                        .type(PendingChatAction.Type.PROJECT_TRACKING_UPDATE)
-                        .projectId(s.getProjectId())
-                        .trackingMoneySaved(s.getNewMoneySaved() != null
-                                ? BigDecimal.valueOf(s.getNewMoneySaved()) : null)
-                        .trackingMonthLeft(s.getSuggestedMonthLeft())
-                        .trackingMoneyOwed(s.getSuggestedMoneyOwed() != null
-                                ? BigDecimal.valueOf(s.getSuggestedMoneyOwed()) : null)
-                        .build());
+                subActions.add(toProjectSavingsAction(s));
             }
         }
         if (subActions.isEmpty()) return null;
@@ -635,6 +740,43 @@ public class ChatWithAIUseCase {
                 ? subActions.get(0)
                 : PendingChatAction.builder().type(PendingChatAction.Type.BATCH).batchActions(subActions).build();
         return storePendingAction(userId, action, messageLow);
+    }
+
+    /**
+     * A {@code SavingsPlanSuggestion} maps to one of two real mutations depending on what it
+     * actually represents:
+     * <ul>
+     *   <li>A positive {@code suggestedAddAmount} is real money moving INTO the project (windfall
+     *       boost, an explicit "tôi vừa góp thêm X" contribution, a month-end-leftover/surplus
+     *       nudge) — this must go through {@code PROJECT_CONTRIBUTION_ADD} so confirming it
+     *       creates a real {@code ProjectContribution} + ledger {@code Transaction}, the only
+     *       thing the project's visible progress/completion actually reads. Routing this through
+     *       {@code PROJECT_TRACKING_UPDATE} instead only touches the separate pace-tracking row —
+     *       confirming it looks like a success but the project's displayed progress never moves.</li>
+     *   <li>Everything else (a debt/{@code moneyOwed} change, a deadline-only deferral via {@code
+     *       suggestedMonthLeft}, or a negative {@code suggestedAddAmount} withdrawing idle funds
+     *       from an ABANDONED project) isn't a contribution — stays on {@code
+     *       PROJECT_TRACKING_UPDATE} as before.</li>
+     * </ul>
+     */
+    private PendingChatAction toProjectSavingsAction(ChatResponse.SavingsPlanSuggestion s) {
+        boolean isContribution = s.getSuggestedAddAmount() != null && s.getSuggestedAddAmount() > 0;
+        if (isContribution) {
+            return PendingChatAction.builder()
+                    .type(PendingChatAction.Type.PROJECT_CONTRIBUTION_ADD)
+                    .projectId(s.getProjectId())
+                    .contributionAmount(BigDecimal.valueOf(s.getSuggestedAddAmount()))
+                    .build();
+        }
+        return PendingChatAction.builder()
+                .type(PendingChatAction.Type.PROJECT_TRACKING_UPDATE)
+                .projectId(s.getProjectId())
+                .trackingMoneySaved(s.getNewMoneySaved() != null
+                        ? BigDecimal.valueOf(s.getNewMoneySaved()) : null)
+                .trackingMonthLeft(s.getSuggestedMonthLeft())
+                .trackingMoneyOwed(s.getSuggestedMoneyOwed() != null
+                        ? BigDecimal.valueOf(s.getSuggestedMoneyOwed()) : null)
+                .build();
     }
 
     /**
@@ -749,11 +891,17 @@ public class ChatWithAIUseCase {
     }
 
     /** Converts a project-hypothesis preview into the real mutation {@link ConfirmChatActionUseCase} will run. */
-    private PendingChatAction toPendingAction(ChatResponse.ProjectChangeSuggestion s) {
+    private PendingChatAction toPendingAction(UUID userId, ChatResponse.ProjectChangeSuggestion s) {
         return switch (s.getOperation()) {
+            // BUG: ConfirmChatActionUseCase used to default every chat-created project to MEDIUM
+            // priority (nothing here ever set one) — CreateProjectUseCase then rejects it with
+            // PROJECT_ACTIVE_PRIORITY_CONFLICT as soon as the user already has one ACTIVE MEDIUM
+            // project, which confirm surfaces as a raw, confusing exception message. Pick an
+            // actually-unused priority instead, same as a user filling the create form would.
             case CREATE -> PendingChatAction.builder()
                     .type(PendingChatAction.Type.PROJECT_CREATE)
                     .name(s.getProjectName())
+                    .priority(projectHypothesisService.pickAvailablePriorityForNewProject(userId).name())
                     .targetAmount(BigDecimal.valueOf(s.getTargetAmount()))
                     .currency("VND")
                     .newDeadline(s.getNewDeadline())

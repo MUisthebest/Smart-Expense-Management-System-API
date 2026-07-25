@@ -3,6 +3,7 @@ package com.example.smartmoney.application.usecases.chat;
 import com.example.smartmoney.application.dtos.chat.PendingChatAction;
 import com.example.smartmoney.application.dtos.requests.budgets.UpdateBudgetRequest;
 import com.example.smartmoney.application.dtos.requests.chat.ConfirmChatActionRequest;
+import com.example.smartmoney.application.dtos.requests.project.AddProjectContributionRequest;
 import com.example.smartmoney.application.dtos.requests.project.UpdateProjectRequest;
 import com.example.smartmoney.application.dtos.responses.ChatActionConfirmResponse;
 import com.example.smartmoney.application.dtos.responses.budgets.BudgetAllocationPlanResponse;
@@ -10,6 +11,7 @@ import com.example.smartmoney.application.ports.chat.ChatPendingActionPort;
 import com.example.smartmoney.application.usecases.budget.ComputeBudgetAllocationUseCase;
 import com.example.smartmoney.application.usecases.budget.UpdateBudgetUseCase;
 import com.example.smartmoney.application.usecases.budget.UpsertBulkBudgetsUseCase;
+import com.example.smartmoney.application.usecases.project.AddProjectContributionUseCase;
 import com.example.smartmoney.application.usecases.project.CreateProjectUseCase;
 import com.example.smartmoney.application.usecases.project.DeleteProjectUseCase;
 import com.example.smartmoney.application.usecases.project.UpdateProjectTrackingUseCase;
@@ -44,6 +46,7 @@ class ConfirmChatActionUseCaseTest {
     private final UpdateProjectUseCase updateProjectUseCase = mock(UpdateProjectUseCase.class);
     private final DeleteProjectUseCase deleteProjectUseCase = mock(DeleteProjectUseCase.class);
     private final UpdateProjectTrackingUseCase updateProjectTrackingUseCase = mock(UpdateProjectTrackingUseCase.class);
+    private final AddProjectContributionUseCase addProjectContributionUseCase = mock(AddProjectContributionUseCase.class);
     private final UpdateBudgetUseCase updateBudgetUseCase = mock(UpdateBudgetUseCase.class);
     private final UpsertBulkBudgetsUseCase upsertBulkBudgetsUseCase = mock(UpsertBulkBudgetsUseCase.class);
     private final ComputeBudgetAllocationUseCase computeBudgetAllocationUseCase =
@@ -51,8 +54,8 @@ class ConfirmChatActionUseCaseTest {
 
     private final ConfirmChatActionUseCase useCase = new ConfirmChatActionUseCase(
             pendingActionPort, createProjectUseCase, updateProjectUseCase, deleteProjectUseCase,
-            updateProjectTrackingUseCase, updateBudgetUseCase, upsertBulkBudgetsUseCase,
-            computeBudgetAllocationUseCase);
+            updateProjectTrackingUseCase, addProjectContributionUseCase, updateBudgetUseCase,
+            upsertBulkBudgetsUseCase, computeBudgetAllocationUseCase);
 
     private final UUID userId = UUID.randomUUID();
     private final String actionId = "action-1";
@@ -126,6 +129,27 @@ class ConfirmChatActionUseCaseTest {
         assertThat(captor.getValue().getMoneySaved()).isEqualByComparingTo(BigDecimal.valueOf(7_000_000));
         assertThat(captor.getValue().getMonthLeft()).isNull();
         assertThat(captor.getValue().getMoneyOwed()).isNull();
+    }
+
+    @Test
+    @DisplayName("confirm=true on a project contribution add calls AddProjectContributionUseCase — " +
+            "the same real use case the app's own \"Contribute\" button uses, so the project's " +
+            "visible progress (which reads Project.contributions, not ProjectTracking) actually moves")
+    void confirmProjectContributionAddCallsAddProjectContributionUseCase() {
+        String projectId = UUID.randomUUID().toString();
+        PendingChatAction action = PendingChatAction.builder()
+                .type(PendingChatAction.Type.PROJECT_CONTRIBUTION_ADD)
+                .projectId(projectId)
+                .contributionAmount(BigDecimal.valueOf(3_000_000))
+                .build();
+        when(pendingActionPort.load(userId, actionId)).thenReturn(Optional.of(action));
+
+        useCase.execute(userId, ConfirmChatActionRequest.builder().actionId(actionId).confirm(true).build());
+
+        var captor = org.mockito.ArgumentCaptor.forClass(AddProjectContributionRequest.class);
+        verify(addProjectContributionUseCase).execute(eq(userId.toString()), eq(projectId), captor.capture());
+        assertThat(captor.getValue().getAmount()).isEqualByComparingTo(BigDecimal.valueOf(3_000_000));
+        verifyNoInteractions(updateProjectTrackingUseCase);
     }
 
     @Test
