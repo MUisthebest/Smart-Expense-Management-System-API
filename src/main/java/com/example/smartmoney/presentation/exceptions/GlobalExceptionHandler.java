@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.Hidden;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -176,6 +177,29 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
     }
     
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<CheckResponse<ErrorDetails>> handleMethodNotSupported(
+            HttpRequestMethodNotSupportedException ex, WebRequest request) {
+
+        String message = "Method " + ex.getMethod() + " is not supported for this endpoint";
+
+        ErrorDetails errorDetails = ErrorDetails.builder()
+            .timestamp(LocalDateTime.now())
+            .message(message)
+            .errorCode("METHOD_NOT_ALLOWED")
+            .path(request.getDescription(false).replace("uri=", ""))
+            .build();
+
+        CheckResponse<ErrorDetails> response = CheckResponse.<ErrorDetails>builder()
+            .success(false)
+            .message(message)
+            .data(errorDetails)
+            .errorCode("METHOD_NOT_ALLOWED")
+            .build();
+
+        return new ResponseEntity<>(response, HttpStatus.METHOD_NOT_ALLOWED);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<CheckResponse<ErrorDetails>> handleGlobalException(
             Exception ex, WebRequest request) {

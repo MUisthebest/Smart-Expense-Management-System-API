@@ -46,6 +46,7 @@ public class ProjectController {
     private final UnfreezeProjectUseCase unfreezeProjectUseCase;
 
     private final AddProjectContributionUseCase addProjectContributionUseCase;
+    private final GetProjectContributionsUseCase getProjectContributionsUseCase;
 
     private String actorId(Authentication auth) {
         return auth.getName();
@@ -245,6 +246,28 @@ public class ProjectController {
         return CheckResponse.<ProjectDetailResponse>builder()
                 .success(true)
                 .message("Contributed")
+                .data(data)
+                .build();
+    }
+
+    @Operation(
+            summary = "List project contributions",
+            description = "Returns the project's individual contributions — manual presses and settlement " +
+                    "auto-savings — newest first. Their sum is the project's totalContributed. Owner only."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Contributions returned"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized"),
+            @ApiResponse(responseCode = "404", description = "Project not found")
+    })
+    @GetMapping("/{projectId}/contributions")
+    public CheckResponse<List<ContributionItemResponse>> listContributions(
+            Authentication auth,
+            @PathVariable String projectId) {
+        List<ContributionItemResponse> data = getProjectContributionsUseCase.execute(actorId(auth), projectId);
+        return CheckResponse.<List<ContributionItemResponse>>builder()
+                .success(true)
+                .message("OK")
                 .data(data)
                 .build();
     }
