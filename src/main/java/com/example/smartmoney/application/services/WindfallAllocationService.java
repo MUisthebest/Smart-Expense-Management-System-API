@@ -75,9 +75,15 @@ public class WindfallAllocationService {
             BigDecimal projectNeed = p.remaining().amount();
             if (projectNeed.compareTo(BigDecimal.ZERO) <= 0) continue;
 
-            ProjectTracking tracking = p.getTracking();
-            BigDecimal currentSaved = tracking != null && tracking.getMoneySaved() != null
-                    ? tracking.getMoneySaved() : BigDecimal.ZERO;
+            // BUG: "currentMoneySaved"/"newMoneySaved" here are display-only — the actual
+            // suggested amount is confirmed via AddProjectContributionUseCase (a real
+            // ProjectContribution + ledger Transaction), which only ever reads/writes
+            // Project.contributions, never ProjectTracking. Showing tracking.moneySaved as
+            // "current" would display a stale figure (it's never updated by a contribution,
+            // chat-driven or via the app's own "Contribute" button) — use the same
+            // contributions-based total the confirm step and the project's real progress bar
+            // both already agree on.
+            BigDecimal currentSaved = p.totalContributed().amount();
 
             // Allocate at most what the project needs, cap at remaining pool
             BigDecimal allocate = remaining.min(projectNeed).setScale(0, RoundingMode.HALF_UP);
@@ -260,11 +266,19 @@ public class WindfallAllocationService {
 
         if (totalHeadroom.compareTo(expense) >= 0) return Collections.emptyList();
 
-        // Suggest deferring LOW then MEDIUM priority projects by DEFER_MONTHS
+        // Suggest deferring LOW then MEDIUM priority projects by DEFER_MONTHS — `projects` is
+        // sorted HIGH-priority-first (see activeProjects()'s doc), which is the right order for
+        // "which project gets a windfall contribution" but the WRONG order here: deferring an
+        // ACTIVE project's deadline should hit the LEAST important commitment first, not the most
+        // important one. Re-sort ascending by priority ordinal (LOW=0 first) just for this loop.
+        List<Project> deferralOrder = projects.stream()
+                .sorted(Comparator.comparingInt(p -> p.getPriority().ordinal()))
+                .collect(Collectors.toList());
+
         List<ChatResponse.SavingsPlanSuggestion> result = new ArrayList<>();
         BigDecimal shortfall = expense.subtract(totalHeadroom.max(BigDecimal.ZERO));
 
-        for (Project p : projects) {
+        for (Project p : deferralOrder) {
             if (shortfall.compareTo(BigDecimal.ZERO) <= 0) break;
             ProjectTracking tracking = p.getTracking();
             if (tracking == null) continue;

@@ -2,10 +2,14 @@ package com.example.smartmoney.presentation.exceptions;
 
 import com.example.smartmoney.application.dtos.responses.CheckResponse;
 import com.example.smartmoney.domain.exceptions.*;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.exc.InvalidFormatException;
+import com.fasterxml.jackson.databind.exc.MismatchedInputException;
 import io.swagger.v3.oas.annotations.Hidden;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -15,6 +19,7 @@ import org.springframework.web.context.request.WebRequest;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @RestControllerAdvice
@@ -254,6 +259,69 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
                 .body(response);
+    }
+
+    /**
+     * Thrown by Spring's message converter BEFORE the controller method runs whenever the
+     * {@code @RequestBody} JSON can't be deserialized into the target DTO — a field holding the
+     * wrong JSON type (e.g. {@code "amountLimit": "aa"} into a {@code BigDecimal}) or an unknown
+     * enum literal (e.g. an invalid {@code category}). Since it happens during argument
+     * resolution, it never reaches the controller's own try/catch, and without a dedicated
+     * handler here it falls through to {@link #handleGlobalException} as a 500 — this is what a
+     * malformed request body actually is: a 400, not a server fault.
+     */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<CheckResponse<ErrorDetails>> handleMessageNotReadable(
+            HttpMessageNotReadableException ex, WebRequest request) {
+
+        String message = describeMalformedBody(ex.getCause());
+        log.warn("Malformed request body: {}", message);
+
+        ErrorDetails errorDetails = ErrorDetails.builder()
+                .timestamp(LocalDateTime.now())
+                .message(message)
+                .errorCode("INVALID_REQUEST_BODY")
+                .path(request.getDescription(false).replace("uri=", ""))
+                .build();
+
+        CheckResponse<ErrorDetails> response = CheckResponse.<ErrorDetails>builder()
+                .success(false)
+                .message(message)
+                .errorCode("INVALID_REQUEST_BODY")
+                .data(errorDetails)
+                .build();
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+
+    /** Both a wrong JSON type (string into a number) and an unknown enum literal surface as
+     *  {@link InvalidFormatException} — the field path + rejected value make a precise message
+     *  possible for either case. Any other unreadable-body cause (truncated/invalid JSON syntax,
+     *  a missing required structural field, ...) falls back to a generic but still-400 message. */
+    private String describeMalformedBody(Throwable cause) {
+        if (cause instanceof InvalidFormatException ife) {
+            String targetType = ife.getTargetType() != null ? ife.getTargetType().getSimpleName() : "the expected type";
+            return String.format("Invalid value '%s' for field '%s': expected %s",
+                    ife.getValue(), fieldPath(ife.getPath()), targetType);
+        }
+        if (cause instanceof MismatchedInputException mie) {
+            return String.format("Invalid or missing value for field '%s'", fieldPath(mie.getPath()));
+        }
+        return "Malformed request body";
+    }
+
+    private String fieldPath(List<JsonMappingException.Reference> path) {
+        if (path == null || path.isEmpty()) return "request body";
+        StringBuilder sb = new StringBuilder();
+        for (JsonMappingException.Reference ref : path) {
+            if (ref.getFieldName() != null) {
+                if (!sb.isEmpty()) sb.append('.');
+                sb.append(ref.getFieldName());
+            } else {
+                sb.append('[').append(ref.getIndex()).append(']');
+            }
+        }
+        return !sb.isEmpty() ? sb.toString() : "request body";
     }
 
     @ExceptionHandler(InsufficientSafeSpendingException.class)

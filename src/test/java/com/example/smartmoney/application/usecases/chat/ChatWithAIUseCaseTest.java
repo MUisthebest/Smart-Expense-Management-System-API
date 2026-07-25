@@ -1,5 +1,6 @@
 package com.example.smartmoney.application.usecases.chat;
 
+import com.example.smartmoney.application.dtos.chat.PendingChatAction;
 import com.example.smartmoney.application.dtos.requests.chat.ChatRequest;
 import com.example.smartmoney.application.dtos.responses.ChatResponse;
 import com.example.smartmoney.application.guardrails.JsonSchemaGuardrail;
@@ -26,6 +27,7 @@ import com.example.smartmoney.domain.models.project.valueobjects.ProjectId;
 import com.example.smartmoney.domain.models.project.valueobjects.UserId;
 import com.example.smartmoney.domain.models.transaction.enums.Category;
 import com.example.smartmoney.domain.models.user.User;
+import com.example.smartmoney.domain.models.user.enums.Focus_Mode;
 import com.example.smartmoney.domain.models.user.enums.Saving_Pace;
 import com.example.smartmoney.domain.repositories.BudgetRepository;
 import com.example.smartmoney.domain.repositories.ProjectRepository;
@@ -133,13 +135,103 @@ class ChatWithAIUseCaseTest {
         when(projectRepository.findAllByUser(any())).thenReturn(List.of(project("Mua nhà")));
 
         var builder = ChatResponse.builder().reply("ok").intent(ChatResponse.ChatIntent.GENERAL_ADVICE);
-        useCase.attachImplicitEventSuggestions(builder, UUID.randomUUID(), 7, 2026,
+        useCase.attachImplicitEventSuggestions(builder, null, UUID.randomUUID(), 7, 2026,
                 "tháng này tôi được thưởng 5 triệu, tôi nên làm gì?");
 
         ChatResponse response = builder.build();
         assertThat(response.getBudgetSuggestions()).isNotNull().isNotEmpty();
         assertThat(response.getSavingsSuggestions()).isNotNull().isNotEmpty();
         assertThat(response.isActionRequired()).isTrue();
+    }
+
+    @Test
+    @DisplayName("an income-event project boost is stored as PROJECT_CONTRIBUTION_ADD (real ledger "
+            + "contribution), not PROJECT_TRACKING_UPDATE — the latter never moves the project's "
+            + "actual displayed progress since that reads Project.contributions, not ProjectTracking")
+    void incomeEventProjectBoostStoresRealContributionAction() {
+        ChatPendingActionPort pendingActionPort = mock(ChatPendingActionPort.class);
+        ChatWithAIUseCase useCaseWithCapturablePort = new ChatWithAIUseCase(
+                mock(UserFinancialDataService.class),
+                mock(LlmRouter.class),
+                mock(BudgetAdvisorService.class),
+                mock(SpendingSimulationService.class),
+                windfallAllocationService,
+                mock(ProjectUpdateSuggestionService.class),
+                mock(ProjectHypothesisService.class),
+                mock(ChatbotPromptBuilder.class),
+                mock(UserRepository.class),
+                mock(ChatHistoryCacheService.class),
+                mock(JsonSchemaGuardrail.class),
+                pendingActionPort, mock(ComputeBudgetAllocationUseCase.class), FIXED_CLOCK);
+
+        when(budgetRepository.findByUserIdMonthYear(any(), any(), any())).thenReturn(List.of());
+        when(projectRepository.findAllByUser(any())).thenReturn(List.of(project("Mua nhà")));
+
+        var builder = ChatResponse.builder().reply("ok").intent(ChatResponse.ChatIntent.GENERAL_ADVICE);
+        useCaseWithCapturablePort.attachImplicitEventSuggestions(builder, null, UUID.randomUUID(), 7, 2026,
+                "tháng này tôi được thưởng KPI đột xuất 5 triệu, có nên góp vào dự án không?");
+
+        assertThat(builder.build().getSavingsSuggestions()).isNotEmpty();
+
+        var captor = org.mockito.ArgumentCaptor.forClass(PendingChatAction.class);
+        verify(pendingActionPort).save(any(), any(), captor.capture());
+        PendingChatAction saved = captor.getValue();
+        assertThat(saved.getType()).isEqualTo(PendingChatAction.Type.PROJECT_CONTRIBUTION_ADD);
+        assertThat(saved.getContributionAmount()).isNotNull().isPositive();
+    }
+
+    @Test
+    @DisplayName("a REAL income event explicitly earmarked for a later month gets no suggestion card "
+            + "— the backend has no way to schedule a windfall allocation for an unspecified future "
+            + "month, unlike BUDGET_UPDATE's dedicated next-month plan")
+    void futureDatedRealIncomeEventAttachesNoSuggestion() {
+        when(projectRepository.findAllByUser(any())).thenReturn(List.of(project("Mua nhà")));
+
+        var builder = ChatResponse.builder().reply("ok").intent(ChatResponse.ChatIntent.GENERAL_ADVICE);
+        boolean handled = useCase.attachImplicitEventSuggestions(builder, null, UUID.randomUUID(), 7, 2026,
+                "tôi vừa nhận thưởng KPI 5 triệu, tháng sau tôi định góp hết vào dự án mua nhà");
+
+        ChatResponse response = builder.build();
+        assertThat(handled).isTrue();
+        assertThat(response.getSavingsSuggestions()).isNull();
+        assertThat(response.getBudgetSuggestions()).isNull();
+        assertThat(response.getPendingActionId()).isNull();
+        assertThat(response.isActionRequired()).isFalse();
+    }
+
+    @Test
+    @DisplayName("an unscoped windfall for a REDUCE_SPENDING-focus user with ample safe spending goes "
+            + "entirely to savings instead of defaulting to \"show both budget and project\"")
+    void reduceSpendingProfilePrefersSavingsOnlyForUnscopedWindfall() {
+        UserFinancialDataService dataProvider = mock(UserFinancialDataService.class);
+        when(dataProvider.getFinancialSnapshot(any(), anyInt(), anyInt())).thenReturn(
+                new UserFinancialDataService.FinancialSnapshot(
+                        BigDecimal.valueOf(20_000_000), BigDecimal.valueOf(10_000_000), 15));
+
+        ChatWithAIUseCase useCaseWithProfile = new ChatWithAIUseCase(
+                dataProvider, mock(LlmRouter.class), mock(BudgetAdvisorService.class),
+                mock(SpendingSimulationService.class), windfallAllocationService,
+                mock(ProjectUpdateSuggestionService.class), mock(ProjectHypothesisService.class),
+                mock(ChatbotPromptBuilder.class), mock(UserRepository.class),
+                mock(ChatHistoryCacheService.class), mock(JsonSchemaGuardrail.class),
+                mock(ChatPendingActionPort.class), mock(ComputeBudgetAllocationUseCase.class), FIXED_CLOCK);
+
+        when(budgetRepository.findByUserIdMonthYear(any(), any(), any()))
+                .thenReturn(List.of(budget(Category.FOOD, 3_000_000, 1_000_000)));
+        when(projectRepository.findAllByUser(any())).thenReturn(List.of(project("Mua nhà")));
+
+        User reduceSpendingUser = mock(User.class);
+        when(reduceSpendingUser.getFocusMode()).thenReturn(Focus_Mode.REDUCE_SPENDING);
+        when(reduceSpendingUser.isAutoInvestSurplus()).thenReturn(false);
+
+        // "tôi được thưởng 5 triệu" mentions neither "ngân sách" nor "dự án" — unscoped.
+        var builder = ChatResponse.builder().reply("ok").intent(ChatResponse.ChatIntent.GENERAL_ADVICE);
+        useCaseWithProfile.attachImplicitEventSuggestions(builder, reduceSpendingUser, UUID.randomUUID(),
+                7, 2026, "tôi vừa được thưởng 5 triệu, tôi nên làm gì?");
+
+        ChatResponse response = builder.build();
+        assertThat(response.getSavingsSuggestions()).isNotNull().isNotEmpty();
+        assertThat(response.getBudgetSuggestions()).isNull();
     }
 
     @Test
@@ -150,7 +242,7 @@ class ChatWithAIUseCaseTest {
         when(projectRepository.findAllByUser(any())).thenReturn(List.of(project("Sửa xe")));
 
         var builder = ChatResponse.builder().reply("ok").intent(ChatResponse.ChatIntent.GENERAL_ADVICE);
-        useCase.attachImplicitEventSuggestions(builder, UUID.randomUUID(), 7, 2026,
+        useCase.attachImplicitEventSuggestions(builder, null, UUID.randomUUID(), 7, 2026,
                 "tôi vừa phải thanh toán viện phí 4 triệu");
 
         ChatResponse response = builder.build();
@@ -168,7 +260,7 @@ class ChatWithAIUseCaseTest {
                 project("Mua xe", ProjectStatus.ACTIVE, BigDecimal.valueOf(2_000_000))));
 
         var builder = ChatResponse.builder().reply("ok").intent(ChatResponse.ChatIntent.GENERAL_ADVICE);
-        useCase.attachImplicitEventSuggestions(builder, UUID.randomUUID(), 7, 2026,
+        useCase.attachImplicitEventSuggestions(builder, null, UUID.randomUUID(), 7, 2026,
                 "tôi cần chi phí đột xuất 3 triệu để tổ chức tiệc sinh nhật");
 
         ChatResponse response = builder.build();
@@ -188,7 +280,7 @@ class ChatWithAIUseCaseTest {
     @DisplayName("does nothing when no qualifying amount is mentioned")
     void noAmountNoSuggestions() {
         var builder = ChatResponse.builder().reply("ok").intent(ChatResponse.ChatIntent.GENERAL_ADVICE);
-        useCase.attachImplicitEventSuggestions(builder, UUID.randomUUID(), 7, 2026,
+        useCase.attachImplicitEventSuggestions(builder, null, UUID.randomUUID(), 7, 2026,
                 "tôi nên tiết kiệm như thế nào?");
 
         ChatResponse response = builder.build();
@@ -201,7 +293,7 @@ class ChatWithAIUseCaseTest {
     @DisplayName("does nothing when the amount is below the large-event threshold")
     void smallAmountNoSuggestions() {
         var builder = ChatResponse.builder().reply("ok").intent(ChatResponse.ChatIntent.GENERAL_ADVICE);
-        useCase.attachImplicitEventSuggestions(builder, UUID.randomUUID(), 7, 2026,
+        useCase.attachImplicitEventSuggestions(builder, null, UUID.randomUUID(), 7, 2026,
                 "hôm nay tôi được thưởng 50 nghìn");
 
         ChatResponse response = builder.build();

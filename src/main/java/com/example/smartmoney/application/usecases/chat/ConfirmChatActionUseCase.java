@@ -4,6 +4,7 @@ import com.example.smartmoney.application.dtos.chat.PendingChatAction;
 import com.example.smartmoney.application.dtos.requests.budgets.CreateBulkBudgetsRequest;
 import com.example.smartmoney.application.dtos.requests.budgets.UpdateBudgetRequest;
 import com.example.smartmoney.application.dtos.requests.chat.ConfirmChatActionRequest;
+import com.example.smartmoney.application.dtos.requests.project.AddProjectContributionRequest;
 import com.example.smartmoney.application.dtos.requests.project.CreateProjectRequest;
 import com.example.smartmoney.application.dtos.requests.project.UpdateProjectRequest;
 import com.example.smartmoney.application.dtos.requests.project.UpdateProjectTrackingRequest;
@@ -13,6 +14,7 @@ import com.example.smartmoney.application.ports.chat.ChatPendingActionPort;
 import com.example.smartmoney.application.usecases.budget.ComputeBudgetAllocationUseCase;
 import com.example.smartmoney.application.usecases.budget.UpdateBudgetUseCase;
 import com.example.smartmoney.application.usecases.budget.UpsertBulkBudgetsUseCase;
+import com.example.smartmoney.application.usecases.project.AddProjectContributionUseCase;
 import com.example.smartmoney.application.usecases.project.CreateProjectUseCase;
 import com.example.smartmoney.application.usecases.project.DeleteProjectUseCase;
 import com.example.smartmoney.application.usecases.project.UpdateProjectTrackingUseCase;
@@ -47,6 +49,7 @@ public class ConfirmChatActionUseCase {
     private final UpdateProjectUseCase updateProjectUseCase;
     private final DeleteProjectUseCase deleteProjectUseCase;
     private final UpdateProjectTrackingUseCase updateProjectTrackingUseCase;
+    private final AddProjectContributionUseCase addProjectContributionUseCase;
     private final UpdateBudgetUseCase updateBudgetUseCase;
     private final UpsertBulkBudgetsUseCase upsertBulkBudgetsUseCase;
     private final ComputeBudgetAllocationUseCase computeBudgetAllocationUseCase;
@@ -184,6 +187,16 @@ public class ConfirmChatActionUseCase {
                 req.setMonthLeft(action.getTrackingMonthLeft());
                 req.setMoneyOwed(action.getTrackingMoneyOwed());
                 updateProjectTrackingUseCase.execute(actorId, action.getProjectId(), req);
+            }
+            case PROJECT_CONTRIBUTION_ADD -> {
+                // Real money moving into the project — goes through the same use case the app's
+                // own "Contribute" button calls, so it creates a ProjectContribution + ledger
+                // Transaction and actually moves the visible progress bar (see the Type enum doc).
+                AddProjectContributionRequest req = new AddProjectContributionRequest();
+                req.setAmount(action.getContributionAmount());
+                req.setNote(action.getContributionNote() != null ? action.getContributionNote()
+                        : (action.isEnglish() ? "Contribution via chat assistant" : "Góp từ trợ lý trò chuyện"));
+                addProjectContributionUseCase.execute(actorId, action.getProjectId(), req);
             }
         }
         return ActionOutcome.SINGLE_SUCCESS;
