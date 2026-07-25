@@ -4,6 +4,7 @@ import com.example.smartmoney.domain.exceptions.ProjectErrorCode;
 import com.example.smartmoney.domain.exceptions.ProjectException;
 import com.example.smartmoney.domain.models.group.Group;
 import com.example.smartmoney.domain.models.group.GroupProject;
+import com.example.smartmoney.domain.models.group.GroupProjectSponsorshipRequest;
 import com.example.smartmoney.domain.models.group.enums.GroupProjectStatus;
 import com.example.smartmoney.domain.models.group.valueobjects.GroupId;
 import com.example.smartmoney.domain.models.group.valueobjects.GroupProjectId;
@@ -11,6 +12,7 @@ import com.example.smartmoney.domain.models.project.Project;
 import com.example.smartmoney.domain.models.project.enums.ProjectStatus;
 import com.example.smartmoney.domain.models.project.valueobjects.UserId;
 import com.example.smartmoney.domain.repositories.GroupProjectRepository;
+import com.example.smartmoney.domain.repositories.GroupProjectSponsorshipRequestRepository;
 import com.example.smartmoney.domain.repositories.GroupRepository;
 import com.example.smartmoney.domain.repositories.ProjectRepository;
 import com.example.smartmoney.domain.services.SafeSpendingService;
@@ -31,6 +33,7 @@ public class DissolveGroupProjectUseCase {
     private final GroupProjectRepository groupProjectRepository;
     private final GroupRepository groupRepository;
     private final ProjectRepository projectRepository;
+    private final GroupProjectSponsorshipRequestRepository sponsorshipRequestRepository;
     private final SafeSpendingService safeSpendingService;
 
     @Transactional
@@ -78,6 +81,10 @@ public class DissolveGroupProjectUseCase {
             group.dissolve();
             groupRepository.save(group);
         } else {
+            // Delete all associated sponsorship requests first to prevent foreign key constraint violations
+            List<GroupProjectSponsorshipRequest> requests = sponsorshipRequestRepository.findAllByGroupProjectId(gp.getId().value());
+            sponsorshipRequestRepository.deleteAll(requests);
+
             groupProjectRepository.delete(gp.getId());
         }
     }
