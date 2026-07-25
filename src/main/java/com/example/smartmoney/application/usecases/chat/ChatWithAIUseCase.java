@@ -234,6 +234,27 @@ public class ChatWithAIUseCase {
 
         sb.append("=== Câu hỏi hiện tại ===\n").append(message);
 
+        // BUG: the "reply in the user's language" rule lives in ChatbotPromptBuilder's system
+        // prompt — a static instruction buried among dozens of other rules, competing with an
+        // entirely-Vietnamese system prompt AND entirely-Vietnamese financial-context labels
+        // above ("Dữ liệu tài chính", "Ngân sách tháng...", ...). For an English message the
+        // model has a wall of Vietnamese text surrounding one static rule to counter it, and
+        // English messages measurably slipped through as Vietnamese replies. Since
+        // MessageLanguageDetector already deterministically classifies the message elsewhere in
+        // this class (for tagging ChatResponse.english), reuse it here to inject an explicit,
+        // per-turn directive right before generation — closest to the output, hardest to miss.
+        boolean english = MessageLanguageDetector.isEnglish(message.toLowerCase());
+        sb.append(english
+                ? "\n\n=== REQUIRED LANGUAGE FOR THIS REPLY ===\nThe user's message above is in " +
+                  "ENGLISH. Your \"reply\" (or the entire answer, if this isn't a JSON turn) MUST " +
+                  "be written ENTIRELY in English — do not translate it to Vietnamese, do not mix " +
+                  "languages, even though the financial data and the rest of this prompt are in " +
+                  "Vietnamese."
+                : "\n\n=== NGÔN NGỮ BẮT BUỘC CHO LƯỢT NÀY ===\nTin nhắn của người dùng ở trên là " +
+                  "TIẾNG VIỆT. \"reply\" (hoặc toàn bộ câu trả lời, nếu lượt này không phải JSON) " +
+                  "PHẢI viết hoàn toàn bằng tiếng Việt — không chuyển sang tiếng Anh, không trộn " +
+                  "ngôn ngữ.");
+
         if (includeJsonFormat) {
             sb.append(ChatbotPromptBuilder.JSON_OUTPUT_FORMAT);
         }
@@ -260,7 +281,15 @@ public class ChatWithAIUseCase {
                 // outright — this path still targets the CURRENT month, so the days-left gate
                 // still applies to it.
                 if (BUDGET_INCREASE_PATTERN.matcher(messageLow).find()) {
-                    if (suppressCurrentMonth) {
+                    // The increase-swap path only ever computes/applies against the CURRENT
+                    // queried month — there's no "increase-swap for next month" mechanism (unlike
+                    // the cut path just below, which has a real next-month plan). If the user
+                    // explicitly insists this apply to a future month ("tháng sau tăng ngân sách
+                    // X lên..."), attaching a confirm button here would silently apply it to the
+                    // WRONG (current) month instead — never attach one in that case, even if the
+                    // user pushes for it; same reasoning as INCOME_WINDFALL/LARGE_EXPENSE's
+                    // future-dated gate (see FUTURE_INTENT_PATTERN).
+                    if (suppressCurrentMonth || looksFutureDated(messageLow)) {
                         yield ChatResponse.builder()
                                 .reply(reply).intent(intent).relatedQuestions(relatedQuestions).build();
                     }
@@ -365,8 +394,12 @@ public class ChatWithAIUseCase {
                         .build();
             }
             case LARGE_EXPENSE -> {
-                // Same hypothetical/future gate as INCOME_WINDFALL above — a "nếu tôi phải mua xe
-                // thì sao" expense hasn't actually happened, so no real suggestion is attached.
+                // LARGE_EXPENSE is now a pure feasibility ASSESSMENT, never a suggestion card: a
+                // one-off transaction judged against safe_spending (see ChatbotPromptBuilder) —
+                // no budget-category change, no abandoned-project idle-funds reuse, no
+                // active-project deferral. The LLM already has safe_spending and this month's
+                // recorded income in its financial context, so no Java computation is needed;
+                // this branch only still exists to apply the hypothetical/future-dated gates.
                 if (isHypothetical(messageLow)) {
                     yield ChatResponse.builder()
                             .reply(reply).intent(intent).relatedQuestions(relatedQuestions).build();
@@ -377,35 +410,26 @@ public class ChatWithAIUseCase {
                     yield ChatResponse.builder()
                             .reply(reply).intent(intent).relatedQuestions(relatedQuestions).build();
                 }
-                // AI detected large unplanned expense → suggest budget coverage + idle
-                // abandoned-project funds + (only if still short) active-project deferral.
-                // Same scoping rule as INCOME_WINDFALL above.
-                boolean showBudget = wantsBudgetSuggestion(messageLow);
-                boolean showProject = wantsProjectSuggestion(messageLow);
-                boolean scoped = showBudget || showProject;
-
-                var coverage = computeExpenseCoverage(userId, month, year, messageLow, scoped, showBudget, showProject);
-
-                String actionId = storePendingActionIfAny(userId, coverage.budgetCoverage(), coverage.savings(), messageLow);
                 yield ChatResponse.builder()
                         .reply(reply)
                         .intent(intent)
-                        .budgetSuggestions(coverage.budgetCoverage().isEmpty() ? null : coverage.budgetCoverage())
-                        .savingsSuggestions(coverage.savings().isEmpty() ? null : coverage.savings())
-                        .pendingActionId(actionId)
-                        .actionRequired(!coverage.budgetCoverage().isEmpty() || !coverage.savings().isEmpty())
                         .relatedQuestions(relatedQuestions)
                         .build();
             }
             case PROJECT_UPDATE -> {
                 // User directly asked to adjust a project's tracked income (contribution)
                 // or expense (money owed) — not triggered by a windfall/large-expense event.
-                var suggestions = suppressCurrentMonth
+                // Same future-dated gate as BUDGET_UPDATE's increase-swap/INCOME_WINDFALL above:
+                // suggest()/UpdateProjectTrackingUseCase only ever apply to the project's CURRENT
+                // state — an explicit "tháng sau tôi sẽ góp thêm..." has no real mechanism to
+                // schedule against, so no confirm button even if the user pushes for one.
+                boolean deferredToFuture = looksFutureDated(messageLow);
+                var suggestions = (suppressCurrentMonth || deferredToFuture)
                         ? Collections.<ChatResponse.SavingsPlanSuggestion>emptyList()
                         : projectUpdateSuggestionService.suggest(userId, messageLow);
                 String actionId = storePendingActionIfAny(userId, null, suggestions, messageLow);
                 String finalReply = reply;
-                if (suggestions.isEmpty() && !suppressCurrentMonth) {
+                if (suggestions.isEmpty() && !suppressCurrentMonth && !deferredToFuture) {
                     String note = namedInactiveProjectNote(userId, messageLow);
                     if (note != null) finalReply = appendToReply(reply, note);
                 }
@@ -419,7 +443,15 @@ public class ChatWithAIUseCase {
                         .build();
             }
             case PROJECT_HYPOTHESIS -> {
-                if (suppressCurrentMonth) {
+                // Same "no confirm for an explicitly deferred request" gate as BUDGET_UPDATE/
+                // PROJECT_UPDATE above: "tháng sau tôi định rút ngắn dự án X 3 tháng" means the
+                // user wants to decide/apply this NEXT month, not right now — attaching a real
+                // confirm button today would let a habitual "có" apply the change immediately,
+                // contradicting what they just said. Low false-positive risk: previewCreate/
+                // previewShortenOrExtend both require an explicit "N tháng" (a digit) to compute
+                // anything at all, so "tháng sau"/"tháng tới" describing a target date without a
+                // number already yields no suggestion regardless of this gate.
+                if (suppressCurrentMonth || looksFutureDated(messageLow)) {
                     yield ChatResponse.builder()
                             .reply(reply).intent(intent).relatedQuestions(relatedQuestions).build();
                 }
@@ -465,7 +497,7 @@ public class ChatWithAIUseCase {
                         .intent(intent)
                         .relatedQuestions(relatedQuestions);
                 boolean looksStructural = projectHypothesisService.looksLikeStructuralChangeRequest(messageLow);
-                boolean handled = looksStructural && !suppressCurrentMonth
+                boolean handled = looksStructural && !suppressCurrentMonth && !looksFutureDated(messageLow)
                         && attachImplicitProjectHypothesis(builder, userId, messageLow);
                 if (looksStructural && !handled) {
                     String note = namedInactiveProjectNote(userId, messageLow);
@@ -623,45 +655,14 @@ public class ChatWithAIUseCase {
         } else if (EXPENSE_EVENT_PATTERN.matcher(messageLow).find()) {
             if (isHypothetical(messageLow)) return true;
             if (looksFutureDated(messageLow)) return true;
-            var coverage = computeExpenseCoverage(userId, month, year, messageLow, scoped, showBudget, showProject);
-            String actionId = storePendingActionIfAny(userId, coverage.budgetCoverage(), coverage.savings(), messageLow);
-            builder.budgetSuggestions(coverage.budgetCoverage().isEmpty() ? null : coverage.budgetCoverage())
-                   .savingsSuggestions(coverage.savings().isEmpty() ? null : coverage.savings())
-                   .pendingActionId(actionId)
-                   .actionRequired(!coverage.budgetCoverage().isEmpty() || !coverage.savings().isEmpty());
+            // Pure feasibility assessment now — no suggestion card (see the LARGE_EXPENSE case's
+            // doc comment in buildStructuredResponse). "Handled" just means the LLM's own reply
+            // (already judged against safe_spending per ChatbotPromptBuilder) stands as-is, so no
+            // unrelated proactive nudge piles on top of this turn.
             return true;
         }
         return false;
     }
-
-    /**
-     * Computes LARGE_EXPENSE coverage in priority order: budget headroom (unchanged), then idle
-     * funds sitting in an ABANDONED project (real money already saved, no longer earmarked for
-     * anything), then — only for whatever shortfall remains — deferring an ACTIVE project's
-     * deadline. Shared by the explicit LARGE_EXPENSE intent and the implicit expense-event safety
-     * net so both stay in sync.
-     */
-    private ExpenseCoverage computeExpenseCoverage(UUID userId, int month, int year, String messageLow,
-                                                     boolean scoped, boolean showBudget, boolean showProject) {
-        var budgetCoverage = (!scoped || showBudget)
-                ? windfallAllocationService.suggestExpenseCoverage(userId, month, year, messageLow)
-                : Collections.<ChatResponse.BudgetUpdateSuggestion>emptyList();
-
-        List<ChatResponse.SavingsPlanSuggestion> savings = new ArrayList<>();
-        if (!scoped || showProject) {
-            var abandonedFunds = windfallAllocationService.suggestAbandonedProjectFunds(userId, messageLow);
-            savings.addAll(abandonedFunds);
-            BigDecimal abandonedTotal = abandonedFunds.stream()
-                    .map(s -> BigDecimal.valueOf(Math.abs(s.getSuggestedAddAmount())))
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
-            savings.addAll(windfallAllocationService.suggestProjectDeferral(
-                    userId, month, year, messageLow, abandonedTotal));
-        }
-        return new ExpenseCoverage(budgetCoverage, savings);
-    }
-
-    private record ExpenseCoverage(List<ChatResponse.BudgetUpdateSuggestion> budgetCoverage,
-                                    List<ChatResponse.SavingsPlanSuggestion> savings) {}
 
     /**
      * GENERAL_ADVICE safety net mirroring {@link #attachImplicitEventSuggestions} but for

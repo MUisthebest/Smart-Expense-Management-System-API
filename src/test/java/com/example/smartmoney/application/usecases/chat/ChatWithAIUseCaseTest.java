@@ -235,25 +235,49 @@ class ChatWithAIUseCaseTest {
     }
 
     @Test
-    @DisplayName("attaches budget coverage + deferral suggestions for a large expense event")
-    void expenseEventAttachesSuggestions() {
+    @DisplayName("a large expense event is handled as a pure feasibility assessment — no suggestion "
+            + "card of any kind (budget, project deferral, or abandoned-project idle funds); the LLM's "
+            + "own reply (judged against safe_spending per ChatbotPromptBuilder) stands as-is")
+    void expenseEventAttachesNoSuggestionAtAll() {
         when(budgetRepository.findByUserIdMonthYear(any(), any(), any()))
                 .thenReturn(List.of(budget(Category.FOOD, 2_000_000, 1_900_000)));
         when(projectRepository.findAllByUser(any())).thenReturn(List.of(project("Sửa xe")));
 
         var builder = ChatResponse.builder().reply("ok").intent(ChatResponse.ChatIntent.GENERAL_ADVICE);
-        useCase.attachImplicitEventSuggestions(builder, null, UUID.randomUUID(), 7, 2026,
+        boolean handled = useCase.attachImplicitEventSuggestions(builder, null, UUID.randomUUID(), 7, 2026,
                 "tôi vừa phải thanh toán viện phí 4 triệu");
 
         ChatResponse response = builder.build();
-        assertThat(response.isActionRequired()).isTrue();
-        assertThat(response.getBudgetSuggestions() != null || response.getSavingsSuggestions() != null)
-                .isTrue();
+        assertThat(handled).isTrue();
+        assertThat(response.isActionRequired()).isFalse();
+        assertThat(response.getBudgetSuggestions()).isNull();
+        assertThat(response.getSavingsSuggestions()).isNull();
+        assertThat(response.getPendingActionId()).isNull();
     }
 
     @Test
-    @DisplayName("expense event suggests idle funds from an ABANDONED project instead of deferring an ACTIVE one")
-    void expenseEventPrefersAbandonedProjectFundsOverActiveDeferral() {
+    @DisplayName("a large expense NEVER attaches a budget-category suggestion — it's a standalone "
+            + "transaction not tied to any category unless the user names one, and even then the "
+            + "chatbot only warns about exceeding the category's limit, it never proposes raising it")
+    void expenseEventNeverAttachesBudgetCategorySuggestion() {
+        // Plenty of budget headroom available (FOOD has 1.8M left) — if suggestExpenseCoverage
+        // still ran, it would happily propose covering the expense from this headroom.
+        when(budgetRepository.findByUserIdMonthYear(any(), any(), any()))
+                .thenReturn(List.of(budget(Category.FOOD, 2_000_000, 200_000)));
+        when(projectRepository.findAllByUser(any())).thenReturn(List.of());
+
+        var builder = ChatResponse.builder().reply("ok").intent(ChatResponse.ChatIntent.GENERAL_ADVICE);
+        useCase.attachImplicitEventSuggestions(builder, null, UUID.randomUUID(), 7, 2026,
+                "tôi vừa phải thanh toán viện phí 4 triệu");
+
+        assertThat(builder.build().getBudgetSuggestions()).isNull();
+    }
+
+    @Test
+    @DisplayName("expense event no longer reuses idle funds from an ABANDONED project or defers an "
+            + "ACTIVE one — that whole coverage-strategy mechanism was removed for LARGE_EXPENSE, "
+            + "which is now a pure safe_spending assessment with no suggestion card at all")
+    void expenseEventNoLongerReusesAbandonedFundsOrDefersActiveProject() {
         when(budgetRepository.findByUserIdMonthYear(any(), any(), any())).thenReturn(List.of());
         when(projectRepository.findAllByUser(any())).thenReturn(List.of(
                 project("Du lịch", ProjectStatus.ABANDONED, BigDecimal.valueOf(3_000_000)),
@@ -263,17 +287,7 @@ class ChatWithAIUseCaseTest {
         useCase.attachImplicitEventSuggestions(builder, null, UUID.randomUUID(), 7, 2026,
                 "tôi cần chi phí đột xuất 3 triệu để tổ chức tiệc sinh nhật");
 
-        ChatResponse response = builder.build();
-        assertThat(response.getSavingsSuggestions()).isNotNull();
-        assertThat(response.getSavingsSuggestions())
-                .anySatisfy(s -> {
-                    assertThat(s.getProjectName()).isEqualTo("Du lịch");
-                    assertThat(s.getSuggestedAddAmount()).isEqualTo(-3_000_000L);
-                });
-        // The idle abandoned-project funds fully cover the 3-triệu expense — the ACTIVE
-        // "Mua xe" project must NOT also be deferred.
-        assertThat(response.getSavingsSuggestions())
-                .noneMatch(s -> "Mua xe".equals(s.getProjectName()));
+        assertThat(builder.build().getSavingsSuggestions()).isNull();
     }
 
     @Test
@@ -582,6 +596,149 @@ class ChatWithAIUseCaseTest {
 
         assertThat(response.getSavingsSuggestions()).isNotNull().hasSize(1);
         assertThat(response.getPendingActionId()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("execute(): PROJECT_UPDATE explicitly deferred to a future month gets NO pendingActionId "
+            + "— suggest()/UpdateProjectTrackingUseCase only ever apply to the project's CURRENT state, "
+            + "there's no way to schedule a contribution for an unspecified future month, so no confirm "
+            + "button even though the user gave a real amount and a named project")
+    void projectUpdateDeferredToFutureMonthGetsNoPendingAction() {
+        ProjectRepository projectRepo = mock(ProjectRepository.class);
+        Project p = project("Mua nhà");
+        when(projectRepo.findAllByUser(any())).thenReturn(List.of(p));
+        var realProjectUpdateService = new com.example.smartmoney.application.services.ProjectUpdateSuggestionService(
+                projectRepo, mock(com.example.smartmoney.domain.repositories.TransactionRepository.class));
+
+        UserFinancialDataService dataProvider = mock(UserFinancialDataService.class);
+        when(dataProvider.buildChatContext(any(), anyInt(), anyInt())).thenReturn("");
+
+        LlmRouter router = mock(LlmRouter.class);
+        AIChatPort adapter = mock(AIChatPort.class);
+        when(router.forMessage(any())).thenReturn(adapter);
+
+        ChatHistoryCacheService historyService = mock(ChatHistoryCacheService.class);
+        when(historyService.load(any())).thenReturn(List.of());
+
+        JsonSchemaGuardrail guardrail = mock(JsonSchemaGuardrail.class);
+        when(guardrail.validate(any(), any())).thenReturn(new JsonSchemaGuardrail.ParsedLlmResponse(
+                ChatResponse.ChatIntent.PROJECT_UPDATE, "Đã ghi nhận dự định của bạn.", List.of()));
+
+        UserRepository userRepoMain = mock(UserRepository.class);
+        when(userRepoMain.findById(any())).thenReturn(java.util.Optional.empty());
+
+        ChatWithAIUseCase uc = new ChatWithAIUseCase(
+                dataProvider, router, mock(BudgetAdvisorService.class), mock(SpendingSimulationService.class),
+                windfallAllocationService, realProjectUpdateService, mock(ProjectHypothesisService.class),
+                mock(ChatbotPromptBuilder.class), userRepoMain, historyService, guardrail,
+                mock(ChatPendingActionPort.class), mock(ComputeBudgetAllocationUseCase.class), FIXED_CLOCK);
+
+        ChatResponse response;
+        try (MockedStatic<LocalDate> mockedDate = mockPlentyOfDaysLeft()) {
+            response = uc.execute(
+                    ChatRequest.builder().message("tháng sau tôi định góp thêm 2 triệu vào dự án mua nhà").build(),
+                    UUID.randomUUID());
+        }
+
+        assertThat(response.getSavingsSuggestions()).isNull();
+        assertThat(response.getPendingActionId()).isNull();
+        assertThat(response.isActionRequired()).isFalse();
+    }
+
+    @Test
+    @DisplayName("execute(): a BUDGET_UPDATE increase explicitly deferred to a future month gets NO "
+            + "pendingActionId — suggestIncreaseSwap only ever computes against the CURRENT queried "
+            + "month, so attaching a confirm button here would silently apply to the wrong month")
+    void budgetIncreaseDeferredToFutureMonthGetsNoPendingAction() {
+        BudgetRepository budgetRepo = mock(BudgetRepository.class);
+        Budget food = Budget.builder().id(UUID.randomUUID()).category(Category.FOOD)
+                .amountLimit(BigDecimal.valueOf(1_000_000)).spent(BigDecimal.valueOf(200_000)).build();
+        Budget entertainment = Budget.builder().id(UUID.randomUUID()).category(Category.ENTERTAINMENT)
+                .amountLimit(BigDecimal.valueOf(1_000_000)).spent(BigDecimal.valueOf(100_000)).build();
+        when(budgetRepo.findByUserIdMonthYear(any(), anyInt(), anyInt())).thenReturn(List.of(food, entertainment));
+        var realBudgetAdvisor = new BudgetAdvisorService(budgetRepo);
+
+        UserFinancialDataService dataProvider = mock(UserFinancialDataService.class);
+        when(dataProvider.buildChatContext(any(), anyInt(), anyInt())).thenReturn("");
+
+        LlmRouter router = mock(LlmRouter.class);
+        AIChatPort adapter = mock(AIChatPort.class);
+        when(router.forMessage(any())).thenReturn(adapter);
+
+        ChatHistoryCacheService historyService = mock(ChatHistoryCacheService.class);
+        when(historyService.load(any())).thenReturn(List.of());
+
+        JsonSchemaGuardrail guardrail = mock(JsonSchemaGuardrail.class);
+        when(guardrail.validate(any(), any())).thenReturn(new JsonSchemaGuardrail.ParsedLlmResponse(
+                ChatResponse.ChatIntent.BUDGET_UPDATE, "Đã ghi nhận dự định của bạn.", List.of()));
+
+        UserRepository userRepoMain = mock(UserRepository.class);
+        when(userRepoMain.findById(any())).thenReturn(java.util.Optional.empty());
+
+        ChatWithAIUseCase uc = new ChatWithAIUseCase(
+                dataProvider, router, realBudgetAdvisor, mock(SpendingSimulationService.class),
+                windfallAllocationService, mock(ProjectUpdateSuggestionService.class),
+                mock(ProjectHypothesisService.class), mock(ChatbotPromptBuilder.class), userRepoMain,
+                historyService, guardrail, mock(ChatPendingActionPort.class),
+                mock(ComputeBudgetAllocationUseCase.class), FIXED_CLOCK);
+
+        ChatResponse response;
+        try (MockedStatic<LocalDate> mockedDate = mockPlentyOfDaysLeft()) {
+            response = uc.execute(
+                    ChatRequest.builder().message("tháng sau tôi muốn tăng ngân sách ăn uống lên 2 triệu").build(),
+                    UUID.randomUUID());
+        }
+
+        assertThat(response.getBudgetSuggestions()).isNull();
+        assertThat(response.getPendingActionId()).isNull();
+        assertThat(response.isActionRequired()).isFalse();
+    }
+
+    @Test
+    @DisplayName("execute(): PROJECT_HYPOTHESIS (shorten deadline) explicitly deferred to a future "
+            + "month gets NO pendingActionId — the user said they want to decide/apply this NEXT "
+            + "month, so a habitual \"có\" right now must not shorten the deadline immediately")
+    void projectHypothesisDeferredToFutureMonthGetsNoPendingAction() {
+        ProjectRepository projectRepo = mock(ProjectRepository.class);
+        Project p = project("Mua nhà");
+        when(projectRepo.findAllByUser(any())).thenReturn(List.of(p));
+        var realProjectHypothesisService = new ProjectHypothesisService(projectRepo, mock(UserRepository.class));
+
+        UserFinancialDataService dataProvider = mock(UserFinancialDataService.class);
+        when(dataProvider.buildChatContext(any(), anyInt(), anyInt())).thenReturn("");
+
+        LlmRouter router = mock(LlmRouter.class);
+        AIChatPort adapter = mock(AIChatPort.class);
+        when(router.forMessage(any())).thenReturn(adapter);
+
+        ChatHistoryCacheService historyService = mock(ChatHistoryCacheService.class);
+        when(historyService.load(any())).thenReturn(List.of());
+
+        JsonSchemaGuardrail guardrail = mock(JsonSchemaGuardrail.class);
+        when(guardrail.validate(any(), any())).thenReturn(new JsonSchemaGuardrail.ParsedLlmResponse(
+                ChatResponse.ChatIntent.PROJECT_HYPOTHESIS, "Đã ghi nhận dự định của bạn.", List.of()));
+
+        UserRepository userRepoMain = mock(UserRepository.class);
+        when(userRepoMain.findById(any())).thenReturn(java.util.Optional.empty());
+
+        ChatWithAIUseCase uc = new ChatWithAIUseCase(
+                dataProvider, router, mock(BudgetAdvisorService.class), mock(SpendingSimulationService.class),
+                windfallAllocationService, mock(ProjectUpdateSuggestionService.class),
+                realProjectHypothesisService, mock(ChatbotPromptBuilder.class), userRepoMain,
+                historyService, guardrail, mock(ChatPendingActionPort.class),
+                mock(ComputeBudgetAllocationUseCase.class), FIXED_CLOCK);
+
+        ChatResponse response;
+        try (MockedStatic<LocalDate> mockedDate = mockPlentyOfDaysLeft()) {
+            response = uc.execute(
+                    ChatRequest.builder()
+                            .message("tháng sau tôi định rút ngắn dự án mua nhà 3 tháng").build(),
+                    UUID.randomUUID());
+        }
+
+        assertThat(response.getProjectChangeSuggestions()).isNull();
+        assertThat(response.getPendingActionId()).isNull();
+        assertThat(response.isActionRequired()).isFalse();
     }
 
     // ── Abandoned/inactive project → clear reply instead of silent no-op ────────
