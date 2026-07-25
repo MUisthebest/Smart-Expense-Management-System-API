@@ -179,7 +179,7 @@ public class GetTransactionAnalyticsUseCase {
             long count = row[1] != null ? ((Number) row[1]).longValue() : 0L;
             double amount = row[2] != null ? ((Number) row[2]).doubleValue() : 0.0;
             double percent = totalExpenseAmount == 0 ? 0 : amount * 100 / totalExpenseAmount;
-            return new TransactionAnalyticsResponse.CategoryProportion(category, count, percent);
+            return new TransactionAnalyticsResponse.CategoryProportion(category, count, percent, amount);
         }).collect(Collectors.toList());
     }
 }
