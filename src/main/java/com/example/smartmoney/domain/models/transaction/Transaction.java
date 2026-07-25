@@ -78,11 +78,12 @@ public class Transaction {
         return transaction;
     }
     
-    // Business methods
-    
-    public void update(Amount amount, Category category, String description, LocalDateTime date) {
+    public void update(Amount amount, TransactionType type, Category category, String description, LocalDateTime date) {
         if (amount != null) {
             this.amount = amount;
+        }
+        if (type != null) {
+            this.type = type;
         }
         if (category != null) {
             this.category = category;
@@ -94,5 +95,9 @@ public class Transaction {
             this.date = date;
         }
         this.updatedAt = LocalDateTime.now();
+    }
+
+    public void update(Amount amount, Category category, String description, LocalDateTime date) {
+        update(amount, null, category, description, date);
     }
 }

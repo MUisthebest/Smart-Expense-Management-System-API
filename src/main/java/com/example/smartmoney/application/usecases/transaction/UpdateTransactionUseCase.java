@@ -4,6 +4,8 @@ import com.example.smartmoney.application.dtos.requests.transactions.UpdateTrans
 import com.example.smartmoney.application.dtos.responses.TransactionResponse;
 import com.example.smartmoney.domain.exceptions.DomainException;
 import com.example.smartmoney.domain.models.transaction.Transaction;
+import com.example.smartmoney.domain.models.transaction.enums.Category;
+import com.example.smartmoney.domain.models.transaction.enums.TransactionType;
 import com.example.smartmoney.domain.models.transaction.valueobjects.Amount;
 import com.example.smartmoney.domain.repositories.TransactionRepository;
 import lombok.RequiredArgsConstructor;
@@ -52,11 +54,36 @@ public class UpdateTransactionUseCase {
             amount = new Amount(request.getAmount());
         }
         
+        TransactionType type = request.getType();
+        Category category = request.getCategory();
+
+        // If transaction type is INCOME (or changing to INCOME) and category was not supplied in request,
+        // fallback category to Category.OTHER if current category is an expense-only category
+        TransactionType effectiveType = type != null ? type : transaction.getType();
+        if (effectiveType == TransactionType.INCOME && category == null) {
+            if (transaction.getCategory() == null || isExpenseCategory(transaction.getCategory())) {
+                category = Category.OTHER;
+            }
+        }
+
         // Update transaction
-        transaction.update(amount, request.getCategory(), request.getDescription(), transactionDate);
+        transaction.update(amount, type, category, request.getDescription(), transactionDate);
         
         // Save and return
         Transaction updatedTransaction = transactionRepository.save(transaction);
         return TransactionResponse.fromDomain(updatedTransaction);
     }
+
+    private boolean isExpenseCategory(Category category) {
+        return category == Category.FOOD
+                || category == Category.TRANSPORTATION
+                || category == Category.CLOTHING
+                || category == Category.UTILITIES
+                || category == Category.ENTERTAINMENT
+                || category == Category.HEALTH
+                || category == Category.EDUCATION
+                || category == Category.SHOPPING
+                || category == Category.PROJECT_CONTRIBUTION;
+    }
 }
+

@@ -42,9 +42,11 @@ public class TransactionAnalyticsResponse {
 
     @Data
     @AllArgsConstructor
+    @Builder
     public static class CategoryProportion {
         private String category;       // Food , Drink ,...
         private long count;
         private double percentage;
+        private double amount;
     }
 }
