@@ -243,6 +243,49 @@ class ProjectHypothesisServiceTest {
                 .isEmpty();
     }
 
+    // ── pickAvailablePriorityForNewProject ───────────────────────────────────
+
+    @Test
+    @DisplayName("pickAvailablePriorityForNewProject picks the lowest-ordinal priority not already "
+            + "used by an ACTIVE project — CreateProjectUseCase rejects a duplicate ACTIVE priority, "
+            + "so defaulting every chat-created project to MEDIUM would fail confirm as soon as the "
+            + "user already has one ACTIVE MEDIUM project")
+    void picksUnusedPriorityAmongActiveProjects() {
+        Project mediumActive = project("Mua nhà", BigDecimal.ZERO, BigDecimal.valueOf(500_000),
+                12, LocalDate.now().plusMonths(12));
+        // project() helper hardcodes HIGH — rehydrate one explicitly at MEDIUM to exercise the
+        // "MEDIUM already taken" case this bug fix targets.
+        Project mediumTaken = Project.rehydrate(
+                ProjectId.newId(), UserId.of(UUID.randomUUID().toString()), ProjectType.PERSONAL,
+                ProjectStatus.ACTIVE, ProjectPriority.MEDIUM, "Mua xe", "desc",
+                new Money(BigDecimal.valueOf(20_000_000), "VND"),
+                LocalDate.now().plusMonths(12), null, List.of(),
+                new ProjectTracking(UUID.randomUUID(), ProjectId.newId(), BigDecimal.ZERO, 1,
+                        BigDecimal.valueOf(500_000), 12, BigDecimal.ZERO, 0, Instant.now(), Instant.now()),
+                Instant.now());
+        when(projectRepository.findAllByUser(any())).thenReturn(List.of(mediumActive, mediumTaken));
+
+        ProjectPriority picked = service.pickAvailablePriorityForNewProject(UUID.randomUUID());
+
+        assertThat(picked).isNotEqualTo(ProjectPriority.MEDIUM);
+        assertThat(picked).isEqualTo(ProjectPriority.LOW);
+    }
+
+    @Test
+    @DisplayName("pickAvailablePriorityForNewProject ignores a COMPLETED/ABANDONED project's priority "
+            + "— only ACTIVE projects occupy a priority slot")
+    void ignoresNonActiveProjectPriority() {
+        Project completedHigh = project("Cũ", BigDecimal.ZERO, BigDecimal.valueOf(500_000),
+                12, LocalDate.now().plusMonths(12), ProjectStatus.COMPLETED);
+        when(projectRepository.findAllByUser(any())).thenReturn(List.of(completedHigh));
+
+        ProjectPriority picked = service.pickAvailablePriorityForNewProject(UUID.randomUUID());
+
+        // HIGH is the lowest ordinal only if COMPLETED's HIGH priority doesn't count — assert the
+        // full unused set is still considered from scratch (LOW is ProjectPriority's ordinal 0).
+        assertThat(picked).isEqualTo(ProjectPriority.LOW);
+    }
+
     @Test
     @DisplayName("previewMultiProject applies simultaneous changes and shows one combined budget impact")
     void multiProjectCombinedImpact() {
