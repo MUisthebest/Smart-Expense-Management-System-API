@@ -23,6 +23,7 @@ public enum ProjectErrorCode {
     PROJECT_DUPLICATE_MEMBER,
 
     PROJECT_CONTRIBUTION_INVALID_AMOUNT,
+    PROJECT_CONTRIBUTION_EXCEEDS_REMAINING,
     FORBIDDEN, PROJECT_CONTRIBUTION_INVALID_DATE,
 
     // === V13: Hybrid Splitwise group projects + arrears ===
