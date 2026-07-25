@@ -77,11 +77,22 @@ public class ProjectRepositoryImpl implements ProjectRepository {
         List<ProjectEntity> projects = jpaProjectRepository.searchByIdsAndFilter(
                 allIds, search, filter.type(), filter.status(), filter.priority());
 
+        if (projects.isEmpty()) return List.of();
+
+        // Contributions are the source of truth for progress, so the list view must hydrate them
+        // too — otherwise totalContributed/progressPercent read 0. Batch-load by id to avoid N+1.
+        List<UUID> projectIds = projects.stream().map(ProjectEntity::getId).toList();
+        Map<UUID, List<ProjectContributionEntity>> contributionsByProject =
+                jpaProjectContributionRepository.findByProjectIdIn(projectIds).stream()
+                        .collect(Collectors.groupingBy(ProjectContributionEntity::getProjectId));
+
         List<Project> result = new ArrayList<>();
         for (ProjectEntity p : projects) {
             ProjectTrackingEntity tracking =
                     jpaProjectTrackingRepository.findByProjectId(p.getId()).orElse(null);
-            result.add(projectPersistenceMapper.toDomain(p, null, tracking));
+            List<ProjectContributionEntity> contributions =
+                    contributionsByProject.getOrDefault(p.getId(), List.of());
+            result.add(projectPersistenceMapper.toDomain(p, contributions, tracking));
         }
         return result;
     }
