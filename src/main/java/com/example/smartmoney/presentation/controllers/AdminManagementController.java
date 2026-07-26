@@ -11,6 +11,7 @@ import com.example.smartmoney.domain.models.project.valueobjects.UserId;
 import com.example.smartmoney.infrastructure.persistence.entities.GroupEntity;
 import com.example.smartmoney.infrastructure.persistence.entities.NotificationEntity;
 import com.example.smartmoney.infrastructure.persistence.entities.ProjectEntity;
+import com.example.smartmoney.infrastructure.persistence.entities.TransactionEntity;
 import com.example.smartmoney.infrastructure.persistence.entities.UserEntity;
 import com.example.smartmoney.infrastructure.persistence.mappers.GroupPersistenceMapper;
 import com.example.smartmoney.infrastructure.persistence.mappers.ProjectPersistenceMapper;
@@ -97,13 +98,29 @@ public class AdminManagementController {
         long totalGroups = jpaGroupRepository.count();
         long totalTransactions = jpaTransactionRepository.count();
 
+        List<TransactionEntity> allTransactions = jpaTransactionRepository.findAll();
+        LocalDateTime startOfMonth = LocalDateTime.now().withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0);
+
+        BigDecimal monthlyVolume = allTransactions.stream()
+                .filter(t -> t.getDate() != null && !t.getDate().isBefore(startOfMonth))
+                .map(TransactionEntity::getAmount)
+                .filter(Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal totalVolume = allTransactions.stream()
+                .map(TransactionEntity::getAmount)
+                .filter(Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal finalVolume = monthlyVolume.compareTo(BigDecimal.ZERO) > 0 ? monthlyVolume : totalVolume;
+
         Map<String, Object> stats = new HashMap<>();
         stats.put("totalUsers", totalUsers);
         stats.put("activeUsersCount", activeUsers);
         stats.put("totalProjects", totalProjects);
         stats.put("totalGroupProjects", totalGroups);
         stats.put("totalTransactionsCount", totalTransactions);
-        stats.put("totalTransactionVolume", 385000000); // Processed volume metric
+        stats.put("totalTransactionVolume", finalVolume);
         stats.put("settlementStatus", "COMPLETED");
         stats.put("dbHealth", "HEALTHY");
         stats.put("aiEngineHealth", "OPERATIONAL");
@@ -141,44 +158,6 @@ public class AdminManagementController {
                 .success(true)
                 .message("Broadcast sent successfully to " + activeUsers.size() + " users")
                 .data("Broadcast completed")
-                .build();
-    }
-
-    @Operation(summary = "Get all system projects", description = "Returns all registered projects across all users.")
-    @GetMapping("/projects")
-    public CheckResponse<List<ProjectListItemResponse>> getAllProjects() {
-        log.info("Admin fetching all system projects");
-        List<ProjectEntity> entities = jpaProjectRepository.findAll();
-        List<ProjectListItemResponse> responses = entities.stream()
-                .map(e -> {
-                    Project domain = projectPersistenceMapper.toDomain(e, List.of(), null);
-                    return ProjectListItemResponse.fromDomain(domain);
-                })
-                .collect(Collectors.toList());
-
-        return CheckResponse.<List<ProjectListItemResponse>>builder()
-                .success(true)
-                .message("System projects retrieved successfully")
-                .data(responses)
-                .build();
-    }
-
-    @Operation(summary = "Get all system groups", description = "Returns all registered group projects.")
-    @GetMapping("/groups")
-    public CheckResponse<List<GroupSummaryResponse>> getAllGroups() {
-        log.info("Admin fetching all system groups");
-        List<GroupEntity> entities = jpaGroupRepository.findAll();
-        List<GroupSummaryResponse> responses = entities.stream()
-                .map(e -> {
-                    Group domain = groupPersistenceMapper.toDomain(e, List.of());
-                    return GroupSummaryResponse.fromDomain(domain, new UserId(e.getAdminId()));
-                })
-                .collect(Collectors.toList());
-
-        return CheckResponse.<List<GroupSummaryResponse>>builder()
-                .success(true)
-                .message("System groups retrieved successfully")
-                .data(responses)
                 .build();
     }
 }
