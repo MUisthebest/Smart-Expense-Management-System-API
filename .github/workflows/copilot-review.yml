@@ -1,0 +1,44 @@
+name: Copilot Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  copilot-review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Request Copilot Code Review
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { owner, repo } = context.repo;
+            const pull_number = context.payload.pull_request.number;
+
+            // Check if Copilot review comment already exists for the latest commit
+            const headSha = context.payload.pull_request.head.sha;
+            const comments = await github.rest.issues.listComments({
+              owner,
+              repo,
+              issue_number: pull_number,
+            });
+
+            const alreadyRequested = comments.data.some(
+              (c) =>
+                c.body.includes('@github-copilot review') &&
+                c.body.includes(headSha)
+            );
+
+            if (!alreadyRequested) {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: pull_number,
+                body: `@github-copilot review\n\n<!-- triggered-for-commit: ${headSha} -->`,
+              });
+            }
