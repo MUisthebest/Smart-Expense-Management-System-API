@@ -21,7 +21,6 @@ import com.example.smartmoney.domain.repositories.GroupRepository;
 import com.example.smartmoney.domain.services.SponsorshipAllocationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -45,18 +44,8 @@ public class CreateGroupProjectUseCase {
     private final PushNotificationSenderPort pushSender;
     private final CreateNotificationUseCase createNotificationUseCase;
 
-    @Value("${app.bypass-date-gate:false}")
-    private boolean bypassDateGate;
-
     @Transactional
     public GroupProjectDetailResponse execute(String actorId, CreateGroupProjectRequest req) {
-        int dayOfMonth = LocalDate.now().getDayOfMonth();
-        if (!bypassDateGate && dayOfMonth > 7) {
-            throw new ProjectException(
-                    "Group projects can only be created during days 1-7 of the month",
-                    ProjectErrorCode.PROJECT_CREATION_OUTSIDE_WINDOW);
-        }
-
         Group group = groupRepository.findById(GroupId.of(req.getGroupId()))
                 .orElseThrow(() -> new ProjectException("Group not found", ProjectErrorCode.PROJECT_NOT_FOUND));
 
