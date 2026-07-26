@@ -71,25 +71,24 @@ public class ProjectBudgetAdvisorUseCase {
             );
         }
 
-        int months;
+        BigDecimal pace;
         BigDecimal monthlySaving;
 
         if (req.getMode() == ProjectBudgetAdvisorRequest.Mode.URGENT) {
-            months = req.getTargetAmount()
-                    .divide(maxAllowedNewMonthlySaving, 0, RoundingMode.CEILING)
-                    .intValue();
-            months = Math.max(1, months);
+            pace = maxAllowedNewMonthlySaving;
         } else {
-            BigDecimal relaxedMonthlySaving = maxAllowedNewMonthlySaving
-                    .divide(new BigDecimal("2"), 2, RoundingMode.FLOOR);
-            if (relaxedMonthlySaving.compareTo(BigDecimal.ZERO) <= 0) {
-                relaxedMonthlySaving = maxAllowedNewMonthlySaving;
+            pace = maxAllowedNewMonthlySaving.divide(new BigDecimal("2"), 2, RoundingMode.FLOOR);
+            if (pace.compareTo(BigDecimal.ZERO) <= 0) {
+                pace = maxAllowedNewMonthlySaving;
             }
-            months = req.getTargetAmount()
-                    .divide(relaxedMonthlySaving, 0, RoundingMode.CEILING)
-                    .intValue();
-            months = Math.min(Math.max(1, months), MAX_MONTHS);
         }
+
+        // MAX_MONTHS must clamp both modes: capping only the relaxed plan let a squeezed
+        // budget push the urgent plan past 60 months and out past the relaxed one.
+        int months = req.getTargetAmount()
+                .divide(pace, 0, RoundingMode.CEILING)
+                .intValue();
+        months = Math.min(Math.max(1, months), MAX_MONTHS);
 
         monthlySaving = req.getTargetAmount()
                 .divide(BigDecimal.valueOf(months), 2, RoundingMode.CEILING);
