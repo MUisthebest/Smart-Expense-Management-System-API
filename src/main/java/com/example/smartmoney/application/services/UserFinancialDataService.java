@@ -126,18 +126,18 @@ public class UserFinancialDataService {
         if (!projects.isEmpty()) {
             sb.append("- Các dự án đang hoạt động:\n");
             projects.stream().limit(5).forEach(p -> {
-                Money target = p.getTargetAmount();
-                Money contributed = p.totalContributed();
-                Money remaining = p.remaining();
+                        Money target = p.getTargetAmount();
+                        Money contributed = p.totalContributed();
+                        Money remaining = p.remaining();
 
-                BigDecimal progress = p.progressPercent();
+                        BigDecimal progress = p.progressPercent();
 
-                long monthsLeft = ChronoUnit.MONTHS.between(
-                        LocalDate.now(),
-                        p.getDeadline()
-                );
+                        long monthsLeft = ChronoUnit.MONTHS.between(
+                                LocalDate.now(),
+                                p.getDeadline()
+                        );
 
-                sb.append("""
+                        sb.append("""
                     * %s
                     - Mục tiêu: %s
                     - Đã tiết kiệm: %s
@@ -146,16 +146,16 @@ public class UserFinancialDataService {
                     - Còn %d tháng
                     - Ưu tiên: %s
                     """
-                .formatted(
-                        p.getName(),
-                        target,
-                        contributed,
-                        remaining,
-                        progress,
-                        monthsLeft,
-                        p.getPriority()
-                ));
-            }
+                                .formatted(
+                                        p.getName(),
+                                        target,
+                                        contributed,
+                                        remaining,
+                                        progress,
+                                        monthsLeft,
+                                        p.getPriority()
+                                ));
+                    }
             );
         } else if (dataTypes.contains(DataType.PROJECTS)) {
             sb.append("- Không có dự án nào.\n");
@@ -168,6 +168,47 @@ public class UserFinancialDataService {
      *  {@link #buildChatContext}'s prompt text, exposed so callers can run proactive checks
      *  (near-limit, feasibility, month-end leftover, surplus trend) without re-deriving them. */
     public record FinancialSnapshot(BigDecimal monthlyIncome, BigDecimal safeSpending, int daysLeft) {}
+
+    /** Actual-cash-flow classification for a month. Matches the SURPLUS/BALANCED/DEFICIT the
+     *  chatbot prompt sees in the financial-context block, so callers that need to gate their
+     *  own behaviour on "this month is in deficit" (proactive-suggestion suppression, aggressive-
+     *  tone downshift, ...) share ONE definition with what the LLM was told. UNKNOWN when
+     *  there's no recorded income transaction this month — treat as "don't overclaim either way". */
+    public enum CashFlowStatus { SURPLUS, BALANCED, DEFICIT, UNKNOWN }
+
+    /**
+     * Classifies this month's actual cash-flow from recorded transactions only (independent of
+     * user.income). The 10% band mirrors buildChatContext's inline formula so both stay in
+     * lockstep — if either threshold changes, this method changes and buildChatContext follows.
+     */
+    public CashFlowStatus classifyCashFlow(UUID userId, int month, int year) {
+        LocalDate monthStart = LocalDate.of(year, month, 1);
+        LocalDate monthEnd = monthStart.withDayOfMonth(monthStart.lengthOfMonth());
+        LocalDateTime start = monthStart.atStartOfDay();
+        LocalDateTime end = monthEnd.atTime(23, 59, 59);
+        List<Transaction> txs = transactionRepository.findByUserIdWithFilters(
+                userId, null, null, start, end, null, null);
+        BigDecimal totalIncome = txs.stream()
+                .filter(t -> t.getType() == TransactionType.INCOME)
+                .map(t -> t.getAmount().getValue())
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalExpense = txs.stream()
+                .filter(t -> t.getType() == TransactionType.EXPENSE)
+                .map(t -> t.getAmount().getValue())
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        return classifyCashFlowFromTotals(totalIncome, totalExpense);
+    }
+
+    /** Shared totals-to-status math, so buildChatContext (which already has the totals) and
+     *  classifyCashFlow (which computes them from scratch) use the same thresholds. */
+    private CashFlowStatus classifyCashFlowFromTotals(BigDecimal totalIncome, BigDecimal totalExpense) {
+        if (totalIncome == null || totalIncome.compareTo(BigDecimal.ZERO) <= 0) return CashFlowStatus.UNKNOWN;
+        BigDecimal delta = totalIncome.subtract(totalExpense == null ? BigDecimal.ZERO : totalExpense);
+        BigDecimal band = totalIncome.multiply(BigDecimal.valueOf(0.10));
+        if (delta.compareTo(band) > 0) return CashFlowStatus.SURPLUS;
+        if (delta.compareTo(band.negate()) < 0) return CashFlowStatus.DEFICIT;
+        return CashFlowStatus.BALANCED;
+    }
 
     public FinancialSnapshot getFinancialSnapshot(UUID userId, int month, int year) {
         List<Budget> budgets = budgetRepository.findByUserIdMonthYear(userId, month, year);
@@ -241,36 +282,68 @@ public class UserFinancialDataService {
         BigDecimal safeSpending = snapshot.safeSpending();
         int daysLeft = snapshot.daysLeft();
 
+        // Cash-flow status this month — the anti-hallucination signal the prompt uses to decide
+        // whether it's OK to recommend increased saving/topping up. Delegated to the shared
+        // classifier below so the 10% SURPLUS/BALANCED/DEFICIT thresholds live in one place;
+        // callers that need to gate their own behaviour (see ChatWithAIUseCase's proactive-
+        // suggestion suppression) hit classifyCashFlow directly.
+        BigDecimal cashFlowDelta = totalIncome.subtract(totalExpense);
+        CashFlowStatus cashFlowEnum = classifyCashFlowFromTotals(totalIncome, totalExpense);
+        String cashFlowStatus = cashFlowEnum.name();
+
         StringBuilder sb = new StringBuilder();
-        sb.append(String.format("Thu nhập tháng %d/%d (giao dịch): %,.0f VND\n", month, year, totalIncome));
-        sb.append(String.format("Thu nhập hàng tháng: %,.0f VND\n", monthlyIncome));
-        sb.append(String.format("Chi tiêu thực tế: %,.0f VND\n", totalExpense));
-        sb.append(String.format("Chi tiêu an toàn còn lại (safe_spending): %,.0f VND\n", safeSpending));
+
+        // ── Dòng tiền THỰC TẾ tháng này ───────────────────────────────────────
+        // Grouped and labelled so the LLM can't confuse actual cash-flow with planned headroom.
+        // Every line is anchored to a formula the prompt's data dictionary can reference.
+        sb.append("=== Tình hình dòng tiền tháng ").append(month).append("/").append(year).append(" ===\n");
+        sb.append(String.format("Thu nhập tháng %d/%d (đã ghi nhận qua giao dịch): %,.0f VND\n",
+                month, year, totalIncome));
+        sb.append(String.format("Thu nhập hàng tháng (theo thiết lập): %,.0f VND\n", monthlyIncome));
+        sb.append(String.format("Chi tiêu thực tế tháng này: %,.0f VND\n", totalExpense));
+        sb.append(String.format("Chênh lệch (thu nhập tháng - chi tiêu thực tế): %,.0f VND\n", cashFlowDelta));
+        sb.append("Trạng thái dòng tiền tháng: ").append(cashFlowStatus).append('\n');
+
+        // ── Kế hoạch tiết kiệm (safe_spending) ────────────────────────────────
+        // Explicitly relabelled and formula'd so the LLM never reads safe_spending as
+        // "cash left this month" — it is planned monthly headroom, always non-negative,
+        // does NOT decrement with actual expenses.
+        sb.append("\n=== Kế hoạch tiết kiệm ===\n");
+        sb.append(String.format(
+                "Chi tiêu an toàn hàng tháng theo kế hoạch (safe_spending): %,.0f VND\n", safeSpending));
+        sb.append("  Công thức: MAX(0, Thu nhập hàng tháng - Σ monthlySaving các dự án ACTIVE).\n");
+        sb.append("  Đây là hạn mức TÍNH THEO KẾ HOẠCH, KHÔNG trừ chi tiêu thực tế đã phát sinh.\n");
         sb.append(String.format("Today: %s, Days left: %d\n", today, daysLeft));
 
-        // Budgets section — includes alertLevel (SAFE/CAUTION/WARNING/EXCEEDED) so the AI can see
-        // which categories are already under pressure without being told separately.
+        // ── Ngân sách tháng ───────────────────────────────────────────────────
+        // status is alertLevel (SAFE/CAUTION/WARNING/EXCEEDED) — surfaced so the AI never has
+        // to compute the pressure level itself.
         if (!budgets.isEmpty()) {
-            sb.append("\nNgân sách tháng ").append(month).append("/").append(year).append(":\n");
+            sb.append("\n=== Ngân sách tháng ").append(month).append("/").append(year).append(" ===\n");
             budgets.forEach(b -> {
                 BigDecimal spent = b.getSpent() != null ? b.getSpent() : BigDecimal.ZERO;
                 BigDecimal pct = b.getAmountLimit().compareTo(BigDecimal.ZERO) > 0
                         ? spent.multiply(BigDecimal.valueOf(100))
-                               .divide(b.getAmountLimit(), 1, RoundingMode.HALF_UP)
+                        .divide(b.getAmountLimit(), 1, RoundingMode.HALF_UP)
                         : BigDecimal.ZERO;
                 sb.append(String.format("  budgetId=%s category=%s spent=%,.0f limit=%,.0f (%.1f%%) status=%s\n",
                         b.getId(), b.getCategory().name(), spent, b.getAmountLimit(), pct, b.getAlertLevel(spent)));
             });
         } else {
-            sb.append("Chưa thiết lập ngân sách tháng ").append(month).append("/").append(year).append(".\n");
+            sb.append("\nChưa thiết lập ngân sách tháng ").append(month).append("/").append(year).append(".\n");
         }
 
-        // Projects section — includes status (ACTIVE/COMPLETED/ABANDONED/FROZEN/EXPIRED) so the AI
-        // can recognize a project the user names is no longer active and say so directly, instead
-        // of only the backend's own deterministic suggestion services knowing that. ACTIVE projects
-        // are listed first so they aren't crowded out of the cap by stale ones.
+        // ── Dự án ─────────────────────────────────────────────────────────────
+        // linkedToGroup marker is the CRITICAL new field: sub-personal projects
+        // (Project.isSubPersonal(), i.e. groupProjectId != null) are half of a group commitment,
+        // so the chatbot MUST NOT propose structural or tracking changes for them via chat —
+        // otherwise a "yes" reply silently mutates a shared group goal. The prompt (§5) rejects
+        // suggestions for these; ChatWithAIUseCase.buildStructuredResponse enforces the same
+        // rule at the backend as defense-in-depth.
+        //
+        // ACTIVE projects are listed first so they aren't crowded out of the cap by stale ones.
         if (!projects.isEmpty()) {
-            sb.append("\nDự án:\n");
+            sb.append("\n=== Dự án ===\n");
             projects.stream()
                     .sorted(Comparator.comparingInt(p -> p.getStatus() == ProjectStatus.ACTIVE ? 0 : 1))
                     .limit(5)
@@ -280,7 +353,7 @@ public class UserFinancialDataService {
                         BigDecimal monthlySaving = tracking != null ? tracking.getMonthlySaving() : BigDecimal.ZERO;
                         BigDecimal moneyOwed = tracking != null ? tracking.getMoneyOwed() : BigDecimal.ZERO;
                         sb.append(String.format(
-                                "  %s: status=%s priority=%s target=%s remaining=%s monthlySaving=%,.0f moneyOwed=%,.0f monthsLeft=%d\n",
+                                "  %s: status=%s priority=%s target=%s remaining=%s monthlySaving=%,.0f moneyOwed=%,.0f monthsLeft=%d linkedToGroup=%s\n",
                                 p.getName(),
                                 p.getStatus(),
                                 p.getPriority(),
@@ -288,7 +361,8 @@ public class UserFinancialDataService {
                                 p.remaining(),
                                 monthlySaving,
                                 moneyOwed,
-                                monthsLeft));
+                                monthsLeft,
+                                p.isSubPersonal()));
                     });
         }
 

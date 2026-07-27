@@ -99,11 +99,11 @@ public class WindfallAllocationService {
                     .suggestedMonthLeft(null)
                     .reason(english
                             ? String.format(
-                                    "Add %,.0f VND to '%s' from the windfall income — the project finishes sooner.",
-                                    allocate, p.getName())
+                            "Add %,.0f VND to '%s' from the windfall income — the project finishes sooner.",
+                            allocate, p.getName())
                             : String.format(
-                                    "Thêm %,.0f VND vào '%s' từ nguồn thu đột xuất — dự án hoàn thành nhanh hơn.",
-                                    allocate, p.getName()))
+                            "Thêm %,.0f VND vào '%s' từ nguồn thu đột xuất — dự án hoàn thành nhanh hơn.",
+                            allocate, p.getName()))
                     .build());
         }
         return result;
@@ -146,12 +146,12 @@ public class WindfallAllocationService {
                             .suggestedAmount(newLimit.longValue())
                             .reason(english
                                     ? String.format(
-                                            "Increase %s budget by %,.0f VND (%.0f%% of the windfall) -> new limit: %,.0f VND.",
-                                            b.getCategory().name(), share, BUDGET_RATIO * 100, newLimit)
+                                    "Increase %s budget by %,.0f VND (%.0f%% of the windfall) -> new limit: %,.0f VND.",
+                                    b.getCategory().name(), share, BUDGET_RATIO * 100, newLimit)
                                     : String.format(
-                                            "Tăng ngân sách %s thêm %,.0f VND (%.0f%% khoản thu đột xuất) → giới hạn mới: %,.0f VND.",
-                                            b.getCategory().name(), share,
-                                            BUDGET_RATIO * 100, newLimit))
+                                    "Tăng ngân sách %s thêm %,.0f VND (%.0f%% khoản thu đột xuất) → giới hạn mới: %,.0f VND.",
+                                    b.getCategory().name(), share,
+                                    BUDGET_RATIO * 100, newLimit))
                             .build();
                 })
                 .collect(Collectors.toList());
@@ -202,11 +202,11 @@ public class WindfallAllocationService {
                         .suggestedAmount(b.getAmountLimit().longValue()) // no change needed
                         .reason(english
                                 ? String.format(
-                                        "%s budget has %,.0f VND headroom left — enough to cover the %,.0f VND unplanned expense.",
-                                        b.getCategory().name(), headroom, expense)
+                                "%s budget has %,.0f VND headroom left — enough to cover the %,.0f VND unplanned expense.",
+                                b.getCategory().name(), headroom, expense)
                                 : String.format(
-                                        "Ngân sách %s còn dư %,.0f VND — đủ để trang trải chi phí đột xuất %,.0f VND.",
-                                        b.getCategory().name(), headroom, expense))
+                                "Ngân sách %s còn dư %,.0f VND — đủ để trang trải chi phí đột xuất %,.0f VND.",
+                                b.getCategory().name(), headroom, expense))
                         .build());
                 remaining = BigDecimal.ZERO;
             } else {
@@ -220,11 +220,11 @@ public class WindfallAllocationService {
                         .suggestedAmount(newLimit.longValue())
                         .reason(english
                                 ? String.format(
-                                        "Increase %s limit by %,.0f VND to cover the unplanned expense.",
-                                        b.getCategory().name(), needed)
+                                "Increase %s limit by %,.0f VND to cover the unplanned expense.",
+                                b.getCategory().name(), needed)
                                 : String.format(
-                                        "Tăng hạn mức %s thêm %,.0f VND để trang trải chi phí đột xuất.",
-                                        b.getCategory().name(), needed))
+                                "Tăng hạn mức %s thêm %,.0f VND để trang trải chi phí đột xuất.",
+                                b.getCategory().name(), needed))
                         .build());
                 remaining = remaining.subtract(headroom.add(needed));
             }
@@ -302,11 +302,11 @@ public class WindfallAllocationService {
                     .suggestedMonthLeft(newMonthLeft)
                     .reason(english
                             ? String.format(
-                                    "Defer project '%s' by %d months -> frees up %,.0f VND/month to cover the unplanned expense.",
-                                    p.getName(), DEFER_MONTHS, monthlySaving)
+                            "Defer project '%s' by %d months -> frees up %,.0f VND/month to cover the unplanned expense.",
+                            p.getName(), DEFER_MONTHS, monthlySaving)
                             : String.format(
-                                    "Hoãn dự án '%s' thêm %d tháng → giải phóng %,.0f VND/tháng để trang trải chi phí đột xuất.",
-                                    p.getName(), DEFER_MONTHS, monthlySaving))
+                            "Hoãn dự án '%s' thêm %d tháng → giải phóng %,.0f VND/tháng để trang trải chi phí đột xuất.",
+                            p.getName(), DEFER_MONTHS, monthlySaving))
                     .build());
         }
         return result;
@@ -315,7 +315,7 @@ public class WindfallAllocationService {
     /**
      * Suggests using money already saved in an ABANDONED project to cover a large expense instead
      * of leaving it idle. An abandoned project no longer accrues monthly saving and can't take new
-     * contributions ({@link Project#contribute} rejects it), but its tracked {@code moneySaved} is a
+     * contributions ({@link Project contribute} rejects it), but its tracked {@code moneySaved} is a
      * real lump sum sitting unused — a better source for a one-off expense than deferring an ACTIVE
      * project's future savings. (A hard-deleted project has nothing left to suggest — its tracking
      * row is gone — so this only ever looks at ABANDONED, not DELETE.)
@@ -347,11 +347,11 @@ public class WindfallAllocationService {
                             .suggestedMonthLeft(null)
                             .reason(english
                                     ? String.format(
-                                            "Project '%s' is abandoned but still has %,.0f VND saved — use it to cover the expense instead of leaving it idle.",
-                                            p.getName(), saved)
+                                    "Project '%s' is abandoned but still has %,.0f VND saved — use it to cover the expense instead of leaving it idle.",
+                                    p.getName(), saved)
                                     : String.format(
-                                            "Dự án '%s' đã bị hủy nhưng vẫn còn %,.0f VND đã tiết kiệm — dùng số tiền này để trang trải chi phí thay vì để không.",
-                                            p.getName(), saved))
+                                    "Dự án '%s' đã bị hủy nhưng vẫn còn %,.0f VND đã tiết kiệm — dùng số tiền này để trang trải chi phí thay vì để không.",
+                                    p.getName(), saved))
                             .build();
                 })
                 .collect(Collectors.toList());
@@ -360,12 +360,17 @@ public class WindfallAllocationService {
     // ── Helpers ──────────────────────────────────────────────────────────────
 
     /** Active projects (status ACTIVE — excludes COMPLETED/ABANDONED/FROZEN/EXPIRED/CANCELLED,
-     *  future deadline), highest priority first (HIGH &gt; MEDIUM &gt; LOW). */
+     *  future deadline), highest priority first (HIGH &gt; MEDIUM &gt; LOW).
+     *  Excludes sub-personal (group-linked) projects — see ChatbotPromptBuilder §5. Windfall
+     *  boost splits are candidates for confirm; a group-linked project would be filtered out
+     *  by the orchestrator anyway, so drop them here to avoid wasted allocation math on a
+     *  target that can never be applied. */
     private List<Project> activeProjects(UUID userId) {
         LocalDate today = LocalDate.now();
         return projectRepository.findAllByUser(UserId.of(userId.toString()))
                 .stream()
                 .filter(p -> p.getStatus() == ProjectStatus.ACTIVE
+                        && !p.isSubPersonal()
                         && p.getDeadline().isAfter(today)
                         && ChronoUnit.MONTHS.between(today, p.getDeadline()) > 0)
                 .sorted(Comparator.comparingInt(p -> -p.getPriority().ordinal())) // HIGH first

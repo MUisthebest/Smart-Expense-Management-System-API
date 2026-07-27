@@ -60,11 +60,11 @@ public class ProjectUpdateSuggestionService {
     // e.g. "trả bớt 1 triệu nợ" — the number falls right where a rigid adjacency match would break.
     private static final Pattern DEBT_INCREASE = Pattern.compile(
             "nợ[\\s\\S]{0,20}(thêm|tăng)|(thêm|tăng)[\\s\\S]{0,20}nợ|" +
-            "phát sinh[\\s\\S]{0,20}(nợ|chi phí)|vay thêm|phải trả thêm",
+                    "phát sinh[\\s\\S]{0,20}(nợ|chi phí)|vay thêm|phải trả thêm",
             Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
     private static final Pattern DEBT_DECREASE = Pattern.compile(
             "trả[\\s\\S]{0,20}(bớt|hết|xong)[\\s\\S]{0,20}nợ|giảm[\\s\\S]{0,20}nợ|" +
-            "thanh toán[\\s\\S]{0,20}nợ|đã trả nợ|pay off debt|reduce debt",
+                    "thanh toán[\\s\\S]{0,20}nợ|đã trả nợ|pay off debt|reduce debt",
             Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
 
     private final ProjectRepository projectRepository;
@@ -169,13 +169,13 @@ public class ProjectUpdateSuggestionService {
                 .suggestedMonthLeft(newMonthLeft)
                 .reason(english
                         ? String.format(
-                                "'%s' needs %,.0f VND/month — too high vs your income. Lower it to " +
-                                "%,.0f VND/month by extending the deadline to %d month(s)?",
-                                project.getName(), tracking.getMonthlySaving(), newMonthlySaving, newMonthLeft)
+                        "'%s' needs %,.0f VND/month — too high vs your income. Lower it to " +
+                        "%,.0f VND/month by extending the deadline to %d month(s)?",
+                        project.getName(), tracking.getMonthlySaving(), newMonthlySaving, newMonthLeft)
                         : String.format(
-                                "Dự án '%s' đang cần %,.0f VND/tháng — quá cao so với thu nhập của bạn. " +
-                                "Giảm xuống %,.0f VND/tháng bằng cách kéo dài thời hạn thành %d tháng?",
-                                project.getName(), tracking.getMonthlySaving(), newMonthlySaving, newMonthLeft))
+                        "Dự án '%s' đang cần %,.0f VND/tháng — quá cao so với thu nhập của bạn. " +
+                        "Giảm xuống %,.0f VND/tháng bằng cách kéo dài thời hạn thành %d tháng?",
+                        project.getName(), tracking.getMonthlySaving(), newMonthlySaving, newMonthLeft))
                 .build());
     }
 
@@ -189,13 +189,24 @@ public class ProjectUpdateSuggestionService {
     public Optional<ChatResponse.SavingsPlanSuggestion> checkMonthEndLeftover(
             UUID userId, int daysLeft, BigDecimal safeSpending, boolean english) {
         if (daysLeft > LEFTOVER_DAYS_THRESHOLD) return Optional.empty();
-        if (safeSpending == null || safeSpending.compareTo(LEFTOVER_MIN_AMOUNT) < 0) return Optional.empty();
+        if (safeSpending == null) return Optional.empty();
+
+        // safeSpending is the PLANNED envelope (income minus project commitments) — it does NOT
+        // subtract actual spending already recorded this month. Treating the whole planned figure
+        // as "unused leftover" is wrong once real expenses have eaten into it (or blown past it
+        // entirely, e.g. a deficit month with no income confirmed yet): the amount offered to a
+        // project must be what's ACTUALLY still unspent, not the theoretical envelope.
+        LocalDate monthStart = LocalDate.now().withDayOfMonth(1);
+        LocalDate monthEnd = monthStart.withDayOfMonth(monthStart.lengthOfMonth());
+        BigDecimal actualExpense = transactionRepository.getTotalExpenseBetween(userId, monthStart, monthEnd);
+        BigDecimal realRemaining = safeSpending.subtract(actualExpense != null ? actualExpense : BigDecimal.ZERO);
+        if (realRemaining.compareTo(LEFTOVER_MIN_AMOUNT) < 0) return Optional.empty();
 
         List<Project> projects = activeProjects(userId);
         Project target = projects.stream().findFirst().orElse(null);
         if (target == null || target.getTracking() == null) return Optional.empty();
 
-        return Optional.of(buildLeftoverSuggestion(target, safeSpending, daysLeft, english));
+        return Optional.of(buildLeftoverSuggestion(target, realRemaining, daysLeft, english));
     }
 
     private ChatResponse.SavingsPlanSuggestion buildLeftoverSuggestion(
@@ -213,13 +224,13 @@ public class ProjectUpdateSuggestionService {
                 .newMoneySaved(updated.longValue())
                 .reason(english
                         ? String.format(
-                                "Only %d day(s) left this month and you still have %,.0f VND of safe " +
-                                "spending unused — add it to '%s'?",
-                                daysLeft, amount, project.getName())
+                        "Only %d day(s) left this month and you still have %,.0f VND of safe " +
+                        "spending unused — add it to '%s'?",
+                        daysLeft, amount, project.getName())
                         : String.format(
-                                "Còn %d ngày nữa là hết tháng và bạn vẫn còn dư %,.0f VND chi tiêu an toàn — " +
-                                "góp thêm vào '%s' không?",
-                                daysLeft, amount, project.getName()))
+                        "Còn %d ngày nữa là hết tháng và bạn vẫn còn dư %,.0f VND chi tiêu an toàn — " +
+                        "góp thêm vào '%s' không?",
+                        daysLeft, amount, project.getName()))
                 .build();
     }
 
@@ -272,23 +283,33 @@ public class ProjectUpdateSuggestionService {
                 .newMoneySaved(updated.longValue())
                 .reason(english
                         ? String.format(
-                                "You've cleared a surplus of about %,.0f VND/month for %d months straight — " +
-                                "put it toward '%s'?",
-                                averageSurplus, SURPLUS_TREND_MONTHS, project.getName())
+                        "You've cleared a surplus of about %,.0f VND/month for %d months straight — " +
+                        "put it toward '%s'?",
+                        averageSurplus, SURPLUS_TREND_MONTHS, project.getName())
                         : String.format(
-                                "Bạn đang dư đều khoảng %,.0f VND/tháng suốt %d tháng liền — " +
-                                "muốn góp vào '%s' không?",
-                                averageSurplus, SURPLUS_TREND_MONTHS, project.getName()))
+                        "Bạn đang dư đều khoảng %,.0f VND/tháng suốt %d tháng liền — " +
+                        "muốn góp vào '%s' không?",
+                        averageSurplus, SURPLUS_TREND_MONTHS, project.getName()))
                 .build();
     }
 
-    /** Active projects (future deadline, has tracking), highest priority first. */
     /** Active projects (status ACTIVE — excludes COMPLETED/ABANDONED/FROZEN/EXPIRED/CANCELLED,
-     *  future deadline, has tracking), highest priority first (HIGH &gt; MEDIUM &gt; LOW). */
+     *  future deadline, has tracking), highest priority first (HIGH &gt; MEDIUM &gt; LOW).
+     *
+     *  <p>Also excludes sub-personal (group-linked) projects — see
+     *  {@link com.example.smartmoney.application.services ChatbotPromptBuilder}'s §5. This
+     *  service drives both the explicit PROJECT_UPDATE suggestion path and the proactive nudges
+     *  {@code checkFeasibility}/{@code checkMonthEndLeftover}/{@code checkSurplusTrend} that
+     *  append reason text to the LLM reply. The orchestrator's post-filter can strip typed
+     *  suggestion lists, but it can't scrub free-form reason text pointing at a group project
+     *  by name — so this method removes those candidates at the source. Safe because
+     *  activeProjects here is used purely for candidate selection, never for aggregate
+     *  commitment math (which needs sub-personal projects included). */
     private List<Project> activeProjects(UUID userId) {
         LocalDate today = LocalDate.now();
         return projectRepository.findAllByUser(UserId.of(userId.toString())).stream()
                 .filter(p -> p.getStatus() == ProjectStatus.ACTIVE
+                        && !p.isSubPersonal()
                         && p.getDeadline().isAfter(today) && p.getTracking() != null
                         && ChronoUnit.MONTHS.between(today, p.getDeadline()) > 0)
                 .sorted(Comparator.comparingInt(p -> -p.getPriority().ordinal()))
@@ -313,11 +334,11 @@ public class ProjectUpdateSuggestionService {
                 .newMoneySaved(updated.longValue())
                 .reason(english
                         ? String.format(
-                                "Add %,.0f VND to '%s' — new saved total: %,.0f VND.",
-                                amount, project.getName(), updated)
+                        "Add %,.0f VND to '%s' — new saved total: %,.0f VND.",
+                        amount, project.getName(), updated)
                         : String.format(
-                                "Góp thêm %,.0f VND vào '%s' — số tiền đã tiết kiệm mới: %,.0f VND.",
-                                amount, project.getName(), updated))
+                        "Góp thêm %,.0f VND vào '%s' — số tiền đã tiết kiệm mới: %,.0f VND.",
+                        amount, project.getName(), updated))
                 .build();
     }
 
@@ -334,19 +355,19 @@ public class ProjectUpdateSuggestionService {
                 .suggestedMoneyOwed(updated.longValue())
                 .reason(english
                         ? (increase
-                                ? String.format(
-                                        "Recorded an extra %,.0f VND debt for '%s' — new debt: %,.0f VND.",
-                                        delta, project.getName(), updated)
-                                : String.format(
-                                        "Reduced debt by %,.0f VND for '%s' — remaining debt: %,.0f VND.",
-                                        delta.abs(), project.getName(), updated))
+                           ? String.format(
+                        "Recorded an extra %,.0f VND debt for '%s' — new debt: %,.0f VND.",
+                        delta, project.getName(), updated)
+                           : String.format(
+                        "Reduced debt by %,.0f VND for '%s' — remaining debt: %,.0f VND.",
+                        delta.abs(), project.getName(), updated))
                         : (increase
-                                ? String.format(
-                                        "Ghi nhận phát sinh thêm %,.0f VND nợ cho '%s' — số nợ mới: %,.0f VND.",
-                                        delta, project.getName(), updated)
-                                : String.format(
-                                        "Giảm %,.0f VND nợ cho '%s' — số nợ còn lại: %,.0f VND.",
-                                        delta.abs(), project.getName(), updated)))
+                           ? String.format(
+                        "Ghi nhận phát sinh thêm %,.0f VND nợ cho '%s' — số nợ mới: %,.0f VND.",
+                        delta, project.getName(), updated)
+                           : String.format(
+                        "Giảm %,.0f VND nợ cho '%s' — số nợ còn lại: %,.0f VND.",
+                        delta.abs(), project.getName(), updated)))
                 .build();
     }
 

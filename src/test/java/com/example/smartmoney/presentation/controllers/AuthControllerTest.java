@@ -6,6 +6,7 @@ import com.example.smartmoney.application.usecases.auth.*;
 import com.example.smartmoney.application.usecases.user.DeleteFinancialSetupUseCase;
 import com.example.smartmoney.domain.exceptions.AuthenticationException;
 import com.example.smartmoney.domain.exceptions.DomainException;
+import com.example.smartmoney.domain.exceptions.InvalidRefreshTokenException;
 import com.example.smartmoney.infrastructure.security.JwtTokenProvider;
 import com.example.smartmoney.application.usecases.user.GetFinancialSetupUseCase;
 import com.example.smartmoney.application.usecases.user.UpdateFinancialSetupUseCase;
@@ -313,6 +314,18 @@ class AuthControllerTest {
     @DisplayName("POST /login/facebook")
     class FacebookLogin {
 
+        @BeforeEach
+        void wireFacebookLoginUseCase() {
+            // @InjectMocks does not wrap a bare @Mock into the Optional<FacebookLoginUseCase>
+            // constructor parameter, so build the controller explicitly for these tests.
+            controller = new AuthController(
+                    registerUseCase, loginUseCase, refreshTokenUseCase, logoutUseCase,
+                    googleLoginUseCase, Optional.of(facebookLoginUseCase), getCurrentUserUseCase,
+                    verifyEmailUseCase, updateUserUseCase, sendResetPasswordOtpUseCase,
+                    resetPasswordUseCase, verifyOtpUseCase, checkOtpExistsUseCase, notificationUseCase, jwtTokenProvider, getFinancialSetupUseCase,
+                    updateFinancialSetupUseCase, deleteFinancialSetupUseCase);
+        }
+
         @Test
         @DisplayName("returns 200 with AuthResponse on valid Facebook token")
         void facebookLoginSucceeds() {
@@ -387,7 +400,7 @@ class AuthControllerTest {
         void refreshTokenFailsOnExpiredToken() {
             RefreshTokenRequest req = new RefreshTokenRequest();
             req.setRefreshToken("expired-token");
-            when(refreshTokenUseCase.execute(any())).thenThrow(new AuthenticationException("Refresh token has expired"));
+            when(refreshTokenUseCase.execute(any())).thenThrow(new InvalidRefreshTokenException("Refresh token has expired"));
 
             ResponseEntity<CheckResponse<AuthResponse>> response = controller.refreshToken(req);
 

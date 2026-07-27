@@ -16,6 +16,7 @@ import com.example.smartmoney.application.usecases.project.CreateProjectUseCase;
 import com.example.smartmoney.application.usecases.project.DeleteProjectUseCase;
 import com.example.smartmoney.application.usecases.project.UpdateProjectTrackingUseCase;
 import com.example.smartmoney.application.usecases.project.UpdateProjectUseCase;
+import com.example.smartmoney.domain.repositories.ProjectRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -51,11 +52,12 @@ class ConfirmChatActionUseCaseTest {
     private final UpsertBulkBudgetsUseCase upsertBulkBudgetsUseCase = mock(UpsertBulkBudgetsUseCase.class);
     private final ComputeBudgetAllocationUseCase computeBudgetAllocationUseCase =
             mock(ComputeBudgetAllocationUseCase.class);
+    private final ProjectRepository projectRepository = mock(ProjectRepository.class);
 
     private final ConfirmChatActionUseCase useCase = new ConfirmChatActionUseCase(
             pendingActionPort, createProjectUseCase, updateProjectUseCase, deleteProjectUseCase,
             updateProjectTrackingUseCase, addProjectContributionUseCase, updateBudgetUseCase,
-            upsertBulkBudgetsUseCase, computeBudgetAllocationUseCase);
+            upsertBulkBudgetsUseCase, computeBudgetAllocationUseCase, projectRepository);
 
     private final UUID userId = UUID.randomUUID();
     private final String actionId = "action-1";

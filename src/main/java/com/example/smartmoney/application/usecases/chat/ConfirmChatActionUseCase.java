@@ -19,9 +19,12 @@ import com.example.smartmoney.application.usecases.project.CreateProjectUseCase;
 import com.example.smartmoney.application.usecases.project.DeleteProjectUseCase;
 import com.example.smartmoney.application.usecases.project.UpdateProjectTrackingUseCase;
 import com.example.smartmoney.application.usecases.project.UpdateProjectUseCase;
+import com.example.smartmoney.domain.models.project.Project;
 import com.example.smartmoney.domain.models.project.enums.ProjectPriority;
 import com.example.smartmoney.domain.models.project.enums.ProjectType;
+import com.example.smartmoney.domain.models.project.valueobjects.ProjectId;
 import com.example.smartmoney.domain.models.transaction.enums.Category;
+import com.example.smartmoney.domain.repositories.ProjectRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -53,6 +56,13 @@ public class ConfirmChatActionUseCase {
     private final UpdateBudgetUseCase updateBudgetUseCase;
     private final UpsertBulkBudgetsUseCase upsertBulkBudgetsUseCase;
     private final ComputeBudgetAllocationUseCase computeBudgetAllocationUseCase;
+    // §5 defense-in-depth (last line): even when the orchestrator's filter and the LLM's prompt
+    // both fail, no confirm here is allowed to mutate a project with groupProjectId != null. A
+    // pending action can outlive the turn that produced it (Redis TTL), so a fix that only
+    // scrubs today's suggestions doesn't protect against an already-stored group-linked action
+    // from a previous version of this code. Reject at execution time by loading the target
+    // project fresh and checking isSubPersonal().
+    private final ProjectRepository projectRepository;
 
     public ChatActionConfirmResponse execute(UUID userId, ConfirmChatActionRequest request) {
         // Whichever entry point resolves an actionId (the deterministic plain yes/no gate in
@@ -85,6 +95,17 @@ public class ConfirmChatActionUseCase {
         ActionOutcome outcome;
         try {
             outcome = executeAction(userId, action);
+        } catch (IllegalStateException blocked) {
+            // §5 group-linked guard threw with an already-user-facing bilingual message; surface
+            // as-is instead of prefixing "Could not apply the change:", which would double up
+            // the "we couldn't do X because Y" framing the guard's message already carries.
+            log.info("ConfirmChatActionUseCase: action {} blocked for user {}: {}",
+                    action.getType(), userId, blocked.getMessage());
+            return ChatActionConfirmResponse.builder()
+                    .success(false)
+                    .reply(blocked.getMessage())
+                    .english(english)
+                    .build();
         } catch (Exception e) {
             // A single (non-batch) action threw directly — nothing was applied.
             log.warn("ConfirmChatActionUseCase: failed to execute action {} for user {}: {}",
@@ -156,6 +177,13 @@ public class ConfirmChatActionUseCase {
 
     private ActionOutcome executeAction(UUID userId, PendingChatAction action) {
         String actorId = userId.toString();
+        // §5 last-line guard — any PROJECT_* action whose target project is a sub-personal
+        // (group-linked) project is rejected here. See the projectRepository field's doc; this
+        // protects both against a stray pending action from an older code version and against
+        // a bug in the orchestrator's filter. Guard runs BEFORE the switch so PROJECT_CREATE
+        // (which has no projectId) naturally bypasses it; no personal project is group-linked
+        // at creation time.
+        rejectIfGroupLinkedTarget(action);
         switch (action.getType()) {
             case UPDATE_BUDGET_LIMIT -> applyBudgetLimit(userId, action);
             case APPLY_NEXT_MONTH_BUDGET_PLAN -> applyNextMonthBudgetPlan(userId, action);
@@ -269,5 +297,46 @@ public class ConfirmChatActionUseCase {
                 })
                 .toList());
         upsertBulkBudgetsUseCase.execute(userId, req);
+    }
+
+    /**
+     * §5 last-line guard for a single (non-batch) pending action about to be executed. If the
+     * action targets a project that turns out to be sub-personal (Project.isSubPersonal() true,
+     * i.e. groupProjectId != null — half of a group commitment), reject before any mutation
+     * runs. Runs on every {@link #executeAction} invocation, including inside {@link #executeBatch}
+     * so a mixed-batch containing one group-linked entry rejects only that entry — the outcome
+     * bookkeeping in executeBatch already treats a per-sub throw as a per-sub failure without
+     * aborting the rest.
+     *
+     * <p>Fail-open when we can't tell (project not found, repo error): don't block a legitimate
+     * confirm on infrastructure noise. A group-linked project that's been deleted between prompt
+     * and confirm is a rare edge case and worst-case behaviour is a normal execute-then-notfound
+     * error from the downstream use case — same as before this guard existed.
+     *
+     * <p>Actions without a projectId (PROJECT_CREATE, UPDATE_BUDGET_LIMIT, APPLY_NEXT_MONTH_
+     * BUDGET_PLAN, UPDATE_BUDGET_LIMIT_SWAP, BATCH) skip the check naturally — they can't be
+     * targeting a group-linked project because they don't reference one.
+     */
+    private void rejectIfGroupLinkedTarget(PendingChatAction action) {
+        String projectId = action.getProjectId();
+        if (projectId == null || projectId.isBlank()) return;
+        try {
+            Optional<Project> project = projectRepository.findById(new ProjectId(java.util.UUID.fromString(projectId)));
+            if (project.isEmpty()) return;
+            if (!project.get().isSubPersonal()) return;
+        } catch (IllegalArgumentException badUuid) {
+            // Malformed projectId — let the downstream use case handle it; not a §5 case.
+            return;
+        } catch (Exception e) {
+            log.warn("ConfirmChatActionUseCase: could not check group-linked status for project {}: {}",
+                    projectId, e.getMessage());
+            return;
+        }
+        String msg = action.isEnglish()
+                ? "This is a group project — any change needs the group's agreement. Please open " +
+                  "the Group screen and discuss it with the other members before making a change."
+                : "Đây là dự án chung với nhóm — mọi thay đổi cần được cả nhóm đồng thuận. Vui lòng " +
+                  "mở màn hình Nhóm để thảo luận với các thành viên trước khi thao tác.";
+        throw new IllegalStateException(msg);
     }
 }

@@ -25,6 +25,7 @@ import com.example.smartmoney.application.usecases.auth.CheckOtpExistsUseCase;
 import com.example.smartmoney.application.usecases.user.DeleteFinancialSetupUseCase;
 import com.example.smartmoney.application.usecases.user.GetFinancialSetupUseCase;
 import com.example.smartmoney.application.usecases.user.UpdateFinancialSetupUseCase;
+import com.example.smartmoney.domain.exceptions.AuthenticationException;
 import com.example.smartmoney.domain.exceptions.DomainException;
 import com.example.smartmoney.domain.exceptions.EmailNotVerifiedException;
 import com.example.smartmoney.domain.exceptions.InvalidRefreshTokenException;
@@ -248,7 +249,7 @@ public class AuthController {
                     .body(
                             CheckResponse.<AuthResponse>builder()
                                     .success(false)
-                                    .message(e.getMessage())
+                                    .message("Login failed: " + e.getMessage())
                                     .build());
 
         } catch (Exception e) {
@@ -365,6 +366,14 @@ public class AuthController {
                             CheckResponse.<AuthResponse>builder()
                                     .success(false)
                                     .message("INVALID_REFRESH_TOKEN")
+                                    .build());
+        } catch (AuthenticationException e) {
+
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(
+                            CheckResponse.<AuthResponse>builder()
+                                    .success(false)
+                                    .message(e.getMessage())
                                     .build());
         } catch (Exception e) {
 
