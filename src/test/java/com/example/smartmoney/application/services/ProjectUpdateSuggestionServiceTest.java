@@ -207,6 +207,39 @@ class ProjectUpdateSuggestionServiceTest {
                 UUID.randomUUID(), 2, BigDecimal.valueOf(100_000), false)).isEmpty();
     }
 
+    @Test
+    @DisplayName("checkMonthEndLeftover is empty when actual spending this month already exceeds the " +
+            "planned safe_spending envelope (deficit month) — the planned figure alone is not real leftover")
+    void monthEndLeftoverEmptyWhenActualSpendingExceedsSafeSpending() {
+        UUID userId = UUID.randomUUID();
+        Project p = project("Mua laptop", BigDecimal.ZERO, BigDecimal.ZERO);
+        when(projectRepository.findAllByUser(org.mockito.ArgumentMatchers.any())).thenReturn(List.of(p));
+        // Planned safe_spending says 8.2M is "free", but 17M has already actually been spent —
+        // real remaining is deeply negative, so no leftover suggestion should fire.
+        when(transactionRepository.getTotalExpenseBetween(org.mockito.ArgumentMatchers.eq(userId),
+                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+                .thenReturn(BigDecimal.valueOf(17_000_000));
+
+        assertThat(service.checkMonthEndLeftover(userId, 5, BigDecimal.valueOf(8_238_095), false)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("checkMonthEndLeftover suggests only the REAL unspent portion once actual expenses are subtracted")
+    void monthEndLeftoverUsesRealRemainingNotPlannedFigure() {
+        UUID userId = UUID.randomUUID();
+        Project p = project("Du lịch", BigDecimal.valueOf(1_000_000), BigDecimal.ZERO);
+        when(projectRepository.findAllByUser(org.mockito.ArgumentMatchers.any())).thenReturn(List.of(p));
+        // Planned safe_spending is 5M, but 2M has already actually been spent — real remaining is 3M.
+        when(transactionRepository.getTotalExpenseBetween(org.mockito.ArgumentMatchers.eq(userId),
+                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+                .thenReturn(BigDecimal.valueOf(2_000_000));
+
+        var result = service.checkMonthEndLeftover(userId, 5, BigDecimal.valueOf(5_000_000), false);
+
+        assertThat(result).isPresent();
+        assertThat(result.get().getSuggestedAddAmount()).isEqualTo(3_000_000L);
+    }
+
     // ── checkSurplusTrend ─────────────────────────────────────────────────────
 
     @Test

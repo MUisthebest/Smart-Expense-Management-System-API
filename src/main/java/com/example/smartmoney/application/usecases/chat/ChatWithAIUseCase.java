@@ -19,9 +19,13 @@ import com.example.smartmoney.application.services.SpendingSimulationService;
 import com.example.smartmoney.application.services.UserFinancialDataService;
 import com.example.smartmoney.application.services.WindfallAllocationService;
 import com.example.smartmoney.application.usecases.budget.ComputeBudgetAllocationUseCase;
+import com.example.smartmoney.domain.models.project.Project;
+import com.example.smartmoney.domain.models.project.valueobjects.ProjectId;
+import com.example.smartmoney.domain.models.project.valueobjects.UserId;
 import com.example.smartmoney.domain.models.user.User;
 import com.example.smartmoney.domain.models.user.enums.Focus_Mode;
 import com.example.smartmoney.domain.models.user.enums.Saving_Pace;
+import com.example.smartmoney.domain.repositories.ProjectRepository;
 import com.example.smartmoney.domain.repositories.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -62,6 +66,13 @@ public class ChatWithAIUseCase {
     private final JsonSchemaGuardrail jsonSchemaGuardrail;
     private final ChatPendingActionPort chatPendingActionPort;
     private final ComputeBudgetAllocationUseCase computeBudgetAllocationUseCase;
+    // Defense-in-depth for §5 of ChatbotPromptBuilder ("group-project isolation"): even if the
+    // LLM or one of the deterministic suggestion services proposes a change to a sub-personal
+    // project (a personal Project with groupProjectId != null, i.e. part of a group commitment),
+    // we filter it out here before returning to the client. That way a stray "yes" reply can
+    // never silently mutate a shared group goal — the prompt says "don't propose it", the
+    // services never had a reason to check, so the orchestrator draws the final line.
+    private final ProjectRepository projectRepository;
     // Injected so the days-left month-end gate is testable at a pinned date rather than being
     // silently coupled to the wall-clock (see DomainServiceConfig's systemDefaultZone bean).
     private final Clock clock;
@@ -234,6 +245,27 @@ public class ChatWithAIUseCase {
 
         sb.append("=== Câu hỏi hiện tại ===\n").append(message);
 
+        // BUG: the "reply in the user's language" rule lives in ChatbotPromptBuilder's system
+        // prompt — a static instruction buried among dozens of other rules, competing with an
+        // entirely-Vietnamese system prompt AND entirely-Vietnamese financial-context labels
+        // above ("Dữ liệu tài chính", "Ngân sách tháng...", ...). For an English message the
+        // model has a wall of Vietnamese text surrounding one static rule to counter it, and
+        // English messages measurably slipped through as Vietnamese replies. Since
+        // MessageLanguageDetector already deterministically classifies the message elsewhere in
+        // this class (for tagging ChatResponse.english), reuse it here to inject an explicit,
+        // per-turn directive right before generation — closest to the output, hardest to miss.
+        boolean english = MessageLanguageDetector.isEnglish(message.toLowerCase());
+        sb.append(english
+                ? "\n\n=== REQUIRED LANGUAGE FOR THIS REPLY ===\nThe user's message above is in " +
+                  "ENGLISH. Your \"reply\" (or the entire answer, if this isn't a JSON turn) MUST " +
+                  "be written ENTIRELY in English — do not translate it to Vietnamese, do not mix " +
+                  "languages, even though the financial data and the rest of this prompt are in " +
+                  "Vietnamese."
+                : "\n\n=== NGÔN NGỮ BẮT BUỘC CHO LƯỢT NÀY ===\nTin nhắn của người dùng ở trên là " +
+                  "TIẾNG VIỆT. \"reply\" (hoặc toàn bộ câu trả lời, nếu lượt này không phải JSON) " +
+                  "PHẢI viết hoàn toàn bằng tiếng Việt — không chuyển sang tiếng Anh, không trộn " +
+                  "ngôn ngữ.");
+
         if (includeJsonFormat) {
             sb.append(ChatbotPromptBuilder.JSON_OUTPUT_FORMAT);
         }
@@ -250,8 +282,15 @@ public class ChatWithAIUseCase {
         // month's budget/project — the reply already steers toward a next-month plan instead.
         boolean suppressCurrentMonth = daysLeft <= DAYS_LEFT_SUPPRESS_THRESHOLD
                 && (intent == ChatResponse.ChatIntent.BUDGET_UPDATE
-                    || intent == ChatResponse.ChatIntent.PROJECT_UPDATE
-                    || intent == ChatResponse.ChatIntent.PROJECT_HYPOTHESIS);
+                || intent == ChatResponse.ChatIntent.PROJECT_UPDATE
+                || intent == ChatResponse.ChatIntent.PROJECT_HYPOTHESIS);
+
+        // §5 group-project isolation — load once per turn and pass into every branch that
+        // produces a project-typed suggestion. Even though the prompt tells the LLM never to
+        // propose changes to a project with linkedToGroup=true, and buildChatContext now
+        // surfaces that flag, we still strip stray sub-personal entries at the orchestrator
+        // level so a stray "yes" can never mutate a shared group commitment.
+        Set<String> groupLinkedIds = loadSubPersonalProjectIds(userId);
 
         return switch (intent) {
             case BUDGET_UPDATE -> {
@@ -260,7 +299,15 @@ public class ChatWithAIUseCase {
                 // outright — this path still targets the CURRENT month, so the days-left gate
                 // still applies to it.
                 if (BUDGET_INCREASE_PATTERN.matcher(messageLow).find()) {
-                    if (suppressCurrentMonth) {
+                    // The increase-swap path only ever computes/applies against the CURRENT
+                    // queried month — there's no "increase-swap for next month" mechanism (unlike
+                    // the cut path just below, which has a real next-month plan). If the user
+                    // explicitly insists this apply to a future month ("tháng sau tăng ngân sách
+                    // X lên..."), attaching a confirm button here would silently apply it to the
+                    // WRONG (current) month instead — never attach one in that case, even if the
+                    // user pushes for it; same reasoning as INCOME_WINDFALL/LARGE_EXPENSE's
+                    // future-dated gate (see FUTURE_INTENT_PATTERN).
+                    if (suppressCurrentMonth || looksFutureDated(messageLow)) {
                         yield ChatResponse.builder()
                                 .reply(reply).intent(intent).relatedQuestions(relatedQuestions).build();
                     }
@@ -353,6 +400,9 @@ public class ChatWithAIUseCase {
                         ? windfallAllocationService.suggestBudgetBoosts(userId, month, year, messageLow)
                         : Collections.<ChatResponse.BudgetUpdateSuggestion>emptyList();
 
+                // §5: never propose adding a windfall lump-sum to a group-linked project via chat.
+                savingsSuggestions = stripGroupLinkedSavings(savingsSuggestions, groupLinkedIds);
+
                 String actionId = storePendingActionIfAny(userId, budgetBoosts, savingsSuggestions, messageLow);
                 yield ChatResponse.builder()
                         .reply(reply)
@@ -365,8 +415,12 @@ public class ChatWithAIUseCase {
                         .build();
             }
             case LARGE_EXPENSE -> {
-                // Same hypothetical/future gate as INCOME_WINDFALL above — a "nếu tôi phải mua xe
-                // thì sao" expense hasn't actually happened, so no real suggestion is attached.
+                // LARGE_EXPENSE is now a pure feasibility ASSESSMENT, never a suggestion card: a
+                // one-off transaction judged against safe_spending (see ChatbotPromptBuilder) —
+                // no budget-category change, no abandoned-project idle-funds reuse, no
+                // active-project deferral. The LLM already has safe_spending and this month's
+                // recorded income in its financial context, so no Java computation is needed;
+                // this branch only still exists to apply the hypothetical/future-dated gates.
                 if (isHypothetical(messageLow)) {
                     yield ChatResponse.builder()
                             .reply(reply).intent(intent).relatedQuestions(relatedQuestions).build();
@@ -377,35 +431,31 @@ public class ChatWithAIUseCase {
                     yield ChatResponse.builder()
                             .reply(reply).intent(intent).relatedQuestions(relatedQuestions).build();
                 }
-                // AI detected large unplanned expense → suggest budget coverage + idle
-                // abandoned-project funds + (only if still short) active-project deferral.
-                // Same scoping rule as INCOME_WINDFALL above.
-                boolean showBudget = wantsBudgetSuggestion(messageLow);
-                boolean showProject = wantsProjectSuggestion(messageLow);
-                boolean scoped = showBudget || showProject;
-
-                var coverage = computeExpenseCoverage(userId, month, year, messageLow, scoped, showBudget, showProject);
-
-                String actionId = storePendingActionIfAny(userId, coverage.budgetCoverage(), coverage.savings(), messageLow);
                 yield ChatResponse.builder()
                         .reply(reply)
                         .intent(intent)
-                        .budgetSuggestions(coverage.budgetCoverage().isEmpty() ? null : coverage.budgetCoverage())
-                        .savingsSuggestions(coverage.savings().isEmpty() ? null : coverage.savings())
-                        .pendingActionId(actionId)
-                        .actionRequired(!coverage.budgetCoverage().isEmpty() || !coverage.savings().isEmpty())
                         .relatedQuestions(relatedQuestions)
                         .build();
             }
             case PROJECT_UPDATE -> {
                 // User directly asked to adjust a project's tracked income (contribution)
                 // or expense (money owed) — not triggered by a windfall/large-expense event.
-                var suggestions = suppressCurrentMonth
+                // Same future-dated gate as BUDGET_UPDATE's increase-swap/INCOME_WINDFALL above:
+                // suggest()/UpdateProjectTrackingUseCase only ever apply to the project's CURRENT
+                // state — an explicit "tháng sau tôi sẽ góp thêm..." has no real mechanism to
+                // schedule against, so no confirm button even if the user pushes for one.
+                boolean deferredToFuture = looksFutureDated(messageLow);
+                var suggestions = (suppressCurrentMonth || deferredToFuture)
                         ? Collections.<ChatResponse.SavingsPlanSuggestion>emptyList()
                         : projectUpdateSuggestionService.suggest(userId, messageLow);
+                // §5: strip suggestions that target a sub-personal (group-linked) project. If
+                // the user's PROJECT_UPDATE request named a group-linked project explicitly, this
+                // list ends up empty — the fallthrough below to namedInactiveProjectNote handles
+                // any messaging gap, and the LLM's reply itself was already told not to propose.
+                suggestions = stripGroupLinkedSavings(suggestions, groupLinkedIds);
                 String actionId = storePendingActionIfAny(userId, null, suggestions, messageLow);
                 String finalReply = reply;
-                if (suggestions.isEmpty() && !suppressCurrentMonth) {
+                if (suggestions.isEmpty() && !suppressCurrentMonth && !deferredToFuture) {
                     String note = namedInactiveProjectNote(userId, messageLow);
                     if (note != null) finalReply = appendToReply(reply, note);
                 }
@@ -419,11 +469,22 @@ public class ChatWithAIUseCase {
                         .build();
             }
             case PROJECT_HYPOTHESIS -> {
-                if (suppressCurrentMonth) {
+                // Same "no confirm for an explicitly deferred request" gate as BUDGET_UPDATE/
+                // PROJECT_UPDATE above: "tháng sau tôi định rút ngắn dự án X 3 tháng" means the
+                // user wants to decide/apply this NEXT month, not right now — attaching a real
+                // confirm button today would let a habitual "có" apply the change immediately,
+                // contradicting what they just said. Low false-positive risk: previewCreate/
+                // previewShortenOrExtend both require an explicit "N tháng" (a digit) to compute
+                // anything at all, so "tháng sau"/"tháng tới" describing a target date without a
+                // number already yields no suggestion regardless of this gate.
+                if (suppressCurrentMonth || looksFutureDated(messageLow)) {
                     yield ChatResponse.builder()
                             .reply(reply).intent(intent).relatedQuestions(relatedQuestions).build();
                 }
                 var suggestions = computeProjectHypothesisSuggestions(userId, messageLow);
+                // §5: strip shorten/extend/delete previews that target a group-linked project.
+                // CREATE previews have projectId=null (project doesn't exist yet) — never removed.
+                suggestions = stripGroupLinkedProjectChanges(suggestions, groupLinkedIds);
                 String actionId = suggestions.isEmpty() ? null
                         : storePendingAction(userId, pendingActionForSuggestions(userId, suggestions), messageLow);
                 String hypothesisReply = reply;
@@ -442,7 +503,7 @@ public class ChatWithAIUseCase {
             }
             case OUT_OF_SCOPE -> ChatResponse.builder()
                     .reply("Xin lỗi, tôi chỉ hỗ trợ các câu hỏi về tài chính cá nhân. " +
-                           "Bạn có muốn hỏi về ngân sách, chi tiêu, hoặc mục tiêu tiết kiệm không?")
+                            "Bạn có muốn hỏi về ngân sách, chi tiêu, hoặc mục tiêu tiết kiệm không?")
                     .intent(intent)
                     .build();
             default -> {
@@ -465,20 +526,25 @@ public class ChatWithAIUseCase {
                         .intent(intent)
                         .relatedQuestions(relatedQuestions);
                 boolean looksStructural = projectHypothesisService.looksLikeStructuralChangeRequest(messageLow);
-                boolean handled = looksStructural && !suppressCurrentMonth
-                        && attachImplicitProjectHypothesis(builder, userId, messageLow);
+                boolean handled = looksStructural && !suppressCurrentMonth && !looksFutureDated(messageLow)
+                        && attachImplicitProjectHypothesis(builder, userId, messageLow, groupLinkedIds);
                 if (looksStructural && !handled) {
                     String note = namedInactiveProjectNote(userId, messageLow);
                     if (note != null) builder.reply(appendToReply(reply, note));
                 }
                 if (!handled && !looksStructural) {
-                    handled = attachImplicitEventSuggestions(builder, user, userId, month, year, messageLow);
+                    handled = attachImplicitEventSuggestions(
+                            builder, user, userId, month, year, messageLow, groupLinkedIds);
                 }
-                // Don't pile a second, unrelated suggestion onto a turn that already got one, and
-                // never volunteer one on a bare greeting/farewell or a structural-change request
-                // (an unrelated proactive nudge, e.g. checkFeasibility's "extend this project",
-                // could easily contradict what the user just asked for).
-                if (!handled && !looksStructural && !GREETING_OR_FAREWELL.matcher(messageLow.trim()).matches()) {
+                // §3 Rule A: proactive nudges (near-limit warnings, feasibility checks, month-end
+                // leftover offers, surplus-trend suggestions) all assume the month has real
+                // headroom. When cash-flow is DEFICIT, offering to top up a saving project or
+                // extend a limit contradicts the LLM's own reply, which by §3 must warn about the
+                // shortfall. Skip proactive suggestions entirely in that case — the LLM reply is
+                // the whole response for the turn.
+                boolean deficit = monthInDeficit(userId, month, year);
+                if (!handled && !looksStructural && !deficit
+                        && !GREETING_OR_FAREWELL.matcher(messageLow.trim()).matches()) {
                     attachProactiveSuggestions(builder, reply, userId, month, year, daysLeft, messageLow);
                 }
                 yield builder.build();
@@ -492,12 +558,12 @@ public class ChatWithAIUseCase {
 
     private static final Pattern INCOME_EVENT_PATTERN = Pattern.compile(
             "thưởng|lương|thu nhập|hoa hồng|trúng số|trúng giải|xổ số|học bổng|thừa kế|" +
-            "được (cho|tặng)|cho tặng|nhận được|windfall|bonus|kpi",
+                    "được (cho|tặng)|cho tặng|nhận được|windfall|bonus|kpi",
             Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
 
     private static final Pattern EXPENSE_EVENT_PATTERN = Pattern.compile(
             "mua (xe|nhà|laptop|điện thoại)|sửa (xe|nhà|chữa)|viện phí|bệnh viện|" +
-            "học phí|hỏng|sự cố|chi phí (lớn|đột xuất)|đóng tiền|phải trả|thanh toán",
+                    "học phí|hỏng|sự cố|chi phí (lớn|đột xuất)|đóng tiền|phải trả|thanh toán",
             Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
 
     // Bare greeting/farewell — the WHOLE message, not a substring match, so a real question that
@@ -538,7 +604,7 @@ public class ChatWithAIUseCase {
     // still state the known amount — only the actionable card is suppressed, not the number.
     private static final Pattern FUTURE_INTENT_PATTERN = Pattern.compile(
             "tháng sau|tháng tới|tháng kế|kỳ tới|sắp tới sẽ|dự định|định sẽ|tính sẽ|kế hoạch sẽ|" +
-            "sẽ dùng để|sẽ dùng vào|next month|plan to|planning to|going to use it",
+                    "sẽ dùng để|sẽ dùng vào|next month|plan to|planning to|going to use it",
             Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
 
     private boolean looksFutureDated(String messageLow) {
@@ -589,7 +655,8 @@ public class ChatWithAIUseCase {
      *         lower-priority proactive safety-net checks on this same turn
      */
     boolean attachImplicitEventSuggestions(ChatResponse.ChatResponseBuilder builder, User user,
-                                                UUID userId, int month, int year, String messageLow) {
+                                           UUID userId, int month, int year, String messageLow,
+                                           Set<String> groupLinkedIds) {
         BigDecimal amount = windfallAllocationService.parseAmount(messageLow);
         if (amount.compareTo(LARGE_AMOUNT_THRESHOLD) < 0) return false;
 
@@ -614,54 +681,27 @@ public class ChatWithAIUseCase {
             var budgets = (!scoped || showBudget)
                     ? windfallAllocationService.suggestBudgetBoosts(userId, month, year, messageLow)
                     : Collections.<ChatResponse.BudgetUpdateSuggestion>emptyList();
+            // §5: strip windfall-savings entries targeting a group-linked (sub-personal) project
+            // — same rule as the explicit INCOME_WINDFALL branch above, applied to the GENERAL_
+            // ADVICE safety net so intent-misclassification doesn't sneak a group mutation past.
+            savings = stripGroupLinkedSavings(savings, groupLinkedIds);
             String actionId = storePendingActionIfAny(userId, budgets, savings, messageLow);
             builder.budgetSuggestions(budgets.isEmpty() ? null : budgets)
-                   .savingsSuggestions(savings.isEmpty() ? null : savings)
-                   .pendingActionId(actionId)
-                   .actionRequired(!budgets.isEmpty() || !savings.isEmpty());
+                    .savingsSuggestions(savings.isEmpty() ? null : savings)
+                    .pendingActionId(actionId)
+                    .actionRequired(!budgets.isEmpty() || !savings.isEmpty());
             return true;
         } else if (EXPENSE_EVENT_PATTERN.matcher(messageLow).find()) {
             if (isHypothetical(messageLow)) return true;
             if (looksFutureDated(messageLow)) return true;
-            var coverage = computeExpenseCoverage(userId, month, year, messageLow, scoped, showBudget, showProject);
-            String actionId = storePendingActionIfAny(userId, coverage.budgetCoverage(), coverage.savings(), messageLow);
-            builder.budgetSuggestions(coverage.budgetCoverage().isEmpty() ? null : coverage.budgetCoverage())
-                   .savingsSuggestions(coverage.savings().isEmpty() ? null : coverage.savings())
-                   .pendingActionId(actionId)
-                   .actionRequired(!coverage.budgetCoverage().isEmpty() || !coverage.savings().isEmpty());
+            // Pure feasibility assessment now — no suggestion card (see the LARGE_EXPENSE case's
+            // doc comment in buildStructuredResponse). "Handled" just means the LLM's own reply
+            // (already judged against safe_spending per ChatbotPromptBuilder) stands as-is, so no
+            // unrelated proactive nudge piles on top of this turn.
             return true;
         }
         return false;
     }
-
-    /**
-     * Computes LARGE_EXPENSE coverage in priority order: budget headroom (unchanged), then idle
-     * funds sitting in an ABANDONED project (real money already saved, no longer earmarked for
-     * anything), then — only for whatever shortfall remains — deferring an ACTIVE project's
-     * deadline. Shared by the explicit LARGE_EXPENSE intent and the implicit expense-event safety
-     * net so both stay in sync.
-     */
-    private ExpenseCoverage computeExpenseCoverage(UUID userId, int month, int year, String messageLow,
-                                                     boolean scoped, boolean showBudget, boolean showProject) {
-        var budgetCoverage = (!scoped || showBudget)
-                ? windfallAllocationService.suggestExpenseCoverage(userId, month, year, messageLow)
-                : Collections.<ChatResponse.BudgetUpdateSuggestion>emptyList();
-
-        List<ChatResponse.SavingsPlanSuggestion> savings = new ArrayList<>();
-        if (!scoped || showProject) {
-            var abandonedFunds = windfallAllocationService.suggestAbandonedProjectFunds(userId, messageLow);
-            savings.addAll(abandonedFunds);
-            BigDecimal abandonedTotal = abandonedFunds.stream()
-                    .map(s -> BigDecimal.valueOf(Math.abs(s.getSuggestedAddAmount())))
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
-            savings.addAll(windfallAllocationService.suggestProjectDeferral(
-                    userId, month, year, messageLow, abandonedTotal));
-        }
-        return new ExpenseCoverage(budgetCoverage, savings);
-    }
-
-    private record ExpenseCoverage(List<ChatResponse.BudgetUpdateSuggestion> budgetCoverage,
-                                    List<ChatResponse.SavingsPlanSuggestion> savings) {}
 
     /**
      * GENERAL_ADVICE safety net mirroring {@link #attachImplicitEventSuggestions} but for
@@ -673,8 +713,12 @@ public class ChatWithAIUseCase {
      * @return true when a computable suggestion was found (mutates {@code builder} in place)
      */
     boolean attachImplicitProjectHypothesis(ChatResponse.ChatResponseBuilder builder,
-                                             UUID userId, String messageLow) {
+                                            UUID userId, String messageLow,
+                                            Set<String> groupLinkedIds) {
         var suggestions = computeProjectHypothesisSuggestions(userId, messageLow);
+        // §5: strip shorten/extend/delete previews for group-linked projects before returning.
+        // CREATE previews carry projectId=null (project doesn't exist yet), never removed.
+        suggestions = stripGroupLinkedProjectChanges(suggestions, groupLinkedIds);
         if (suggestions.isEmpty()) return false;
         String actionId = storePendingAction(userId, pendingActionForSuggestions(userId, suggestions), messageLow);
         builder.projectChangeSuggestions(suggestions).pendingActionId(actionId).actionRequired(true);
@@ -714,9 +758,9 @@ public class ChatWithAIUseCase {
      * only one) and returns its id, or null when there's nothing to confirm.
      */
     private String storePendingActionIfAny(UUID userId,
-                                            List<ChatResponse.BudgetUpdateSuggestion> budgetSuggestions,
-                                            List<ChatResponse.SavingsPlanSuggestion> savingsSuggestions,
-                                            String messageLow) {
+                                           List<ChatResponse.BudgetUpdateSuggestion> budgetSuggestions,
+                                           List<ChatResponse.SavingsPlanSuggestion> savingsSuggestions,
+                                           String messageLow) {
         List<PendingChatAction> subActions = new ArrayList<>();
         if (budgetSuggestions != null) {
             for (var b : budgetSuggestions) {
@@ -793,7 +837,7 @@ public class ChatWithAIUseCase {
      * PROJECT_HYPOTHESIS path, which does attach a confirmable suggestion.
      */
     void attachProactiveSuggestions(ChatResponse.ChatResponseBuilder builder, String reply,
-                                     UUID userId, int month, int year, int daysLeft, String messageLow) {
+                                    UUID userId, int month, int year, int daysLeft, String messageLow) {
         boolean english = MessageLanguageDetector.isEnglish(messageLow);
         var snapshot = dataProvider.getFinancialSnapshot(userId, month, year);
 
@@ -838,9 +882,9 @@ public class ChatWithAIUseCase {
         return projectUpdateSuggestionService.findNamedInactiveProject(userId, messageLow)
                 .map(p -> english
                         ? String.format("Project '%s' is %s, so it can't be updated anymore.",
-                                p.getName(), ProjectUpdateSuggestionService.statusPhrase(p.getStatus(), true))
+                        p.getName(), ProjectUpdateSuggestionService.statusPhrase(p.getStatus(), true))
                         : String.format("Dự án '%s' hiện %s nên không thể cập nhật thêm.",
-                                p.getName(), ProjectUpdateSuggestionService.statusPhrase(p.getStatus(), false)))
+                        p.getName(), ProjectUpdateSuggestionService.statusPhrase(p.getStatus(), false)))
                 .orElse(null);
     }
 
@@ -851,10 +895,23 @@ public class ChatWithAIUseCase {
             "Tiến độ các dự án tiết kiệm của tôi đang như thế nào?",
             "Tôi nên điều chỉnh ngân sách tháng này ra sao?");
 
-    /** OUT_OF_SCOPE gets no related questions; other intents fall back to a generic set
-     *  when the LLM omits the field (e.g. after a JsonSchemaGuardrail fallback). */
+    /** Whether this turn's intent should never carry follow-up question chips at all — the
+     *  reply is either terminal (OUT_OF_SCOPE) or a self-contained assessment (LARGE_EXPENSE)
+     *  where any "want me to look at X too?" chip would feel like a nag. Kept as a code rule
+     *  because the {@code relatedQuestions} field is separate from the closing-question logic
+     *  the prompt controls: without this, an LLM turn that correctly returned {@code []} for
+     *  the field per §7 would still get {@code DEFAULT_RELATED_QUESTIONS} re-injected by
+     *  {@link #relatedQuestionsOrFallback}, contradicting the prompt. */
+    static boolean intentSuppressesRelatedQuestions(ChatResponse.ChatIntent intent) {
+        return intent == ChatResponse.ChatIntent.OUT_OF_SCOPE
+                || intent == ChatResponse.ChatIntent.LARGE_EXPENSE;
+    }
+
+    /** OUT_OF_SCOPE and LARGE_EXPENSE get no related questions per the prompt's §7; other
+     *  intents fall back to a generic set when the LLM omits the field (e.g. after a
+     *  JsonSchemaGuardrail fallback). */
     private List<String> relatedQuestionsOrFallback(ChatResponse.ChatIntent intent, List<String> llmQuestions) {
-        if (intent == ChatResponse.ChatIntent.OUT_OF_SCOPE) return null;
+        if (intentSuppressesRelatedQuestions(intent)) return null;
         return (llmQuestions == null || llmQuestions.isEmpty()) ? DEFAULT_RELATED_QUESTIONS : llmQuestions;
     }
 
@@ -880,7 +937,7 @@ public class ChatWithAIUseCase {
      * Also records the message's language on the action (needed by {@link ConfirmChatActionUseCase},
      * which has no prose of its own to detect language from) and marks this as the user's latest
      * pending action, so a later bare "yes"/"no" reply can resolve to it without an explicit id — see
-     * {@link #tryHandlePlainAgreement}.
+     * {@link #}.
      */
     private String storePendingAction(UUID userId, PendingChatAction action, String messageLow) {
         String actionId = UUID.randomUUID().toString();
@@ -954,9 +1011,9 @@ public class ChatWithAIUseCase {
                         .suggestedAmount(a.getAmount().longValue())
                         .reason(english
                                 ? String.format("Suggested %s budget for %d/%d: %,.0f VND.",
-                                        a.getCategory().name(), plan.getMonth(), plan.getYear(), a.getAmount())
+                                a.getCategory().name(), plan.getMonth(), plan.getYear(), a.getAmount())
                                 : String.format("Đề xuất ngân sách %s cho tháng %d/%d: %,.0f VND.",
-                                        a.getCategory().name(), plan.getMonth(), plan.getYear(), a.getAmount()))
+                                a.getCategory().name(), plan.getMonth(), plan.getYear(), a.getAmount()))
                         .build())
                 .toList();
     }
@@ -992,13 +1049,13 @@ public class ChatWithAIUseCase {
      *         crosses the threshold
      */
     private String abnormalIncreaseWarning(List<ChatResponse.BudgetUpdateSuggestion> suggestions,
-                                            User user, String messageLow) {
+                                           User user, String messageLow) {
         if (suggestions == null || suggestions.isEmpty()) return null;
         var abnormal = suggestions.stream()
                 .filter(s -> s.getCurrentAmount() != null && s.getCurrentAmount() > 0
                         && s.getSuggestedAmount() != null
                         && BigDecimal.valueOf(s.getSuggestedAmount()).compareTo(
-                                BigDecimal.valueOf(s.getCurrentAmount()).multiply(ABNORMAL_INCREASE_MULTIPLIER)) > 0)
+                        BigDecimal.valueOf(s.getCurrentAmount()).multiply(ABNORMAL_INCREASE_MULTIPLIER)) > 0)
                 .map(ChatResponse.BudgetUpdateSuggestion::getCategory)
                 .toList();
         if (abnormal.isEmpty()) return null;
@@ -1010,22 +1067,99 @@ public class ChatWithAIUseCase {
         if (pace == Saving_Pace.AGGRESSIVE) {
             return english
                     ? String.format("⚠️ Warning: the requested increase for %s is more than double the " +
-                            "current limit — an unusually large jump that could seriously hurt your " +
-                            "monthly savings if it's not reversed later.", categories)
+                                    "current limit — an unusually large jump that could seriously hurt your " +
+                                    "monthly savings if it's not reversed later.", categories)
                     : String.format("⚠️ Cảnh báo: mức tăng cho %s cao hơn gấp đôi hạn mức hiện tại — đây " +
-                            "là mức tăng bất thường, có thể ảnh hưởng nghiêm trọng đến tiết kiệm hàng " +
-                            "tháng của bạn nếu không điều chỉnh lại sau này.", categories);
+                                    "là mức tăng bất thường, có thể ảnh hưởng nghiêm trọng đến tiết kiệm hàng " +
+                                    "tháng của bạn nếu không điều chỉnh lại sau này.", categories);
         } else if (pace == Saving_Pace.RELAXED) {
             return english
                     ? String.format("Just a gentle note: the new amount for %s is quite a bit higher than " +
-                            "before — worth keeping an eye on, no rush to change anything.", categories)
+                                    "before — worth keeping an eye on, no rush to change anything.", categories)
                     : String.format("Lưu ý nhẹ nhàng thôi: mức mới cho %s cao hơn khá nhiều so với trước — " +
-                            "bạn để ý một chút, không cần vội điều chỉnh gì cả.", categories);
+                                    "bạn để ý một chút, không cần vội điều chỉnh gì cả.", categories);
         }
         return english
                 ? String.format("Note: the increase for %s is more than double the current limit — please " +
-                        "make sure this still fits your overall budget.", categories)
+                                "make sure this still fits your overall budget.", categories)
                 : String.format("Lưu ý: mức tăng cho %s cao hơn gấp đôi hạn mức hiện tại — bạn kiểm tra lại " +
-                        "xem có còn phù hợp với tổng ngân sách không nhé.", categories);
+                                "xem có còn phù hợp với tổng ngân sách không nhé.", categories);
+    }
+
+    // ── §5 defense-in-depth: strip suggestions targeting sub-personal (group-linked) projects ──
+    //
+    // All three suggestion lists (SavingsPlanSuggestion, ProjectChangeSuggestion, and the pending
+    // PROJECT_* action types) reference a project by its String projectId. A sub-personal project
+    // is a Project where isSubPersonal() is true (i.e. groupProjectId != null). Even though the
+    // prompt tells the LLM never to propose those, we also filter them here because:
+    //   1. The deterministic suggestion services (ProjectUpdateSuggestionService, ProjectHypothesis-
+    //      Service, WindfallAllocationService) do NOT check isSubPersonal() themselves — their
+    //      candidate pools come from projectRepository.findAllByUser, which returns both kinds.
+    //   2. A user's stray "yes" reply must never silently mutate a shared group commitment.
+    //
+    // Kept read-only + cheap: one findAllByUser call per structured-response build, then a set
+    // membership check per suggestion. If the repo call itself fails, we fail SAFE (empty
+    // group-set), which means everything is treated as personal — same as the previous behaviour
+    // that already had this hazard, so no regression relative to old code.
+    Set<String> loadSubPersonalProjectIds(UUID userId) {
+        try {
+            return projectRepository.findAllByUser(UserId.of(userId.toString())).stream()
+                    .filter(Project::isSubPersonal)
+                    .map(p -> p.getId().value().toString())
+                    .collect(java.util.stream.Collectors.toSet());
+        } catch (Exception e) {
+            log.warn("ChatWithAIUseCase: could not load projects for sub-personal filter, user {}: {}",
+                    userId, e.getMessage());
+            return Collections.emptySet();
+        }
+    }
+
+    /** Filters SavingsPlanSuggestion entries whose projectId is a sub-personal (group-linked)
+     *  project. Null-safe and returns the original list untouched when no filtering is needed
+     *  so intent-branch conditionals like {@code list.isEmpty() ? null : list} still work. */
+    List<ChatResponse.SavingsPlanSuggestion> stripGroupLinkedSavings(
+            List<ChatResponse.SavingsPlanSuggestion> in, Set<String> groupLinkedIds) {
+        if (in == null || in.isEmpty() || groupLinkedIds.isEmpty()) return in;
+        List<ChatResponse.SavingsPlanSuggestion> out = new ArrayList<>(in.size());
+        for (ChatResponse.SavingsPlanSuggestion s : in) {
+            if (s != null && s.getProjectId() != null && groupLinkedIds.contains(s.getProjectId())) continue;
+            out.add(s);
+        }
+        return out;
+    }
+
+    /** Same as {@link #stripGroupLinkedSavings} but for ProjectChangeSuggestion. */
+    List<ChatResponse.ProjectChangeSuggestion> stripGroupLinkedProjectChanges(
+            List<ChatResponse.ProjectChangeSuggestion> in, Set<String> groupLinkedIds) {
+        if (in == null || in.isEmpty() || groupLinkedIds.isEmpty()) return in;
+        List<ChatResponse.ProjectChangeSuggestion> out = new ArrayList<>(in.size());
+        for (ChatResponse.ProjectChangeSuggestion s : in) {
+            // CREATE has projectId == null (project doesn't exist yet) — never a group-linked case.
+            if (s != null && s.getProjectId() != null && groupLinkedIds.contains(s.getProjectId())) continue;
+            out.add(s);
+        }
+        return out;
+    }
+
+    /**
+     * Cash-flow deficit gate — delegates to {@link UserFinancialDataService#classifyCashFlow}
+     * so the proactive-suggestion safety net below shares ONE definition of "this month is in
+     * deficit" with what the LLM was told in the financial-context block. The prompt's Rule A
+     * tells the LLM to hold back saving/boost suggestions when the month is DEFICIT; proactive
+     * suggestions come from Java (not the LLM), so they need their own explicit check here.
+     *
+     * <p>Fail-safe: any exception yields false (allow suggestions) — same conservative default
+     * as the rest of this class's best-effort safety nets. A missing deficit gate is a
+     * regression against the anti-hallucination goal but not a data-safety issue; a false-
+     * positive suppression would silently strip a legitimate nudge.
+     */
+    boolean monthInDeficit(UUID userId, int month, int year) {
+        try {
+            return dataProvider.classifyCashFlow(userId, month, year)
+                    == UserFinancialDataService.CashFlowStatus.DEFICIT;
+        } catch (Exception e) {
+            log.warn("ChatWithAIUseCase: deficit gate check failed for user {}: {}", userId, e.getMessage());
+            return false;
+        }
     }
 }
