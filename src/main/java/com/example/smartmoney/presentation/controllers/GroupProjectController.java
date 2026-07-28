@@ -53,7 +53,7 @@ public class GroupProjectController {
 
     @Operation(
             summary = "Create group project",
-            description = "Admin creates a group project with a fixed target amount and duration. Requires LOCKED group and must be done on days 1-7 of the month."
+            description = "Admin creates a group project with a fixed target amount and duration. Requires LOCKED group."
     )
     @PostMapping
     public CheckResponse<GroupProjectDetailResponse> create(
@@ -82,7 +82,7 @@ public class GroupProjectController {
 
     @Operation(
             summary = "Join group project (create sub-personal project)",
-            description = "A JOINED group member picks a priority and creates their personal sub-project linked to this group project. Exempt from the day 1-7 creation window."
+            description = "A JOINED group member picks a priority and creates their personal sub-project linked to this group project."
     )
     @PostMapping("/{groupProjectId}/join")
     public CheckResponse<ProjectDetailResponse> join(
