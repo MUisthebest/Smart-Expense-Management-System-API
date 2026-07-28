@@ -21,11 +21,18 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 
+/**
+ * Superseded by {@link CliAuthController} (/api/v1/auth/cli), which drops the
+ * device/user code pair in favour of one opaque session id and the website's own login
+ * page. Kept serving so anything still pointed at these endpoints keeps working — but
+ * the CLI and the MCP server no longer call them, and a token issued here has no Redis
+ * session backing it and so no one-hour expiry of its own.
+ */
 @RestController
 @RequestMapping("/api/v1/auth/device")
 @RequiredArgsConstructor
 @Slf4j
-@Tag(name = "Device Flow Auth", description = "OAuth 2.0 Device Authorization Flow for CLI/Desktop apps")
+@Tag(name = "Device Flow Auth (legacy)", description = "OAuth 2.0 Device Authorization Flow — superseded by /api/v1/auth/cli")
 public class DeviceAuthController {
 
     private final RequestDeviceCodeUseCase requestDeviceCodeUseCase;
