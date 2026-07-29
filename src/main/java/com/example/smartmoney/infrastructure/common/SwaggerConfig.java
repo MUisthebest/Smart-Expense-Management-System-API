@@ -28,7 +28,7 @@ public class SwaggerConfig {
 
     // Follows the deployed API rather than a hardcoded localhost, so "Try it out" in
     // Swagger UI hits whichever backend this instance actually is.
-    @Value("${app.base-url:https://smartmoney-haibang.duckdns.org}")
+    @Value("${app.base-url}")
     private String baseUrl;
 
     @Bean

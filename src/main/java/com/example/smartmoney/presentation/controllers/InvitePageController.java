@@ -22,7 +22,7 @@ public class InvitePageController {
     @Value("${app.mobile-scheme:smartmoney}")
     private String mobileScheme;
 
-    @Value("${app.web-url:https://smartmoney-gray.vercel.app}")
+    @Value("${app.web-url}")
     private String webUrl;
 
     @GetMapping("/api/v1/groups/invites/accept-direct")

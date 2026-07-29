@@ -41,10 +41,10 @@ public class InviteGroupMemberUseCase {
     private final PushNotificationSenderPort pushSender;
     private final CreateNotificationUseCase createNotificationUseCase;
 
-    @Value("${app.base-url:https://smartmoney-haibang.duckdns.org}")
+    @Value("${app.base-url}")
     private String baseUrl;
 
-    @Value("${app.web-url:https://smartmoney-gray.vercel.app}")
+    @Value("${app.web-url}")
     private String webUrl;
 
     @Value("${app.mobile-scheme:smartmoney}")

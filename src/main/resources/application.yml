@@ -80,9 +80,11 @@ app:
     audience: "smart-money-users"
     token-prefix: "Bearer "
   
-  # Base URL used for deep-link invite generation
-  base-url: ${APP_BASE_URL:https://smartmoney-haibang.duckdns.org}
-  web-url: ${APP_WEB_URL:https://smartmoney-gray.vercel.app}
+  # Base URL used for deep-link invite generation.
+  # Defaults are local-dev values — production MUST set APP_BASE_URL / APP_WEB_URL
+  # (see .env.example); never hardcode real domains as fallbacks here.
+  base-url: ${APP_BASE_URL:http://localhost:8080}
+  web-url: ${APP_WEB_URL:http://localhost:3000}
 
   # Frontend base URL used for CLI login and Device Flow activation links. No locale
   # segment here — the code appends one (…/en/login?cli=…, …/en/activate), so putting
