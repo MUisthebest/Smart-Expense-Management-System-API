@@ -86,10 +86,15 @@ app:
   base-url: ${APP_BASE_URL:http://localhost:8080}
   web-url: ${APP_WEB_URL:http://localhost:3000}
 
-  # Frontend base URL used for CLI login and Device Flow activation links. No locale
-  # segment here — the code appends one (…/en/login?cli=…, …/en/activate), so putting
-  # /en in this value would produce /en/en/login.
-  frontend-url: ${APP_FRONTEND_URL:https://smartmoney-gray.vercel.app}
+  # Base URL of this API, used for deep-link invite generation
+  base-url: ${APP_BASE_URL:http://localhost:8080}
+  web-url: ${APP_WEB_URL:http://localhost:3000}
+
+  # Frontend base URL used for CLI login and Device Flow activation links — this is the
+  # redirect target the backend hands back to the CLI, so it must be the frontend host,
+  # not the API host. No locale segment here — the code appends one (…/en/login?cli=…,
+  # …/en/activate), so putting /en in this value would produce /en/en/login.
+  frontend-url: ${APP_FRONTEND_URL:http://localhost:3000}
 
   # Settlement engine (DEPRECATED by redesign Pivot B — press-to-contribute).
   # Disabled by default: the monthly settlement cron (MonthlySettlementScheduler) only
@@ -219,14 +224,9 @@ app:
   
   # Application Settings
   security:
-    allowed-origins:
-      # Deployed frontend + API
-      - "https://smartmoney-gray.vercel.app"
-      - "https://smartmoney-haibang.duckdns.org"
-      # Kept so a local dev server can still talk to a deployed backend
-      - "http://localhost:3000"
-      - "http://localhost:8080"
-      - "http://localhost:4200"
+    # Comma-separated. Deployed origins come from APP_ALLOWED_ORIGINS in the environment;
+    # the default only covers local dev servers so no deployed host is committed here.
+    allowed-origins: ${APP_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:8080,http://localhost:4200}
     allowed-methods:
       - "GET"
       - "POST"

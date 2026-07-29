@@ -41,10 +41,10 @@ public class InviteGroupMemberUseCase {
     private final PushNotificationSenderPort pushSender;
     private final CreateNotificationUseCase createNotificationUseCase;
 
-    @Value("${app.base-url}")
+    @Value("${app.base-url:http://localhost:8080}")
     private String baseUrl;
 
-    @Value("${app.web-url}")
+    @Value("${app.web-url:http://localhost:3000}")
     private String webUrl;
 
     @Value("${app.mobile-scheme:smartmoney}")

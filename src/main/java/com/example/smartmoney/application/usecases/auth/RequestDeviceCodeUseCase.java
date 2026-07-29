@@ -24,7 +24,11 @@ public class RequestDeviceCodeUseCase {
 
     private final DeviceFlowCachePort deviceFlowCache;
 
-    @Value("${app.frontend-url:https://smartmoney-gray.vercel.app}")
+    /**
+     * Frontend host the activation link points at. Configured via app.frontend-url
+     * (APP_FRONTEND_URL in the environment); the localhost default is dev-only.
+     */
+    @Value("${app.frontend-url:http://localhost:3000}")
     private String frontendUrl;
 
     private static final int EXPIRES_IN = 300;  // 5 minutes

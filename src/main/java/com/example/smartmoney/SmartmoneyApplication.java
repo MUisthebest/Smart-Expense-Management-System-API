@@ -4,7 +4,6 @@ import io.swagger.v3.oas.annotations.OpenAPIDefinition;
 import io.swagger.v3.oas.annotations.info.Contact;
 import io.swagger.v3.oas.annotations.info.Info;
 import io.swagger.v3.oas.annotations.info.License;
-import io.swagger.v3.oas.annotations.servers.Server;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -27,17 +26,10 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
             name = "MIT License",
             url = "https://opensource.org/licenses/MIT"
         )
-    ),
-    servers = {
-        @Server(
-            url = "http://localhost:8080",
-            description = "Local Development Server"
-        ),
-        @Server(
-            url = "https://smartmoney-haibang.duckdns.org",
-            description = "Production Server"
-        )
-    }
+    )
+    // No `servers` block on purpose: the server entry is built at runtime in
+    // SwaggerConfig#smartMoneyOpenAPI from app.base-url (APP_BASE_URL), so the deployed
+    // hostname stays in the environment instead of being compiled into the jar.
 )
 @ConfigurationPropertiesScan
 @EnableScheduling
