@@ -30,7 +30,11 @@ public class StartCliLoginSessionUseCase {
 
     private final CliAuthSessionCachePort sessionCache;
 
-    @Value("${app.frontend-url:https://smartmoney-gray.vercel.app}")
+    /**
+     * Frontend host the CLI is redirected to. Configured via app.frontend-url
+     * (APP_FRONTEND_URL in the environment); the localhost default is dev-only.
+     */
+    @Value("${app.frontend-url:http://localhost:3000}")
     private String frontendUrl;
 
     /** How long the user has to finish logging in before the pending session is dropped. */
