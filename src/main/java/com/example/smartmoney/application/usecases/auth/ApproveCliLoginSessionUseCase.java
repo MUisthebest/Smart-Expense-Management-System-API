@@ -3,6 +3,7 @@ package com.example.smartmoney.application.usecases.auth;
 import com.example.smartmoney.application.ports.auth.AuthPort;
 import com.example.smartmoney.application.ports.cli.CliAuthSessionCachePort;
 import com.example.smartmoney.application.ports.cli.CliAuthSessionCachePort.CliAuthSession;
+import com.example.smartmoney.application.ports.cli.CliAuthSessionCachePort.CliDeviceAuth;
 import com.example.smartmoney.domain.exceptions.DomainException;
 import com.example.smartmoney.domain.models.user.User;
 import com.example.smartmoney.domain.repositories.UserRepository;
@@ -18,8 +19,13 @@ import java.util.UUID;
  * authenticated there (POST /api/v1/auth/cli/session/{id}/approve, with that user's
  * Bearer token). Mints a fresh access token for the CLI and parks it in Redis.
  *
+ * Two keys are written, both with the same TTL as the token:
+ *   cli:session:{sessionId} — so the polling CLI can pick the token up
+ *   cli:device:{deviceId}   — the standing link between this machine and its JWT, which
+ *                             is what every later "am I still logged in?" check reads
+ *
  * The Redis TTL is deliberately the same hour the JWT itself is valid for, so a token
- * that has expired can never still be sitting in the cache: when the key goes, the CLI's
+ * that has expired can never still be sitting in the cache: when the keys go, the CLI's
  * next status check comes back unauthenticated and Claude Desktop asks for a new login.
  */
 @Service
@@ -50,18 +56,34 @@ public class ApproveCliLoginSessionUseCase {
         }
 
         String accessToken = authPort.generateAccessToken(user);
+        Duration ttl       = Duration.ofSeconds(APPROVED_TTL_SECONDS);
 
         sessionCache.save(
                 new CliAuthSession(
                         sessionId,
                         session.clientId(),
+                        session.deviceId(),
                         CliAuthSessionCachePort.STATUS_APPROVED,
                         userId.toString(),
                         user.getEmail().getValue(),
                         accessToken),
-                Duration.ofSeconds(APPROVED_TTL_SECONDS));
+                ttl);
 
-        log.info("CLI login session approved: sessionId={}, userId={}, ttl={}s",
-                sessionId, userId, APPROVED_TTL_SECONDS);
+        // Link the device to this JWT. Overwrites any earlier binding, so logging in
+        // again from the same machine replaces the old token instead of leaving two live.
+        if (session.deviceId() != null && !session.deviceId().isBlank()) {
+            sessionCache.saveDevice(
+                    new CliDeviceAuth(
+                            session.deviceId(),
+                            session.clientId(),
+                            sessionId,
+                            userId.toString(),
+                            user.getEmail().getValue(),
+                            accessToken),
+                    ttl);
+        }
+
+        log.info("CLI login session approved: sessionId={}, deviceId={}, userId={}, ttl={}s",
+                sessionId, session.deviceId(), userId, APPROVED_TTL_SECONDS);
     }
 }

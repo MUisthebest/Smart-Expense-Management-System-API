@@ -18,6 +18,10 @@ import java.util.UUID;
  * the CLI calls POST /api/v1/auth/cli/session and gets back an opaque session id plus the
  * URL of the ordinary web login page carrying that id. Nothing is shown to the user except
  * the link — there is no device/user code to relay.
+ *
+ * The request also carries the caller's device id, which is remembered on the pending
+ * session so approval knows which device to link the minted JWT to. A caller that doesn't
+ * send one gets a fresh id minted here and returned in the response.
  */
 @Service
 @RequiredArgsConstructor
@@ -26,7 +30,7 @@ public class StartCliLoginSessionUseCase {
 
     private final CliAuthSessionCachePort sessionCache;
 
-    @Value("${app.frontend-url:http://localhost:3000}")
+    @Value("${app.frontend-url:https://smartmoney-gray.vercel.app}")
     private String frontendUrl;
 
     /** How long the user has to finish logging in before the pending session is dropped. */
@@ -38,19 +42,29 @@ public class StartCliLoginSessionUseCase {
 
     public CliSessionResponse execute(CliSessionRequest request) {
         String sessionId = UUID.randomUUID().toString();
+        String deviceId  = normalizeDeviceId(request.getDeviceId());
 
         sessionCache.save(
-                CliAuthSession.pending(sessionId, request.getClientId()),
+                CliAuthSession.pending(sessionId, request.getClientId(), deviceId),
                 Duration.ofSeconds(PENDING_EXPIRES_IN));
 
-        log.info("CLI login session started: sessionId={}, clientId={}", sessionId, request.getClientId());
+        log.info("CLI login session started: sessionId={}, clientId={}, deviceId={}",
+                sessionId, request.getClientId(), deviceId);
 
         return CliSessionResponse.builder()
                 .sessionId(sessionId)
+                .deviceId(deviceId)
                 .loginUrl(buildLoginUrl(sessionId, request.getLocale()))
                 .expiresIn(PENDING_EXPIRES_IN)
                 .interval(POLL_INTERVAL)
                 .build();
+    }
+
+    /** Use the caller's device id when it sent one; otherwise mint one for it. */
+    private String normalizeDeviceId(String requested) {
+        return (requested != null && !requested.isBlank())
+                ? requested.trim()
+                : UUID.randomUUID().toString();
     }
 
     private String buildLoginUrl(String sessionId, String requestedLocale) {

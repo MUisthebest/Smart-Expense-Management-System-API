@@ -16,6 +16,7 @@ import java.util.concurrent.TimeUnit;
 public class RedisCliAuthSessionCacheAdapter implements CliAuthSessionCachePort {
 
     private static final String CLI_SESSION_PREFIX = "cli:session:";
+    private static final String CLI_DEVICE_PREFIX  = "cli:device:";
 
     private final RedisTemplate<String, String> redisTemplate;
     private final ObjectMapper objectMapper;
@@ -26,6 +27,8 @@ public class RedisCliAuthSessionCacheAdapter implements CliAuthSessionCachePort 
         this.redisTemplate = redisTemplate;
         this.objectMapper  = objectMapper;
     }
+
+    // ---- login session ----
 
     @Override
     public void save(CliAuthSession session, Duration ttl) {
@@ -62,5 +65,46 @@ public class RedisCliAuthSessionCacheAdapter implements CliAuthSessionCachePort 
     @Override
     public void delete(String sessionId) {
         redisTemplate.delete(CLI_SESSION_PREFIX + sessionId);
+    }
+
+    // ---- device binding ----
+
+    @Override
+    public void saveDevice(CliDeviceAuth device, Duration ttl) {
+        try {
+            redisTemplate.opsForValue().set(
+                    CLI_DEVICE_PREFIX + device.deviceId(),
+                    objectMapper.writeValueAsString(device),
+                    ttl);
+        } catch (Exception e) {
+            log.error("Failed to save CLI device binding", e);
+            throw new RuntimeException("Failed to save CLI device binding", e);
+        }
+    }
+
+    @Override
+    public Optional<CliDeviceAuth> findDevice(String deviceId) {
+        if (deviceId == null || deviceId.isBlank()) return Optional.empty();
+        try {
+            String json = redisTemplate.opsForValue().get(CLI_DEVICE_PREFIX + deviceId);
+            if (json == null) return Optional.empty();
+            return Optional.of(objectMapper.readValue(json, CliDeviceAuth.class));
+        } catch (Exception e) {
+            log.error("Failed to read CLI device binding: {}", deviceId, e);
+            return Optional.empty();
+        }
+    }
+
+    @Override
+    public long deviceTtlSeconds(String deviceId) {
+        if (deviceId == null || deviceId.isBlank()) return 0L;
+        Long ttl = redisTemplate.getExpire(CLI_DEVICE_PREFIX + deviceId, TimeUnit.SECONDS);
+        return (ttl == null || ttl < 0) ? 0L : ttl;
+    }
+
+    @Override
+    public void deleteDevice(String deviceId) {
+        if (deviceId == null || deviceId.isBlank()) return;
+        redisTemplate.delete(CLI_DEVICE_PREFIX + deviceId);
     }
 }

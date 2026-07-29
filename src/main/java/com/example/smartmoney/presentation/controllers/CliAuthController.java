@@ -2,12 +2,16 @@ package com.example.smartmoney.presentation.controllers;
 
 import com.example.smartmoney.application.dtos.requests.auth.CliSessionRequest;
 import com.example.smartmoney.application.dtos.responses.CheckResponse;
+import com.example.smartmoney.application.dtos.responses.CliDeviceStatusResponse;
 import com.example.smartmoney.application.dtos.responses.CliSessionResponse;
 import com.example.smartmoney.application.dtos.responses.CliSessionStatusResponse;
 import com.example.smartmoney.application.dtos.responses.CliSessionTokenResponse;
 import com.example.smartmoney.application.usecases.auth.ApproveCliLoginSessionUseCase;
+import com.example.smartmoney.application.usecases.auth.GetCliDeviceStatusUseCase;
+import com.example.smartmoney.application.usecases.auth.GetCliDeviceTokenUseCase;
 import com.example.smartmoney.application.usecases.auth.GetCliSessionStatusUseCase;
 import com.example.smartmoney.application.usecases.auth.PollCliSessionTokenUseCase;
+import com.example.smartmoney.application.usecases.auth.RevokeCliDeviceUseCase;
 import com.example.smartmoney.application.usecases.auth.RevokeCliSessionUseCase;
 import com.example.smartmoney.application.usecases.auth.StartCliLoginSessionUseCase;
 import com.example.smartmoney.domain.exceptions.DomainException;
@@ -39,6 +43,16 @@ import java.util.UUID;
  *   3. CLI     GET    /api/v1/auth/cli/session/{id}/token       → picks the JWT up
  *      CLI     GET    /api/v1/auth/cli/session/{id}/status      → still logged in?
  *      CLI     DELETE /api/v1/auth/cli/session/{id}             → logout
+ *
+ * The session id above covers one login. What the CLI uses from then on is its device id,
+ * which approval links to the same JWT under cli:device:{deviceId}:
+ *
+ *      CLI     GET    /api/v1/auth/cli/device/{deviceId}/status → is there a JWT for me?
+ *      CLI     GET    /api/v1/auth/cli/device/{deviceId}/token  → give me that JWT
+ *      CLI     DELETE /api/v1/auth/cli/device/{deviceId}        → unlink (logout)
+ *
+ * So a CLI that has kept nothing but its own device id can ask the status endpoint whether
+ * it is still logged in, and either carry on or send the user through the browser again.
  */
 @RestController
 @RequestMapping("/api/v1/auth/cli")
@@ -52,6 +66,9 @@ public class CliAuthController {
     private final PollCliSessionTokenUseCase    pollCliSessionTokenUseCase;
     private final GetCliSessionStatusUseCase    getCliSessionStatusUseCase;
     private final RevokeCliSessionUseCase       revokeCliSessionUseCase;
+    private final GetCliDeviceStatusUseCase     getCliDeviceStatusUseCase;
+    private final GetCliDeviceTokenUseCase      getCliDeviceTokenUseCase;
+    private final RevokeCliDeviceUseCase        revokeCliDeviceUseCase;
 
     /**
      * STEP 1 — CLI starts a login session.
@@ -181,6 +198,74 @@ public class CliAuthController {
         return ResponseEntity.ok(CheckResponse.<Void>builder()
                 .success(true)
                 .message("CLI session revoked.")
+                .build());
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // DEVICE BINDING — what the CLI authenticates against after the first login
+    // ══════════════════════════════════════════════════════════════════════════
+
+    /**
+     * "Is there a JWT in Redis for my device id?" — the check the CLI runs before
+     * answering anything that needs SmartMoney data.
+     *
+     * Always 200. authenticated=false (has_jwt=false) means the device was never linked or
+     * its hour is up, and the CLI should send the user through the login flow.
+     *
+     * GET /api/v1/auth/cli/device/{deviceId}/status
+     */
+    @Operation(
+            summary = "Check whether a device is linked to a live JWT",
+            description = "Always 200. has_jwt=false means no token is cached for this device — log in."
+    )
+    @GetMapping("/device/{deviceId}/status")
+    public ResponseEntity<CheckResponse<CliDeviceStatusResponse>> deviceStatus(@PathVariable String deviceId) {
+        CliDeviceStatusResponse data = getCliDeviceStatusUseCase.execute(deviceId);
+        return ResponseEntity.ok(CheckResponse.success(data));
+    }
+
+    /**
+     * Hands the device's cached JWT back, so a CLI that has lost its local copy but still
+     * knows its device id doesn't have to send the user through the browser again.
+     *
+     * 200 → { access_token, expires_in, ... }
+     * 400 → { error: "no_device_session" }   nothing cached for this device
+     *
+     * GET /api/v1/auth/cli/device/{deviceId}/token
+     */
+    @Operation(
+            summary = "Fetch the JWT linked to a device",
+            description = "400 with no_device_session when the device has no live token in Redis."
+    )
+    @GetMapping("/device/{deviceId}/token")
+    public ResponseEntity<?> deviceToken(@PathVariable String deviceId) {
+        try {
+            CliSessionTokenResponse data = getCliDeviceTokenUseCase.execute(deviceId);
+            return ResponseEntity.ok(CheckResponse.success("Device is authenticated", data));
+
+        } catch (DomainException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("error", e.getMessage()));
+
+        } catch (Exception e) {
+            log.error("Unexpected error reading CLI device token", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "server_error"));
+        }
+    }
+
+    /**
+     * Unlink the device from its JWT — CLI logout.
+     *
+     * DELETE /api/v1/auth/cli/device/{deviceId}
+     */
+    @Operation(summary = "Unlink a device from its JWT (logout)")
+    @DeleteMapping("/device/{deviceId}")
+    public ResponseEntity<CheckResponse<Void>> revokeDevice(@PathVariable String deviceId) {
+        revokeCliDeviceUseCase.execute(deviceId);
+        return ResponseEntity.ok(CheckResponse.<Void>builder()
+                .success(true)
+                .message("Device unlinked.")
                 .build());
     }
 }

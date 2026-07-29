@@ -8,6 +8,7 @@ import com.example.smartmoney.domain.models.project.enums.ProjectStatus;
 import com.example.smartmoney.domain.models.project.valueobjects.Money;
 import com.example.smartmoney.domain.models.project.valueobjects.UserId;
 import com.example.smartmoney.domain.models.transaction.Transaction;
+import com.example.smartmoney.domain.models.transaction.enums.Category;
 import com.example.smartmoney.domain.models.transaction.enums.TransactionType;
 import com.example.smartmoney.domain.models.user.User;
 import com.example.smartmoney.domain.repositories.BudgetRepository;
@@ -21,6 +22,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -333,6 +335,20 @@ public class UserFinancialDataService {
             sb.append("\nChưa thiết lập ngân sách tháng ").append(month).append("/").append(year).append(".\n");
         }
 
+        // ── Giao dịch trong tháng ─────────────────────────────────────────────
+        // Individual rows, not just the totals above. Two things need them: answering "what did I
+        // spend on last week?" without inventing numbers, and — critically — giving the assistant
+        // real txId values, since editing or deleting a transaction through chat is impossible
+        // without one to point at. Capped at RECENT_TRANSACTION_LIMIT most-recent-first so a heavy
+        // month can't crowd the budgets/projects sections out of the prompt; the cap is stated in
+        // the text so the LLM knows the list may be partial and never claims it's exhaustive.
+        //
+        // locked=true marks PROJECT_CONTRIBUTION/PROJECT_REFUND rows, which the project machinery
+        // owns — TransactionChangeService refuses to edit or delete them (see its class doc), so
+        // the prompt is told upfront rather than letting the assistant offer a change that would
+        // silently produce no card.
+        appendTransactions(sb, txs, month, year);
+
         // ── Dự án ─────────────────────────────────────────────────────────────
         // linkedToGroup marker is the CRITICAL new field: sub-personal projects
         // (Project.isSubPersonal(), i.e. groupProjectId != null) are half of a group commitment,
@@ -367,5 +383,53 @@ public class UserFinancialDataService {
         }
 
         return sb.toString();
+    }
+
+    /** How many individual transaction rows {@link #buildChatContext} lists. Enough to answer
+     *  "what did I spend on recently?" and to give the assistant a txId to edit/delete, without
+     *  letting a busy month push the budget/project sections out of the prompt. */
+    private static final int RECENT_TRANSACTION_LIMIT = 15;
+
+    private static final DateTimeFormatter TRANSACTION_DATE_FORMAT =
+            DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+
+    /** System-generated rows the chat must not offer to edit or delete — kept in lockstep with
+     *  {@code TransactionChangeService}'s own refusal, which is the enforcing side. */
+    private static final Set<Category> PROJECT_LEDGER_CATEGORIES =
+            EnumSet.of(Category.PROJECT_CONTRIBUTION, Category.PROJECT_REFUND);
+
+    private void appendTransactions(StringBuilder sb, List<Transaction> txs, int month, int year) {
+        if (txs.isEmpty()) {
+            sb.append("\nKhông có giao dịch nào trong tháng ").append(month).append("/").append(year).append(".\n");
+            return;
+        }
+
+        List<Transaction> recent = txs.stream()
+                .sorted(Comparator.comparing(Transaction::getDate,
+                        Comparator.nullsLast(Comparator.reverseOrder())))
+                .limit(RECENT_TRANSACTION_LIMIT)
+                .toList();
+
+        sb.append("\n=== Giao dịch tháng ").append(month).append("/").append(year)
+                .append(" (").append(recent.size()).append("/").append(txs.size())
+                .append(" giao dịch gần nhất) ===\n");
+        recent.forEach(t -> {
+            boolean locked = t.getProjectId() != null
+                    || (t.getCategory() != null && PROJECT_LEDGER_CATEGORIES.contains(t.getCategory()));
+            sb.append(String.format("  txId=%s date=%s type=%s category=%s amount=%,.0f VND desc=%s locked=%s\n",
+                    t.getId(),
+                    t.getDate() != null ? TRANSACTION_DATE_FORMAT.format(t.getDate()) : "?",
+                    t.getType(),
+                    t.getCategory(),
+                    t.getAmount() != null && t.getAmount().getValue() != null
+                            ? t.getAmount().getValue() : BigDecimal.ZERO,
+                    (t.getDescription() == null || t.getDescription().isBlank())
+                            ? "(không có)" : "\"" + t.getDescription() + "\"",
+                    locked));
+        });
+        if (txs.size() > recent.size()) {
+            sb.append("  (còn ").append(txs.size() - recent.size())
+                    .append(" giao dịch khác trong tháng không hiển thị ở đây)\n");
+        }
     }
 }

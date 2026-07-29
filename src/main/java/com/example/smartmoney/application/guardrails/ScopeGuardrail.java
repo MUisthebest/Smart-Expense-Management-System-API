@@ -82,7 +82,19 @@ public class ScopeGuardrail implements PromptGuardrail {
             "tạo.*(dự án|ngân sách)", "create.*(project|budget)",
             "cập nhật.*(dự án|ngân sách)", "update.*(project|budget)",
             "rút ngắn.*(dự án|thời hạn)", "kéo dài.*(dự án|thời hạn)",
-            "shorten.*(project|deadline)", "extend.*(project|deadline)"
+            "shorten.*(project|deadline)", "extend.*(project|deadline)",
+            // Transaction bookkeeping — recording/editing/deleting the user's own ledger
+            // entries. "giao dịch"/"transaction" is already a bare allowlist term above, but
+            // the natural short phrasings for this don't contain that word at all ("ghi chi
+            // 50k", "log this expense"), so the verbs get their own entries. Kept compound
+            // with a money/ledger noun where the bare verb would be too broad.
+            "ghi (nhận|lại|chép|sổ)", "nhập (khoản|giao dịch|chi|thu)",
+            "thêm (khoản|giao dịch)", "lưu (khoản|giao dịch)",
+            "ghi (chi|thu|khoản)", "vừa (chi|tiêu|trả|mua|nhận)",
+            "sửa.*(giao dịch|khoản)", "xóa.*(giao dịch|khoản)", "nhập nhầm", "ghi nhầm",
+            "record.*(expense|income|transaction|spending)", "log.*(expense|income|transaction)",
+            "add.*(expense|income|transaction)", "edit.*transaction", "delete.*transaction",
+            "remove.*transaction", "i (just )?(spent|paid|received|earned)"
         };
         allowlistPatterns = toPatterns(allow);
 

@@ -2,8 +2,8 @@ name: Deploy Spring Boot to VPS
 
 on:
   push:
-    branches:
-      - test # đổi nếu branch của bạn là master
+#    branches:
+#      - test # đổi nếu branch của bạn là master
 
 jobs:
   deploy:

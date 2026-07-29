@@ -62,7 +62,8 @@ public class JsonSchemaGuardrail {
         return new ParsedLlmResponse(
                 ChatResponse.ChatIntent.GENERAL_ADVICE,
                 "Xin lỗi, tôi không thể xử lý yêu cầu này lúc này. Vui lòng thử lại sau.",
-                List.of());
+                List.of(),
+                null);
     }
 
     private ParsedLlmResponse tryParse(String raw) {
@@ -88,10 +89,42 @@ public class JsonSchemaGuardrail {
             return new ParsedLlmResponse(
                     ChatResponse.ChatIntent.valueOf(intentStr),
                     replyNode.asText(),
-                    relatedQuestions);
+                    relatedQuestions,
+                    parseTransactionDraft(root.get("transactionDraft")));
         } catch (Exception e) {
             return null;
         }
+    }
+
+    /**
+     * Reads the optional {@code transactionDraft} object — the running slot-fill state for a
+     * step-by-step transaction create/update/delete. Deliberately lenient: every field is
+     * optional and no value is validated here beyond "is it present". A draft that's missing
+     * fields, names a category that doesn't exist, or claims {@code complete} when it isn't must
+     * NOT invalidate the whole reply (which is otherwise perfectly good) — {@code
+     * TransactionChangeService} is the single place that decides whether a draft is actually
+     * executable, so a malformed one simply yields no confirm card and the assistant keeps
+     * asking. Returns null when the field is absent, which is the case for every non-transaction
+     * turn.
+     */
+    private TransactionDraft parseTransactionDraft(JsonNode node) {
+        if (node == null || !node.isObject()) return null;
+        return new TransactionDraft(
+                text(node, "operation"),
+                text(node, "transactionId"),
+                node.hasNonNull("amount") ? node.get("amount").decimalValue() : null,
+                text(node, "type"),
+                text(node, "category"),
+                text(node, "description"),
+                text(node, "date"),
+                node.path("complete").asBoolean(false));
+    }
+
+    private String text(JsonNode node, String field) {
+        JsonNode value = node.get(field);
+        if (value == null || value.isNull()) return null;
+        String s = value.asText("").trim();
+        return s.isEmpty() ? null : s;
     }
 
     private String stripMarkdownFences(String raw) {
@@ -149,5 +182,24 @@ public class JsonSchemaGuardrail {
     }
 
     public record ParsedLlmResponse(ChatResponse.ChatIntent intent, String reply,
-                                     List<String> relatedQuestions) {}
+                                     List<String> relatedQuestions,
+                                     TransactionDraft transactionDraft) {}
+
+    /**
+     * The assistant's running record of a transaction change it is collecting field by field.
+     *
+     * <p>Slot-filling lives with the LLM rather than in a Java regex parser or a separate Redis
+     * draft key: the model already sees the conversation history every turn, so it can carry
+     * forward what the user gave two turns ago and merge in what they just said, in either
+     * language, without the backend having to hold multi-turn state of its own. What the backend
+     * keeps is authority over the outcome — {@code complete} is the model's CLAIM that nothing is
+     * missing, never permission to execute. Every field is re-validated (amount positive,
+     * category real and legal for the type, date parseable, transaction owned by this user and
+     * not project-linked) before any confirm card is offered.
+     *
+     * @param complete the model's claim that every field the operation needs is now known
+     */
+    public record TransactionDraft(String operation, String transactionId,
+                                   java.math.BigDecimal amount, String type, String category,
+                                   String description, String date, boolean complete) {}
 }

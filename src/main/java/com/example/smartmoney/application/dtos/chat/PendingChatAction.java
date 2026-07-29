@@ -45,6 +45,15 @@ public class PendingChatAction {
          *  {@code trackingMoneySaved} only touches the separate pace-tracking row, which no longer
          *  feeds visible progress — confirming that one alone looks like nothing happened. */
         PROJECT_CONTRIBUTION_ADD,
+        /** Record a brand-new transaction — {@code CreateTransactionUseCase}, the same use case
+         *  {@code POST /api/v1/transactions} calls, so an EXPENSE also rolls into the matching
+         *  month's Budget {@code spent} exactly as a manually-entered one would. */
+        TRANSACTION_CREATE,
+        /** Edit an existing transaction — {@code UpdateTransactionUseCase}. Only the fields the
+         *  user asked to change are set; the rest stay null and are left untouched. */
+        TRANSACTION_UPDATE,
+        /** Remove an existing transaction — {@code DeleteTransactionUseCase}. */
+        TRANSACTION_DELETE,
         BATCH
     }
 
@@ -84,6 +93,19 @@ public class PendingChatAction {
     private String priority;      // ProjectPriority enum name
     private BigDecimal targetAmount;
     private String currency;
+
+    // ── TRANSACTION_CREATE / TRANSACTION_UPDATE / TRANSACTION_DELETE ──────────
+    // Mirrors CreateTransactionRequest/UpdateTransactionRequest field-for-field. On CREATE every
+    // field except description is required (validated in TransactionChangeService before the
+    // action is ever stored); on UPDATE each is independently nullable — only the ones the user
+    // actually asked to change are set, matching UpdateTransactionRequest's partial-update
+    // semantics. On DELETE only transactionId is used.
+    private String transactionId;
+    private BigDecimal transactionAmount;
+    private String transactionType;        // TransactionType enum name
+    private String transactionCategory;    // Category enum name
+    private String transactionDescription;
+    private String transactionDate;        // "dd/MM/yyyy HH:mm", same format the DTOs validate
 
     // ── APPLY_NEXT_MONTH_BUDGET_PLAN ──────────────────────────────────────────
     private Integer targetMonth;

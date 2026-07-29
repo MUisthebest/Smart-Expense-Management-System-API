@@ -16,6 +16,7 @@ import com.example.smartmoney.application.services.MessageLanguageDetector;
 import com.example.smartmoney.application.services.ProjectHypothesisService;
 import com.example.smartmoney.application.services.ProjectUpdateSuggestionService;
 import com.example.smartmoney.application.services.SpendingSimulationService;
+import com.example.smartmoney.application.services.TransactionChangeService;
 import com.example.smartmoney.application.services.UserFinancialDataService;
 import com.example.smartmoney.application.services.WindfallAllocationService;
 import com.example.smartmoney.application.usecases.budget.ComputeBudgetAllocationUseCase;
@@ -60,6 +61,7 @@ public class ChatWithAIUseCase {
     private final WindfallAllocationService windfallAllocationService;
     private final ProjectUpdateSuggestionService projectUpdateSuggestionService;
     private final ProjectHypothesisService projectHypothesisService;
+    private final TransactionChangeService transactionChangeService;
     private final ChatbotPromptBuilder promptBuilder;
     private final UserRepository userRepository;
     private final ChatHistoryCacheService chatHistoryCacheService;
@@ -141,7 +143,8 @@ public class ChatWithAIUseCase {
         try {
             response = buildStructuredResponse(parsed.intent(), parsed.reply(), userId, user, month, year,
                     message.toLowerCase(), daysLeft,
-                    relatedQuestionsOrFallback(parsed.intent(), parsed.relatedQuestions()));
+                    relatedQuestionsOrFallback(parsed.intent(), parsed.relatedQuestions()),
+                    parsed.transactionDraft());
         } catch (Exception e) {
             log.warn("ChatWithAIUseCase: failed to compute structured suggestions for user {}, " +
                     "returning reply-only response: {}", userId, e.getMessage());
@@ -219,7 +222,8 @@ public class ChatWithAIUseCase {
             return new JsonSchemaGuardrail.ParsedLlmResponse(
                     ChatResponse.ChatIntent.GENERAL_ADVICE,
                     english ? LLM_UNAVAILABLE_REPLY_EN : LLM_UNAVAILABLE_REPLY_VI,
-                    List.of());
+                    List.of(),
+                    null);
         }
         return jsonSchemaGuardrail.validate(rawResponse, () -> adapter.chat(systemPrompt, userMessage, userId));
     }
@@ -277,13 +281,29 @@ public class ChatWithAIUseCase {
 
     private ChatResponse buildStructuredResponse(ChatResponse.ChatIntent intent, String reply,
                                                  UUID userId, User user, int month, int year, String messageLow,
-                                                 int daysLeft, List<String> relatedQuestions) {
+                                                 int daysLeft, List<String> relatedQuestions,
+                                                 JsonSchemaGuardrail.TransactionDraft transactionDraft) {
         // Days-left gate: with few days left in the current month, never propose changing THIS
         // month's budget/project — the reply already steers toward a next-month plan instead.
         boolean suppressCurrentMonth = daysLeft <= DAYS_LEFT_SUPPRESS_THRESHOLD
                 && (intent == ChatResponse.ChatIntent.BUDGET_UPDATE
                 || intent == ChatResponse.ChatIntent.PROJECT_UPDATE
                 || intent == ChatResponse.ChatIntent.PROJECT_HYPOTHESIS);
+
+        // Advisory-only gate: a question ABOUT a change rather than a request to make one — "nếu
+        // tôi tăng ngân sách ăn uống thì sao", "giả sử tôi cắt chi tiêu", "what if I shorten this
+        // project". The user asked to think, not to act, so this turn gets the numbers and the
+        // recommendation but no Yes/No confirm affordance: suggestions are still computed and
+        // still returned, only pendingActionId/actionRequired are withheld, so the client renders
+        // a plain reply with a suggestion in it instead of a decision card. An unambiguous
+        // imperative ("tăng ngân sách ăn uống lên 3 triệu") is unaffected and still gets its card.
+        //
+        // Note this is the HYPOTHETICAL gate only. The separate deferred-intent gate
+        // (looksFutureDated, "tháng sau tôi định...") stays per-branch as before, because the
+        // budget-CUT path is deliberately exempt from it: that path's whole purpose is to plan
+        // the FOLLOWING month, so "cắt giảm ngân sách tháng sau" is the request being satisfied,
+        // not a request being deferred.
+        boolean advisoryOnly = isHypothetical(messageLow);
 
         // §5 group-project isolation — load once per turn and pass into every branch that
         // produces a project-typed suggestion. Even though the prompt tells the LLM never to
@@ -312,8 +332,9 @@ public class ChatWithAIUseCase {
                                 .reply(reply).intent(intent).relatedQuestions(relatedQuestions).build();
                     }
                     var swap = budgetAdvisorService.suggestIncreaseSwap(userId, month, year, messageLow);
-                    String actionId = swap.isEmpty() ? null
-                            : storePendingAction(userId, budgetSwapAction(swap), messageLow);
+                    boolean swapConfirmable = !swap.isEmpty() && !advisoryOnly;
+                    String actionId = swapConfirmable
+                            ? storePendingAction(userId, budgetSwapAction(swap), messageLow) : null;
                     String increaseReply = reply;
                     String warning = abnormalIncreaseWarning(swap, user, messageLow);
                     if (warning != null) increaseReply = appendToReply(reply, warning);
@@ -322,7 +343,7 @@ public class ChatWithAIUseCase {
                             .intent(intent)
                             .budgetSuggestions(swap.isEmpty() ? null : swap)
                             .pendingActionId(actionId)
-                            .actionRequired(!swap.isEmpty())
+                            .actionRequired(swapConfirmable)
                             .relatedQuestions(relatedQuestions)
                             .build();
                 }
@@ -333,8 +354,10 @@ public class ChatWithAIUseCase {
                 // old single-category ad-hoc 20%-cut math.
                 YearMonth nextMonth = YearMonth.of(year, month).plusMonths(1);
                 var suggestions = computeNextMonthBudgetSuggestions(userId, nextMonth, messageLow);
-                String actionId = suggestions.isEmpty() ? null
-                        : storePendingAction(userId, nextMonthBudgetPlanAction(nextMonth, suggestions), messageLow);
+                boolean planConfirmable = !suggestions.isEmpty() && !advisoryOnly;
+                String actionId = planConfirmable
+                        ? storePendingAction(userId, nextMonthBudgetPlanAction(nextMonth, suggestions), messageLow)
+                        : null;
                 yield ChatResponse.builder()
                         .reply(reply)
                         .intent(intent)
@@ -342,7 +365,7 @@ public class ChatWithAIUseCase {
                         .suggestedMonth(suggestions.isEmpty() ? null : nextMonth.getMonthValue())
                         .suggestedYear(suggestions.isEmpty() ? null : nextMonth.getYear())
                         .pendingActionId(actionId)
-                        .actionRequired(!suggestions.isEmpty())
+                        .actionRequired(planConfirmable)
                         .relatedQuestions(relatedQuestions)
                         .build();
             }
@@ -353,14 +376,19 @@ public class ChatWithAIUseCase {
                 var shortfallSuggestions = simResult.getNewSafeSpending() < 0
                         ? budgetAdvisorService.suggestReductions(userId, month, year, messageLow)
                         : Collections.<ChatResponse.BudgetUpdateSuggestion>emptyList();
-                String actionId = storePendingActionIfAny(userId, shortfallSuggestions, null, messageLow);
+                // A simulation is a what-if by construction, so advisoryOnly is almost always
+                // true here and the cut is offered as reading material rather than a decision.
+                // Left as the shared gate rather than hardcoded false, so a shortfall raised
+                // through non-hypothetical phrasing still gets its card.
+                String actionId = advisoryOnly ? null
+                        : storePendingActionIfAny(userId, shortfallSuggestions, null, messageLow);
                 yield ChatResponse.builder()
                         .reply(reply)
                         .intent(intent)
                         .simulationResult(simResult)
                         .budgetSuggestions(shortfallSuggestions.isEmpty() ? null : shortfallSuggestions)
                         .pendingActionId(actionId)
-                        .actionRequired(!shortfallSuggestions.isEmpty())
+                        .actionRequired(actionId != null)
                         .relatedQuestions(relatedQuestions)
                         .build();
             }
@@ -453,7 +481,8 @@ public class ChatWithAIUseCase {
                 // list ends up empty — the fallthrough below to namedInactiveProjectNote handles
                 // any messaging gap, and the LLM's reply itself was already told not to propose.
                 suggestions = stripGroupLinkedSavings(suggestions, groupLinkedIds);
-                String actionId = storePendingActionIfAny(userId, null, suggestions, messageLow);
+                String actionId = advisoryOnly ? null
+                        : storePendingActionIfAny(userId, null, suggestions, messageLow);
                 String finalReply = reply;
                 if (suggestions.isEmpty() && !suppressCurrentMonth && !deferredToFuture) {
                     String note = namedInactiveProjectNote(userId, messageLow);
@@ -464,7 +493,7 @@ public class ChatWithAIUseCase {
                         .intent(intent)
                         .savingsSuggestions(suggestions.isEmpty() ? null : suggestions)
                         .pendingActionId(actionId)
-                        .actionRequired(!suggestions.isEmpty())
+                        .actionRequired(actionId != null)
                         .relatedQuestions(relatedQuestions)
                         .build();
             }
@@ -485,7 +514,7 @@ public class ChatWithAIUseCase {
                 // §5: strip shorten/extend/delete previews that target a group-linked project.
                 // CREATE previews have projectId=null (project doesn't exist yet) — never removed.
                 suggestions = stripGroupLinkedProjectChanges(suggestions, groupLinkedIds);
-                String actionId = suggestions.isEmpty() ? null
+                String actionId = (suggestions.isEmpty() || advisoryOnly) ? null
                         : storePendingAction(userId, pendingActionForSuggestions(userId, suggestions), messageLow);
                 String hypothesisReply = reply;
                 if (suggestions.isEmpty()) {
@@ -497,7 +526,33 @@ public class ChatWithAIUseCase {
                         .intent(intent)
                         .projectChangeSuggestions(suggestions.isEmpty() ? null : suggestions)
                         .pendingActionId(actionId)
-                        .actionRequired(!suggestions.isEmpty())
+                        .actionRequired(actionId != null)
+                        .relatedQuestions(relatedQuestions)
+                        .build();
+            }
+            case TRANSACTION_UPDATE -> {
+                // Step-by-step ledger entry/edit/removal. The assistant collects the fields over
+                // however many turns it takes and marks the draft complete; TransactionChange-
+                // Service re-validates all of it (amount, category-vs-type, date, ownership,
+                // project-linked rows) and returns empty whenever anything is still missing or
+                // illegal — in which case this turn is just the assistant's next question, with
+                // no card. Only a fully-specified, legal change becomes confirmable.
+                //
+                // Same deferred-intent gate as the other change intents: "tháng sau tôi sẽ ghi
+                // khoản này" has no scheduling mechanism behind it, so it stays advisory.
+                var preview = (advisoryOnly || looksFutureDated(messageLow))
+                        ? Optional.<TransactionChangeService.Preview>empty()
+                        : transactionChangeService.preview(userId, transactionDraft, messageLow);
+                String actionId = preview
+                        .map(p -> storePendingAction(userId, p.action(), messageLow))
+                        .orElse(null);
+                yield ChatResponse.builder()
+                        .reply(reply)
+                        .intent(intent)
+                        .transactionChangeSuggestions(
+                                preview.map(p -> List.of(p.suggestion())).orElse(null))
+                        .pendingActionId(actionId)
+                        .actionRequired(actionId != null)
                         .relatedQuestions(relatedQuestions)
                         .build();
             }
@@ -525,8 +580,30 @@ public class ChatWithAIUseCase {
                         .reply(reply)
                         .intent(intent)
                         .relatedQuestions(relatedQuestions);
+
+                // Transaction safety net: the assistant finished collecting a transaction draft
+                // but labelled the turn GENERAL_ADVICE (easy to do on the final step, where the
+                // user's message is often a bare "FOOD" or "50k" carrying no change wording of
+                // its own). The draft itself is the unambiguous signal, and it's already fully
+                // re-validated by TransactionChangeService, so honour it rather than throwing
+                // away work the user spent several turns on — same reasoning as the windfall and
+                // structural-project nets below. Intent is left as GENERAL_ADVICE; this only
+                // augments the payload.
+                if (!advisoryOnly && !looksFutureDated(messageLow)) {
+                    var txPreview = transactionChangeService.preview(userId, transactionDraft, messageLow);
+                    if (txPreview.isPresent()) {
+                        String txActionId = storePendingAction(userId, txPreview.get().action(), messageLow);
+                        yield builder
+                                .transactionChangeSuggestions(List.of(txPreview.get().suggestion()))
+                                .pendingActionId(txActionId)
+                                .actionRequired(true)
+                                .build();
+                    }
+                }
+
                 boolean looksStructural = projectHypothesisService.looksLikeStructuralChangeRequest(messageLow);
-                boolean handled = looksStructural && !suppressCurrentMonth && !looksFutureDated(messageLow)
+                boolean handled = looksStructural && !suppressCurrentMonth && !advisoryOnly
+                        && !looksFutureDated(messageLow)
                         && attachImplicitProjectHypothesis(builder, userId, messageLow, groupLinkedIds);
                 if (looksStructural && !handled) {
                     String note = namedInactiveProjectNote(userId, messageLow);

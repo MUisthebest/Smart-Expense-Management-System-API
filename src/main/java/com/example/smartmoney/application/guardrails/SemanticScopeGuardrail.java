@@ -50,11 +50,17 @@ public class SemanticScopeGuardrail implements PromptGuardrail {
             - Lời khuyên quản lý tiền bạc nói chung.
             - QUẢN LÝ dữ liệu tài chính của chính người dùng trong ứng dụng: tạo mới, cập nhật, đổi
               thời hạn (rút ngắn/kéo dài), hoặc XÓA một ngân sách hay một dự án tiết kiệm; góp thêm
-              tiền hoặc ghi nhận nợ vào một dự án. Đây LUÔN LÀ IN_SCOPE dù câu là một câu MỆNH LỆNH
-              ngắn (vd: "xóa dự án du lịch giúp tôi", "delete my car project", "tạo dự án mới mua
-              nhà", "rút ngắn dự án X 3 tháng") — KHÔNG được coi những câu mệnh lệnh quản lý dữ liệu
-              của người dùng này là yêu cầu "thay đổi hệ thống" hay đáng ngờ chỉ vì chúng ngắn gọn/ra
-              lệnh thay vì đặt câu hỏi.
+              tiền hoặc ghi nhận nợ vào một dự án; GHI NHẬN, SỬA hoặc XÓA một giao dịch thu/chi
+              trong sổ chi tiêu. Đây LUÔN LÀ IN_SCOPE dù câu là một câu MỆNH LỆNH ngắn (vd: "xóa dự
+              án du lịch giúp tôi", "delete my car project", "tạo dự án mới mua nhà", "rút ngắn dự
+              án X 3 tháng", "ghi chi 50k ăn uống", "record a 200k transport expense", "xóa giao
+              dịch hôm qua", "sửa lại khoản chi tối qua") — KHÔNG được coi những câu mệnh lệnh quản
+              lý dữ liệu của người dùng này là yêu cầu "thay đổi hệ thống" hay đáng ngờ chỉ vì chúng
+              ngắn gọn/ra lệnh thay vì đặt câu hỏi.
+            - Câu trả lời NGẮN cho một câu hỏi mà chính trợ lý vừa đặt ra trong quy trình nhập liệu
+              từng bước (vd: chỉ "FOOD", "50000", "chi", "hôm qua", "EXPENSE") — những mẩu trả lời
+              rời rạc này là một phần của hội thoại tài chính đang diễn ra, LUÔN LÀ IN_SCOPE, KHÔNG
+              được coi là ngoài phạm vi chỉ vì bản thân chúng không chứa từ khóa tài chính nào.
             - Lời chào xã giao, cảm ơn, tạm biệt, hỏi thăm ngắn (vd: "xin chào", "chào bạn", "cảm ơn
               nhé", "bạn khỏe không", "tạm biệt"), hoặc hỏi về bản thân trợ lý (vd: "bạn là ai", "bạn
               giúp được gì cho tôi") — đây là mở đầu hội thoại bình thường với trợ lý, KHÔNG phải yêu

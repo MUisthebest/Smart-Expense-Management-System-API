@@ -5,6 +5,8 @@ import com.example.smartmoney.application.dtos.requests.budgets.UpdateBudgetRequ
 import com.example.smartmoney.application.dtos.requests.chat.ConfirmChatActionRequest;
 import com.example.smartmoney.application.dtos.requests.project.AddProjectContributionRequest;
 import com.example.smartmoney.application.dtos.requests.project.UpdateProjectRequest;
+import com.example.smartmoney.application.dtos.requests.transactions.CreateTransactionRequest;
+import com.example.smartmoney.application.dtos.requests.transactions.UpdateTransactionRequest;
 import com.example.smartmoney.application.dtos.responses.ChatActionConfirmResponse;
 import com.example.smartmoney.application.dtos.responses.budgets.BudgetAllocationPlanResponse;
 import com.example.smartmoney.application.ports.chat.ChatPendingActionPort;
@@ -16,10 +18,16 @@ import com.example.smartmoney.application.usecases.project.CreateProjectUseCase;
 import com.example.smartmoney.application.usecases.project.DeleteProjectUseCase;
 import com.example.smartmoney.application.usecases.project.UpdateProjectTrackingUseCase;
 import com.example.smartmoney.application.usecases.project.UpdateProjectUseCase;
+import com.example.smartmoney.application.usecases.transaction.CreateTransactionUseCase;
+import com.example.smartmoney.application.usecases.transaction.DeleteTransactionUseCase;
+import com.example.smartmoney.application.usecases.transaction.UpdateTransactionUseCase;
+import com.example.smartmoney.domain.models.transaction.enums.Category;
+import com.example.smartmoney.domain.models.transaction.enums.TransactionType;
 import com.example.smartmoney.domain.repositories.ProjectRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -52,12 +60,17 @@ class ConfirmChatActionUseCaseTest {
     private final UpsertBulkBudgetsUseCase upsertBulkBudgetsUseCase = mock(UpsertBulkBudgetsUseCase.class);
     private final ComputeBudgetAllocationUseCase computeBudgetAllocationUseCase =
             mock(ComputeBudgetAllocationUseCase.class);
+    private final CreateTransactionUseCase createTransactionUseCase = mock(CreateTransactionUseCase.class);
+    private final UpdateTransactionUseCase updateTransactionUseCase = mock(UpdateTransactionUseCase.class);
+    private final DeleteTransactionUseCase deleteTransactionUseCase = mock(DeleteTransactionUseCase.class);
     private final ProjectRepository projectRepository = mock(ProjectRepository.class);
 
     private final ConfirmChatActionUseCase useCase = new ConfirmChatActionUseCase(
             pendingActionPort, createProjectUseCase, updateProjectUseCase, deleteProjectUseCase,
             updateProjectTrackingUseCase, addProjectContributionUseCase, updateBudgetUseCase,
-            upsertBulkBudgetsUseCase, computeBudgetAllocationUseCase, projectRepository);
+            upsertBulkBudgetsUseCase, computeBudgetAllocationUseCase,
+            createTransactionUseCase, updateTransactionUseCase, deleteTransactionUseCase,
+            projectRepository);
 
     private final UUID userId = UUID.randomUUID();
     private final String actionId = "action-1";
@@ -68,6 +81,112 @@ class ConfirmChatActionUseCaseTest {
                 .safeSpending(BigDecimal.valueOf(5_000_000))
                 .envelope(BigDecimal.valueOf(3_000_000))
                 .build());
+    }
+
+    @Test
+    @DisplayName("confirm=true on a transaction create executes CreateTransactionUseCase with the drafted fields")
+    void confirmExecutesTransactionCreate() {
+        PendingChatAction action = PendingChatAction.builder()
+                .type(PendingChatAction.Type.TRANSACTION_CREATE)
+                .transactionAmount(BigDecimal.valueOf(50_000))
+                .transactionType("EXPENSE")
+                .transactionCategory("FOOD")
+                .transactionDescription("bún bò")
+                .transactionDate("29/07/2026 12:00")
+                .build();
+        when(pendingActionPort.load(userId, actionId)).thenReturn(Optional.of(action));
+
+        ChatActionConfirmResponse response = useCase.execute(userId,
+                ConfirmChatActionRequest.builder().actionId(actionId).confirm(true).build());
+
+        ArgumentCaptor<CreateTransactionRequest> captor =
+                ArgumentCaptor.forClass(CreateTransactionRequest.class);
+        verify(createTransactionUseCase).execute(eq(userId), captor.capture());
+        CreateTransactionRequest sent = captor.getValue();
+        assertThat(sent.getAmount()).isEqualByComparingTo(BigDecimal.valueOf(50_000));
+        assertThat(sent.getType()).isEqualTo(TransactionType.EXPENSE);
+        assertThat(sent.getCategory()).isEqualTo(Category.FOOD);
+        assertThat(sent.getDate()).isEqualTo("29/07/2026 12:00");
+
+        assertThat(response.isSuccess()).isTrue();
+        // A ledger entry isn't "an update" — say what actually happened.
+        assertThat(response.getReply()).isEqualTo("Đã ghi nhận giao dịch thành công.");
+        assertThat(response.getSafeSpendingAfter()).isEqualTo(5_000_000L);
+        assertThat(pendingActionPortDeleted()).isTrue();
+    }
+
+    @Test
+    @DisplayName("confirm=true on a transaction update sends only the fields that were actually changed")
+    void confirmExecutesTransactionUpdateWithOnlyChangedFields() {
+        UUID txId = UUID.randomUUID();
+        PendingChatAction action = PendingChatAction.builder()
+                .type(PendingChatAction.Type.TRANSACTION_UPDATE)
+                .transactionId(txId.toString())
+                .transactionAmount(BigDecimal.valueOf(150_000))
+                .build();
+        when(pendingActionPort.load(userId, actionId)).thenReturn(Optional.of(action));
+
+        ChatActionConfirmResponse response = useCase.execute(userId,
+                ConfirmChatActionRequest.builder().actionId(actionId).confirm(true).build());
+
+        ArgumentCaptor<UpdateTransactionRequest> captor =
+                ArgumentCaptor.forClass(UpdateTransactionRequest.class);
+        verify(updateTransactionUseCase).execute(eq(userId), eq(txId), captor.capture());
+        UpdateTransactionRequest sent = captor.getValue();
+        assertThat(sent.getAmount()).isEqualByComparingTo(BigDecimal.valueOf(150_000));
+        // Everything untouched stays null so UpdateTransactionUseCase leaves it alone — sending
+        // a resolved value here would let a stale draft overwrite a field the user never named.
+        assertThat(sent.getType()).isNull();
+        assertThat(sent.getCategory()).isNull();
+        assertThat(sent.getDescription()).isNull();
+        assertThat(sent.getDate()).isNull();
+
+        assertThat(response.isSuccess()).isTrue();
+        assertThat(response.getReply()).isEqualTo("Đã cập nhật giao dịch thành công.");
+    }
+
+    @Test
+    @DisplayName("confirm=true on a transaction delete executes DeleteTransactionUseCase")
+    void confirmExecutesTransactionDelete() {
+        UUID txId = UUID.randomUUID();
+        PendingChatAction action = PendingChatAction.builder()
+                .type(PendingChatAction.Type.TRANSACTION_DELETE)
+                .transactionId(txId.toString())
+                .english(true)
+                .build();
+        when(pendingActionPort.load(userId, actionId)).thenReturn(Optional.of(action));
+
+        ChatActionConfirmResponse response = useCase.execute(userId,
+                ConfirmChatActionRequest.builder().actionId(actionId).confirm(true).build());
+
+        verify(deleteTransactionUseCase).execute(userId, txId);
+        assertThat(response.isSuccess()).isTrue();
+        assertThat(response.getReply()).isEqualTo("Transaction deleted successfully.");
+        assertThat(response.isEnglish()).isTrue();
+    }
+
+    @Test
+    @DisplayName("confirm=false on a transaction action executes nothing")
+    void denyExecutesNoTransactionMutation() {
+        PendingChatAction action = PendingChatAction.builder()
+                .type(PendingChatAction.Type.TRANSACTION_DELETE)
+                .transactionId(UUID.randomUUID().toString())
+                .build();
+        when(pendingActionPort.load(userId, actionId)).thenReturn(Optional.of(action));
+
+        ChatActionConfirmResponse response = useCase.execute(userId,
+                ConfirmChatActionRequest.builder().actionId(actionId).confirm(false).build());
+
+        verifyNoInteractions(deleteTransactionUseCase);
+        verifyNoInteractions(createTransactionUseCase);
+        verifyNoInteractions(updateTransactionUseCase);
+        assertThat(response.isSuccess()).isFalse();
+    }
+
+    /** The pending action is single-use whichever way it resolves. */
+    private boolean pendingActionPortDeleted() {
+        verify(pendingActionPort).delete(userId, actionId);
+        return true;
     }
 
     @Test

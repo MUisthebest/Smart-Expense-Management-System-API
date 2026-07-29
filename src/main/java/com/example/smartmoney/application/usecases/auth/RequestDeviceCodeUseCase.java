@@ -24,7 +24,7 @@ public class RequestDeviceCodeUseCase {
 
     private final DeviceFlowCachePort deviceFlowCache;
 
-    @Value("${app.frontend-url:http://localhost:3000}")
+    @Value("${app.frontend-url:https://smartmoney-gray.vercel.app}")
     private String frontendUrl;
 
     private static final int EXPIRES_IN = 300;  // 5 minutes

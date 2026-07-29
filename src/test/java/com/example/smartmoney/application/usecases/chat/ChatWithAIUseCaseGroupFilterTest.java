@@ -10,6 +10,7 @@ import com.example.smartmoney.application.services.LlmRouter;
 import com.example.smartmoney.application.services.ProjectHypothesisService;
 import com.example.smartmoney.application.services.ProjectUpdateSuggestionService;
 import com.example.smartmoney.application.services.SpendingSimulationService;
+import com.example.smartmoney.application.services.TransactionChangeService;
 import com.example.smartmoney.application.services.UserFinancialDataService;
 import com.example.smartmoney.application.services.WindfallAllocationService;
 import com.example.smartmoney.application.usecases.budget.ComputeBudgetAllocationUseCase;
@@ -70,6 +71,7 @@ class ChatWithAIUseCaseGroupFilterTest {
             mock(WindfallAllocationService.class),
             mock(ProjectUpdateSuggestionService.class),
             mock(ProjectHypothesisService.class),
+            mock(TransactionChangeService.class),
             mock(ChatbotPromptBuilder.class),
             mock(UserRepository.class),
             mock(ChatHistoryCacheService.class),
