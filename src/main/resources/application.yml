@@ -80,10 +80,11 @@ app:
     audience: "smart-money-users"
     token-prefix: "Bearer "
   
-  # Public URLs. Real hostnames live only in the environment (.env / platform env vars,
-  # both untracked) — the defaults below are localhost so a dev box works out of the box
-  # and so no deployed hostname is committed to the repo. Every deployment MUST set
-  # APP_BASE_URL / APP_WEB_URL / APP_FRONTEND_URL, otherwise links point at localhost.
+  # Base URL used for deep-link invite generation.
+  # Defaults are local-dev values — production MUST set APP_BASE_URL / APP_WEB_URL
+  # (see .env.example); never hardcode real domains as fallbacks here.
+  base-url: ${APP_BASE_URL:http://localhost:8080}
+  web-url: ${APP_WEB_URL:http://localhost:3000}
 
   # Base URL of this API, used for deep-link invite generation
   base-url: ${APP_BASE_URL:http://localhost:8080}
