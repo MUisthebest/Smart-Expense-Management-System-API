@@ -80,13 +80,16 @@ app:
     audience: "smart-money-users"
     token-prefix: "Bearer "
   
-  # Base URL used for deep-link invite generation
+  # Base URL used for deep-link invite generation.
+  # Defaults are local-dev values — production MUST set APP_BASE_URL / APP_WEB_URL
+  # (see .env.example); never hardcode real domains as fallbacks here.
   base-url: ${APP_BASE_URL:http://localhost:8080}
   web-url: ${APP_WEB_URL:http://localhost:3000}
 
-  # Frontend base URL used for Device Flow activation links (must match the
-  # Next.js app's locale-prefixed routing, e.g. /en/activate)
-  frontend-url: ${APP_FRONTEND_URL:http://localhost:3000}
+  # Frontend base URL used for CLI login and Device Flow activation links. No locale
+  # segment here — the code appends one (…/en/login?cli=…, …/en/activate), so putting
+  # /en in this value would produce /en/en/login.
+  frontend-url: ${APP_FRONTEND_URL:https://smartmoney-gray.vercel.app}
 
   # Settlement engine (DEPRECATED by redesign Pivot B — press-to-contribute).
   # Disabled by default: the monthly settlement cron (MonthlySettlementScheduler) only
@@ -217,6 +220,10 @@ app:
   # Application Settings
   security:
     allowed-origins:
+      # Deployed frontend + API
+      - "https://smartmoney-gray.vercel.app"
+      - "https://smartmoney-haibang.duckdns.org"
+      # Kept so a local dev server can still talk to a deployed backend
       - "http://localhost:3000"
       - "http://localhost:8080"
       - "http://localhost:4200"

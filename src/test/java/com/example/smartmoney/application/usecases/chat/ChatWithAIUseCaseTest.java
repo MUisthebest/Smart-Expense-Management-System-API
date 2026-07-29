@@ -219,7 +219,8 @@ public class ChatWithAIUseCaseTest {
             return new JsonSchemaGuardrail.ParsedLlmResponse(
                     ChatResponse.ChatIntent.GENERAL_ADVICE,
                     english ? LLM_UNAVAILABLE_REPLY_EN : LLM_UNAVAILABLE_REPLY_VI,
-                    List.of());
+                    List.of(),
+                    null);
         }
         return jsonSchemaGuardrail.validate(rawResponse, () -> adapter.chat(systemPrompt, userMessage, userId));
     }

@@ -96,6 +96,31 @@ class ChatbotPromptBuilderTest {
             assertThat(prompt).contains("linkedToGroup=true|false");
             assertThat(prompt).contains("SUB-PERSONAL");
         }
+
+        @Test
+        @DisplayName("the transaction block's line shape is documented, txId included")
+        void transactionBlockDocumented() {
+            String prompt = builder.build(null);
+            assertThat(prompt)
+                    .contains("Khối \"Giao dịch tháng M/Y\"")
+                    .contains("txId=")
+                    .contains("locked=true|false")
+                    .contains("TUYỆT ĐỐI KHÔNG bịa ra");
+        }
+
+        @Test
+        @DisplayName("the transaction list is capped, so the LLM is told not to treat it as the whole month")
+        void transactionListIsExplicitlyPartial() {
+            String prompt = builder.build(null);
+            // buildChatContext caps at 15 rows. Without this the model would happily sum the
+            // visible rows and present the result as the month's total spending.
+            // Fragments are kept within a single source line — the prompt is a text block, so
+            // asserting across its wrap points would break on any reflow.
+            assertThat(prompt)
+                    .contains("giao dịch gần nhất")
+                    .contains("được khẳng định đây là toàn bộ giao dịch trong tháng")
+                    .contains("dùng \"Chi tiêu thực tế tháng này\"");
+        }
     }
 
     // ── Cross-check rules — the anti-conflict engine ─────────────────────────
@@ -189,6 +214,39 @@ class ChatbotPromptBuilderTest {
                     .contains("CreateTransactionRequest")
                     .contains("dd/MM/yyyy HH:mm");
         }
+
+        @Test
+        @DisplayName("A1 splits the legal categories per transaction type so the LLM can't pair SALARY with an EXPENSE")
+        void createTransactionCategoriesArePerType() {
+            String prompt = builder.build(null);
+            assertThat(prompt)
+                    .contains("* EXPENSE: FOOD, TRANSPORTATION")
+                    .contains("* INCOME: SALARY, BONUS, INVESTMENT, GIFT, OTHER")
+                    // The two system-generated categories are the project ledger's, not the
+                    // user's — TransactionChangeService rejects them, so the prompt says so too.
+                    .contains("KHÔNG dùng category PROJECT_CONTRIBUTION hoặc PROJECT_REFUND");
+        }
+
+        @Test
+        @DisplayName("A1 lets an omitted date default to now rather than costing the user an extra step")
+        void createTransactionDateIsOptional() {
+            String prompt = builder.build(null);
+            assertThat(prompt).contains("bỏ trống nghĩa là THỜI ĐIỂM HIỆN TẠI");
+        }
+
+        @Test
+        @DisplayName("A2/A3 require a real txId and forbid guessing between ambiguous matches")
+        void editAndDeleteTransactionRequireTxId() {
+            String prompt = builder.build(null);
+            assertThat(prompt)
+                    .contains("UpdateTransactionRequest")
+                    .contains("DELETE /transactions/{id}")
+                    .contains("KHÔNG bịa txId")
+                    // The failure this prevents is deleting the wrong row on a vague reference
+                    // like "xóa khoản ăn uống hôm qua" when two of them exist.
+                    .contains("TUYỆT ĐỐI KHÔNG tự chọn hộ")
+                    .contains("locked=true");
+        }
     }
 
     // ── Group-project isolation ─────────────────────────────────────────────
@@ -226,12 +284,12 @@ class ChatbotPromptBuilderTest {
     // ── Intent taxonomy — all 8 intents with their nuances ──────────────────
 
     @Nested
-    @DisplayName("§6 intent taxonomy has all 8 intents")
+    @DisplayName("§6 intent taxonomy has all 9 intents")
     class IntentTaxonomy {
 
         @Test
-        @DisplayName("all 8 intents are listed with their trigger conditions")
-        void allEightIntentsPresent() {
+        @DisplayName("all 9 intents are listed with their trigger conditions")
+        void allNineIntentsPresent() {
             String prompt = builder.build(null);
             assertThat(prompt)
                     .contains("OUT_OF_SCOPE")
@@ -241,7 +299,35 @@ class ChatbotPromptBuilderTest {
                     .contains("PROJECT_UPDATE")
                     .contains("BUDGET_UPDATE")
                     .contains("SIMULATION")
+                    .contains("TRANSACTION_UPDATE")
                     .contains("GENERAL_ADVICE");
+        }
+
+        @Test
+        @DisplayName("TRANSACTION_UPDATE documents the step-by-step collect-one-field-per-turn loop")
+        void transactionUpdateStepByStepDocumented() {
+            String prompt = builder.build(null);
+            assertThat(prompt)
+                    .contains("QUY TRÌNH TỪNG BƯỚC")
+                    // One question per turn is the whole point — asking for three fields at once
+                    // is what this rule exists to prevent.
+                    .contains("hỏi ĐÚNG MỘT trường thiếu trong lượt này")
+                    // ...and the draft must be re-emitted in full each turn, since the backend
+                    // keeps no partial state of its own between turns.
+                    .contains("GHI NHỚ QUA CÁC LƯỢT")
+                    .contains("KHÔNG hỏi lại trường đã có");
+        }
+
+        @Test
+        @DisplayName("TRANSACTION_UPDATE is separated from the assess-only windfall/large-expense intents")
+        void transactionUpdateDistinguishedFromAssessmentIntents() {
+            String prompt = builder.build(null);
+            // "tôi vừa được thưởng 10 triệu, nên làm gì?" describes money but asks for advice —
+            // it must not be hijacked into a bookkeeping flow.
+            assertThat(prompt)
+                    .contains("PHÂN BIỆT với INCOME_WINDFALL / LARGE_EXPENSE")
+                    .contains("chỉ MÔ TẢ")
+                    .contains("khi người dùng muốn SỔ SÁCH thay đổi");
         }
 
         @Test
@@ -279,16 +365,18 @@ class ChatbotPromptBuilderTest {
         }
 
         @Test
-        @DisplayName("SIMULATION documents both no-shortfall (no card) and shortfall (card) branches")
+        @DisplayName("SIMULATION documents both no-shortfall and shortfall branches, neither carrying a card")
         void simulationBranchesDocumented() {
             String prompt = builder.build(null);
             assertThat(prompt)
                     .contains("newSafeSpending >= 0")
                     .contains("newSafeSpending < 0")
-                    .contains("KHÔNG có thẻ đề xuất")
                     // The card-attach phrase wraps in the text block; check the load-bearing
                     // "cắt giảm ngân sách" which appears on one line in the shortfall branch.
-                    .contains("cắt giảm ngân sách");
+                    .contains("cắt giảm ngân sách")
+                    // The shortfall cut is still computed and still explained — it's demoted to
+                    // a suggestion, not removed.
+                    .contains("như một GỢI Ý");
         }
 
         @Test
@@ -358,15 +446,32 @@ class ChatbotPromptBuilderTest {
         }
 
         @Test
-        @DisplayName("SIMULATION-with-shortfall is listed as card-carrying (fix for R1 regression)")
-        void simulationShortfallIsCardCarrying() {
+        @DisplayName("SIMULATION never carries a card — it is a hypothetical, shortfall or not")
+        void simulationNeverCardCarrying() {
             String prompt = builder.build(null);
-            // This is the critical fix from the second audit pass — SIMULATION was previously
-            // in the "no question" list, but the code auto-attaches a budget cut card on
-            // shortfall. Prompt now allows the closing question in that case only.
+            // Reverses the earlier "shortfall may close with a confirmation question" rule.
+            // A simulation is a "nếu"/what-if by construction: the user is weighing an option,
+            // not asking for it to be applied, so the shortfall cut is offered as a suggestion
+            // to read rather than a decision to make. ChatWithAIUseCase's advisoryOnly gate
+            // enforces the same thing server-side by withholding pendingActionId.
             assertThat(prompt)
-                    .contains("SIMULATION khi kịch bản gây thiếu hụt")
-                    .contains("SIMULATION khi KHÔNG có thiếu hụt (không có thẻ)");
+                    .contains("SIMULATION KHÔNG BAO GIỜ có thẻ xác nhận")
+                    .contains("SIMULATION (mọi kịch bản)")
+                    .doesNotContain("SIMULATION khi kịch bản gây thiếu hụt (newSafeSpending < 0) — backend đính kèm thẻ");
+        }
+
+        @Test
+        @DisplayName("hypothetical phrasing suppresses the confirm card across every change intent")
+        void hypotheticalPhrasingSuppressesCardEverywhere() {
+            String prompt = builder.build(null);
+            assertThat(prompt)
+                    .contains("YÊU CẦU GIẢ ĐỊNH KHÔNG BAO GIỜ CÓ THẺ XÁC NHẬN")
+                    // The rule has to name the intents explicitly, otherwise it reads as advice
+                    // about SIMULATION only — which is the one intent that was already exempt.
+                    .contains("BUDGET_UPDATE, PROJECT_UPDATE, PROJECT_HYPOTHESIS, TRANSACTION_UPDATE")
+                    // ...and it must NOT swallow the budget-cut next-month plan, whose entire
+                    // purpose is to act on a future month the user explicitly named.
+                    .contains("NGOẠI LỆ DUY NHẤT là nhánh CẮT GIẢM của");
         }
 
         @Test
@@ -511,7 +616,12 @@ class ChatbotPromptBuilderTest {
                     .contains("LARGE_EXPENSE (mọi trạng thái con")
                     .contains("INCOME_WINDFALL loại (2a)")
                     .contains("(2b)")
-                    .contains("SIMULATION không có thiếu hụt");
+                    // SIMULATION is now unconditionally suppressed (no longer "only when there's
+                    // no shortfall"), and a half-filled transaction draft is too: that turn is a
+                    // question waiting for one specific answer, so offering other things to ask
+                    // would pull the user off the flow they're in.
+                    .contains("SIMULATION,")
+                    .contains("complete = false");
         }
 
         @Test

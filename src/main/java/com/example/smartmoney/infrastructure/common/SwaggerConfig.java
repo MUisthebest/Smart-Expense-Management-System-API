@@ -26,12 +26,21 @@ public class SwaggerConfig {
     @Value("${server.servlet.context-path:/api}")
     private String contextPath;
 
+    // Follows the deployed API rather than a hardcoded localhost, so "Try it out" in
+    // Swagger UI hits whichever backend this instance actually is.
+    @Value("${app.base-url}")
+    private String baseUrl;
+
     @Bean
     public OpenAPI smartMoneyOpenAPI() {
+        String base = baseUrl.endsWith("/")
+                ? baseUrl.substring(0, baseUrl.length() - 1)
+                : baseUrl;
+
         return new OpenAPI()
             .addServersItem(new Server()
-                .url("http://localhost:8080" + contextPath)  // Thêm context-path
-                .description("Local API Base Path"))
+                .url(base + contextPath)  // Thêm context-path
+                .description("API Base Path"))
             .addSecurityItem(new SecurityRequirement().addList("bearerAuth"));
     }
 

@@ -22,7 +22,7 @@ public class InvitePageController {
     @Value("${app.mobile-scheme:smartmoney}")
     private String mobileScheme;
 
-    @Value("${app.web-url:http://localhost:3000}")
+    @Value("${app.web-url}")
     private String webUrl;
 
     @GetMapping("/api/v1/groups/invites/accept-direct")

@@ -13,6 +13,9 @@ import com.example.smartmoney.application.usecases.project.CreateProjectUseCase;
 import com.example.smartmoney.application.usecases.project.DeleteProjectUseCase;
 import com.example.smartmoney.application.usecases.project.UpdateProjectTrackingUseCase;
 import com.example.smartmoney.application.usecases.project.UpdateProjectUseCase;
+import com.example.smartmoney.application.usecases.transaction.CreateTransactionUseCase;
+import com.example.smartmoney.application.usecases.transaction.DeleteTransactionUseCase;
+import com.example.smartmoney.application.usecases.transaction.UpdateTransactionUseCase;
 import com.example.smartmoney.domain.models.project.Project;
 import com.example.smartmoney.domain.models.project.ProjectTracking;
 import com.example.smartmoney.domain.models.project.enums.ProjectPriority;
@@ -63,12 +66,16 @@ class ConfirmChatActionUseCaseGroupGuardTest {
     private final UpsertBulkBudgetsUseCase upsertBulkBudgetsUseCase = mock(UpsertBulkBudgetsUseCase.class);
     private final ComputeBudgetAllocationUseCase computeBudgetAllocationUseCase =
             mock(ComputeBudgetAllocationUseCase.class);
+    private final CreateTransactionUseCase createTransactionUseCase = mock(CreateTransactionUseCase.class);
+    private final UpdateTransactionUseCase updateTransactionUseCase = mock(UpdateTransactionUseCase.class);
+    private final DeleteTransactionUseCase deleteTransactionUseCase = mock(DeleteTransactionUseCase.class);
     private final ProjectRepository projectRepository = mock(ProjectRepository.class);
 
     private final ConfirmChatActionUseCase useCase = new ConfirmChatActionUseCase(
             pendingActionPort, createProjectUseCase, updateProjectUseCase, deleteProjectUseCase,
             updateProjectTrackingUseCase, addProjectContributionUseCase,
             updateBudgetUseCase, upsertBulkBudgetsUseCase, computeBudgetAllocationUseCase,
+            createTransactionUseCase, updateTransactionUseCase, deleteTransactionUseCase,
             projectRepository);
 
     private final UUID userId = UUID.randomUUID();

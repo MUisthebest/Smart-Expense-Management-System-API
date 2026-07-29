@@ -21,6 +21,9 @@ import java.util.List;
  *   <li>{@code PROJECT_HYPOTHESIS} — confirm card for a structural change (create/shorten/
  *       extend/delete); on accept, POST the returned {@code pendingActionId} to
  *       {@code /api/v1/ai/chat/confirm} — the backend executes it directly.</li>
+ *   <li>{@code TRANSACTION_UPDATE} — confirm card for recording / editing / deleting one of the
+ *       user's own transactions, gathered field-by-field over one or more turns; on accept, POST
+ *       the returned {@code pendingActionId} to {@code /api/v1/ai/chat/confirm}.</li>
  *   <li>{@code OUT_OF_SCOPE}    — polite redirect message.</li>
  * </ul>
  */
@@ -71,6 +74,15 @@ public class ChatResponse {
     List<ProjectChangeSuggestion> projectChangeSuggestions;
 
     /**
+     * Populated only when {@code intent == TRANSACTION_UPDATE} AND every field the operation
+     * needs has been gathered — a single fully-specified create/update/delete of one of the
+     * user's own transactions, ready to confirm. While the assistant is still collecting fields
+     * step by step (asking for the amount, then the category, ...) this stays null and no
+     * {@code pendingActionId} is issued: there is nothing complete enough to execute yet.
+     */
+    List<TransactionChangeSuggestion> transactionChangeSuggestions;
+
+    /**
      * Set only when this turn's suggestion is one the backend can execute itself: a
      * {@code PROJECT_HYPOTHESIS} change or a budget-increase swap. The client calls
      * {@code POST /api/v1/ai/chat/confirm} with this id to actually apply (or discard) it —
@@ -114,10 +126,47 @@ public class ChatResponse {
         LARGE_EXPENSE,
         PROJECT_UPDATE,
         PROJECT_HYPOTHESIS,
+        /** Record / edit / delete one of the user's own transactions, collected step by step. */
+        TRANSACTION_UPDATE,
         OUT_OF_SCOPE
     }
 
     public enum ProjectChangeOperation { CREATE, SHORTEN, EXTEND, DELETE }
+
+    public enum TransactionChangeOperation { CREATE, UPDATE, DELETE }
+
+    /**
+     * One fully-specified transaction change, ready for the user to confirm. Only ever emitted
+     * once the assistant has collected every field the operation requires — see
+     * {@code TransactionChangeService} for the per-operation requirements and the ownership /
+     * project-linked-transaction guards applied before this is built.
+     *
+     * <p>For UPDATE the {@code current*} fields carry the transaction's values BEFORE the change
+     * so the confirm card can show a before/after diff; only the {@code new*} fields the user
+     * actually asked to change are non-null. For CREATE the {@code current*} fields are null; for
+     * DELETE the {@code new*} fields are null.
+     */
+    @Value
+    @Builder
+    public static class TransactionChangeSuggestion {
+        /** Null for CREATE — the transaction doesn't exist yet. */
+        String transactionId;
+        TransactionChangeOperation operation;
+        Long currentAmount;
+        Long newAmount;
+        /** TransactionType name, e.g. "EXPENSE". */
+        String currentType;
+        String newType;
+        /** Category name, e.g. "FOOD". */
+        String currentCategory;
+        String newCategory;
+        String currentDescription;
+        String newDescription;
+        /** "dd/MM/yyyy HH:mm". */
+        String currentDate;
+        String newDate;
+        String reason;
+    }
 
     /**
      * One structural project-change preview (create / shorten / extend / delete a project),

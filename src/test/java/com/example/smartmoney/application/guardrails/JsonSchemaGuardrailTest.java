@@ -39,6 +39,76 @@ class JsonSchemaGuardrailTest {
     }
 
     @Test
+    @DisplayName("parses a complete transactionDraft alongside the usual fields")
+    void parsesTransactionDraft() {
+        String raw = """
+                {"intent":"TRANSACTION_UPDATE","reply":"Ghi nhan 50.000 VND?",
+                 "relatedQuestions":[],
+                 "transactionDraft":{"operation":"CREATE","amount":50000,"type":"EXPENSE",
+                   "category":"FOOD","description":"bun bo","date":"29/07/2026 12:00",
+                   "complete":true}}
+                """;
+
+        var result = guardrail.validate(raw, neverCalledRetry());
+
+        assertThat(result.intent()).isEqualTo(ChatResponse.ChatIntent.TRANSACTION_UPDATE);
+        var draft = result.transactionDraft();
+        assertThat(draft).isNotNull();
+        assertThat(draft.operation()).isEqualTo("CREATE");
+        assertThat(draft.amount()).isEqualByComparingTo(java.math.BigDecimal.valueOf(50000));
+        assertThat(draft.category()).isEqualTo("FOOD");
+        assertThat(draft.complete()).isTrue();
+    }
+
+    @Test
+    @DisplayName("a missing or null transactionDraft leaves the field null, not an empty draft")
+    void absentTransactionDraftIsNull() {
+        assertThat(guardrail.validate(
+                "{\"intent\":\"GENERAL_ADVICE\",\"reply\":\"Ok\"}", neverCalledRetry())
+                .transactionDraft()).isNull();
+        assertThat(guardrail.validate(
+                "{\"intent\":\"GENERAL_ADVICE\",\"reply\":\"Ok\",\"transactionDraft\":null}",
+                neverCalledRetry()).transactionDraft()).isNull();
+    }
+
+    @Test
+    @DisplayName("a half-filled draft parses without failing the whole response")
+    void partialTransactionDraftDoesNotInvalidateTheReply() {
+        // The mid-collection turn is the common case: the reply itself ("what category?") is
+        // perfectly good and must reach the user. Field-level validation belongs to
+        // TransactionChangeService, not here.
+        String raw = """
+                {"intent":"TRANSACTION_UPDATE","reply":"Danh muc nao?",
+                 "transactionDraft":{"operation":"CREATE","amount":50000,"complete":false}}
+                """;
+
+        var result = guardrail.validate(raw, neverCalledRetry());
+
+        assertThat(result.intent()).isEqualTo(ChatResponse.ChatIntent.TRANSACTION_UPDATE);
+        assertThat(result.reply()).isEqualTo("Danh muc nao?");
+        var draft = result.transactionDraft();
+        assertThat(draft).isNotNull();
+        assertThat(draft.complete()).isFalse();
+        assertThat(draft.category()).isNull();
+        assertThat(draft.type()).isNull();
+    }
+
+    @Test
+    @DisplayName("a garbage draft still yields a usable reply rather than triggering the fallback")
+    void garbageTransactionDraftIsToleratedNotFatal() {
+        String raw = """
+                {"intent":"TRANSACTION_UPDATE","reply":"Ok",
+                 "transactionDraft":{"operation":"TELEPORT","category":"COFFEE","complete":true}}
+                """;
+
+        var result = guardrail.validate(raw, neverCalledRetry());
+
+        // Values are carried through verbatim; rejecting them is TransactionChangeService's job.
+        assertThat(result.reply()).isEqualTo("Ok");
+        assertThat(result.transactionDraft().operation()).isEqualTo("TELEPORT");
+    }
+
+    @Test
     @DisplayName("strips markdown fences before parsing")
     void stripsMarkdownFences() {
         String raw = "```json\n{\"intent\":\"BUDGET_UPDATE\",\"reply\":\"Ok\"}\n```";

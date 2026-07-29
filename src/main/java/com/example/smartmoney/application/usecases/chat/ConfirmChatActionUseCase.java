@@ -8,6 +8,8 @@ import com.example.smartmoney.application.dtos.requests.project.AddProjectContri
 import com.example.smartmoney.application.dtos.requests.project.CreateProjectRequest;
 import com.example.smartmoney.application.dtos.requests.project.UpdateProjectRequest;
 import com.example.smartmoney.application.dtos.requests.project.UpdateProjectTrackingRequest;
+import com.example.smartmoney.application.dtos.requests.transactions.CreateTransactionRequest;
+import com.example.smartmoney.application.dtos.requests.transactions.UpdateTransactionRequest;
 import com.example.smartmoney.application.dtos.responses.ChatActionConfirmResponse;
 import com.example.smartmoney.application.dtos.responses.budgets.BudgetAllocationPlanResponse;
 import com.example.smartmoney.application.ports.chat.ChatPendingActionPort;
@@ -19,11 +21,15 @@ import com.example.smartmoney.application.usecases.project.CreateProjectUseCase;
 import com.example.smartmoney.application.usecases.project.DeleteProjectUseCase;
 import com.example.smartmoney.application.usecases.project.UpdateProjectTrackingUseCase;
 import com.example.smartmoney.application.usecases.project.UpdateProjectUseCase;
+import com.example.smartmoney.application.usecases.transaction.CreateTransactionUseCase;
+import com.example.smartmoney.application.usecases.transaction.DeleteTransactionUseCase;
+import com.example.smartmoney.application.usecases.transaction.UpdateTransactionUseCase;
 import com.example.smartmoney.domain.models.project.Project;
 import com.example.smartmoney.domain.models.project.enums.ProjectPriority;
 import com.example.smartmoney.domain.models.project.enums.ProjectType;
 import com.example.smartmoney.domain.models.project.valueobjects.ProjectId;
 import com.example.smartmoney.domain.models.transaction.enums.Category;
+import com.example.smartmoney.domain.models.transaction.enums.TransactionType;
 import com.example.smartmoney.domain.repositories.ProjectRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -56,6 +62,12 @@ public class ConfirmChatActionUseCase {
     private final UpdateBudgetUseCase updateBudgetUseCase;
     private final UpsertBulkBudgetsUseCase upsertBulkBudgetsUseCase;
     private final ComputeBudgetAllocationUseCase computeBudgetAllocationUseCase;
+    // Transaction CRUD goes through the very same use cases POST/PUT/DELETE /api/v1/transactions
+    // call, so a chat-entered expense rolls into the month's Budget.spent and fires the same
+    // anomaly/suggestion notifications as one typed into the app's own form.
+    private final CreateTransactionUseCase createTransactionUseCase;
+    private final UpdateTransactionUseCase updateTransactionUseCase;
+    private final DeleteTransactionUseCase deleteTransactionUseCase;
     // §5 defense-in-depth (last line): even when the orchestrator's filter and the LLM's prompt
     // both fail, no confirm here is allowed to mutate a project with groupProjectId != null. A
     // pending action can outlive the turn that produced it (Redis TTL), so a fix that only
@@ -138,13 +150,15 @@ public class ConfirmChatActionUseCase {
                     .build();
         }
 
+        String successReply = successReply(action.getType(), english);
+
         // Step 2 — recompute (read-only, never applies itself). Best-effort: the mutation already
         // succeeded, so a failure here still reports success without the fresh numbers.
         try {
             BudgetAllocationPlanResponse plan = computeBudgetAllocationUseCase.execute(userId);
             return ChatActionConfirmResponse.builder()
                     .success(true)
-                    .reply(english ? "Update applied successfully." : "Đã cập nhật thành công.")
+                    .reply(successReply)
                     .safeSpendingAfter(plan.getSafeSpending() != null ? plan.getSafeSpending().longValue() : null)
                     .envelopeAfter(plan.getEnvelope() != null ? plan.getEnvelope().longValue() : null)
                     .english(english)
@@ -154,10 +168,24 @@ public class ConfirmChatActionUseCase {
                     userId, e.getMessage());
             return ChatActionConfirmResponse.builder()
                     .success(true)
-                    .reply(english ? "Update applied successfully." : "Đã cập nhật thành công.")
+                    .reply(successReply)
                     .english(english)
                     .build();
         }
+    }
+
+    /** Names what actually happened rather than a blanket "updated" — a user who just confirmed
+     *  recording a transaction shouldn't have to guess whether the ledger or a budget moved. */
+    private String successReply(PendingChatAction.Type type, boolean english) {
+        return switch (type) {
+            case TRANSACTION_CREATE -> english
+                    ? "Transaction recorded successfully." : "Đã ghi nhận giao dịch thành công.";
+            case TRANSACTION_UPDATE -> english
+                    ? "Transaction updated successfully." : "Đã cập nhật giao dịch thành công.";
+            case TRANSACTION_DELETE -> english
+                    ? "Transaction deleted successfully." : "Đã xóa giao dịch thành công.";
+            default -> english ? "Update applied successfully." : "Đã cập nhật thành công.";
+        };
     }
 
     private void clearLatestIfMatches(UUID userId, String actionId) {
@@ -216,6 +244,31 @@ public class ConfirmChatActionUseCase {
                 req.setMoneyOwed(action.getTrackingMoneyOwed());
                 updateProjectTrackingUseCase.execute(actorId, action.getProjectId(), req);
             }
+            case TRANSACTION_CREATE -> {
+                CreateTransactionRequest req = new CreateTransactionRequest();
+                req.setAmount(action.getTransactionAmount());
+                req.setType(TransactionType.valueOf(action.getTransactionType()));
+                req.setCategory(Category.valueOf(action.getTransactionCategory()));
+                req.setDescription(action.getTransactionDescription());
+                req.setDate(action.getTransactionDate());
+                createTransactionUseCase.execute(userId, req);
+            }
+            case TRANSACTION_UPDATE -> {
+                // Partial update: only the fields the user actually asked to change were stored
+                // on the action, and UpdateTransactionUseCase leaves every null field untouched.
+                UpdateTransactionRequest req = new UpdateTransactionRequest();
+                req.setAmount(action.getTransactionAmount());
+                req.setType(action.getTransactionType() != null
+                        ? TransactionType.valueOf(action.getTransactionType()) : null);
+                req.setCategory(action.getTransactionCategory() != null
+                        ? Category.valueOf(action.getTransactionCategory()) : null);
+                req.setDescription(action.getTransactionDescription());
+                req.setDate(action.getTransactionDate());
+                updateTransactionUseCase.execute(
+                        userId, UUID.fromString(action.getTransactionId()), req);
+            }
+            case TRANSACTION_DELETE ->
+                    deleteTransactionUseCase.execute(userId, UUID.fromString(action.getTransactionId()));
             case PROJECT_CONTRIBUTION_ADD -> {
                 // Real money moving into the project — goes through the same use case the app's
                 // own "Contribute" button calls, so it creates a ProjectContribution + ledger
