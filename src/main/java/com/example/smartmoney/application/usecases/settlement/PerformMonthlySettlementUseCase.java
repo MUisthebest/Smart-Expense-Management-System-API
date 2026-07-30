@@ -406,11 +406,12 @@ public class PerformMonthlySettlementUseCase {
             return;
         }
 
+        // Pipe-delimited i18n key; the FE localizes it (see NotificationListModal.tsx).
         String name = project.getName();
         String content = switch (event) {
-            case COMPLETED -> "Goal reached: \"" + name + "\" is now complete.";
-            case FROZEN    -> "Heads up: \"" + name + "\" was frozen after falling behind on savings.";
-            case EXPIRED   -> "\"" + name + "\" expired after staying frozen too long.";
+            case COMPLETED -> "notification.settlement.project_completed|" + name;
+            case FROZEN    -> "notification.settlement.project_frozen|" + name;
+            case EXPIRED   -> "notification.settlement.project_expired|" + name;
         };
         String deepLink = "app://projects/" + project.getId().value();
         createNotificationUseCase.createNotification(user.getId(), content, deepLink);

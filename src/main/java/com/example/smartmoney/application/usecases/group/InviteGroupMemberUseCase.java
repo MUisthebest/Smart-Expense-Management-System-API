@@ -76,7 +76,7 @@ public class InviteGroupMemberUseCase {
         // fails with "Cannot activate transaction synchronization - already active".)
         createNotificationUseCase.createNotification(
                 invitedUser.getId(),
-                "You've been invited to join group \"" + groupName + "\". Tap to accept.",
+                "notification.group.invited|" + groupName,
                 mobileDeepLink
         );
 

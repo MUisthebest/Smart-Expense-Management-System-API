@@ -36,7 +36,8 @@ public class GroupProjectNotificationUseCase {
 
     public void notifyCompleted(GroupProject gp) {
         broadcast(gp, "Group project completed! 🎉",
-                "\"" + gp.getName() + "\" reached its goal. Congratulations!");
+                "\"" + gp.getName() + "\" reached its goal. Congratulations!",
+                "notification.group.project_completed|" + gp.getName());
     }
 
     /**
@@ -47,16 +48,22 @@ public class GroupProjectNotificationUseCase {
         String who = resolveUsername(droppedUserId);
         broadcast(gp, "A member dropped out",
                 who + " can no longer contribute to \"" + gp.getName()
-                        + "\". The group goal was reduced to the remaining members.");
+                        + "\". The group goal was reduced to the remaining members.",
+                "notification.group.member_dropped|" + who + "|" + gp.getName());
     }
 
     /** No participating members remain — the group goal can no longer be met. */
     public void notifyGroupExpired(GroupProject gp) {
         broadcast(gp, "Group project expired",
-                "\"" + gp.getName() + "\" expired because no members are still contributing.");
+                "\"" + gp.getName() + "\" expired because no members are still contributing.",
+                "notification.group.project_expired|" + gp.getName());
     }
 
-    private void broadcast(GroupProject gp, String title, String body) {
+    /**
+     * {@code body} is the push text (rendered raw by the OS); {@code content} is the pipe-delimited
+     * i18n key persisted in-app, localized by the FE (NotificationListModal.tsx).
+     */
+    private void broadcast(GroupProject gp, String title, String body, String content) {
         Group group = groupRepository.findById(GroupId.of(gp.getGroupId().toString())).orElse(null);
         if (group == null) {
             log.warn("[GroupProject] Group project {} has no group {} — skipping notifications.",
@@ -67,7 +74,7 @@ public class GroupProjectNotificationUseCase {
         String deepLink = "/group-projects/" + gp.getId().value();
         for (GroupMember member : group.joinedMembers()) {
             try {
-                createNotificationUseCase.createNotification(member.getUserId().value(), body, deepLink);
+                createNotificationUseCase.createNotification(member.getUserId().value(), content, deepLink);
 
                 var tokens = pushTokenPort.findByUserId(member.getUserId().toString());
                 Map<String, String> data = Map.of("url", deepLink);

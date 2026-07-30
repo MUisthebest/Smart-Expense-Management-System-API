@@ -185,13 +185,15 @@ public class RespondToSponsorshipRequestUseCase {
     private void notifyMembersActive(Group group, GroupProject gp) {
         String title = "Group project started!";
         String body = "\"" + gp.getName() + "\" is ready. Open the app to set your personal savings target.";
+        // In-app content is a pipe-delimited i18n key the FE localizes; push keeps the raw body.
+        String content = "notification.group.project_started|" + gp.getName();
         String deepLink = "/group-projects/" + gp.getId().value();
         Map<String, String> data = Map.of("url", deepLink);
 
         for (GroupMember member : group.joinedMembers()) {
             if (member.getUserId().equals(group.getAdminId())) continue;
             try {
-                createNotificationUseCase.createNotification(member.getUserId().value(), body, deepLink);
+                createNotificationUseCase.createNotification(member.getUserId().value(), content, deepLink);
 
                 var tokens = pushTokenPort.findByUserId(member.getUserId().toString());
                 for (var pt : tokens) {
@@ -216,9 +218,12 @@ public class RespondToSponsorshipRequestUseCase {
                     proposed.setScale(0).toString(),
                     originalShare.setScale(0).toString()
             );
+            // In-app content is a pipe-delimited i18n key the FE localizes; push keeps the raw body.
+            String content = "notification.group.sponsorship_new_round|"
+                    + proposed.setScale(0) + "|" + originalShare.setScale(0);
 
             try {
-                createNotificationUseCase.createNotification(member.getUserId().value(), body, deepLink);
+                createNotificationUseCase.createNotification(member.getUserId().value(), content, deepLink);
 
                 var tokens = pushTokenPort.findByUserId(member.getUserId().toString());
                 for (var pt : tokens) {
@@ -239,9 +244,11 @@ public class RespondToSponsorshipRequestUseCase {
         );
         String deepLink = "/projects?tab=groups";
         Map<String, String> data = Map.of("url", deepLink);
+        // In-app content is a pipe-delimited i18n key the FE localizes; push keeps the raw body.
+        String content = "notification.group.sponsorship_failed|" + gp.getName();
 
         try {
-            createNotificationUseCase.createNotification(group.getAdminId().value(), body, deepLink);
+            createNotificationUseCase.createNotification(group.getAdminId().value(), content, deepLink);
 
             var tokens = pushTokenPort.findByUserId(group.getAdminId().toString());
             for (var pt : tokens) {
