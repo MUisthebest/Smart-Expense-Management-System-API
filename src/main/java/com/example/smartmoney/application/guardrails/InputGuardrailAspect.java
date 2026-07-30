@@ -2,6 +2,7 @@ package com.example.smartmoney.application.guardrails;
 
 import com.example.smartmoney.application.dtos.requests.chat.ChatRequest;
 import com.example.smartmoney.application.dtos.responses.ChatResponse;
+import com.example.smartmoney.application.usecases.chat.ResetConversationUseCase;
 import com.example.smartmoney.application.usecases.chat.ResolvePlainAnswerUseCase;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;
@@ -23,16 +24,20 @@ import java.util.UUID;
  *
  * Execution order:
  *  1. Rate limit check (Bucket4j-style via Redis INCR, 20 req/user/min) → 429
- *  2. Deterministic plain yes/no confirm/deny gate ({@link ResolvePlainAnswerUseCase}) — only for
+ *  2. Deterministic conversation-reset gate ({@link ResetConversationUseCase}) — "hãy xóa đoạn
+ *     hội thoại" wipes the Redis window. Runs before the content guardrails for the same reason as
+ *     step 3, and before step 3 specifically so a reset always wins over a stale pending action:
+ *     the user asked to drop the context, not to answer a question inside it.
+ *  3. Deterministic plain yes/no confirm/deny gate ({@link ResolvePlainAnswerUseCase}) — only for
  *     methods returning {@link ChatResponse} (the sync /chat endpoint). MUST run before the
  *     content guardrails below: a bare "yes"/"no"/"có"/"không" answering a pending suggestion has
  *     no financial content for them to evaluate, and SemanticScopeGuardrail's LLM classifier (no
  *     conversation context) reliably misreads an isolated "có" as off-topic — see
  *     ResolvePlainAnswerUseCase's class doc for the bug this caused when this check used to live
  *     inside the guarded method body instead of here.
- *  3. ScopeGuardrail @Order(1) — cheap regex, known domains/patterns
- *  4. PromptInjectionGuardrail @Order(2) — cheap regex, jailbreak/injection patterns
- *  5. SemanticScopeGuardrail @Order(3) — LLM classifier, general-purpose scope net
+ *  4. ScopeGuardrail @Order(1) — cheap regex, known domains/patterns
+ *  5. PromptInjectionGuardrail @Order(2) — cheap regex, jailbreak/injection patterns
+ *  6. SemanticScopeGuardrail @Order(3) — LLM classifier, general-purpose scope net
  *  Violation → GuardrailViolationException → controller maps to OUT_OF_SCOPE.
  */
 @Slf4j
@@ -46,16 +51,19 @@ public class InputGuardrailAspect {
     private final List<PromptGuardrail> guardrails;
     private final StringRedisTemplate redisTemplate;
     private final ResolvePlainAnswerUseCase resolvePlainAnswerUseCase;
+    private final ResetConversationUseCase resetConversationUseCase;
 
     public InputGuardrailAspect(
             List<PromptGuardrail> guardrails,
             @Qualifier("aiStringRedisTemplate") StringRedisTemplate redisTemplate,
-            ResolvePlainAnswerUseCase resolvePlainAnswerUseCase) {
+            ResolvePlainAnswerUseCase resolvePlainAnswerUseCase,
+            ResetConversationUseCase resetConversationUseCase) {
         this.guardrails = guardrails.stream()
                 .sorted(AnnotationAwareOrderComparator.INSTANCE)
                 .toList();
         this.redisTemplate = redisTemplate;
         this.resolvePlainAnswerUseCase = resolvePlainAnswerUseCase;
+        this.resetConversationUseCase = resetConversationUseCase;
     }
 
     @Around("@annotation(com.example.smartmoney.application.guardrails.InputGuardrail)")
@@ -72,7 +80,15 @@ public class InputGuardrailAspect {
         // 1. Rate limit — gate before pattern scan (cheapest check first)
         checkRateLimit(userId);
 
-        // 2. Deterministic plain yes/no confirm/deny gate — short-circuits entirely on a match,
+        // 2. Deterministic conversation-reset gate — checked before the yes/no gate so "xóa đoạn
+        // hội thoại" can never be swallowed as an answer to a leftover pending action.
+        if (returnsChatResponse(pjp)) {
+            Optional<ChatResponse> reset =
+                    resetConversationUseCase.tryReset(userId, request.getMessage());
+            if (reset.isPresent()) return reset.get();
+        }
+
+        // 3. Deterministic plain yes/no confirm/deny gate — short-circuits entirely on a match,
         // skipping both the content guardrails and the guarded method body.
         if (returnsChatResponse(pjp)) {
             Optional<ChatResponse> plainAnswer =
@@ -80,7 +96,7 @@ public class InputGuardrailAspect {
             if (plainAnswer.isPresent()) return plainAnswer.get();
         }
 
-        // 3. Run guardrails in @Order sequence
+        // 4. Run guardrails in @Order sequence
         String message = request.getMessage() != null ? request.getMessage() : "";
         for (PromptGuardrail guardrail : guardrails) {
             guardrail.validate(message.toLowerCase(), userId);

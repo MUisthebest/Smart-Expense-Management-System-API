@@ -101,6 +101,8 @@ class ChatWithAIUseCaseGroupFilterTest {
                 LocalDate.now().plusMonths(12), groupProjectId, List.of(), tracking, Instant.now());
     }
 
+    /** A CONTRIBUTION: positive suggestedAddAmount — the predicate toProjectSavingsAction uses to
+     *  route to PROJECT_CONTRIBUTION_ADD, and the one group-linked mutation §5 permits. */
     private ChatResponse.SavingsPlanSuggestion savingsSuggestion(String projectId) {
         return ChatResponse.SavingsPlanSuggestion.builder()
                 .projectId(projectId)
@@ -108,6 +110,19 @@ class ChatWithAIUseCaseGroupFilterTest {
                 .currentMoneySaved(0L)
                 .suggestedAddAmount(1_000_000L)
                 .newMoneySaved(1_000_000L)
+                .reason("test")
+                .build();
+    }
+
+    /** A TRACKING EDIT: no positive add amount, so it routes to PROJECT_TRACKING_UPDATE — changes
+     *  the shape of a commitment and stays blocked for group-linked projects. */
+    private ChatResponse.SavingsPlanSuggestion trackingSuggestion(String projectId) {
+        return ChatResponse.SavingsPlanSuggestion.builder()
+                .projectId(projectId)
+                .projectName("test")
+                .currentMoneyOwed(500_000L)
+                .suggestedMoneyOwed(0L)
+                .suggestedMonthLeft(3)
                 .reason("test")
                 .build();
     }
@@ -181,19 +196,52 @@ class ChatWithAIUseCaseGroupFilterTest {
     class StripSavings {
 
         @Test
-        @DisplayName("removes savings entries targeting a group-linked project ID")
+        @DisplayName("removes tracking-type entries targeting a group-linked project ID")
         void removesGroupLinkedEntries() {
             String groupId = UUID.randomUUID().toString();
             String personalId = UUID.randomUUID().toString();
             List<ChatResponse.SavingsPlanSuggestion> in = new ArrayList<>(List.of(
-                    savingsSuggestion(personalId),
-                    savingsSuggestion(groupId)));
+                    trackingSuggestion(personalId),
+                    trackingSuggestion(groupId)));
 
             List<ChatResponse.SavingsPlanSuggestion> out =
                     useCase.stripGroupLinkedSavings(in, Set.of(groupId));
 
             assertThat(out).hasSize(1);
             assertThat(out.get(0).getProjectId()).isEqualTo(personalId);
+        }
+
+        @Test
+        @DisplayName("KEEPS a contribution to the user's own group-linked project — §5 exception")
+        void keepsOwnShareContributionForGroupLinked() {
+            // Paying your own share into a group fund moves only the payer's money and only ever
+            // increases group progress, so it needs no group consensus. Stripping it (the old
+            // behaviour) dead-ended the group flow in chat: the assistant could describe the
+            // shortfall but the user could do nothing about it. See §5 (A).
+            String groupId = UUID.randomUUID().toString();
+            List<ChatResponse.SavingsPlanSuggestion> in =
+                    new ArrayList<>(List.of(savingsSuggestion(groupId)));
+
+            List<ChatResponse.SavingsPlanSuggestion> out =
+                    useCase.stripGroupLinkedSavings(in, Set.of(groupId));
+
+            assertThat(out).hasSize(1);
+            assertThat(out.get(0).getProjectId()).isEqualTo(groupId);
+        }
+
+        @Test
+        @DisplayName("a group-linked project keeps its contribution but loses its tracking edit")
+        void keepsContributionStripsTrackingForSameGroupProject() {
+            String groupId = UUID.randomUUID().toString();
+            List<ChatResponse.SavingsPlanSuggestion> in = new ArrayList<>(List.of(
+                    savingsSuggestion(groupId),
+                    trackingSuggestion(groupId)));
+
+            List<ChatResponse.SavingsPlanSuggestion> out =
+                    useCase.stripGroupLinkedSavings(in, Set.of(groupId));
+
+            assertThat(out).hasSize(1);
+            assertThat(out.get(0).getSuggestedAddAmount()).isPositive();
         }
 
         @Test

@@ -2,6 +2,7 @@ package com.example.smartmoney.application.guardrails;
 
 import com.example.smartmoney.application.dtos.requests.chat.ChatRequest;
 import com.example.smartmoney.application.dtos.responses.ChatResponse;
+import com.example.smartmoney.application.usecases.chat.ResetConversationUseCase;
 import com.example.smartmoney.application.usecases.chat.ResolvePlainAnswerUseCase;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.reflect.MethodSignature;
@@ -40,6 +41,7 @@ class InputGuardrailAspectTest {
 
     private final StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
     private final ResolvePlainAnswerUseCase resolvePlainAnswerUseCase = mock(ResolvePlainAnswerUseCase.class);
+    private final ResetConversationUseCase resetConversationUseCase = mock(ResetConversationUseCase.class);
     private final PromptGuardrail guardrail = mock(PromptGuardrail.class);
 
     @SuppressWarnings("unchecked")
@@ -47,7 +49,10 @@ class InputGuardrailAspectTest {
         ValueOperations<String, String> valueOps = mock(ValueOperations.class);
         when(redisTemplate.opsForValue()).thenReturn(valueOps);
         when(valueOps.increment(anyString())).thenReturn(1L);
-        return new InputGuardrailAspect(List.of(guardrail), redisTemplate, resolvePlainAnswerUseCase);
+        // Default: not a reset request, so existing cases exercise the paths after that gate.
+        when(resetConversationUseCase.tryReset(any(), any())).thenReturn(Optional.empty());
+        return new InputGuardrailAspect(
+                List.of(guardrail), redisTemplate, resolvePlainAnswerUseCase, resetConversationUseCase);
     }
 
     private ProceedingJoinPoint mockJoinPoint(Object[] args, Class<?> returnType) {

@@ -1193,16 +1193,39 @@ public class ChatWithAIUseCase {
 
     /** Filters SavingsPlanSuggestion entries whose projectId is a sub-personal (group-linked)
      *  project. Null-safe and returns the original list untouched when no filtering is needed
-     *  so intent-branch conditionals like {@code list.isEmpty() ? null : list} still work. */
+     *  so intent-branch conditionals like {@code list.isEmpty() ? null : list} still work.
+     *
+     *  <p>Contributions are the documented exception to §5 — see
+     *  {@link #isOwnShareContribution}. Everything else (tracking/debt/deadline edits) is still
+     *  stripped for group-linked projects. */
     List<ChatResponse.SavingsPlanSuggestion> stripGroupLinkedSavings(
             List<ChatResponse.SavingsPlanSuggestion> in, Set<String> groupLinkedIds) {
         if (in == null || in.isEmpty() || groupLinkedIds.isEmpty()) return in;
         List<ChatResponse.SavingsPlanSuggestion> out = new ArrayList<>(in.size());
         for (ChatResponse.SavingsPlanSuggestion s : in) {
-            if (s != null && s.getProjectId() != null && groupLinkedIds.contains(s.getProjectId())) continue;
+            if (s != null && s.getProjectId() != null && groupLinkedIds.contains(s.getProjectId())
+                    && !isOwnShareContribution(s)) {
+                continue;
+            }
             out.add(s);
         }
         return out;
+    }
+
+    /**
+     * True when this savings suggestion is "pay my own share in", i.e. the one group-linked
+     * mutation §5 permits. Uses exactly the predicate {@link #toProjectSavingsAction} uses to pick
+     * {@code PROJECT_CONTRIBUTION_ADD} — a positive {@code suggestedAddAmount}. The two must stay
+     * in sync: if this said yes where that routes to {@code PROJECT_TRACKING_UPDATE}, a tracking
+     * edit on a shared commitment would slip through the filter and then be rejected by
+     * {@code ConfirmChatActionUseCase}'s guard, showing the user a card that can only fail.
+     *
+     * <p>Ownership needs no check here: {@code groupLinkedIds} comes from
+     * {@link #loadSubPersonalProjectIds}, which reads {@code findAllByUser} — so every id in that
+     * set is already one of this user's own projects, never another member's share.
+     */
+    private boolean isOwnShareContribution(ChatResponse.SavingsPlanSuggestion s) {
+        return s.getSuggestedAddAmount() != null && s.getSuggestedAddAmount() > 0;
     }
 
     /** Same as {@link #stripGroupLinkedSavings} but for ProjectChangeSuggestion. */

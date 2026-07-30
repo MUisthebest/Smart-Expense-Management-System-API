@@ -19,4 +19,12 @@ public interface ChatHistoryPort {
      * Caller is responsible for trimming to max 10 turns before calling.
      */
     void save(UUID userId, List<ChatMessageDto> history);
+
+    /**
+     * Drops the user's whole stored window — raw turns AND the rolling summary — so the next turn
+     * starts from an empty context. Backs the user-facing "xóa đoạn hội thoại" request: the
+     * summary is folded-forward context, so deleting only the raw turns would leave the assistant
+     * still remembering everything through it. Idempotent; never throws.
+     */
+    void clear(UUID userId);
 }

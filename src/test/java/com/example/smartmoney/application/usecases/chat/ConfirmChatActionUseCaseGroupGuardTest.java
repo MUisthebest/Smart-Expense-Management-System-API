@@ -107,6 +107,17 @@ class ConfirmChatActionUseCaseGroupGuardTest {
                 LocalDate.now().plusMonths(12), groupProjectId, List.of(), tracking, Instant.now());
     }
 
+    /** A group-linked project belonging to a DIFFERENT member — used to prove the §5 (A)
+     *  contribution exception is scoped to the confirming user's own share. */
+    private Project projectOwnedByOther(UUID projectUuid) {
+        ProjectId projectId = new ProjectId(projectUuid);
+        return Project.rehydrate(
+                projectId, UserId.of(UUID.randomUUID().toString()), ProjectType.PERSONAL,
+                ProjectStatus.ACTIVE, ProjectPriority.HIGH, "someone else's share", "desc",
+                new Money(BigDecimal.valueOf(20_000_000), "VND"),
+                LocalDate.now().plusMonths(12), UUID.randomUUID(), List.of(), null, Instant.now());
+    }
+
     // ── Guard behaviour ──────────────────────────────────────────────────────
 
     @Test
@@ -172,8 +183,11 @@ class ConfirmChatActionUseCaseGroupGuardTest {
     }
 
     @Test
-    @DisplayName("PROJECT_CONTRIBUTION_ADD on a group-linked project is blocked")
-    void projectContributionAddOnGroupLinkedBlocked() {
+    @DisplayName("PROJECT_CONTRIBUTION_ADD on the user's OWN group-linked project is ALLOWED — §5 (A)")
+    void projectContributionAddOnOwnGroupLinkedAllowed() {
+        // Paying your own share into a group fund only ever raises the group's progress and only
+        // spends the payer's money — no other member's agreement is needed. Blanket-blocking it
+        // (the previous behaviour) dead-ended the group flow in chat.
         UUID projectUuid = UUID.randomUUID();
         PendingChatAction action = PendingChatAction.builder()
                 .type(PendingChatAction.Type.PROJECT_CONTRIBUTION_ADD)
@@ -186,7 +200,31 @@ class ConfirmChatActionUseCaseGroupGuardTest {
         ChatActionConfirmResponse response = useCase.execute(userId,
                 ConfirmChatActionRequest.builder().actionId(actionId).confirm(true).build());
 
+        assertThat(response.isSuccess()).isTrue();
+        verify(addProjectContributionUseCase)
+                .execute(eq(userId.toString()), eq(projectUuid.toString()), any());
+    }
+
+    @Test
+    @DisplayName("PROJECT_CONTRIBUTION_ADD on ANOTHER member's group-linked project is blocked")
+    void projectContributionAddOnOtherMembersShareBlocked() {
+        // The §5 (A) exception is scoped to the confirming user's OWN share. A pending action can
+        // outlive the turn that produced it, so the id in it isn't guaranteed to still be theirs.
+        UUID projectUuid = UUID.randomUUID();
+        PendingChatAction action = PendingChatAction.builder()
+                .type(PendingChatAction.Type.PROJECT_CONTRIBUTION_ADD)
+                .projectId(projectUuid.toString())
+                .contributionAmount(BigDecimal.valueOf(2_000_000))
+                .build();
+        when(pendingActionPort.load(userId, actionId)).thenReturn(Optional.of(action));
+        when(projectRepository.findById(any()))
+                .thenReturn(Optional.of(projectOwnedByOther(projectUuid)));
+
+        ChatActionConfirmResponse response = useCase.execute(userId,
+                ConfirmChatActionRequest.builder().actionId(actionId).confirm(true).build());
+
         assertThat(response.isSuccess()).isFalse();
+        assertThat(response.getReply()).contains("dự án chung với nhóm");
         verify(addProjectContributionUseCase, never()).execute(anyString(), anyString(), any());
     }
 

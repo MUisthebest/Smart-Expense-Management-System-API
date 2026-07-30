@@ -60,6 +60,17 @@ public class RedisChatHistoryAdapter implements ChatHistoryPort {
         }
     }
 
+    @Override
+    public void clear(UUID userId) {
+        try {
+            redisTemplate.delete(key(userId));
+        } catch (Exception e) {
+            // Same fail-open convention as load/save: a reset that couldn't reach Redis is
+            // reported to the user by the caller, never surfaced as a 500.
+            log.warn("Failed to clear chat history for user {}: {}", userId, e.getMessage());
+        }
+    }
+
     private String key(UUID userId) {
         return KEY_PREFIX + userId;
     }
