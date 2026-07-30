@@ -28,6 +28,7 @@ import com.example.smartmoney.domain.models.project.Project;
 import com.example.smartmoney.domain.models.project.enums.ProjectPriority;
 import com.example.smartmoney.domain.models.project.enums.ProjectType;
 import com.example.smartmoney.domain.models.project.valueobjects.ProjectId;
+import com.example.smartmoney.domain.models.project.valueobjects.UserId;
 import com.example.smartmoney.domain.models.transaction.enums.Category;
 import com.example.smartmoney.domain.models.transaction.enums.TransactionType;
 import com.example.smartmoney.domain.repositories.ProjectRepository;
@@ -77,6 +78,18 @@ public class ConfirmChatActionUseCase {
     private final ProjectRepository projectRepository;
 
     public ChatActionConfirmResponse execute(UUID userId, ConfirmChatActionRequest request) {
+        // A missing/blank actionId is a client contract error, not a server crash: without this
+        // guard clearLatestIfMatches below NPEs on `actionId::equals` (method reference on a null
+        // receiver), which AIController's catch-all turns into an opaque 500. Say what's wrong
+        // instead. See ConfirmChatActionRequest.actionId for how a client ends up here.
+        if (request.getActionId() == null || request.getActionId().isBlank()) {
+            log.warn("ConfirmChatActionUseCase: confirm called without an actionId for user {}", userId);
+            return ChatActionConfirmResponse.builder()
+                    .success(false)
+                    .reply("Thiếu mã thao tác cần xác nhận (actionId). Bạn có thể hỏi lại.")
+                    .build();
+        }
+
         // Whichever entry point resolves an actionId (the deterministic plain yes/no gate in
         // ChatWithAIUseCase, or this endpoint called directly), clear the "latest pending action"
         // pointer if it still points here — otherwise a later bare "yes"/"no" could resolve against
@@ -190,7 +203,7 @@ public class ConfirmChatActionUseCase {
 
     private void clearLatestIfMatches(UUID userId, String actionId) {
         pendingActionPort.loadLatestId(userId)
-                .filter(actionId::equals)
+                .filter(id -> id.equals(actionId))
                 .ifPresent(id -> pendingActionPort.clearLatestId(userId));
     }
 
@@ -211,7 +224,7 @@ public class ConfirmChatActionUseCase {
         // a bug in the orchestrator's filter. Guard runs BEFORE the switch so PROJECT_CREATE
         // (which has no projectId) naturally bypasses it; no personal project is group-linked
         // at creation time.
-        rejectIfGroupLinkedTarget(action);
+        rejectIfGroupLinkedTarget(userId, action);
         switch (action.getType()) {
             case UPDATE_BUDGET_LIMIT -> applyBudgetLimit(userId, action);
             case APPLY_NEXT_MONTH_BUDGET_PLAN -> applyNextMonthBudgetPlan(userId, action);
@@ -361,6 +374,20 @@ public class ConfirmChatActionUseCase {
      * bookkeeping in executeBatch already treats a per-sub throw as a per-sub failure without
      * aborting the rest.
      *
+     * <p>ONE exception, and only one: {@link PendingChatAction.Type#PROJECT_CONTRIBUTION_ADD} on a
+     * sub-personal project the confirming user OWNS. Paying your own share into a group fund is
+     * exactly what a sub-personal project exists for — it moves only the payer's own money and
+     * only ever increases the group's progress, so it needs no one else's agreement. What §5
+     * actually protects against is a chat turn silently changing the SHAPE of a shared commitment
+     * (deadline, target, tracking row, deletion) or touching another member's share; those all
+     * stay blocked. Blanket-rejecting contributions too made the group flow dead-ended in chat:
+     * the assistant could describe the shortfall but the user could do nothing about it here.
+     *
+     * <p>The ownership re-check matters even though {@code Project.addContribution} enforces it
+     * downstream: a pending action can outlive the turn that produced it, so the id in it is not
+     * guaranteed to still be one of this user's projects. Failing ownership yields the group-
+     * consensus message (this is someone else's share) rather than a raw permission error.
+     *
      * <p>Fail-open when we can't tell (project not found, repo error): don't block a legitimate
      * confirm on infrastructure noise. A group-linked project that's been deleted between prompt
      * and confirm is a rare edge case and worst-case behaviour is a normal execute-then-notfound
@@ -370,13 +397,19 @@ public class ConfirmChatActionUseCase {
      * BUDGET_PLAN, UPDATE_BUDGET_LIMIT_SWAP, BATCH) skip the check naturally — they can't be
      * targeting a group-linked project because they don't reference one.
      */
-    private void rejectIfGroupLinkedTarget(PendingChatAction action) {
+    private void rejectIfGroupLinkedTarget(UUID userId, PendingChatAction action) {
         String projectId = action.getProjectId();
         if (projectId == null || projectId.isBlank()) return;
         try {
-            Optional<Project> project = projectRepository.findById(new ProjectId(java.util.UUID.fromString(projectId)));
-            if (project.isEmpty()) return;
-            if (!project.get().isSubPersonal()) return;
+            Optional<Project> maybeProject =
+                    projectRepository.findById(new ProjectId(java.util.UUID.fromString(projectId)));
+            if (maybeProject.isEmpty()) return;
+            Project project = maybeProject.get();
+            if (!project.isSubPersonal()) return;
+            if (action.getType() == PendingChatAction.Type.PROJECT_CONTRIBUTION_ADD
+                    && isOwnedBy(project, userId)) {
+                return;
+            }
         } catch (IllegalArgumentException badUuid) {
             // Malformed projectId — let the downstream use case handle it; not a §5 case.
             return;
@@ -386,10 +419,17 @@ public class ConfirmChatActionUseCase {
             return;
         }
         String msg = action.isEnglish()
-                ? "This is a group project — any change needs the group's agreement. Please open " +
-                  "the Group screen and discuss it with the other members before making a change."
-                : "Đây là dự án chung với nhóm — mọi thay đổi cần được cả nhóm đồng thuận. Vui lòng " +
-                  "mở màn hình Nhóm để thảo luận với các thành viên trước khi thao tác.";
+                ? "This is a group project — changing it (or another member's share) needs the group's " +
+                  "agreement. You can still pay your own share into it; for anything else, please open " +
+                  "the Group screen and discuss it with the other members first."
+                : "Đây là dự án chung với nhóm — việc thay đổi dự án nhóm (hoặc phần đóng góp của thành " +
+                  "viên khác) cần được cả nhóm đồng thuận. Bạn vẫn có thể đóng quỹ phần của mình; với các " +
+                  "thao tác khác, vui lòng mở màn hình Nhóm để thảo luận với các thành viên trước.";
         throw new IllegalStateException(msg);
+    }
+
+    private boolean isOwnedBy(Project project, UUID userId) {
+        return project.getOwnerId() != null
+                && project.getOwnerId().equals(UserId.of(userId.toString()));
     }
 }

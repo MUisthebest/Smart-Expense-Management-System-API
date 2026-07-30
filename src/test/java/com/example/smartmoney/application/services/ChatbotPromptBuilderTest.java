@@ -130,13 +130,33 @@ class ChatbotPromptBuilderTest {
     class CrossCheckRules {
 
         @Test
-        @DisplayName("Rule A explicitly bans saving-boost suggestions on DEFICIT months")
+        @DisplayName("Rule A bans PROACTIVE saving-boost suggestions on DEFICIT months")
         void ruleABansSavingBoostOnDeficit() {
             String prompt = builder.build(null);
             assertThat(prompt)
                     .contains("Rule A")
                     .contains("DEFICIT")
-                    .contains("KHÔNG khuyên góp thêm cho dự án tiết kiệm");
+                    .contains("KHÔNG tự khuyên góp thêm cho dự án tiết kiệm");
+        }
+
+        @Test
+        @DisplayName("Rule E overrides Rule A: an explicit user request is allowed on DEFICIT, with a warning")
+        void ruleEAllowsExplicitRequestsOnDeficitWithWarning() {
+            String prompt = builder.build(null);
+            assertThat(prompt)
+                    .contains("Rule E")
+                    // Scoped to what the user explicitly asks for, not to proactive advice.
+                    .contains("THÂM HỤT KHÔNG PHẢI LỆNH CẤM")
+                    .contains("CẢNH BÁO NHẮC NHỞ")
+                    // The warning is a reminder, never a precondition for doing the thing.
+                    .contains("Cảnh báo là NHẮC NHỞ, KHÔNG phải điều kiện");
+        }
+
+        @Test
+        @DisplayName("Rule E still blocks the budget-INCREASE branch on DEFICIT")
+        void ruleEKeepsBudgetIncreaseBlockedOnDeficit() {
+            String prompt = builder.build(null);
+            assertThat(prompt).contains("NGOẠI LỆ của Rule E");
         }
 
         @Test
@@ -252,16 +272,37 @@ class ChatbotPromptBuilderTest {
     // ── Group-project isolation ─────────────────────────────────────────────
 
     @Nested
-    @DisplayName("§5 group-project isolation is absolute")
+    @DisplayName("§5 group-project isolation allows own-share contributions, blocks the rest")
     class GroupProjectRule {
 
         @Test
-        @DisplayName("§5 forbids PROJECT_UPDATE and PROJECT_HYPOTHESIS for linkedToGroup projects")
-        void groupProjectRuleForbidsBothIntents() {
+        @DisplayName("§5 (A) permits the user to pay their own share into a group project")
+        void groupRuleAllowsOwnShareContribution() {
             String prompt = builder.build(null);
             assertThat(prompt)
-                    .contains("KHÔNG đề xuất PROJECT_HYPOTHESIS")
-                    .contains("KHÔNG đề xuất PROJECT_UPDATE");
+                    .contains("ĐƯỢC PHÉP (A)")
+                    .contains("đóng quỹ (góp tiền) vào dự án nhóm của họ qua chat");
+        }
+
+        @Test
+        @DisplayName("§5 (B) permits advising on group-project creation but never claims to have created one")
+        void groupRuleAllowsCreationAdviceOnly() {
+            String prompt = builder.build(null);
+            assertThat(prompt)
+                    .contains("ĐƯỢC PHÉP (B)")
+                    // The chat has no GroupProject create action, so it must not pretend otherwise.
+                    .contains("KHÔNG nói \"tôi đã tạo dự án nhóm\"");
+        }
+
+        @Test
+        @DisplayName("§5 (C) still blocks editing/deleting the group project and other members' shares")
+        void groupProjectRuleForbidsStructuralAndOtherMembers() {
+            String prompt = builder.build(null);
+            assertThat(prompt)
+                    .contains("KHÔNG ĐƯỢC PHÉP (C)")
+                    .contains("Sửa hoặc XOÁ chính GroupProject")
+                    .contains("THÀNH VIÊN KHÁC")
+                    .contains("ĐỒNG THUẬN CHO PHÉP");
         }
 
         @Test

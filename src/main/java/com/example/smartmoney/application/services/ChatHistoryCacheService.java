@@ -54,6 +54,16 @@ public class ChatHistoryCacheService {
     }
 
     /**
+     * Wipes the window so the next turn starts a fresh context. Deletes the rolling summary as
+     * well as the raw turns — the summary carries forward everything that was already folded, so
+     * dropping only raw turns would leave the assistant still remembering the "deleted"
+     * conversation. Backs {@code ResetConversationUseCase}.
+     */
+    public void clear(UUID userId) {
+        chatHistoryPort.clear(userId);
+    }
+
+    /**
      * Appends the newest USER+ASSISTANT pair to {@code history} and persists it, folding the
      * oldest raw turns into the rolling summary first if the raw turn count has grown past the
      * compression trigger.
