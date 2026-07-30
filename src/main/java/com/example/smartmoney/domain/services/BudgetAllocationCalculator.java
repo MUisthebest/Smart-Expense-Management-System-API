@@ -54,6 +54,12 @@ public class BudgetAllocationCalculator {
     private static final double WANTS_TILT = 0.70;
 
     /**
+     * Every proposed limit is snapped to a multiple of this step (VND) so proportional scaling
+     * never surfaces amounts like 2,923,076.92; the shaved remainder rolls into surplusToSavings.
+     */
+    private static final BigDecimal ROUNDING_STEP = new BigDecimal("10000");
+
+    /**
      * Build a per-category plan for the given inputs. Never returns {@code null}; an envelope of
      * zero or less yields an all-zero plan flagged {@code overCommitted}.
      */
@@ -149,45 +155,87 @@ public class BudgetAllocationCalculator {
             targetSum = targetSum.add(finalAmount);
         }
 
-        List<CategoryAllocation> allocations = roundAndReconcile(floored, basis, in.recurring(), targetSum);
+        // Floors only ever expand, so they can push the total past the envelope. Claw the overage
+        // back from the other categories' unspent headroom (proportionally to that headroom, never
+        // below their own spent floor) so one overspent category shrinks the rest instead of
+        // silently overflowing the plan. TRACK_ONLY users opt out of mid-month squeezing the same
+        // way they opt out of settlement penalties: their savings ambition absorbs the overage
+        // first, and other categories only shrink for whatever savings can't cover.
+        BigDecimal overage = targetSum.subtract(envelope);
+        if (overage.signum() > 0) {
+            BigDecimal shrinkGoal = overage;
+            if (in.focusMode() == Focus_Mode.TRACK_ONLY) {
+                BigDecimal savings = in.targetSavings() == null
+                        ? BigDecimal.ZERO : in.targetSavings().max(BigDecimal.ZERO);
+                shrinkGoal = overage.subtract(savings).max(BigDecimal.ZERO);
+            }
+            Map<Category, BigDecimal> slack = new EnumMap<>(Category.class);
+            BigDecimal totalSlack = BigDecimal.ZERO;
+            for (Category c : EXPENSE_CATEGORIES) {
+                BigDecimal s = floored.get(c).subtract(amt(in.currentMonthSpent(), c)).max(BigDecimal.ZERO);
+                slack.put(c, s);
+                totalSlack = totalSlack.add(s);
+            }
+            if (shrinkGoal.signum() > 0 && totalSlack.signum() > 0) {
+                BigDecimal shrink = shrinkGoal.min(totalSlack);
+                for (Category c : EXPENSE_CATEGORIES) {
+                    if (slack.get(c).signum() <= 0) {
+                        continue;
+                    }
+                    BigDecimal cut = slack.get(c).multiply(shrink)
+                            .divide(totalSlack, 4, RoundingMode.HALF_UP);
+                    floored.put(c, floored.get(c).subtract(cut));
+                    targetSum = targetSum.subtract(cut);
+                }
+            }
+        }
 
-        // Whatever the envelope didn't need becomes savings. Never negative (floors can push the
-        // total over the envelope in a heavy mid-month; that overage isn't "savings").
+        // Snap every limit to the money step so proportional scaling never surfaces odd amounts.
+        // Snapping rounds down (the shaved part rolls into surplus), except when that would dip
+        // below the category's own spent floor — then it rounds the spent amount up instead.
+        targetSum = BigDecimal.ZERO;
+        for (Category c : EXPENSE_CATEGORIES) {
+            BigDecimal snapped = snapToStep(floored.get(c), amt(in.currentMonthSpent(), c));
+            floored.put(c, snapped);
+            targetSum = targetSum.add(snapped);
+        }
+
+        // What even the squeeze couldn't absorb (every category is at its spent floor) has to be
+        // funded from the month's savings ambition — reported so the caller can reduce targetSavings.
+        BigDecimal savingsShortfall = targetSum.subtract(envelope).max(BigDecimal.ZERO)
+                .setScale(2, RoundingMode.HALF_UP);
+
+        List<CategoryAllocation> allocations = toAllocations(floored, basis, in.recurring());
+
+        // Whatever the envelope didn't need becomes savings. Never negative.
         BigDecimal surplus = envelope.subtract(targetSum).max(BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP);
 
         return new BudgetAllocationPlan(
-                envelope.setScale(2, RoundingMode.HALF_UP), surplus, coldStart, false, allocations);
+                envelope.setScale(2, RoundingMode.HALF_UP), surplus, savingsShortfall, coldStart, false, allocations);
+    }
+
+    /** Snap down to the step; never below the spent floor (then the spent amount is snapped up). */
+    private static BigDecimal snapToStep(BigDecimal amount, BigDecimal spent) {
+        BigDecimal down = amount.divide(ROUNDING_STEP, 0, RoundingMode.FLOOR).multiply(ROUNDING_STEP);
+        if (down.compareTo(spent) >= 0) {
+            return down;
+        }
+        return spent.divide(ROUNDING_STEP, 0, RoundingMode.CEILING).multiply(ROUNDING_STEP);
     }
 
     /**
-     * Round each allocation to money scale and push the penny drift into the largest allocation so
-     * the rounded amounts sum back to {@code targetSum} exactly (deterministic, unlike the AI path).
+     * Build the allocation list at money scale. Amounts are already step-multiples from
+     * {@link #snapToStep}, so no drift reconciliation is needed — the shaved remainder is
+     * accounted for in {@code surplusToSavings} instead of being pushed into a category.
      */
-    private List<CategoryAllocation> roundAndReconcile(Map<Category, BigDecimal> floored,
-                                                       Map<Category, AllocationBasis> basis,
-                                                       Map<Category, BigDecimal> recurring,
-                                                       BigDecimal targetSum) {
-        Map<Category, BigDecimal> rounded = new EnumMap<>(Category.class);
-        BigDecimal sumRounded = BigDecimal.ZERO;
-        Category largest = null;
-        for (Category c : EXPENSE_CATEGORIES) {
-            BigDecimal r = floored.get(c).setScale(2, RoundingMode.HALF_UP);
-            rounded.put(c, r);
-            sumRounded = sumRounded.add(r);
-            if (largest == null || r.compareTo(rounded.get(largest)) > 0) {
-                largest = c;
-            }
-        }
-        BigDecimal drift = targetSum.setScale(2, RoundingMode.HALF_UP).subtract(sumRounded);
-        if (largest != null && drift.signum() != 0) {
-            rounded.put(largest, rounded.get(largest).add(drift));
-        }
-
+    private List<CategoryAllocation> toAllocations(Map<Category, BigDecimal> floored,
+                                                   Map<Category, AllocationBasis> basis,
+                                                   Map<Category, BigDecimal> recurring) {
         List<CategoryAllocation> allocations = new ArrayList<>();
         for (Category c : EXPENSE_CATEGORIES) {
             allocations.add(new CategoryAllocation(
                     c,
-                    rounded.get(c).setScale(2, RoundingMode.HALF_UP),
+                    floored.get(c).setScale(2, RoundingMode.HALF_UP),
                     amt(recurring, c).setScale(2, RoundingMode.HALF_UP),
                     basis.get(c)));
         }
@@ -204,6 +252,7 @@ public class BudgetAllocationCalculator {
                     AllocationBasis.HISTORY));
         }
         return new BudgetAllocationPlan(
+                BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP),
                 BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP),
                 BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP),
                 false, true, allocations);
@@ -245,15 +294,18 @@ public class BudgetAllocationCalculator {
      * Everything the calculator needs, as primitives. Maps may omit categories (treated as zero).
      *
      * @param envelope          spendable amount after commitments + target savings (Stage 0)
+     * @param targetSavings     the month's savings ambition held out of the envelope — how much a
+     *                          TRACK_ONLY user's floors may overflow before other categories shrink
      * @param median            trailing 3-month median expense per category
      * @param recurring         detected recurring (fixed) cost per category
      * @param currentMonthSpent amount already spent this month per category (the mid-month floor)
-     * @param focusMode         user trait — tilts the cold-start template
+     * @param focusMode         user trait — tilts the cold-start template and the overage order
      * @param interventionLevel user trait — sets the needs buffer
      * @param monthsOfHistory   distinct prior months with spend; 0 forces the cold-start path
      */
     public record BudgetAllocationInputs(
             BigDecimal envelope,
+            BigDecimal targetSavings,
             Map<Category, BigDecimal> median,
             Map<Category, BigDecimal> recurring,
             Map<Category, BigDecimal> currentMonthSpent,
@@ -262,10 +314,15 @@ public class BudgetAllocationCalculator {
             int monthsOfHistory) {
     }
 
-    /** The computed plan. {@code allocations} covers all 9 expense categories (amounts may be zero). */
+    /**
+     * The computed plan. {@code allocations} covers all 9 expense categories (amounts may be zero).
+     * {@code savingsShortfall} is the part of the mid-month spent floors that the other categories'
+     * headroom could not absorb — the caller funds it out of the month's savings target.
+     */
     public record BudgetAllocationPlan(
             BigDecimal envelope,
             BigDecimal surplusToSavings,
+            BigDecimal savingsShortfall,
             boolean coldStart,
             boolean overCommitted,
             List<CategoryAllocation> allocations) {

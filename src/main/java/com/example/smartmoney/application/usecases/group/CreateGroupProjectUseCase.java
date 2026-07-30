@@ -25,6 +25,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -60,20 +61,19 @@ public class CreateGroupProjectUseCase {
 
         // Ensure no group project has ever been created for this group
         groupProjectRepository.findByGroupId(group.getId().value()).ifPresent(existing -> {
-            throw new ProjectException("Một nhóm chỉ gắn liền với một dự án. Bạn vui lòng nhân bản nhóm để tạo dự án mới.",
+            throw new ProjectException(
+                    "Một nhóm chỉ gắn liền với một dự án. Bạn vui lòng nhân bản nhóm để tạo dự án mới.",
                     ProjectErrorCode.PROJECT_PERMISSION_DENIED);
         });
 
         // Run sponsorship allocation to verify feasibility
         SponsorshipAllocationService.AllocationResult alloc = sponsorshipAllocationService.allocate(
-                req.getTargetAmount(), req.getTotalMonths(), group.joinedMembers()
-        );
+                req.getTargetAmount(), req.getTotalMonths(), group.joinedMembers());
 
         if (!alloc.isFeasible()) {
             throw new ProjectException(
                     "Với mức thu nhập hiện tại của nhóm, mục tiêu này chưa thực sự phù hợp. Bạn nên cân nhắc giảm số tiền mục tiêu hoặc kéo dài thời gian tích lũy để đạt được hiệu quả tốt nhất nhé!",
-                    ProjectErrorCode.PROJECT_USER_INCOME_REQUIRED
-            );
+                    ProjectErrorCode.PROJECT_USER_INCOME_REQUIRED);
         }
 
         // Determine if all deficits are pre-approved via auto-sponsorship
@@ -89,7 +89,8 @@ public class CreateGroupProjectUseCase {
                 // Member needs to contribute extra (is a helper)
                 BigDecimal extraNeeded = proposed.subtract(original);
                 boolean autoSponsor = member.getAutoSponsorEnabled() != null && member.getAutoSponsorEnabled();
-                boolean withinLimit = member.getAutoSponsorLimit() == null || extraNeeded.compareTo(member.getAutoSponsorLimit()) <= 0;
+                boolean withinLimit = member.getAutoSponsorLimit() == null
+                        || extraNeeded.compareTo(member.getAutoSponsorLimit()) <= 0;
 
                 if (autoSponsor && withinLimit) {
                     // Pre-approved by member!
@@ -97,8 +98,7 @@ public class CreateGroupProjectUseCase {
                     GroupProjectSponsorshipRequest r = GroupProjectSponsorshipRequest.createNew(
                             null, // will set project id below
                             member.getUserId().value(),
-                            extraNeeded
-                    );
+                            extraNeeded);
                     r.accept();
                     requestsToCreate.add(r);
                 } else {
@@ -107,15 +107,15 @@ public class CreateGroupProjectUseCase {
                     GroupProjectSponsorshipRequest r = GroupProjectSponsorshipRequest.createNew(
                             null, // will set project id below
                             member.getUserId().value(),
-                            extraNeeded
-                    );
+                            extraNeeded);
                     requestsToCreate.add(r);
                     pendingSurveyMembers.add(member);
                 }
             }
         }
 
-        GroupProjectStatus initialStatus = allAutoSponsored ? GroupProjectStatus.ACTIVE : GroupProjectStatus.PENDING_SPONSORSHIP;
+        GroupProjectStatus initialStatus = allAutoSponsored ? GroupProjectStatus.ACTIVE
+                : GroupProjectStatus.PENDING_SPONSORSHIP;
         LocalDate deadline = LocalDate.now().plusMonths(req.getTotalMonths());
 
         GroupProject gp = GroupProject.createNew(
@@ -127,8 +127,7 @@ public class CreateGroupProjectUseCase {
                 req.getCurrency(),
                 req.getTotalMonths(),
                 deadline,
-                initialStatus
-        );
+                initialStatus);
 
         GroupProject saved = groupProjectRepository.save(gp);
 
@@ -142,8 +141,7 @@ public class CreateGroupProjectUseCase {
                             r.getAskedAmount(),
                             r.getStatus(),
                             r.getCreatedAt(),
-                            r.getUpdatedAt()
-                    ))
+                            r.getUpdatedAt()))
                     .toList();
             sponsorshipRequestRepository.saveAll(updatedReqs);
         }
@@ -151,7 +149,8 @@ public class CreateGroupProjectUseCase {
         if (allAutoSponsored) {
             notifyMembersActive(group, saved);
         } else {
-            notifyMembersPendingSponsorship(group, saved, pendingSurveyMembers, alloc.getOriginalShare(), alloc.getProposedShares());
+            notifyMembersPendingSponsorship(group, saved, pendingSurveyMembers, alloc.getOriginalShare(),
+                    alloc.getProposedShares());
         }
 
         return GroupProjectDetailResponse.fromDomain(saved, saved.getTargetAmount(), null, null, List.of());
@@ -160,13 +159,15 @@ public class CreateGroupProjectUseCase {
     private void notifyMembersActive(Group group, GroupProject gp) {
         String title = "Group project started!";
         String body = "\"" + gp.getName() + "\" is ready. Open the app to set your personal savings target.";
-        // In-app content is a pipe-delimited i18n key the FE localizes; push keeps the raw body.
+        // In-app content is a pipe-delimited i18n key the FE localizes; push keeps the
+        // raw body.
         String content = "notification.group.project_started|" + gp.getName();
         String deepLink = "/group-projects/" + gp.getId().value();
         Map<String, String> data = Map.of("url", deepLink);
 
         for (GroupMember member : group.joinedMembers()) {
-            if (member.getUserId().equals(group.getAdminId())) continue;
+            if (member.getUserId().equals(group.getAdminId()))
+                continue;
             try {
                 createNotificationUseCase.createNotification(member.getUserId().value(), content, deepLink);
 
@@ -181,7 +182,8 @@ public class CreateGroupProjectUseCase {
         }
     }
 
-    private void notifyMembersPendingSponsorship(Group group, GroupProject gp, List<GroupMember> pendingSurveyMembers, BigDecimal originalShare, Map<UUID, BigDecimal> proposedShares) {
+    private void notifyMembersPendingSponsorship(Group group, GroupProject gp, List<GroupMember> pendingSurveyMembers,
+            BigDecimal originalShare, Map<UUID, BigDecimal> proposedShares) {
         String title = "Cần khảo sát đóng góp giúp";
         String deepLink = "/group-projects/" + gp.getId().value();
         Map<String, String> data = Map.of("url", deepLink);
@@ -190,12 +192,14 @@ public class CreateGroupProjectUseCase {
             BigDecimal proposed = proposedShares.get(member.getUserId().value());
             String body = String.format(
                     "Trong nhóm của bạn đang có một thành viên không đủ điều kiện để thực hiện kế hoạch tiết kiệm này, bạn có đồng ý giúp không? Bạn sẽ phải tiết kiệm %s VND/tháng thay vì %s VND/tháng cho project này.",
-                    proposed.setScale(0).toString(),
-                    originalShare.setScale(0).toString()
-            );
-            // In-app content is a pipe-delimited i18n key the FE localizes; push keeps the raw body.
+                    proposed.setScale(0, RoundingMode.HALF_UP).toString(),
+                    originalShare.setScale(0, RoundingMode.HALF_UP).toString());
+            // In-app content is a pipe-delimited i18n key the FE localizes; push keeps the
+            // raw body.
             String content = "notification.group.sponsorship_survey|"
-                    + proposed.setScale(0) + "|" + originalShare.setScale(0);
+                    + proposed.setScale(0, RoundingMode.HALF_UP)
+                    + "|"
+                    + originalShare.setScale(0, RoundingMode.HALF_UP);
 
             try {
                 createNotificationUseCase.createNotification(member.getUserId().value(), content, deepLink);

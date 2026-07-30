@@ -101,7 +101,7 @@ public class ComputeBudgetAllocationUseCase {
         Map<Category, BigDecimal> recurring = analyzer.recurringCostByCategory(history, period);
 
         BudgetAllocationInputs inputs = new BudgetAllocationInputs(
-                envelope, median, recurring, currentMonthSpent,
+                envelope, targetSavings, median, recurring, currentMonthSpent,
                 user.getFocusMode(), user.getInterventionLevel(), monthsOfHistory(history, period));
 
         BudgetAllocationPlan plan = calculator.allocate(inputs);
@@ -146,13 +146,18 @@ public class ComputeBudgetAllocationUseCase {
                         .build())
                 .toList();
 
+        // Mid-month floors the category squeeze couldn't absorb are funded from the savings
+        // ambition: the envelope grows by the drawn amount and targetSavings shrinks by it, so
+        // Σ allocations still reconciles against the reported envelope.
+        BigDecimal savingsDraw = plan.savingsShortfall().min(targetSavings).max(BigDecimal.ZERO);
+
         return BudgetAllocationPlanResponse.builder()
                 .month(period.getMonthValue())
                 .year(period.getYear())
                 .income(user.getIncome())
                 .safeSpending(safeSpending)
-                .targetSavings(targetSavings)
-                .envelope(plan.envelope())
+                .targetSavings(targetSavings.subtract(savingsDraw))
+                .envelope(plan.envelope().add(savingsDraw))
                 .surplusToSavings(plan.surplusToSavings())
                 .coldStart(plan.coldStart())
                 .overCommitted(plan.overCommitted())
