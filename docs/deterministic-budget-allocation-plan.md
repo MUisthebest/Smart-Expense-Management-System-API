@@ -151,6 +151,23 @@ it, a plan computed late in the month could set a limit below what is already sp
 budget would be born already-exceeded the moment `spent` is backfilled — an instant false
 overspend alert on a brand-new budget.
 
+**Floor overage claw-back.** Floors only expand, so they can push Σ past the envelope. The
+overage is clawed back proportionally from the other categories' unspent headroom (never below
+their own spent floors). `TRACK_ONLY` users opt out of the squeeze: their savings ambition
+absorbs the overage first, and categories shrink only for what savings can't cover. Whatever
+neither can absorb is reported as `savingsShortfall` for the caller to fund from
+`targetSavings`.
+
+**Floored-category forward allowance (top-up).** A floored category would otherwise be born
+fully consumed (`limit == spent`, zero headroom for the rest of the month). Each floored
+category is therefore granted a forward allowance of `buffer × max(spent, median)`, funded in
+order: (1) the envelope's unallocated surplus, (2) the other categories' headroom (same
+proportional squeeze), (3) the savings ambition (reported via `savingsShortfall`).
+`TRACK_ONLY` users are never squeezed for this; and if they also have **no active project**,
+their surplus is left untouched too — the allowance is billed to the savings ambition alone
+(which no project has earmarked yet), so `surplusToSavings` is never reduced for them. This is
+why the calculator receives `hasActiveProjects`.
+
 ### 3.5 Cold start (no usable history)
 
 ```

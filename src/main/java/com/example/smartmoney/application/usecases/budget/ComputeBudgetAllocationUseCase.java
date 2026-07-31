@@ -77,7 +77,10 @@ public class ComputeBudgetAllocationUseCase {
         YearMonth period = YearMonth.from(asOf);
 
         // ---- Stage 0: the spendable envelope (needs the User/Project models, so computed here) ----
-        BigDecimal commitment = activeProjectMonthlyCommitment(new UserId(userId));
+        List<Project> activeProjects = activeProjects(new UserId(userId));
+        BigDecimal commitment = activeProjects.stream()
+                .map(Project::calculateMonthlyCommitment)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
         BigDecimal safeSpending = user.calculateSafeSpending(commitment);
         BigDecimal savingCapacity = user.getSavingCapacity();
         // Projects are press-to-contribute savings, so they count toward the savings ambition:
@@ -102,7 +105,8 @@ public class ComputeBudgetAllocationUseCase {
 
         BudgetAllocationInputs inputs = new BudgetAllocationInputs(
                 envelope, targetSavings, median, recurring, currentMonthSpent,
-                user.getFocusMode(), user.getInterventionLevel(), monthsOfHistory(history, period));
+                user.getFocusMode(), user.getInterventionLevel(), !activeProjects.isEmpty(),
+                monthsOfHistory(history, period));
 
         BudgetAllocationPlan plan = calculator.allocate(inputs);
 
@@ -126,13 +130,10 @@ public class ComputeBudgetAllocationUseCase {
                 .count();
     }
 
-    private BigDecimal activeProjectMonthlyCommitment(UserId userId) {
+    private List<Project> activeProjects(UserId userId) {
         ProjectFilterRequest activeProjectFilter = new ProjectFilterRequest(
                 null, null, ProjectStatus.ACTIVE, null);
-        List<Project> activeProjects = projectRepository.findAllByUser(userId, activeProjectFilter);
-        return activeProjects.stream()
-                .map(Project::calculateMonthlyCommitment)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        return projectRepository.findAllByUser(userId, activeProjectFilter);
     }
 
     private BudgetAllocationPlanResponse toResponse(YearMonth period, User user, BigDecimal safeSpending,
@@ -146,9 +147,10 @@ public class ComputeBudgetAllocationUseCase {
                         .build())
                 .toList();
 
-        // Mid-month floors the category squeeze couldn't absorb are funded from the savings
+        // Mid-month floors the category squeeze couldn't absorb — plus any floored-category
+        // top-up allowance the calculator billed to savings — are funded from the savings
         // ambition: the envelope grows by the drawn amount and targetSavings shrinks by it, so
-        // Σ allocations still reconciles against the reported envelope.
+        // Σ allocations + surplus still reconciles against the reported envelope.
         BigDecimal savingsDraw = plan.savingsShortfall().min(targetSavings).max(BigDecimal.ZERO);
 
         return BudgetAllocationPlanResponse.builder()

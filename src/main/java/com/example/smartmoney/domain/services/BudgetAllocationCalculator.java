@@ -165,27 +165,54 @@ public class BudgetAllocationCalculator {
         if (overage.signum() > 0) {
             BigDecimal shrinkGoal = overage;
             if (in.focusMode() == Focus_Mode.TRACK_ONLY) {
-                BigDecimal savings = in.targetSavings() == null
-                        ? BigDecimal.ZERO : in.targetSavings().max(BigDecimal.ZERO);
-                shrinkGoal = overage.subtract(savings).max(BigDecimal.ZERO);
+                shrinkGoal = overage.subtract(savingsAmbition(in)).max(BigDecimal.ZERO);
             }
-            Map<Category, BigDecimal> slack = new EnumMap<>(Category.class);
-            BigDecimal totalSlack = BigDecimal.ZERO;
-            for (Category c : EXPENSE_CATEGORIES) {
-                BigDecimal s = floored.get(c).subtract(amt(in.currentMonthSpent(), c)).max(BigDecimal.ZERO);
-                slack.put(c, s);
-                totalSlack = totalSlack.add(s);
+            targetSum = targetSum.subtract(squeezeHeadroom(floored, in.currentMonthSpent(), shrinkGoal));
+        }
+
+        // A floored category is born fully consumed — its limit equals this month's spend, leaving
+        // zero headroom for the rest of the month. Grant each one a forward allowance (the variance
+        // buffer applied to the larger of its median and its spend so far), funded in order: the
+        // envelope's unallocated surplus, then the other categories' headroom, then the month's
+        // savings ambition. TRACK_ONLY users are never squeezed for this; when they also have no
+        // active project their surplus stays untouched as well — the allowance comes out of the
+        // savings ambition alone, which no project has earmarked yet.
+        BigDecimal savingsFunded = BigDecimal.ZERO;
+        Map<Category, BigDecimal> allowance = new EnumMap<>(Category.class);
+        BigDecimal totalAllowance = BigDecimal.ZERO;
+        BigDecimal bufferRate = BigDecimal.valueOf(bufferFor(in.interventionLevel()));
+        for (Category c : EXPENSE_CATEGORIES) {
+            if (basis.get(c) != AllocationBasis.FLOORED) {
+                continue;
             }
-            if (shrinkGoal.signum() > 0 && totalSlack.signum() > 0) {
-                BigDecimal shrink = shrinkGoal.min(totalSlack);
-                for (Category c : EXPENSE_CATEGORIES) {
-                    if (slack.get(c).signum() <= 0) {
-                        continue;
-                    }
-                    BigDecimal cut = slack.get(c).multiply(shrink)
-                            .divide(totalSlack, 4, RoundingMode.HALF_UP);
-                    floored.put(c, floored.get(c).subtract(cut));
-                    targetSum = targetSum.subtract(cut);
+            BigDecimal a = amt(in.currentMonthSpent(), c).max(amt(in.median(), c)).multiply(bufferRate);
+            allowance.put(c, a);
+            totalAllowance = totalAllowance.add(a);
+        }
+        if (totalAllowance.signum() > 0) {
+            boolean trackOnly = in.focusMode() == Focus_Mode.TRACK_ONLY;
+            // Savings already promised to the hard floors (any residual overage above) come first.
+            BigDecimal savingsLeft = savingsAmbition(in)
+                    .subtract(targetSum.subtract(envelope).max(BigDecimal.ZERO)).max(BigDecimal.ZERO);
+
+            BigDecimal fromSurplus = trackOnly && !in.hasActiveProjects()
+                    ? BigDecimal.ZERO
+                    : envelope.subtract(targetSum).max(BigDecimal.ZERO).min(totalAllowance);
+            BigDecimal unfunded = totalAllowance.subtract(fromSurplus);
+            if (unfunded.signum() > 0 && !trackOnly) {
+                BigDecimal squeezed = squeezeHeadroom(floored, in.currentMonthSpent(), unfunded);
+                targetSum = targetSum.subtract(squeezed);
+                unfunded = unfunded.subtract(squeezed);
+            }
+            savingsFunded = unfunded.min(savingsLeft);
+
+            BigDecimal funded = totalAllowance.subtract(unfunded).add(savingsFunded);
+            if (funded.signum() > 0) {
+                for (Map.Entry<Category, BigDecimal> e : allowance.entrySet()) {
+                    BigDecimal grant = e.getValue().multiply(funded)
+                            .divide(totalAllowance, 4, RoundingMode.HALF_UP);
+                    floored.put(e.getKey(), floored.get(e.getKey()).add(grant));
+                    targetSum = targetSum.add(grant);
                 }
             }
         }
@@ -200,18 +227,57 @@ public class BudgetAllocationCalculator {
             targetSum = targetSum.add(snapped);
         }
 
-        // What even the squeeze couldn't absorb (every category is at its spent floor) has to be
-        // funded from the month's savings ambition — reported so the caller can reduce targetSavings.
-        BigDecimal savingsShortfall = targetSum.subtract(envelope).max(BigDecimal.ZERO)
+        // What the squeeze couldn't absorb — hard floors past the envelope plus any top-up
+        // allowance funded from savings — is reported so the caller can reduce targetSavings.
+        // The savings-funded part is tracked explicitly: for a TRACK_ONLY user without projects
+        // the total may still sit under the envelope, and deriving the shortfall from the sum
+        // alone would silently bill the top-up to the surplus instead.
+        BigDecimal savingsShortfall = targetSum.subtract(envelope).max(savingsFunded).max(BigDecimal.ZERO)
                 .setScale(2, RoundingMode.HALF_UP);
 
         List<CategoryAllocation> allocations = toAllocations(floored, basis, in.recurring());
 
-        // Whatever the envelope didn't need becomes savings. Never negative.
-        BigDecimal surplus = envelope.subtract(targetSum).max(BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP);
+        // Whatever the envelope (plus the declared savings draw) didn't need becomes savings.
+        BigDecimal surplus = envelope.add(savingsShortfall).subtract(targetSum)
+                .max(BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP);
 
         return new BudgetAllocationPlan(
                 envelope.setScale(2, RoundingMode.HALF_UP), surplus, savingsShortfall, coldStart, false, allocations);
+    }
+
+    /**
+     * Shrink the categories' unspent headroom (amount − spent, never below the spent floor)
+     * proportionally until up to {@code goal} has been reclaimed. Mutates {@code floored} in
+     * place and returns the total actually cut ({@code min(goal, total headroom)}).
+     */
+    private static BigDecimal squeezeHeadroom(Map<Category, BigDecimal> floored,
+                                              Map<Category, BigDecimal> currentMonthSpent,
+                                              BigDecimal goal) {
+        if (goal.signum() <= 0) {
+            return BigDecimal.ZERO;
+        }
+        Map<Category, BigDecimal> slack = new EnumMap<>(Category.class);
+        BigDecimal totalSlack = BigDecimal.ZERO;
+        for (Category c : EXPENSE_CATEGORIES) {
+            BigDecimal s = floored.get(c).subtract(amt(currentMonthSpent, c)).max(BigDecimal.ZERO);
+            slack.put(c, s);
+            totalSlack = totalSlack.add(s);
+        }
+        if (totalSlack.signum() <= 0) {
+            return BigDecimal.ZERO;
+        }
+        BigDecimal shrink = goal.min(totalSlack);
+        BigDecimal totalCut = BigDecimal.ZERO;
+        for (Category c : EXPENSE_CATEGORIES) {
+            if (slack.get(c).signum() <= 0) {
+                continue;
+            }
+            BigDecimal cut = slack.get(c).multiply(shrink)
+                    .divide(totalSlack, 4, RoundingMode.HALF_UP);
+            floored.put(c, floored.get(c).subtract(cut));
+            totalCut = totalCut.add(cut);
+        }
+        return totalCut;
     }
 
     /** Snap down to the step; never below the spent floor (then the spent amount is snapped up). */
@@ -272,6 +338,11 @@ public class BudgetAllocationCalculator {
         };
     }
 
+    /** The month's savings target, normalized: null or negative reads as zero. */
+    private static BigDecimal savingsAmbition(BudgetAllocationInputs in) {
+        return in.targetSavings() == null ? BigDecimal.ZERO : in.targetSavings().max(BigDecimal.ZERO);
+    }
+
     private static BigDecimal totalMedian(BudgetAllocationInputs in) {
         BigDecimal total = BigDecimal.ZERO;
         for (Category c : EXPENSE_CATEGORIES) {
@@ -301,6 +372,8 @@ public class BudgetAllocationCalculator {
      * @param currentMonthSpent amount already spent this month per category (the mid-month floor)
      * @param focusMode         user trait — tilts the cold-start template and the overage order
      * @param interventionLevel user trait — sets the needs buffer
+     * @param hasActiveProjects whether any active project exists; without one, a TRACK_ONLY user's
+     *                          floor top-up spares the surplus and draws on savings instead
      * @param monthsOfHistory   distinct prior months with spend; 0 forces the cold-start path
      */
     public record BudgetAllocationInputs(
@@ -311,13 +384,15 @@ public class BudgetAllocationCalculator {
             Map<Category, BigDecimal> currentMonthSpent,
             Focus_Mode focusMode,
             Intervention_Level interventionLevel,
+            boolean hasActiveProjects,
             int monthsOfHistory) {
     }
 
     /**
      * The computed plan. {@code allocations} covers all 9 expense categories (amounts may be zero).
-     * {@code savingsShortfall} is the part of the mid-month spent floors that the other categories'
-     * headroom could not absorb — the caller funds it out of the month's savings target.
+     * {@code savingsShortfall} is the part of the plan the envelope could not fund — mid-month
+     * spent floors the other categories' headroom could not absorb, plus any floored-category
+     * top-up allowance drawn from savings — the caller funds it out of the month's savings target.
      */
     public record BudgetAllocationPlan(
             BigDecimal envelope,

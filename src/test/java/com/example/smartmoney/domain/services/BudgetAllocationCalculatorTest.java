@@ -39,7 +39,7 @@ class BudgetAllocationCalculatorTest {
                                                  Map<Category, BigDecimal> recurring,
                                                  Map<Category, BigDecimal> spent, int monthsOfHistory) {
         return new BudgetAllocationInputs(bd(envelope), BigDecimal.ZERO, median, recurring, spent,
-                Focus_Mode.TRACK_ONLY, Intervention_Level.GENTLE, monthsOfHistory);
+                Focus_Mode.TRACK_ONLY, Intervention_Level.GENTLE, false, monthsOfHistory);
     }
 
     private static BigDecimal amountOf(BudgetAllocationPlan plan, Category c) {
@@ -132,6 +132,8 @@ class BudgetAllocationCalculatorTest {
     @Test
     @DisplayName("mid-month: a category already over its computed limit is floored to this month's spend")
     void midMonthFloorRaisesToSpent() {
+        // The helper is TRACK_ONLY with zero savings and no projects, so the floored category's
+        // top-up has no funding source: FOOD stays exactly at its spent floor.
         BudgetAllocationPlan plan = calculator.allocate(
                 inputs("16000000", map(Category.FOOD, "5000000"), map(),
                         map(Category.FOOD, "7000000"), 3)); // already spent 7M > computed 5.5M
@@ -140,6 +142,54 @@ class BudgetAllocationCalculatorTest {
         assertEquals(AllocationBasis.FLOORED, basisOf(plan, Category.FOOD));
         assertMoney("9000000", plan.surplusToSavings()); // 16M - 7M
         assertMoney("0", plan.savingsShortfall());
+    }
+
+    @Test
+    @DisplayName("floored category gets a forward allowance from the surplus, not a zero-headroom budget")
+    void flooredCategoryToppedUpFromSurplus() {
+        // Non-TRACK_ONLY user: FOOD floored to its 7M spend, then granted a 10% (GENTLE)
+        // allowance of max(spent, median) = 700k, paid out of the 9M surplus.
+        BudgetAllocationPlan plan = calculator.allocate(new BudgetAllocationInputs(
+                bd("16000000"), BigDecimal.ZERO,
+                map(Category.FOOD, "5000000"), map(), map(Category.FOOD, "7000000"),
+                Focus_Mode.REDUCE_SPENDING, Intervention_Level.GENTLE, false, 3));
+
+        assertMoney("7700000", amountOf(plan, Category.FOOD));
+        assertEquals(AllocationBasis.FLOORED, basisOf(plan, Category.FOOD));
+        assertMoney("8300000", plan.surplusToSavings()); // 16M - 7.7M
+        assertMoney("0", plan.savingsShortfall());
+        // Invariant: allocations + surplus still reconstruct the envelope exactly.
+        assertMoney("16000000", sumAmounts(plan).add(plan.surplusToSavings()));
+    }
+
+    @Test
+    @DisplayName("TRACK_ONLY without projects: the top-up draws on savings, surplus stays untouched")
+    void trackOnlyWithoutProjectsKeepsSurplusIntact() {
+        BudgetAllocationPlan plan = calculator.allocate(new BudgetAllocationInputs(
+                bd("16000000"), bd("3000000"),
+                map(Category.FOOD, "5000000"), map(), map(Category.FOOD, "7000000"),
+                Focus_Mode.TRACK_ONLY, Intervention_Level.GENTLE, false, 3));
+
+        assertMoney("7700000", amountOf(plan, Category.FOOD));
+        // Surplus is exactly what it was before the top-up (16M - 7M) — nothing deducted.
+        assertMoney("9000000", plan.surplusToSavings());
+        // The 700k allowance is billed to the savings ambition instead.
+        assertMoney("700000", plan.savingsShortfall());
+        // Invariant: allocations + surplus == envelope + savings draw.
+        assertMoney("16700000", sumAmounts(plan).add(plan.surplusToSavings()));
+    }
+
+    @Test
+    @DisplayName("TRACK_ONLY with an active project: the top-up is funded from surplus as usual")
+    void trackOnlyWithProjectsFundsTopUpFromSurplus() {
+        BudgetAllocationPlan plan = calculator.allocate(new BudgetAllocationInputs(
+                bd("16000000"), bd("3000000"),
+                map(Category.FOOD, "5000000"), map(), map(Category.FOOD, "7000000"),
+                Focus_Mode.TRACK_ONLY, Intervention_Level.GENTLE, true, 3));
+
+        assertMoney("7700000", amountOf(plan, Category.FOOD));
+        assertMoney("8300000", plan.surplusToSavings()); // 16M - 7.7M
+        assertMoney("0", plan.savingsShortfall());       // savings ambition stays whole
     }
 
     @Test
@@ -193,11 +243,13 @@ class BudgetAllocationCalculatorTest {
                 bd("10000000"), bd("3000000"),
                 map(Category.FOOD, "5000000", Category.TRANSPORTATION, "5000000"),
                 map(), map(Category.FOOD, "7000000"),
-                Focus_Mode.TRACK_ONLY, Intervention_Level.GENTLE, 3));
+                Focus_Mode.TRACK_ONLY, Intervention_Level.GENTLE, false, 3));
 
-        assertMoney("7000000", amountOf(plan, Category.FOOD));
+        // FOOD's 700k forward allowance also comes out of the remaining 1M of savings
+        // (no projects → surplus is never tapped, and there is none here anyway).
+        assertMoney("7700000", amountOf(plan, Category.FOOD));
         assertMoney("5000000", amountOf(plan, Category.TRANSPORTATION));
-        assertMoney("2000000", plan.savingsShortfall()); // funded from targetSavings by the caller
+        assertMoney("2700000", plan.savingsShortfall()); // funded from targetSavings by the caller
     }
 
     @Test
@@ -208,7 +260,7 @@ class BudgetAllocationCalculatorTest {
                 bd("10000000"), bd("1000000"),
                 map(Category.FOOD, "5000000", Category.TRANSPORTATION, "5000000"),
                 map(), map(Category.FOOD, "7000000"),
-                Focus_Mode.TRACK_ONLY, Intervention_Level.GENTLE, 3));
+                Focus_Mode.TRACK_ONLY, Intervention_Level.GENTLE, false, 3));
 
         assertMoney("7000000", amountOf(plan, Category.FOOD));
         assertMoney("4000000", amountOf(plan, Category.TRANSPORTATION));
@@ -222,10 +274,12 @@ class BudgetAllocationCalculatorTest {
                 bd("10000000"), bd("3000000"),
                 map(Category.FOOD, "5000000", Category.TRANSPORTATION, "5000000"),
                 map(), map(Category.FOOD, "7000000"),
-                Focus_Mode.SAVE_MORE, Intervention_Level.GENTLE, 3));
+                Focus_Mode.SAVE_MORE, Intervention_Level.GENTLE, false, 3));
 
-        assertMoney("7000000", amountOf(plan, Category.FOOD));
-        assertMoney("3000000", amountOf(plan, Category.TRANSPORTATION));
+        // The 2M overage AND FOOD's 700k forward allowance both come out of TRANSPORTATION's
+        // headroom (no surplus to tap): 5M − 2M − 0.7M. Savings are never touched.
+        assertMoney("7700000", amountOf(plan, Category.FOOD));
+        assertMoney("2300000", amountOf(plan, Category.TRANSPORTATION));
         assertMoney("0", plan.savingsShortfall()); // savings ambition stays intact
     }
 
@@ -258,7 +312,7 @@ class BudgetAllocationCalculatorTest {
     @DisplayName("cold start + save-oriented focus trims 'wants' below equally-weighted needs")
     void coldStartSaveTiltTrimsWants() {
         BudgetAllocationInputs in = new BudgetAllocationInputs(bd("10000000"), BigDecimal.ZERO,
-                map(), map(), map(), Focus_Mode.SAVE_MORE, Intervention_Level.GENTLE, 0);
+                map(), map(), map(), Focus_Mode.SAVE_MORE, Intervention_Level.GENTLE, false, 0);
 
         BudgetAllocationPlan plan = calculator.allocate(in);
 
@@ -293,10 +347,10 @@ class BudgetAllocationCalculatorTest {
         Map<Category, BigDecimal> median = map(Category.FOOD, "5000000");
         BudgetAllocationPlan hard = calculator.allocate(new BudgetAllocationInputs(
                 bd("16000000"), BigDecimal.ZERO, median, map(), map(),
-                Focus_Mode.TRACK_ONLY, Intervention_Level.HARD, 3));
+                Focus_Mode.TRACK_ONLY, Intervention_Level.HARD, false, 3));
         BudgetAllocationPlan notify = calculator.allocate(new BudgetAllocationInputs(
                 bd("16000000"), BigDecimal.ZERO, median, map(), map(),
-                Focus_Mode.TRACK_ONLY, Intervention_Level.NOTIFY, 3));
+                Focus_Mode.TRACK_ONLY, Intervention_Level.NOTIFY, false, 3));
 
         assertMoney("5250000", amountOf(hard, Category.FOOD));   // 5M + 5% buffer
         assertMoney("6000000", amountOf(notify, Category.FOOD)); // 5M + 20% buffer

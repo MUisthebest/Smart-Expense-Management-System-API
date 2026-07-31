@@ -119,6 +119,40 @@ class ComputeBudgetAllocationUseCaseTest {
     }
 
     @Test
+    @DisplayName("TRACK_ONLY without projects: floored top-up drawn from savings, surplus untouched")
+    void trackOnlyWithoutProjectsFundsFloorAllowanceFromSavings() {
+        // TRACK_ONLY → savingCapacity 0.10 = 2M → envelope 18M. FOOD median 5M, but 7M already
+        // spent in June floors it; the GENTLE 10% allowance (700k) must come from savings.
+        User user = User.builder()
+                .id(userId)
+                .income(new BigDecimal("20000000"))
+                .savingPace(Saving_Pace.BALANCED)
+                .focusMode(Focus_Mode.TRACK_ONLY)
+                .interventionLevel(Intervention_Level.GENTLE)
+                .autoInvestSurplus(true)
+                .build();
+        List<Transaction> history = new ArrayList<>();
+        history.add(foodExpense(3, new BigDecimal("5000000"), "groceries-mar"));
+        history.add(foodExpense(4, new BigDecimal("5000000"), "groceries-apr"));
+        history.add(foodExpense(5, new BigDecimal("5000000"), "groceries-may"));
+        history.add(foodExpense(6, new BigDecimal("7000000"), "groceries-jun"));
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(projectRepository.findAllByUser(any(), any())).thenReturn(List.<Project>of());
+        when(transactionRepository.findByUserIdWithFilters(any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(history);
+
+        BudgetAllocationPlanResponse plan = useCase.execute(userId, AS_OF);
+
+        assertEquals(0, new BigDecimal("7700000").compareTo(amountOf(plan, Category.FOOD)));
+        // Surplus is exactly envelope − spend (18M − 7M): the allowance never dips into it.
+        assertEquals(0, new BigDecimal("11000000").compareTo(plan.getSurplusToSavings()));
+        // The 700k draw is taken from the savings ambition and added to the reported envelope.
+        assertEquals(0, new BigDecimal("1300000").compareTo(plan.getTargetSavings()));
+        assertEquals(0, new BigDecimal("18700000").compareTo(plan.getEnvelope()));
+    }
+
+    @Test
     @DisplayName("incomplete financial setup → domain exception")
     void rejectsIncompleteSetup() {
         User user = User.builder().id(userId).build(); // no income/traits
