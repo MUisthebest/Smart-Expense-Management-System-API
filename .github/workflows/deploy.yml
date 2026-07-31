@@ -18,16 +18,10 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
 
           script: |
+            set -e
             cd /opt/Smart-Expense-Management-System-API
-
-            echo "Pull newest code..."
-            git pull origin test
-
-            echo "Build project..."
+            git fetch origin
+            git reset --hard origin/test
             chmod +x mvnw
             ./mvnw clean package -DskipTests
-
-            echo "Restart service..."
             systemctl restart smartmoney
-
-            echo "Done!"

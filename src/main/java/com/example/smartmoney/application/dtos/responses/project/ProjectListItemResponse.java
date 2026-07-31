@@ -4,6 +4,7 @@ import com.example.smartmoney.domain.models.project.Project;
 import com.example.smartmoney.domain.models.project.enums.ProjectPriority;
 import com.example.smartmoney.domain.models.project.enums.ProjectStatus;
 import com.example.smartmoney.domain.models.project.enums.ProjectType;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -12,6 +13,7 @@ import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.Period;
+import java.util.List;
 
 @Data
 @Builder
@@ -35,7 +37,18 @@ public class ProjectListItemResponse {
     private Integer monthsLeft;         // 0, 1, 2,...
     private String deadlineLabel;       // "6 months", "Completed", "Overdue"
 
+    /** Parent group project id; only present for sub-personal projects of a group project. */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private String groupProjectId;
+    /** Members taking part in the group project; only present when {@code groupProjectId} is. */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private List<ProjectParticipantResponse> participants;
+
     public static ProjectListItemResponse fromDomain(Project p) {
+        return fromDomain(p, null);
+    }
+
+    public static ProjectListItemResponse fromDomain(Project p, List<ProjectParticipantResponse> participants) {
         BigDecimal targetAmount = p.getTargetAmount().amount();
         BigDecimal totalContributed = p.netSavedAmount();
         BigDecimal progressPercent = p.progressPercent();
@@ -75,6 +88,8 @@ public class ProjectListItemResponse {
                 .status(p.getStatus())
                 .monthsLeft(monthsLeft)
                 .deadlineLabel(deadlineLabel)
+                .groupProjectId(p.getGroupProjectId() != null ? p.getGroupProjectId().toString() : null)
+                .participants(participants)
                 .build();
     }
 }
