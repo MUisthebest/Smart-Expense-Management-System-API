@@ -2,6 +2,9 @@ package com.example.smartmoney.application.services;
 
 
 import com.example.smartmoney.domain.models.budget.Budget;
+import com.example.smartmoney.domain.models.group.Group;
+import com.example.smartmoney.domain.models.group.GroupProject;
+import com.example.smartmoney.domain.models.group.enums.GroupStatus;
 import com.example.smartmoney.domain.models.project.Project;
 import com.example.smartmoney.domain.models.project.ProjectTracking;
 import com.example.smartmoney.domain.models.project.enums.ProjectStatus;
@@ -12,10 +15,13 @@ import com.example.smartmoney.domain.models.transaction.enums.Category;
 import com.example.smartmoney.domain.models.transaction.enums.TransactionType;
 import com.example.smartmoney.domain.models.user.User;
 import com.example.smartmoney.domain.repositories.BudgetRepository;
+import com.example.smartmoney.domain.repositories.GroupProjectRepository;
+import com.example.smartmoney.domain.repositories.GroupRepository;
 import com.example.smartmoney.domain.repositories.ProjectRepository;
 import com.example.smartmoney.domain.repositories.TransactionRepository;
 import com.example.smartmoney.domain.repositories.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -27,14 +33,21 @@ import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class UserFinancialDataService {
+
+    /** Cap on the group rows listed in the chat context, matching the projects section's cap —
+     *  enough to name the group the user means without crowding out the financial blocks. */
+    private static final int MAX_GROUPS_LISTED = 5;
 
     private final TransactionRepository transactionRepository;
     private final ProjectRepository projectRepository;
     private final BudgetRepository budgetRepository;
     private final UserRepository userRepository;
+    private final GroupRepository groupRepository;
+    private final GroupProjectRepository groupProjectRepository;
 
     public enum DataType {
         TRANSACTIONS, PROJECTS, INCOME, PROFILE
@@ -368,9 +381,13 @@ public class UserFinancialDataService {
                         ProjectTracking tracking = p.getTracking();
                         BigDecimal monthlySaving = tracking != null ? tracking.getMonthlySaving() : BigDecimal.ZERO;
                         BigDecimal moneyOwed = tracking != null ? tracking.getMoneyOwed() : BigDecimal.ZERO;
+                        // projectId is listed so a draft-driven edit/delete can name the exact row
+                        // instead of relying on a project-name match, which is ambiguous the
+                        // moment two projects share a name.
                         sb.append(String.format(
-                                "  %s: status=%s priority=%s target=%s remaining=%s monthlySaving=%,.0f moneyOwed=%,.0f monthsLeft=%d linkedToGroup=%s\n",
+                                "  %s: projectId=%s status=%s priority=%s target=%s remaining=%s monthlySaving=%,.0f moneyOwed=%,.0f monthsLeft=%d linkedToGroup=%s\n",
                                 p.getName(),
+                                p.getId(),
                                 p.getStatus(),
                                 p.getPriority(),
                                 p.getTargetAmount(),
@@ -382,7 +399,49 @@ public class UserFinancialDataService {
                     });
         }
 
+        appendGroups(sb, userId);
+
         return sb.toString();
+    }
+
+    /**
+     * Lists the groups this user belongs to, with the ids and states every group operation needs.
+     *
+     * <p>Without this block the assistant could only ever describe the Group screen, because it
+     * had no groupId to put in a draft and no way to know whether the user administers the group
+     * or whether it is already LOCKED — the two facts that decide which operations are even
+     * possible. {@code isAdmin} and {@code status} are what let it answer "you need to lock the
+     * group first" instead of proposing an operation that would be rejected at confirm time.
+     */
+    private void appendGroups(StringBuilder sb, UUID userId) {
+        List<Group> groups;
+        try {
+            groups = groupRepository.findAllByMember(UserId.of(userId.toString())).stream()
+                    .filter(g -> g.getStatus() != GroupStatus.DISSOLVED)
+                    .limit(MAX_GROUPS_LISTED)
+                    .toList();
+        } catch (Exception e) {
+            // The group tables are not essential to a financial answer — a lookup failure must
+            // not cost the user their whole turn, so the block is simply omitted.
+            log.warn("UserFinancialDataService: could not load groups for user {}: {}",
+                    userId, e.getMessage());
+            return;
+        }
+        if (groups.isEmpty()) return;
+
+        sb.append("\n=== Nhóm ===\n");
+        for (Group g : groups) {
+            GroupProject gp = groupProjectRepository.findByGroupId(g.getId().value()).orElse(null);
+            sb.append(String.format(
+                    "  %s: groupId=%s status=%s isAdmin=%s joinedMembers=%d groupProjectId=%s groupProjectStatus=%s\n",
+                    g.getName(),
+                    g.getId().value(),
+                    g.getStatus(),
+                    g.getAdminId().equals(UserId.of(userId.toString())),
+                    g.joinedMembers().size(),
+                    gp == null ? "none" : gp.getId().value(),
+                    gp == null ? "none" : gp.getStatus()));
+        }
     }
 
     /** How many individual transaction rows {@link #buildChatContext} lists. Enough to answer

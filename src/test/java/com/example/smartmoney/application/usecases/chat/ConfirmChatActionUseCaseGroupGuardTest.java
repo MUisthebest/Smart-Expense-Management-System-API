@@ -24,6 +24,11 @@ import com.example.smartmoney.domain.models.project.enums.ProjectType;
 import com.example.smartmoney.domain.models.project.valueobjects.Money;
 import com.example.smartmoney.domain.models.project.valueobjects.ProjectId;
 import com.example.smartmoney.domain.models.project.valueobjects.UserId;
+import com.example.smartmoney.application.usecases.group.CreateGroupProjectUseCase;
+import com.example.smartmoney.application.usecases.group.CreateGroupUseCase;
+import com.example.smartmoney.application.usecases.group.CreateSubPersonalProjectUseCase;
+import com.example.smartmoney.application.usecases.group.InviteGroupMemberUseCase;
+import com.example.smartmoney.application.usecases.group.LockGroupUseCase;
 import com.example.smartmoney.domain.repositories.ProjectRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -69,6 +74,12 @@ class ConfirmChatActionUseCaseGroupGuardTest {
     private final CreateTransactionUseCase createTransactionUseCase = mock(CreateTransactionUseCase.class);
     private final UpdateTransactionUseCase updateTransactionUseCase = mock(UpdateTransactionUseCase.class);
     private final DeleteTransactionUseCase deleteTransactionUseCase = mock(DeleteTransactionUseCase.class);
+    private final CreateGroupUseCase createGroupUseCase = mock(CreateGroupUseCase.class);
+    private final InviteGroupMemberUseCase inviteGroupMemberUseCase = mock(InviteGroupMemberUseCase.class);
+    private final LockGroupUseCase lockGroupUseCase = mock(LockGroupUseCase.class);
+    private final CreateGroupProjectUseCase createGroupProjectUseCase = mock(CreateGroupProjectUseCase.class);
+    private final CreateSubPersonalProjectUseCase createSubPersonalProjectUseCase =
+            mock(CreateSubPersonalProjectUseCase.class);
     private final ProjectRepository projectRepository = mock(ProjectRepository.class);
 
     private final ConfirmChatActionUseCase useCase = new ConfirmChatActionUseCase(
@@ -76,6 +87,8 @@ class ConfirmChatActionUseCaseGroupGuardTest {
             updateProjectTrackingUseCase, addProjectContributionUseCase,
             updateBudgetUseCase, upsertBulkBudgetsUseCase, computeBudgetAllocationUseCase,
             createTransactionUseCase, updateTransactionUseCase, deleteTransactionUseCase,
+            createGroupUseCase, inviteGroupMemberUseCase, lockGroupUseCase,
+            createGroupProjectUseCase, createSubPersonalProjectUseCase,
             projectRepository);
 
     private final UUID userId = UUID.randomUUID();

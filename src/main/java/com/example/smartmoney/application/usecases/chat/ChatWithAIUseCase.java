@@ -17,6 +17,8 @@ import com.example.smartmoney.application.services.ProjectHypothesisService;
 import com.example.smartmoney.application.services.ProjectUpdateSuggestionService;
 import com.example.smartmoney.application.services.SpendingSimulationService;
 import com.example.smartmoney.application.services.TransactionChangeService;
+import com.example.smartmoney.application.services.ProjectChangeService;
+import com.example.smartmoney.application.services.GroupChangeService;
 import com.example.smartmoney.application.services.UserFinancialDataService;
 import com.example.smartmoney.application.services.WindfallAllocationService;
 import com.example.smartmoney.application.usecases.budget.ComputeBudgetAllocationUseCase;
@@ -62,6 +64,11 @@ public class ChatWithAIUseCase {
     private final ProjectUpdateSuggestionService projectUpdateSuggestionService;
     private final ProjectHypothesisService projectHypothesisService;
     private final TransactionChangeService transactionChangeService;
+    // Slot-filled drafts for projects and groups, mirroring transactionChangeService. These are
+    // what make a multi-turn "tạo dự án mới" / "tạo nhóm rồi mời An qua email" end in a real
+    // mutation instead of prose — see each service's class doc for the gap it closes.
+    private final ProjectChangeService projectChangeService;
+    private final GroupChangeService groupChangeService;
     private final ChatbotPromptBuilder promptBuilder;
     private final UserRepository userRepository;
     private final ChatHistoryCacheService chatHistoryCacheService;
@@ -144,7 +151,7 @@ public class ChatWithAIUseCase {
             response = buildStructuredResponse(parsed.intent(), parsed.reply(), userId, user, month, year,
                     message.toLowerCase(), daysLeft,
                     relatedQuestionsOrFallback(parsed.intent(), parsed.relatedQuestions()),
-                    parsed.transactionDraft());
+                    parsed.transactionDraft(), parsed.projectDraft(), parsed.groupDraft());
         } catch (Exception e) {
             log.warn("ChatWithAIUseCase: failed to compute structured suggestions for user {}, " +
                     "returning reply-only response: {}", userId, e.getMessage());
@@ -223,7 +230,7 @@ public class ChatWithAIUseCase {
                     ChatResponse.ChatIntent.GENERAL_ADVICE,
                     english ? LLM_UNAVAILABLE_REPLY_EN : LLM_UNAVAILABLE_REPLY_VI,
                     List.of(),
-                    null);
+                    null, null, null);
         }
         return jsonSchemaGuardrail.validate(rawResponse, () -> adapter.chat(systemPrompt, userMessage, userId));
     }
@@ -282,7 +289,9 @@ public class ChatWithAIUseCase {
     private ChatResponse buildStructuredResponse(ChatResponse.ChatIntent intent, String reply,
                                                  UUID userId, User user, int month, int year, String messageLow,
                                                  int daysLeft, List<String> relatedQuestions,
-                                                 JsonSchemaGuardrail.TransactionDraft transactionDraft) {
+                                                 JsonSchemaGuardrail.TransactionDraft transactionDraft,
+                                                 JsonSchemaGuardrail.ProjectDraft projectDraft,
+                                                 JsonSchemaGuardrail.GroupDraft groupDraft) {
         // Days-left gate: with few days left in the current month, never propose changing THIS
         // month's budget/project — the reply already steers toward a next-month plan instead.
         boolean suppressCurrentMonth = daysLeft <= DAYS_LEFT_SUPPRESS_THRESHOLD
@@ -311,6 +320,28 @@ public class ChatWithAIUseCase {
         // surfaces that flag, we still strip stray sub-personal entries at the orchestrator
         // level so a stray "yes" can never mutate a shared group commitment.
         Set<String> groupLinkedIds = loadSubPersonalProjectIds(userId);
+
+        // Group operations are resolved BEFORE the intent switch because there is no group intent
+        // in ChatIntent to switch on — "tạo nhóm tiết kiệm" lands on GENERAL_ADVICE, "tạo dự án
+        // nhóm 200 triệu" often on PROJECT_HYPOTHESIS, and either is equally valid. A complete
+        // groupDraft is the unambiguous signal regardless of which label the model picked, and
+        // GroupChangeService has already verified the actor administers the group and that its
+        // status permits the operation, so nothing here can be executed by the wrong person.
+        if (!advisoryOnly && !looksFutureDated(messageLow)) {
+            var groupPreview = groupChangeService.preview(userId, groupDraft, messageLow);
+            if (groupPreview.isPresent()) {
+                String groupActionId = storePendingAction(
+                        userId, groupPreview.get().action(), messageLow);
+                return ChatResponse.builder()
+                        .reply(reply)
+                        .intent(intent)
+                        .groupChangeSuggestions(List.of(groupPreview.get().suggestion()))
+                        .pendingActionId(groupActionId)
+                        .actionRequired(true)
+                        .relatedQuestions(relatedQuestions)
+                        .build();
+            }
+        }
 
         return switch (intent) {
             case BUDGET_UPDATE -> {
@@ -510,6 +541,26 @@ public class ChatWithAIUseCase {
                     yield ChatResponse.builder()
                             .reply(reply).intent(intent).relatedQuestions(relatedQuestions).build();
                 }
+                // The model's slot-filled draft takes priority over the regex preview below.
+                // ProjectHypothesisService needs a create verb, an amount AND a month count in
+                // one single message; anything gathered across turns (the normal way a user
+                // actually creates a project in conversation) never satisfied it, so no card was
+                // produced and nothing was ever created — while the reply could still read as if
+                // it had been. The draft has no such constraint.
+                var draftPreview = advisoryOnly ? Optional.<ProjectChangeService.Preview>empty()
+                        : projectChangeService.preview(userId, projectDraft, messageLow);
+                if (draftPreview.isPresent()) {
+                    String draftActionId = storePendingAction(
+                            userId, draftPreview.get().action(), messageLow);
+                    yield ChatResponse.builder()
+                            .reply(reply)
+                            .intent(intent)
+                            .projectChangeSuggestions(List.of(draftPreview.get().suggestion()))
+                            .pendingActionId(draftActionId)
+                            .actionRequired(true)
+                            .relatedQuestions(relatedQuestions)
+                            .build();
+                }
                 var suggestions = computeProjectHypothesisSuggestions(userId, messageLow);
                 // §5: strip shorten/extend/delete previews that target a group-linked project.
                 // CREATE previews have projectId=null (project doesn't exist yet) — never removed.
@@ -590,6 +641,21 @@ public class ChatWithAIUseCase {
                 // structural-project nets below. Intent is left as GENERAL_ADVICE; this only
                 // augments the payload.
                 if (!advisoryOnly && !looksFutureDated(messageLow)) {
+                    // Same safety net for a completed project draft: the last step of a create
+                    // flow is often a bare "MEDIUM" or "cuối năm nay", which carries no project
+                    // wording of its own and so lands on GENERAL_ADVICE. Throwing the card away
+                    // there is exactly how a multi-turn "tạo dự án" ended in nothing being
+                    // created. ProjectChangeService has already re-validated the whole draft.
+                    var projectPreview = projectChangeService.preview(userId, projectDraft, messageLow);
+                    if (projectPreview.isPresent()) {
+                        String projectActionId =
+                                storePendingAction(userId, projectPreview.get().action(), messageLow);
+                        yield builder
+                                .projectChangeSuggestions(List.of(projectPreview.get().suggestion()))
+                                .pendingActionId(projectActionId)
+                                .actionRequired(true)
+                                .build();
+                    }
                     var txPreview = transactionChangeService.preview(userId, transactionDraft, messageLow);
                     if (txPreview.isPresent()) {
                         String txActionId = storePendingAction(userId, txPreview.get().action(), messageLow);

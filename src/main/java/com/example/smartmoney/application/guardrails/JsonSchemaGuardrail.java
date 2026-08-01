@@ -63,7 +63,7 @@ public class JsonSchemaGuardrail {
                 ChatResponse.ChatIntent.GENERAL_ADVICE,
                 "Xin lỗi, tôi không thể xử lý yêu cầu này lúc này. Vui lòng thử lại sau.",
                 List.of(),
-                null);
+                null, null, null);
     }
 
     private ParsedLlmResponse tryParse(String raw) {
@@ -90,7 +90,9 @@ public class JsonSchemaGuardrail {
                     ChatResponse.ChatIntent.valueOf(intentStr),
                     replyNode.asText(),
                     relatedQuestions,
-                    parseTransactionDraft(root.get("transactionDraft")));
+                    parseTransactionDraft(root.get("transactionDraft")),
+                    parseProjectDraft(root.get("projectDraft")),
+                    parseGroupDraft(root.get("groupDraft")));
         } catch (Exception e) {
             return null;
         }
@@ -117,6 +119,40 @@ public class JsonSchemaGuardrail {
                 text(node, "category"),
                 text(node, "description"),
                 text(node, "date"),
+                node.path("complete").asBoolean(false));
+    }
+
+    /** Same leniency contract as {@link #parseTransactionDraft}: presence only, no validation.
+     *  {@code ProjectChangeService} decides whether the draft is executable. */
+    private ProjectDraft parseProjectDraft(JsonNode node) {
+        if (node == null || !node.isObject()) return null;
+        return new ProjectDraft(
+                text(node, "operation"),
+                text(node, "projectId"),
+                text(node, "name"),
+                text(node, "description"),
+                node.hasNonNull("targetAmount") ? node.get("targetAmount").decimalValue() : null,
+                text(node, "currency"),
+                text(node, "deadline"),
+                text(node, "priority"),
+                node.path("complete").asBoolean(false));
+    }
+
+    /** Same leniency contract as {@link #parseTransactionDraft}: presence only, no validation.
+     *  {@code GroupChangeService} decides whether the draft is executable. */
+    private GroupDraft parseGroupDraft(JsonNode node) {
+        if (node == null || !node.isObject()) return null;
+        return new GroupDraft(
+                text(node, "operation"),
+                text(node, "groupId"),
+                text(node, "groupProjectId"),
+                text(node, "name"),
+                text(node, "description"),
+                text(node, "email"),
+                node.hasNonNull("targetAmount") ? node.get("targetAmount").decimalValue() : null,
+                text(node, "currency"),
+                node.hasNonNull("totalMonths") ? node.get("totalMonths").asInt() : null,
+                text(node, "priority"),
                 node.path("complete").asBoolean(false));
     }
 
@@ -183,7 +219,9 @@ public class JsonSchemaGuardrail {
 
     public record ParsedLlmResponse(ChatResponse.ChatIntent intent, String reply,
                                      List<String> relatedQuestions,
-                                     TransactionDraft transactionDraft) {}
+                                     TransactionDraft transactionDraft,
+                                     ProjectDraft projectDraft,
+                                     GroupDraft groupDraft) {}
 
     /**
      * The assistant's running record of a transaction change it is collecting field by field.
@@ -202,4 +240,39 @@ public class JsonSchemaGuardrail {
     public record TransactionDraft(String operation, String transactionId,
                                    java.math.BigDecimal amount, String type, String category,
                                    String description, String date, boolean complete) {}
+
+    /**
+     * The assistant's running record of a personal-project change it is collecting field by field
+     * — the direct analogue of {@link TransactionDraft}, and the reason a conversational "tạo dự
+     * án mới" now ends in a real project.
+     *
+     * <p>Before this existed, project creation was reachable only through {@code
+     * ProjectHypothesisService}'s regex, which needs a create verb, a parseable amount AND a
+     * month count all present in one single message. A user who answered questions across several
+     * turns produced no confirm card at all, so nothing was ever created — while the reply text
+     * could still read as if something had been. Slot-filling by the model fixes that for the
+     * same reason it works for transactions: the model already sees the history each turn.
+     *
+     * <p>{@code complete} remains a claim, not permission: {@code ProjectChangeService}
+     * re-validates the target amount, the deadline window, the live-project cap and the priority
+     * clash before any card is offered.
+     *
+     * @param deadline "dd/MM/yyyy" or "yyyy-MM-dd" — both accepted, since the model produces
+     *                 either depending on the conversation language
+     */
+    public record ProjectDraft(String operation, String projectId, String name, String description,
+                               java.math.BigDecimal targetAmount, String currency, String deadline,
+                               String priority, boolean complete) {}
+
+    /**
+     * The assistant's running record of a group / group-project operation it is collecting field
+     * by field. Same contract as the two drafts above; {@code GroupChangeService} is the single
+     * place that decides whether one is executable.
+     *
+     * @param operation CREATE_GROUP | INVITE_MEMBER | LOCK_GROUP | CREATE_GROUP_PROJECT | JOIN_GROUP_PROJECT
+     */
+    public record GroupDraft(String operation, String groupId, String groupProjectId, String name,
+                             String description, String email, java.math.BigDecimal targetAmount,
+                             String currency, Integer totalMonths, String priority,
+                             boolean complete) {}
 }

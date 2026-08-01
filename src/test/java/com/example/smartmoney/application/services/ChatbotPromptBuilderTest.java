@@ -58,6 +58,33 @@ class ChatbotPromptBuilderTest {
             // start giving advice tuned to a persona the user never chose.
             assertThat(prompt).doesNotContain("§9. Phong cách giao tiếp");
         }
+
+        @Test
+        @DisplayName("§0 states the full-permission principle and the execute-vs-guide split")
+        void fullPermissionPrincipleStated() {
+            String prompt = builder.build(null);
+            assertThat(prompt)
+                    .contains("NGƯỜI DÙNG TOÀN QUYỀN VỚI DỮ LIỆU CỦA CHÍNH HỌ")
+                    .contains("LUÔN CHẤP NHẬN yêu cầu")
+                    // The distinction the whole rewrite hinges on: not-executable-here is a
+                    // statement about mechanism, never about permission.
+                    .contains("khác biệt về CÁCH THỰC HIỆN")
+                    .contains("KHÔNG tự suy đoán rằng một thao tác \"không");
+        }
+
+        @Test
+        @DisplayName("§8 keeps exactly four real limits and lists what is explicitly NOT a limit")
+        void absoluteLimitsNarrowedToFour() {
+            String prompt = builder.build(null);
+            assertThat(prompt)
+                    .contains("Chỉ còn ĐÚNG BỐN giới hạn")
+                    .contains("RIÊNG TƯ CỦA NGƯỜI KHÁC")
+                    // "Don't claim credit" replaces the old blanket refusals: the assistant may
+                    // guide through anything, it just can't say it did the thing itself.
+                    .contains("KHÔNG BỊA VÀ KHÔNG NHẬN CÔNG")
+                    .contains("KHÔNG PHẢI giới hạn")
+                    .contains("MỜI THÀNH VIÊN QUA EMAIL");
+        }
     }
 
     // ── Data dictionary rules — the anti-hallucination anchors ──────────────
@@ -153,10 +180,16 @@ class ChatbotPromptBuilderTest {
         }
 
         @Test
-        @DisplayName("Rule E still blocks the budget-INCREASE branch on DEFICIT")
-        void ruleEKeepsBudgetIncreaseBlockedOnDeficit() {
+        @DisplayName("Rule E has no exceptions left — even a budget INCREASE proceeds on DEFICIT")
+        void ruleEHasNoExceptionsLeft() {
             String prompt = builder.build(null);
-            assertThat(prompt).contains("NGOẠI LỆ của Rule E");
+            // The budget-increase carve-out was removed when the user was given full permission
+            // over their own data: a DEFICIT month now produces a warning, never a refusal. The
+            // section anchor is kept (rather than deleted) so the prompt states the reversal
+            // explicitly instead of leaving a reader to infer it from silence.
+            assertThat(prompt)
+                    .contains("NGOẠI LỆ của Rule E: KHÔNG CÓ")
+                    .contains("kể cả TĂNG hạn mức một danh mục ngân sách");
         }
 
         @Test
@@ -255,6 +288,31 @@ class ChatbotPromptBuilderTest {
         }
 
         @Test
+        @DisplayName("CreateProjectRequest also states the four limits that make the real POST fail")
+        void createProjectStatesBackendConstraints() {
+            String prompt = builder.build(null);
+            // CreateProjectUseCase throws on each of these before anything is persisted. Without
+            // them in the prompt the assistant happily proposes a fourth project or a duplicate
+            // priority and the confirm step fails with a raw error the user can't act on.
+            assertThat(prompt)
+                    .contains("Tối đa 3 dự án đang chạy cùng lúc")
+                    .contains("chỉ được dùng cho MỘT dự án đang chạy")
+                    .contains("deadline không quá 60 tháng")
+                    .contains("hoàn tất thiết lập tài chính");
+        }
+
+        @Test
+        @DisplayName("group DTOs are catalogued with their real field constraints")
+        void groupDtoFieldsListed() {
+            String prompt = builder.build(null);
+            assertThat(prompt)
+                    .contains("CreateGroupRequest")
+                    .contains("InviteGroupMemberRequest")
+                    .contains("CreateGroupProjectRequest")
+                    .contains("totalMonths (1-60)");
+        }
+
+        @Test
         @DisplayName("A2/A3 require a real txId and forbid guessing between ambiguous matches")
         void editAndDeleteTransactionRequireTxId() {
             String prompt = builder.build(null);
@@ -285,24 +343,39 @@ class ChatbotPromptBuilderTest {
         }
 
         @Test
-        @DisplayName("§5 (B) permits advising on group-project creation but never claims to have created one")
+        @DisplayName("§5 (B) accepts group creation + email invites but never claims to have done them")
         void groupRuleAllowsCreationAdviceOnly() {
             String prompt = builder.build(null);
             assertThat(prompt)
                     .contains("ĐƯỢC PHÉP (B)")
+                    // Inviting members by email is explicitly a supported user task, not a refusal.
+                    .contains("MỜI THÀNH VIÊN QUA EMAIL")
                     // The chat has no GroupProject create action, so it must not pretend otherwise.
                     .contains("KHÔNG nói \"tôi đã tạo dự án nhóm\"");
         }
 
         @Test
-        @DisplayName("§5 (C) still blocks editing/deleting the group project and other members' shares")
-        void groupProjectRuleForbidsStructuralAndOtherMembers() {
+        @DisplayName("§5 (C) hands back step-by-step guidance instead of refusing group-commitment edits")
+        void groupProjectRuleGuidesInsteadOfRefusing() {
             String prompt = builder.build(null);
             assertThat(prompt)
-                    .contains("KHÔNG ĐƯỢC PHÉP (C)")
+                    // Reversal of the old "KHÔNG ĐƯỢC PHÉP (C)" heading: the user is entitled to
+                    // these, the chat turn simply can't execute them, so it explains the steps.
+                    .contains("HƯỚNG DẪN THAY VÌ THẺ (C)")
                     .contains("Sửa hoặc XOÁ chính GroupProject")
+                    .contains("Người dùng CÓ QUYỀN làm những việc này")
+                    .contains("KHÔNG được viết như một lời từ chối");
+        }
+
+        @Test
+        @DisplayName("§5 (D) keeps other members' private data as the one real limit")
+        void groupRuleKeepsOtherMembersPrivate() {
+            String prompt = builder.build(null);
+            assertThat(prompt)
+                    .contains("GIỚI HẠN THẬT DUY NHẤT (D)")
                     .contains("THÀNH VIÊN KHÁC")
-                    .contains("ĐỒNG THUẬN CHO PHÉP");
+                    // Privacy, unlike permission, is not negotiable by insisting.
+                    .contains("kể cả người dùng nói \"có\" hay khăng khăng");
         }
 
         @Test
@@ -313,12 +386,66 @@ class ChatbotPromptBuilderTest {
             // never appear in a personal-finance chat context except when referring to the app UI.
             assertThat(prompt).contains("màn hình");
         }
+    }
+
+    // ── §4B in-app operation guides — the "accept and explain how" contract ──
+
+    @Nested
+    @DisplayName("§4B turns every non-executable operation into an accepted request + steps")
+    class AppOperationGuide {
 
         @Test
-        @DisplayName("§5 rule stands even if the user insists")
-        void groupRuleIgnoresUserInsistence() {
+        @DisplayName("§4B opens by forbidding a refusal and requiring numbered steps")
+        void guideForbidsRefusalAndRequiresNumberedSteps() {
             String prompt = builder.build(null);
-            assertThat(prompt).contains("kể cả người dùng nói \"có\" hay khăng khăng");
+            assertThat(prompt)
+                    .contains("=== §4B. HƯỚNG DẪN THAO TÁC TRONG ỨNG DỤNG")
+                    .contains("CHẤP NHẬN yêu cầu ngay từ câu đầu")
+                    .contains("TUYỆT ĐỐI KHÔNG mở đầu bằng \"tôi không thể\"")
+                    .contains("HƯỚNG DẪN TỪNG BƯỚC được ĐÁNH SỐ");
+        }
+
+        @Test
+        @DisplayName("budget create and delete both have their own guide, since neither is executable in-chat")
+        void budgetCreateAndDeleteGuidesExist() {
+            String prompt = builder.build(null);
+            assertThat(prompt)
+                    .contains("G1) TẠO NGÂN SÁCH MỚI")
+                    .contains("G2) XOÁ MỘT NGÂN SÁCH");
+        }
+
+        @Test
+        @DisplayName("the five group operations are executable in chat, NOT screen walkthroughs")
+        void groupOperationsAreExecutableNotGuided() {
+            String prompt = builder.build(null);
+            assertThat(prompt)
+                    .contains("G3) TẠO NHÓM, MỜI THÀNH VIÊN, KHOÁ NHÓM, TẠO DỰ ÁN NHÓM, THAM GIA DỰ ÁN NHÓM")
+                    .contains("CHẠY ĐƯỢC NGAY trong trò chuyện qua \"groupDraft\"")
+                    // The email invite is the operation the user specifically asked for; it must
+                    // be named as something the assistant performs, with its real expiry stated.
+                    .contains("INVITE_MEMBER — mời từng thành viên bằng email")
+                    .contains("hết hạn sau 7 ngày")
+                    .contains("PHẢI đã có tài khoản SmartMoney");
+        }
+
+        @Test
+        @DisplayName("an unmet precondition produces the missing step, not a refusal")
+        void unmetPreconditionOffersTheMissingStep() {
+            String prompt = builder.build(null);
+            assertThat(prompt)
+                    .contains("G4) KHI MỘT ĐIỀU KIỆN CHƯA ĐỦ Ở G3")
+                    .contains("Không từ chối")
+                    // The two hard rejections inside CreateGroupProjectUseCase, each paired with
+                    // the step that clears it rather than left as a dead end.
+                    .contains("đề nghị khoá nhóm trước")
+                    .contains("mỗi nhóm chỉ gắn một dự án");
+        }
+
+        @Test
+        @DisplayName("the guide forbids inventing UI labels it can't verify")
+        void guideForbidsInventingUiLabels() {
+            String prompt = builder.build(null);
+            assertThat(prompt).contains("KHÔNG bịa nhãn nút");
         }
     }
 
@@ -663,6 +790,32 @@ class ChatbotPromptBuilderTest {
                     // would pull the user off the flow they're in.
                     .contains("SIMULATION,")
                     .contains("complete = false");
+        }
+
+        @Test
+        @DisplayName("projectDraft is specified, so a multi-turn create actually produces a project")
+        void projectDraftContractIsSpecified() {
+            // Without this block the model has no slot-fill channel for projects, and a
+            // conversational "tạo dự án mới" ends with a reply that sounds successful while
+            // nothing reaches CreateProjectUseCase — the reported bug.
+            assertThat(ChatbotPromptBuilder.JSON_OUTPUT_FORMAT)
+                    .contains("\"projectDraft\": null")
+                    .contains("Quy tắc \"projectDraft\"")
+                    .contains("CREATE cần ĐỦ: name, targetAmount, deadline")
+                    .contains("TUYỆT ĐỐI KHÔNG viết \"đã tạo dự án\" trong \"reply\" khi complete = false");
+        }
+
+        @Test
+        @DisplayName("groupDraft is specified with one operation per turn and no invented ids")
+        void groupDraftContractIsSpecified() {
+            assertThat(ChatbotPromptBuilder.JSON_OUTPUT_FORMAT)
+                    .contains("\"groupDraft\": null")
+                    .contains("Quy tắc \"groupDraft\"")
+                    .contains("CREATE_GROUP|INVITE_MEMBER|LOCK_GROUP|CREATE_GROUP_PROJECT|JOIN_GROUP_PROJECT")
+                    // Chaining two mutations in one turn can't work: the second needs an id that
+                    // only exists after the first is confirmed.
+                    .contains("MỖI LƯỢT CHỈ MỘT thao tác")
+                    .contains("KHÔNG bịa id");
         }
 
         @Test

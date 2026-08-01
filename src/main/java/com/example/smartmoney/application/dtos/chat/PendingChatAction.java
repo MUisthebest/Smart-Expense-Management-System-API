@@ -35,6 +35,13 @@ public class PendingChatAction {
         APPLY_NEXT_MONTH_BUDGET_PLAN,
         PROJECT_CREATE,
         PROJECT_UPDATE_DEADLINE,
+        /** Edit an existing project's name / description / target / currency / deadline /
+         *  priority in one go — {@code UpdateProjectUseCase}, the same use case {@code PUT
+         *  /api/v1/projects/{id}} calls. Only the fields the user asked to change are set; the
+         *  rest stay null and {@code UpdateProjectRequest} leaves them untouched. Distinct from
+         *  {@code PROJECT_UPDATE_DEADLINE}, which the older regex-driven shorten/extend path
+         *  still emits and which only ever carries a deadline. */
+        PROJECT_UPDATE_DETAILS,
         PROJECT_DELETE,
         PROJECT_TRACKING_UPDATE,
         /** A positive amount actually being added TO a project (windfall boost, an explicit
@@ -54,6 +61,27 @@ public class PendingChatAction {
         TRANSACTION_UPDATE,
         /** Remove an existing transaction — {@code DeleteTransactionUseCase}. */
         TRANSACTION_DELETE,
+
+        // ── Group / group-project flows ───────────────────────────────────────
+        // These used to have no action type at all, so the chat could only ever describe the
+        // screens to tap. They now run the same use cases the REST controllers call, which is
+        // what makes "tạo nhóm và mời An qua email" a real outcome rather than a walkthrough.
+        /** Create a savings group — {@code CreateGroupUseCase} ({@code POST /api/v1/groups}).
+         *  The actor becomes its admin. */
+        GROUP_CREATE,
+        /** Invite one member by email — {@code InviteGroupMemberUseCase} ({@code POST
+         *  /api/v1/groups/{id}/members/invite}). Admin-only, and the invitee must already have a
+         *  SmartMoney account; the use case sends the invite email itself. */
+        GROUP_INVITE_MEMBER,
+        /** Lock a group's membership — {@code LockGroupUseCase}. Required before a group project
+         *  can be created. */
+        GROUP_LOCK,
+        /** Create the group's project — {@code CreateGroupProjectUseCase}. Admin-only, group must
+         *  be LOCKED, one project per group. */
+        GROUP_PROJECT_CREATE,
+        /** Join a group project by opening one's own sub-personal project —
+         *  {@code CreateSubPersonalProjectUseCase}. */
+        GROUP_PROJECT_JOIN,
         BATCH
     }
 
@@ -106,6 +134,21 @@ public class PendingChatAction {
     private String transactionCategory;    // Category enum name
     private String transactionDescription;
     private String transactionDate;        // "dd/MM/yyyy HH:mm", same format the DTOs validate
+
+    // ── GROUP_* / GROUP_PROJECT_* ─────────────────────────────────────────────
+    // Mirrors CreateGroupRequest / InviteGroupMemberRequest / CreateGroupProjectRequest /
+    // CreateSubPersonalProjectRequest field-for-field. Validated in GroupChangeService (group
+    // exists, actor is its admin, group in the right state, email well-formed) before the action
+    // is ever stored, so confirm only has to map fields onto the request DTO.
+    private String groupId;
+    private String groupName;
+    private String groupDescription;
+    /** GROUP_INVITE_MEMBER — the invitee's registered SmartMoney email address. */
+    private String inviteEmail;
+    /** GROUP_PROJECT_JOIN — which group project to open a sub-personal project against. */
+    private String groupProjectId;
+    /** GROUP_PROJECT_CREATE — 1..60, the group project's saving horizon. */
+    private Integer totalMonths;
 
     // ── APPLY_NEXT_MONTH_BUDGET_PLAN ──────────────────────────────────────────
     private Integer targetMonth;

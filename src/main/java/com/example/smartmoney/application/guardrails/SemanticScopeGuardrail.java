@@ -57,6 +57,17 @@ public class SemanticScopeGuardrail implements PromptGuardrail {
               dịch hôm qua", "sửa lại khoản chi tối qua") — KHÔNG được coi những câu mệnh lệnh quản
               lý dữ liệu của người dùng này là yêu cầu "thay đổi hệ thống" hay đáng ngờ chỉ vì chúng
               ngắn gọn/ra lệnh thay vì đặt câu hỏi.
+            - QUẢN LÝ NHÓM TIẾT KIỆM và DỰ ÁN NHÓM của chính người dùng: tạo nhóm, MỜI THÀNH VIÊN
+              QUA EMAIL, chấp nhận/từ chối lời mời, khoá nhóm, tạo dự án nhóm, tham gia dự án nhóm,
+              đóng quỹ phần của mình, trả lời khảo sát đóng góp giúp, xoá thành viên hoặc giải thể
+              nhóm/dự án nhóm (vd: "tạo nhóm tiết kiệm mới", "mời an@example.com vào nhóm của tôi",
+              "gửi email mời các thành viên", "khoá nhóm lại để tạo dự án", "tôi muốn lập quỹ chung
+              200 triệu trong 10 tháng"). Đây là dữ liệu và thao tác trong ứng dụng của chính người
+              dùng nên LUÔN LÀ IN_SCOPE — việc gửi email lời mời là một chức năng của ứng dụng, KHÔNG
+              phải yêu cầu gửi thư ngoài phạm vi.
+            - Câu hỏi "LÀM THẾ NÀO ĐỂ ..." về một thao tác trong ứng dụng SmartMoney (tạo/xoá ngân
+              sách, tạm dừng dự án, mời thành viên, thiết lập tài chính, xem phân tích chi tiêu...)
+              — người dùng đang hỏi cách dùng chính ứng dụng này, LUÔN LÀ IN_SCOPE.
             - Câu trả lời NGẮN cho một câu hỏi mà chính trợ lý vừa đặt ra trong quy trình nhập liệu
               từng bước (vd: chỉ "FOOD", "50000", "chi", "hôm qua", "EXPENSE") — những mẩu trả lời
               rời rạc này là một phần của hội thoại tài chính đang diễn ra, LUÔN LÀ IN_SCOPE, KHÔNG

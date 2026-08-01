@@ -83,6 +83,15 @@ public class ChatResponse {
     List<TransactionChangeSuggestion> transactionChangeSuggestions;
 
     /**
+     * Populated when this turn resolved a group / group-project operation the backend can run
+     * itself — creating a group, inviting a member by email, locking a group, creating the group
+     * project, or joining one. Like {@link #transactionChangeSuggestions} this stays null while
+     * the assistant is still collecting fields; only a fully-specified, permission-checked
+     * operation becomes confirmable.
+     */
+    List<GroupChangeSuggestion> groupChangeSuggestions;
+
+    /**
      * Set only when this turn's suggestion is one the backend can execute itself: a
      * {@code PROJECT_HYPOTHESIS} change or a budget-increase swap. The client calls
      * {@code POST /api/v1/ai/chat/confirm} with this id to actually apply (or discard) it —
@@ -134,6 +143,44 @@ public class ChatResponse {
     public enum ProjectChangeOperation { CREATE, SHORTEN, EXTEND, DELETE }
 
     public enum TransactionChangeOperation { CREATE, UPDATE, DELETE }
+
+    public enum GroupChangeOperation {
+        CREATE_GROUP, INVITE_MEMBER, LOCK_GROUP, CREATE_GROUP_PROJECT, JOIN_GROUP_PROJECT
+    }
+
+    /**
+     * One fully-specified group / group-project operation, ready for the user to confirm. Built
+     * only after {@code GroupChangeService} has checked the parts that would otherwise fail with
+     * a raw error at confirm time: that the group exists and the actor administers it, that its
+     * status allows the operation, that a group project doesn't already exist, and that an invite
+     * email is well-formed.
+     *
+     * <p>{@code impact} carries the human-readable consequence to echo in the confirm card — for
+     * CREATE_GROUP_PROJECT that is the per-member monthly share, for INVITE_MEMBER the fact that
+     * an email goes out and expires in seven days.
+     */
+    @Value
+    @Builder
+    public static class GroupChangeSuggestion {
+        GroupChangeOperation operation;
+        /** Null for CREATE_GROUP — the group doesn't exist yet. */
+        String groupId;
+        String groupName;
+        /** Set for JOIN_GROUP_PROJECT. */
+        String groupProjectId;
+        /** Set for CREATE_GROUP_PROJECT / JOIN_GROUP_PROJECT. */
+        String projectName;
+        /** INVITE_MEMBER only. */
+        String email;
+        /** CREATE_GROUP_PROJECT only, in VND. */
+        Long targetAmount;
+        /** CREATE_GROUP_PROJECT only. */
+        Integer totalMonths;
+        /** JOIN_GROUP_PROJECT only — ProjectPriority name. */
+        String priority;
+        String impact;
+        String reason;
+    }
 
     /**
      * One fully-specified transaction change, ready for the user to confirm. Only ever emitted

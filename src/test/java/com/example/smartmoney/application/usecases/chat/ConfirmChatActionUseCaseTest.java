@@ -23,6 +23,15 @@ import com.example.smartmoney.application.usecases.transaction.DeleteTransaction
 import com.example.smartmoney.application.usecases.transaction.UpdateTransactionUseCase;
 import com.example.smartmoney.domain.models.transaction.enums.Category;
 import com.example.smartmoney.domain.models.transaction.enums.TransactionType;
+import com.example.smartmoney.application.dtos.requests.group.CreateGroupProjectRequest;
+import com.example.smartmoney.application.dtos.requests.group.CreateGroupRequest;
+import com.example.smartmoney.application.dtos.requests.group.InviteGroupMemberRequest;
+import com.example.smartmoney.application.dtos.responses.group.GroupDetailResponse;
+import com.example.smartmoney.application.usecases.group.CreateGroupProjectUseCase;
+import com.example.smartmoney.application.usecases.group.CreateGroupUseCase;
+import com.example.smartmoney.application.usecases.group.CreateSubPersonalProjectUseCase;
+import com.example.smartmoney.application.usecases.group.InviteGroupMemberUseCase;
+import com.example.smartmoney.application.usecases.group.LockGroupUseCase;
 import com.example.smartmoney.domain.repositories.ProjectRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -63,6 +72,12 @@ class ConfirmChatActionUseCaseTest {
     private final CreateTransactionUseCase createTransactionUseCase = mock(CreateTransactionUseCase.class);
     private final UpdateTransactionUseCase updateTransactionUseCase = mock(UpdateTransactionUseCase.class);
     private final DeleteTransactionUseCase deleteTransactionUseCase = mock(DeleteTransactionUseCase.class);
+    private final CreateGroupUseCase createGroupUseCase = mock(CreateGroupUseCase.class);
+    private final InviteGroupMemberUseCase inviteGroupMemberUseCase = mock(InviteGroupMemberUseCase.class);
+    private final LockGroupUseCase lockGroupUseCase = mock(LockGroupUseCase.class);
+    private final CreateGroupProjectUseCase createGroupProjectUseCase = mock(CreateGroupProjectUseCase.class);
+    private final CreateSubPersonalProjectUseCase createSubPersonalProjectUseCase =
+            mock(CreateSubPersonalProjectUseCase.class);
     private final ProjectRepository projectRepository = mock(ProjectRepository.class);
 
     private final ConfirmChatActionUseCase useCase = new ConfirmChatActionUseCase(
@@ -70,6 +85,8 @@ class ConfirmChatActionUseCaseTest {
             updateProjectTrackingUseCase, addProjectContributionUseCase, updateBudgetUseCase,
             upsertBulkBudgetsUseCase, computeBudgetAllocationUseCase,
             createTransactionUseCase, updateTransactionUseCase, deleteTransactionUseCase,
+            createGroupUseCase, inviteGroupMemberUseCase, lockGroupUseCase,
+            createGroupProjectUseCase, createSubPersonalProjectUseCase,
             projectRepository);
 
     private final UUID userId = UUID.randomUUID();
@@ -495,5 +512,97 @@ class ConfirmChatActionUseCaseTest {
         useCase.execute(userId, ConfirmChatActionRequest.builder().actionId(actionId).confirm(true).build());
 
         verify(pendingActionPort, never()).clearLatestId(any());
+    }
+
+    // ── Group flows ──────────────────────────────────────────────────────────
+    // These exist because the chatbot used to answer "tạo dự án nhóm" with a list of screens to
+    // tap: there was no action type, so nothing could be executed. Each test pins the mapping
+    // from the stored action onto the very use case the matching REST controller calls.
+
+    @Test
+    @DisplayName("confirm on GROUP_CREATE runs CreateGroupUseCase with the drafted name")
+    void confirmExecutesGroupCreate() {
+        PendingChatAction action = PendingChatAction.builder()
+                .type(PendingChatAction.Type.GROUP_CREATE)
+                .groupName("Quy du lich")
+                .groupDescription("Di Da Lat")
+                .build();
+        when(pendingActionPort.load(userId, actionId)).thenReturn(Optional.of(action));
+        when(createGroupUseCase.execute(any(), any()))
+                .thenReturn(GroupDetailResponse.builder().groupId("g-1").build());
+
+        var response = useCase.execute(userId,
+                ConfirmChatActionRequest.builder().actionId(actionId).confirm(true).build());
+
+        ArgumentCaptor<CreateGroupRequest> captor = ArgumentCaptor.forClass(CreateGroupRequest.class);
+        verify(createGroupUseCase).execute(eq(userId.toString()), captor.capture());
+        assertThat(captor.getValue().getName()).isEqualTo("Quy du lich");
+        assertThat(captor.getValue().getDescription()).isEqualTo("Di Da Lat");
+        assertThat(response.isSuccess()).isTrue();
+    }
+
+    @Test
+    @DisplayName("confirm on GROUP_INVITE_MEMBER runs InviteGroupMemberUseCase, which is what sends the email")
+    void confirmExecutesGroupInvite() {
+        PendingChatAction action = PendingChatAction.builder()
+                .type(PendingChatAction.Type.GROUP_INVITE_MEMBER)
+                .groupId("g-1")
+                .inviteEmail("an@example.com")
+                .build();
+        when(pendingActionPort.load(userId, actionId)).thenReturn(Optional.of(action));
+
+        useCase.execute(userId,
+                ConfirmChatActionRequest.builder().actionId(actionId).confirm(true).build());
+
+        ArgumentCaptor<InviteGroupMemberRequest> captor =
+                ArgumentCaptor.forClass(InviteGroupMemberRequest.class);
+        verify(inviteGroupMemberUseCase).execute(eq(userId.toString()), eq("g-1"), captor.capture());
+        assertThat(captor.getValue().getEmail()).isEqualTo("an@example.com");
+    }
+
+    @Test
+    @DisplayName("confirm on GROUP_PROJECT_CREATE runs CreateGroupProjectUseCase with target and horizon")
+    void confirmExecutesGroupProjectCreate() {
+        PendingChatAction action = PendingChatAction.builder()
+                .type(PendingChatAction.Type.GROUP_PROJECT_CREATE)
+                .groupId("g-1")
+                .name("Mua dat")
+                .targetAmount(new java.math.BigDecimal("240000000"))
+                .currency("VND")
+                .totalMonths(12)
+                .build();
+        when(pendingActionPort.load(userId, actionId)).thenReturn(Optional.of(action));
+
+        useCase.execute(userId,
+                ConfirmChatActionRequest.builder().actionId(actionId).confirm(true).build());
+
+        ArgumentCaptor<CreateGroupProjectRequest> captor =
+                ArgumentCaptor.forClass(CreateGroupProjectRequest.class);
+        verify(createGroupProjectUseCase).execute(eq(userId.toString()), captor.capture());
+        assertThat(captor.getValue().getGroupId()).isEqualTo("g-1");
+        assertThat(captor.getValue().getName()).isEqualTo("Mua dat");
+        assertThat(captor.getValue().getTargetAmount()).isEqualByComparingTo("240000000");
+        assertThat(captor.getValue().getTotalMonths()).isEqualTo(12);
+    }
+
+    @Test
+    @DisplayName("a use case that rejects the operation surfaces as a failed confirm, never a silent success")
+    void failedGroupProjectCreateIsReportedNotSwallowed() {
+        PendingChatAction action = PendingChatAction.builder()
+                .type(PendingChatAction.Type.GROUP_PROJECT_CREATE)
+                .groupId("g-1")
+                .name("Mua dat")
+                .targetAmount(new java.math.BigDecimal("240000000"))
+                .totalMonths(12)
+                .build();
+        when(pendingActionPort.load(userId, actionId)).thenReturn(Optional.of(action));
+        when(createGroupProjectUseCase.execute(any(), any()))
+                .thenThrow(new RuntimeException("Group must be LOCKED before creating a project"));
+
+        var response = useCase.execute(userId,
+                ConfirmChatActionRequest.builder().actionId(actionId).confirm(true).build());
+
+        assertThat(response.isSuccess()).isFalse();
+        assertThat(response.getReply()).contains("LOCKED");
     }
 }
