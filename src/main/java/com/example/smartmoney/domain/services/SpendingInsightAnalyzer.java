@@ -48,7 +48,7 @@ public class SpendingInsightAnalyzer {
      * purchase on day 1–2 would otherwise extrapolate to an absurd month-end figure
      * (e.g. 2M spent on day 1 → 62M projected). Below this, pace is treated as too-early-to-tell.
      */
-    static final int MIN_PACE_DAYS = 3;
+    static final int MIN_PACE_DAYS = 1;
 
     private static final BigDecimal Z_WARN = BigDecimal.valueOf(2);
     private static final BigDecimal Z_CRITICAL = BigDecimal.valueOf(3);
