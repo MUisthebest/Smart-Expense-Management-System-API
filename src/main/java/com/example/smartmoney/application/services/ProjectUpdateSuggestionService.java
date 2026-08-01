@@ -1,12 +1,17 @@
 package com.example.smartmoney.application.services;
 
 import com.example.smartmoney.application.dtos.responses.ChatResponse;
+import com.example.smartmoney.domain.exceptions.DomainException;
 import com.example.smartmoney.domain.models.project.Project;
 import com.example.smartmoney.domain.models.project.ProjectTracking;
 import com.example.smartmoney.domain.models.project.enums.ProjectStatus;
 import com.example.smartmoney.domain.models.project.valueobjects.UserId;
+import com.example.smartmoney.domain.models.user.User;
 import com.example.smartmoney.domain.repositories.ProjectRepository;
 import com.example.smartmoney.domain.repositories.TransactionRepository;
+import com.example.smartmoney.domain.repositories.UserRepository;
+import com.example.smartmoney.domain.services.EnvelopeCalculator;
+import com.example.smartmoney.domain.services.EnvelopeSnapshot;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -69,15 +74,9 @@ public class ProjectUpdateSuggestionService {
 
     private final ProjectRepository projectRepository;
     private final TransactionRepository transactionRepository;
+    private final UserRepository userRepository;
+    private final EnvelopeCalculator envelopeCalculator;
 
-    /**
-     * Computes a single suggestion for the project the user is referring to.
-     *
-     * @param userId     authenticated user
-     * @param messageLow user message, lower-cased, used for project-name matching
-     *                   and contribution-vs-debt direction detection
-     * @return zero-or-one-element list (empty when the user has no projects)
-     */
     /**
      * When a suggestion computation comes back empty because the user named a specific project
      * that exists but isn't ACTIVE (completed/abandoned/frozen/expired), this finds it so the
@@ -180,26 +179,40 @@ public class ProjectUpdateSuggestionService {
     }
 
     /**
-     * Proactive safety-net check: near month-end, with meaningful safe-spending left unused,
+     * Proactive safety-net check: near month-end, with meaningful budget left unused,
      * suggests topping up the highest-priority active project with the leftover.
      *
+     * <p>The "unused" figure is the true {@link EnvelopeSnapshot#realRemaining()} —
+     * i.e. the trait-aware envelope (safeSpending − targetSavings) minus actual month-to-date
+     * expense. This replaces the pre-fix implementation, which required the caller to pass
+     * {@code safeSpending} externally and then had to reconcile it against actual expenses
+     * itself (a workaround that lived in this method only, and did not correctly subtract
+     * {@code targetSavings}). {@link EnvelopeCalculator} now owns that reconciliation for
+     * every caller.
+     *
      * @return empty when there are more than {@link #LEFTOVER_DAYS_THRESHOLD} days left, the
-     *         leftover is below {@link #LEFTOVER_MIN_AMOUNT}, or there's no active project
+     *         leftover is below {@link #LEFTOVER_MIN_AMOUNT}, or there's no active project,
+     *         or the user hasn't completed financial setup
      */
     public Optional<ChatResponse.SavingsPlanSuggestion> checkMonthEndLeftover(
-            UUID userId, int daysLeft, BigDecimal safeSpending, boolean english) {
+            UUID userId, int daysLeft, boolean english) {
         if (daysLeft > LEFTOVER_DAYS_THRESHOLD) return Optional.empty();
-        if (safeSpending == null) return Optional.empty();
 
-        // safeSpending is the PLANNED envelope (income minus project commitments) — it does NOT
-        // subtract actual spending already recorded this month. Treating the whole planned figure
-        // as "unused leftover" is wrong once real expenses have eaten into it (or blown past it
-        // entirely, e.g. a deficit month with no income confirmed yet): the amount offered to a
-        // project must be what's ACTUALLY still unspent, not the theoretical envelope.
+        User user = userRepository.findById(userId).orElse(null);
+        if (user == null || !user.hasCompletedFinancialSetup()) return Optional.empty();
+
         LocalDate monthStart = LocalDate.now().withDayOfMonth(1);
         LocalDate monthEnd = monthStart.withDayOfMonth(monthStart.lengthOfMonth());
         BigDecimal actualExpense = transactionRepository.getTotalExpenseBetween(userId, monthStart, monthEnd);
-        BigDecimal realRemaining = safeSpending.subtract(actualExpense != null ? actualExpense : BigDecimal.ZERO);
+
+        BigDecimal realRemaining;
+        try {
+            EnvelopeSnapshot snap = envelopeCalculator.compute(user, activeProjects(userId), actualExpense);
+            realRemaining = snap.realRemaining();
+        } catch (DomainException e) {
+            return Optional.empty();
+        }
+
         if (realRemaining.compareTo(LEFTOVER_MIN_AMOUNT) < 0) return Optional.empty();
 
         List<Project> projects = activeProjects(userId);

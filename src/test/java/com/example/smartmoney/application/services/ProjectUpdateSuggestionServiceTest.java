@@ -11,8 +11,12 @@ import com.example.smartmoney.domain.models.project.valueobjects.ContributionId;
 import com.example.smartmoney.domain.models.project.valueobjects.Money;
 import com.example.smartmoney.domain.models.project.valueobjects.ProjectId;
 import com.example.smartmoney.domain.models.project.valueobjects.UserId;
+import com.example.smartmoney.domain.models.user.User;
 import com.example.smartmoney.domain.repositories.ProjectRepository;
 import com.example.smartmoney.domain.repositories.TransactionRepository;
+import com.example.smartmoney.domain.repositories.UserRepository;
+import com.example.smartmoney.domain.services.EnvelopeCalculator;
+import com.example.smartmoney.domain.services.EnvelopeSnapshot;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -20,9 +24,11 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -31,15 +37,18 @@ class ProjectUpdateSuggestionServiceTest {
 
     private final ProjectRepository projectRepository = mock(ProjectRepository.class);
     private final TransactionRepository transactionRepository = mock(TransactionRepository.class);
+    private final UserRepository userRepository = mock(UserRepository.class);
+    private final EnvelopeCalculator envelopeCalculator = mock(EnvelopeCalculator.class);
     private final ProjectUpdateSuggestionService service =
-            new ProjectUpdateSuggestionService(projectRepository, transactionRepository);
+            new ProjectUpdateSuggestionService(
+                    projectRepository, transactionRepository, userRepository, envelopeCalculator);
 
     private Project project(String name, BigDecimal moneySaved, BigDecimal moneyOwed) {
         return project(name, moneySaved, moneyOwed, BigDecimal.valueOf(1_000_000), 12);
     }
 
     private Project project(String name, BigDecimal moneySaved, BigDecimal moneyOwed,
-                             BigDecimal monthlySaving, int monthLeft) {
+                            BigDecimal monthlySaving, int monthLeft) {
         ProjectId projectId = ProjectId.newId();
         UserId ownerId = UserId.of(UUID.randomUUID().toString());
         ProjectTracking tracking = new ProjectTracking(
@@ -53,7 +62,7 @@ class ProjectUpdateSuggestionServiceTest {
         // the way every test below assumes, under the current (contributions-based) model.
         List<ProjectContribution> contributions = moneySaved.compareTo(BigDecimal.ZERO) > 0
                 ? List.of(new ProjectContribution(ContributionId.newId(), ownerId,
-                        new Money(moneySaved, "VND"), null, Instant.now()))
+                new Money(moneySaved, "VND"), null, Instant.now()))
                 : List.of();
         Project project = Project.rehydrate(
                 projectId, ownerId, ProjectType.PERSONAL,
@@ -63,11 +72,36 @@ class ProjectUpdateSuggestionServiceTest {
         return project;
     }
 
+    /**
+     * Build a minimal {@link EnvelopeSnapshot} for a checkMonthEndLeftover test — only the
+     * {@code realRemaining} field matters for the leftover gate; the other fields are zeroed.
+     * Keeps the tests focused on ProjectUpdateSuggestionService's own thresholds rather than
+     * re-testing envelope math (which has its own tests on EnvelopeCalculator).
+     */
+    private EnvelopeSnapshot snapshotWithRealRemaining(BigDecimal realRemaining) {
+        return new EnvelopeSnapshot(
+                BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
+                BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, realRemaining, false);
+    }
+
+    /**
+     * Wire up the two dependencies checkMonthEndLeftover needs to reach its threshold check:
+     * a user with a completed financial setup, and an envelope calculator returning the given
+     * {@code realRemaining}. Tests that early-return via the days-left gate don't need this.
+     */
+    private void stubEnvelope(BigDecimal realRemaining) {
+        User user = mock(User.class);
+        when(user.hasCompletedFinancialSetup()).thenReturn(true);
+        when(userRepository.findById(any())).thenReturn(Optional.of(user));
+        when(envelopeCalculator.compute(any(User.class), any(), any()))
+                .thenReturn(snapshotWithRealRemaining(realRemaining));
+    }
+
     @Test
     @DisplayName("defaults to a moneySaved contribution suggestion when no debt keyword is present")
     void contributionSuggestion() {
         Project p = project("Mua nhà", BigDecimal.valueOf(5_000_000), BigDecimal.ZERO);
-        when(projectRepository.findAllByUser(org.mockito.ArgumentMatchers.any())).thenReturn(List.of(p));
+        when(projectRepository.findAllByUser(any())).thenReturn(List.of(p));
 
         List<ChatResponse.SavingsPlanSuggestion> result =
                 service.suggest(UUID.randomUUID(), "tôi vừa góp thêm 2 triệu vào dự án mua nhà");
@@ -84,7 +118,7 @@ class ProjectUpdateSuggestionServiceTest {
     @DisplayName("increases moneyOwed when the message reports a new debt")
     void debtIncreaseSuggestion() {
         Project p = project("Sửa xe", BigDecimal.ZERO, BigDecimal.valueOf(1_000_000));
-        when(projectRepository.findAllByUser(org.mockito.ArgumentMatchers.any())).thenReturn(List.of(p));
+        when(projectRepository.findAllByUser(any())).thenReturn(List.of(p));
 
         List<ChatResponse.SavingsPlanSuggestion> result =
                 service.suggest(UUID.randomUUID(), "dự án sửa xe phát sinh thêm nợ 3 triệu");
@@ -100,7 +134,7 @@ class ProjectUpdateSuggestionServiceTest {
     @DisplayName("decreases moneyOwed when the message reports a debt payoff")
     void debtDecreaseSuggestion() {
         Project p = project("Du lịch", BigDecimal.ZERO, BigDecimal.valueOf(2_000_000));
-        when(projectRepository.findAllByUser(org.mockito.ArgumentMatchers.any())).thenReturn(List.of(p));
+        when(projectRepository.findAllByUser(any())).thenReturn(List.of(p));
 
         List<ChatResponse.SavingsPlanSuggestion> result =
                 service.suggest(UUID.randomUUID(), "tôi đã trả bớt 1 triệu nợ dự án du lịch");
@@ -114,7 +148,7 @@ class ProjectUpdateSuggestionServiceTest {
     @Test
     @DisplayName("returns empty list when the user has no projects")
     void noProjects() {
-        when(projectRepository.findAllByUser(org.mockito.ArgumentMatchers.any())).thenReturn(List.of());
+        when(projectRepository.findAllByUser(any())).thenReturn(List.of());
 
         assertThat(service.suggest(UUID.randomUUID(), "góp thêm 2 triệu vào dự án")).isEmpty();
     }
@@ -131,7 +165,7 @@ class ProjectUpdateSuggestionServiceTest {
                 ProjectStatus.COMPLETED, ProjectPriority.HIGH, "Mua nhà", "desc",
                 new Money(BigDecimal.valueOf(20_000_000), "VND"),
                 LocalDate.now().plusMonths(12), null, List.of(), tracking, Instant.now());
-        when(projectRepository.findAllByUser(org.mockito.ArgumentMatchers.any())).thenReturn(List.of(completed));
+        when(projectRepository.findAllByUser(any())).thenReturn(List.of(completed));
 
         assertThat(service.suggest(UUID.randomUUID(), "tôi vừa góp thêm 2 triệu vào dự án mua nhà")).isEmpty();
     }
@@ -145,7 +179,7 @@ class ProjectUpdateSuggestionServiceTest {
         // monthlySaving(6M) * monthLeft(3) plan being replaced by a lower, sustainable rate.
         Project p = project("Mua nhà", BigDecimal.valueOf(2_000_000), BigDecimal.ZERO,
                 BigDecimal.valueOf(6_000_000), 3);
-        when(projectRepository.findAllByUser(org.mockito.ArgumentMatchers.any())).thenReturn(List.of(p));
+        when(projectRepository.findAllByUser(any())).thenReturn(List.of(p));
 
         var result = service.checkFeasibility(UUID.randomUUID(), BigDecimal.valueOf(10_000_000), false);
 
@@ -158,7 +192,7 @@ class ProjectUpdateSuggestionServiceTest {
     void feasibilityEmptyWhenSustainable() {
         Project p = project("Mua nhà", BigDecimal.ZERO, BigDecimal.ZERO,
                 BigDecimal.valueOf(1_000_000), 12);
-        when(projectRepository.findAllByUser(org.mockito.ArgumentMatchers.any())).thenReturn(List.of(p));
+        when(projectRepository.findAllByUser(any())).thenReturn(List.of(p));
 
         assertThat(service.checkFeasibility(UUID.randomUUID(), BigDecimal.valueOf(10_000_000), false))
                 .isEmpty();
@@ -172,15 +206,21 @@ class ProjectUpdateSuggestionServiceTest {
     }
 
     // ── checkMonthEndLeftover ─────────────────────────────────────────────────
+    //
+    // These tests exercise the leftover-nudge THRESHOLDS specific to this service (days-left
+    // gate + minimum leftover amount). The realRemaining figure they act on is produced by
+    // EnvelopeCalculator — its own tests cover the envelope arithmetic (safeSpending, target
+    // savings, actual-expense reconciliation), so here we stub it and focus on this service's
+    // own logic. See {@code EnvelopeCalculatorTest} for the underlying math.
 
     @Test
     @DisplayName("checkMonthEndLeftover suggests topping up the top project near month-end with real leftover")
     void monthEndLeftoverFires() {
         Project p = project("Du lịch", BigDecimal.valueOf(3_000_000), BigDecimal.ZERO);
-        when(projectRepository.findAllByUser(org.mockito.ArgumentMatchers.any())).thenReturn(List.of(p));
+        when(projectRepository.findAllByUser(any())).thenReturn(List.of(p));
+        stubEnvelope(BigDecimal.valueOf(1_500_000));
 
-        var result = service.checkMonthEndLeftover(
-                UUID.randomUUID(), 3, BigDecimal.valueOf(1_500_000), false);
+        var result = service.checkMonthEndLeftover(UUID.randomUUID(), 3, false);
 
         assertThat(result).isPresent();
         assertThat(result.get().getSuggestedAddAmount()).isEqualTo(1_500_000L);
@@ -190,51 +230,46 @@ class ProjectUpdateSuggestionServiceTest {
     @Test
     @DisplayName("checkMonthEndLeftover is empty when more than a few days remain in the month")
     void monthEndLeftoverEmptyWhenNotNearMonthEnd() {
-        Project p = project("Du lịch", BigDecimal.ZERO, BigDecimal.ZERO);
-        when(projectRepository.findAllByUser(org.mockito.ArgumentMatchers.any())).thenReturn(List.of(p));
-
-        assertThat(service.checkMonthEndLeftover(
-                UUID.randomUUID(), 10, BigDecimal.valueOf(5_000_000), false)).isEmpty();
+        // Early return on the days-left gate before ever touching user/envelope — no stubs needed.
+        assertThat(service.checkMonthEndLeftover(UUID.randomUUID(), 10, false)).isEmpty();
     }
 
     @Test
     @DisplayName("checkMonthEndLeftover is empty when the leftover is too small to matter")
     void monthEndLeftoverEmptyWhenAmountTooSmall() {
         Project p = project("Du lịch", BigDecimal.ZERO, BigDecimal.ZERO);
-        when(projectRepository.findAllByUser(org.mockito.ArgumentMatchers.any())).thenReturn(List.of(p));
+        when(projectRepository.findAllByUser(any())).thenReturn(List.of(p));
+        stubEnvelope(BigDecimal.valueOf(100_000)); // below LEFTOVER_MIN_AMOUNT (500K)
 
-        assertThat(service.checkMonthEndLeftover(
-                UUID.randomUUID(), 2, BigDecimal.valueOf(100_000), false)).isEmpty();
+        assertThat(service.checkMonthEndLeftover(UUID.randomUUID(), 2, false)).isEmpty();
     }
 
     @Test
-    @DisplayName("checkMonthEndLeftover is empty when actual spending this month already exceeds the " +
-            "planned safe_spending envelope (deficit month) — the planned figure alone is not real leftover")
+    @DisplayName("checkMonthEndLeftover is empty when actual spending this month has already eaten the envelope " +
+            "(deficit month) — realRemaining is zero, so no leftover suggestion fires")
     void monthEndLeftoverEmptyWhenActualSpendingExceedsSafeSpending() {
         UUID userId = UUID.randomUUID();
         Project p = project("Mua laptop", BigDecimal.ZERO, BigDecimal.ZERO);
-        when(projectRepository.findAllByUser(org.mockito.ArgumentMatchers.any())).thenReturn(List.of(p));
-        // Planned safe_spending says 8.2M is "free", but 17M has already actually been spent —
-        // real remaining is deeply negative, so no leftover suggestion should fire.
-        when(transactionRepository.getTotalExpenseBetween(org.mockito.ArgumentMatchers.eq(userId),
-                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
-                .thenReturn(BigDecimal.valueOf(17_000_000));
+        when(projectRepository.findAllByUser(any())).thenReturn(List.of(p));
+        // EnvelopeCalculator floors realRemaining at zero when actual expense exceeds envelope,
+        // so the concrete "deficit month" case surfaces here as realRemaining = 0.
+        stubEnvelope(BigDecimal.ZERO);
 
-        assertThat(service.checkMonthEndLeftover(userId, 5, BigDecimal.valueOf(8_238_095), false)).isEmpty();
+        assertThat(service.checkMonthEndLeftover(userId, 5, false)).isEmpty();
     }
 
     @Test
-    @DisplayName("checkMonthEndLeftover suggests only the REAL unspent portion once actual expenses are subtracted")
+    @DisplayName("checkMonthEndLeftover suggests only the REAL unspent portion — the envelope calculator " +
+            "already subtracted month-to-date actual expenses before returning realRemaining")
     void monthEndLeftoverUsesRealRemainingNotPlannedFigure() {
         UUID userId = UUID.randomUUID();
         Project p = project("Du lịch", BigDecimal.valueOf(1_000_000), BigDecimal.ZERO);
-        when(projectRepository.findAllByUser(org.mockito.ArgumentMatchers.any())).thenReturn(List.of(p));
-        // Planned safe_spending is 5M, but 2M has already actually been spent — real remaining is 3M.
-        when(transactionRepository.getTotalExpenseBetween(org.mockito.ArgumentMatchers.eq(userId),
-                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
-                .thenReturn(BigDecimal.valueOf(2_000_000));
+        when(projectRepository.findAllByUser(any())).thenReturn(List.of(p));
+        // Envelope was 5M, 2M already actually spent → realRemaining is 3M. The calculator does
+        // that subtraction for us; the service just reads realRemaining and offers it.
+        stubEnvelope(BigDecimal.valueOf(3_000_000));
 
-        var result = service.checkMonthEndLeftover(userId, 5, BigDecimal.valueOf(5_000_000), false);
+        var result = service.checkMonthEndLeftover(userId, 5, false);
 
         assertThat(result).isPresent();
         assertThat(result.get().getSuggestedAddAmount()).isEqualTo(3_000_000L);
@@ -246,12 +281,10 @@ class ProjectUpdateSuggestionServiceTest {
     @DisplayName("checkSurplusTrend fires after 3 consecutive months clearing the surplus threshold")
     void surplusTrendFires() {
         Project p = project("Du lịch", BigDecimal.valueOf(1_000_000), BigDecimal.ZERO);
-        when(projectRepository.findAllByUser(org.mockito.ArgumentMatchers.any())).thenReturn(List.of(p));
-        when(transactionRepository.getTotalIncomeBetween(
-                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+        when(projectRepository.findAllByUser(any())).thenReturn(List.of(p));
+        when(transactionRepository.getTotalIncomeBetween(any(), any(), any()))
                 .thenReturn(BigDecimal.valueOf(15_000_000));
-        when(transactionRepository.getTotalExpenseBetween(
-                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+        when(transactionRepository.getTotalExpenseBetween(any(), any(), any()))
                 .thenReturn(BigDecimal.valueOf(12_000_000));
 
         var result = service.checkSurplusTrend(UUID.randomUUID(), false);
@@ -264,12 +297,10 @@ class ProjectUpdateSuggestionServiceTest {
     @DisplayName("checkSurplusTrend is empty when any of the last 3 months misses the threshold")
     void surplusTrendEmptyWhenStreakBroken() {
         Project p = project("Du lịch", BigDecimal.ZERO, BigDecimal.ZERO);
-        when(projectRepository.findAllByUser(org.mockito.ArgumentMatchers.any())).thenReturn(List.of(p));
-        when(transactionRepository.getTotalIncomeBetween(
-                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+        when(projectRepository.findAllByUser(any())).thenReturn(List.of(p));
+        when(transactionRepository.getTotalIncomeBetween(any(), any(), any()))
                 .thenReturn(BigDecimal.valueOf(11_000_000));
-        when(transactionRepository.getTotalExpenseBetween(
-                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+        when(transactionRepository.getTotalExpenseBetween(any(), any(), any()))
                 .thenReturn(BigDecimal.valueOf(10_000_000));
 
         assertThat(service.checkSurplusTrend(UUID.randomUUID(), false)).isEmpty();

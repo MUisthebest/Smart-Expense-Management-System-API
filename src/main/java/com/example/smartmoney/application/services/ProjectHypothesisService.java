@@ -9,6 +9,7 @@ import com.example.smartmoney.domain.models.project.valueobjects.UserId;
 import com.example.smartmoney.domain.models.user.User;
 import com.example.smartmoney.domain.repositories.ProjectRepository;
 import com.example.smartmoney.domain.repositories.UserRepository;
+import com.example.smartmoney.domain.services.EnvelopeCalculator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -32,8 +33,15 @@ import java.util.regex.Pattern;
  *
  * <p>Shorten/extend reuses the exact {@code newMonthlySaving = remaining / newMonthLeft}
  * (ceiling) formula that {@code UpdateProjectUseCase.recalibrateTracking()} applies for real on
- * confirm — this service only previews it. {@code available_budget = net_income − Σ
- * monthly_saving of all active projects} mirrors {@code User.calculateSafeSpending}.
+ * confirm — this service only previews it.
+ *
+ * <p>The {@code availableBudgetBefore/After} figures on the returned suggestion are the true
+ * post-project-commitment ENVELOPE (safeSpending − targetSavings), delegated to {@link
+ * EnvelopeCalculator} so the trait-based saving pool ({@code targetSavings}) is subtracted
+ * correctly. Before this delegation, this service used {@code User.calculateSafeSpending}
+ * directly, which subtracted commitment but not targetSavings — producing what-if answers that
+ * were too pessimistic for AGGRESSIVE users on shorten scenarios and too optimistic on delete
+ * scenarios (see EnvelopeCalculator javadoc for the specific numbers).
  *
  * <p>Purely read-only — never writes any record. {@code ConfirmChatActionUseCase} performs the
  * real mutation only after the user explicitly confirms.
@@ -44,6 +52,7 @@ public class ProjectHypothesisService {
 
     private final ProjectRepository projectRepository;
     private final UserRepository userRepository;
+    private final EnvelopeCalculator envelopeCalculator;
 
     private static final Pattern SHORTEN_PATTERN = Pattern.compile(
             "rút ngắn|sớm hơn|hoàn thành sớm|kết thúc sớm|shorten|finish earlier|earlier",
@@ -58,16 +67,16 @@ public class ProjectHypothesisService {
             Pattern.UNICODE_CASE);
     private static final Pattern CREATE_PATTERN = Pattern.compile(
             "tạo (dự án|mục tiêu)|mở dự án|lập dự án|create (a )?(new )?project|start (a )?(new )?project|" +
-            "new project|new goal",
+                    "new project|new goal",
             Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
     // Up to 3 words allowed between the verb and "dự án"/"project" so a plural/count phrase like
     // "xóa các dự án", "xóa 2 dự án đã hoàn thành", "delete the completed projects" still matches
     // — not just the exact adjacent "xóa dự án" bigram.
     private static final Pattern DELETE_PATTERN = Pattern.compile(
             "xóa(?:\\s+\\S+){0,3}\\s+dự án|xoá(?:\\s+\\S+){0,3}\\s+dự án|" +
-            "hủy(?:\\s+\\S+){0,3}\\s+dự án|huỷ(?:\\s+\\S+){0,3}\\s+dự án|" +
-            "delete(?:\\s+\\S+){0,3}\\s+project|remove(?:\\s+\\S+){0,3}\\s+project|" +
-            "cancel(?:\\s+\\S+){0,3}\\s+project",
+                    "hủy(?:\\s+\\S+){0,3}\\s+dự án|huỷ(?:\\s+\\S+){0,3}\\s+dự án|" +
+                    "delete(?:\\s+\\S+){0,3}\\s+project|remove(?:\\s+\\S+){0,3}\\s+project|" +
+                    "cancel(?:\\s+\\S+){0,3}\\s+project",
             Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
     // Status-category words for a bulk "delete all my completed/abandoned/... projects" request
     // (as opposed to one project referenced by name) — see previewDeleteByStatus.
@@ -155,8 +164,8 @@ public class ProjectHypothesisService {
         BigDecimal commitmentAfter = commitmentBefore.add(newMonthlySaving);
 
         User user = userRepository.findById(userId).orElse(null);
-        Long before = safeSpendingOrNull(user, commitmentBefore);
-        Long after = safeSpendingOrNull(user, commitmentAfter);
+        Long before = envelopeOrNull(user, commitmentBefore);
+        Long after = envelopeOrNull(user, commitmentAfter);
 
         return Optional.of(ChatResponse.ProjectChangeSuggestion.builder()
                 .projectId(null)
@@ -171,13 +180,13 @@ public class ProjectHypothesisService {
                 .availableBudgetAfter(after)
                 .reason(english
                         ? String.format(
-                                "Create '%s': target %,.0f VND in %d months -> %,.0f VND/month. This decreases " +
-                                "your available budget — spending will be tighter.",
-                                name, amount, newMonthLeft, newMonthlySaving)
+                        "Create '%s': target %,.0f VND in %d months -> %,.0f VND/month. This decreases " +
+                        "your available budget — spending will be tighter.",
+                        name, amount, newMonthLeft, newMonthlySaving)
                         : String.format(
-                                "Tạo dự án '%s': mục tiêu %,.0f VND trong %d tháng → %,.0f VND/tháng. Khoản này " +
-                                "sẽ làm giảm ngân sách khả dụng — chi tiêu sẽ eo hẹp hơn.",
-                                name, amount, newMonthLeft, newMonthlySaving))
+                        "Tạo dự án '%s': mục tiêu %,.0f VND trong %d tháng → %,.0f VND/tháng. Khoản này " +
+                        "sẽ làm giảm ngân sách khả dụng — chi tiêu sẽ eo hẹp hơn.",
+                        name, amount, newMonthLeft, newMonthlySaving))
                 .build());
     }
 
@@ -205,9 +214,9 @@ public class ProjectHypothesisService {
                 .orElse(ProjectPriority.MEDIUM);
     }
 
-    // ── Delete ────────────────────────────────────────────────────────────────
-    // Deleting is a valid cleanup action regardless of project status — unlike contribute/
-    // shorten/extend (which need an ongoing project to make sense), a COMPLETED or ABANDONED
+    // ── Delete (single or bulk) ────────────────────────────────────────────────
+    // Delete has different semantics from shorten/extend: unlike contribute/shorten/extend
+    // (which need an ongoing project to make sense), a COMPLETED or ABANDONED
     // project can still be legitimately deleted by the user. So delete searches ALL of the
     // user's projects (deletableProjects), not just activeProjects.
 
@@ -220,7 +229,7 @@ public class ProjectHypothesisService {
 
         boolean english = MessageLanguageDetector.isEnglish(messageLow);
         User user = userRepository.findById(userId).orElse(null);
-        Long current = safeSpendingOrNull(user, totalCommitment(activeProjects(userId)));
+        Long current = envelopeOrNull(user, totalCommitment(activeProjects(userId)));
 
         return Optional.of(buildDeleteSuggestion(target, current, english));
     }
@@ -246,7 +255,7 @@ public class ProjectHypothesisService {
 
         boolean english = MessageLanguageDetector.isEnglish(messageLow);
         User user = userRepository.findById(userId).orElse(null);
-        Long current = safeSpendingOrNull(user, totalCommitment(activeProjects(userId)));
+        Long current = envelopeOrNull(user, totalCommitment(activeProjects(userId)));
 
         return matches.stream()
                 .map(p -> buildDeleteSuggestion(p, current, english))
@@ -262,7 +271,7 @@ public class ProjectHypothesisService {
     }
 
     private ChatResponse.ProjectChangeSuggestion buildDeleteSuggestion(
-            Project target, Long currentSafeSpending, boolean english) {
+            Project target, Long currentEnvelope, boolean english) {
         ProjectTracking tracking = target.getTracking();
         BigDecimal freed = tracking != null && tracking.getMonthlySaving() != null
                 ? tracking.getMonthlySaving() : BigDecimal.ZERO;
@@ -279,17 +288,17 @@ public class ProjectHypothesisService {
                 // Budget stays unchanged on delete — the freed amount (if any — zero for a
                 // project that's already COMPLETED/ABANDONED) is a surplus the user redirects
                 // manually, not an automatic budget-category increase.
-                .availableBudgetBefore(currentSafeSpending)
-                .availableBudgetAfter(currentSafeSpending)
+                .availableBudgetBefore(currentEnvelope)
+                .availableBudgetAfter(currentEnvelope)
                 .reason(english
                         ? String.format(
-                                "Delete '%s' frees %,.0f VND/month. Your available budget stays the same — " +
-                                "consider redirecting the freed amount to savings or another goal.",
-                                target.getName(), freed)
+                        "Delete '%s' frees %,.0f VND/month. Your available budget stays the same — " +
+                        "consider redirecting the freed amount to savings or another goal.",
+                        target.getName(), freed)
                         : String.format(
-                                "Xóa '%s' giải phóng %,.0f VND/tháng. Ngân sách khả dụng không đổi — cân nhắc " +
-                                "chuyển khoản dư này sang tiết kiệm hoặc mục tiêu khác.",
-                                target.getName(), freed))
+                        "Xóa '%s' giải phóng %,.0f VND/tháng. Ngân sách khả dụng không đổi — cân nhắc " +
+                        "chuyển khoản dư này sang tiết kiệm hoặc mục tiêu khác.",
+                        target.getName(), freed))
                 .build();
     }
 
@@ -322,7 +331,7 @@ public class ProjectHypothesisService {
         BigDecimal commitmentAfter = commitmentBefore;
 
         record Change(Project project, LocalDate newDeadline,
-                       ChatResponse.ProjectChangeOperation op, BigDecimal newMonthlySaving) {}
+                      ChatResponse.ProjectChangeOperation op, BigDecimal newMonthlySaving) {}
         List<Change> changes = new ArrayList<>();
 
         for (int i = 0; i < mentions.size(); i++) {
@@ -384,8 +393,8 @@ public class ProjectHypothesisService {
         if (changes.isEmpty()) return Collections.emptyList();
 
         User user = userRepository.findById(userId).orElse(null);
-        Long before = safeSpendingOrNull(user, commitmentBefore);
-        Long after = safeSpendingOrNull(user, commitmentAfter);
+        Long before = envelopeOrNull(user, commitmentBefore);
+        Long after = envelopeOrNull(user, commitmentAfter);
 
         List<ChatResponse.ProjectChangeSuggestion> result = new ArrayList<>();
         for (Change c : changes) {
@@ -404,9 +413,9 @@ public class ProjectHypothesisService {
                     .availableBudgetAfter(after)
                     .reason(english
                             ? String.format("'%s' -> new monthly saving %,.0f VND/month.",
-                                    c.project().getName(), c.newMonthlySaving())
+                            c.project().getName(), c.newMonthlySaving())
                             : String.format("'%s' → mức tiết kiệm hàng tháng mới %,.0f VND/tháng.",
-                                    c.project().getName(), c.newMonthlySaving()))
+                            c.project().getName(), c.newMonthlySaving()))
                     .build());
         }
         return result;
@@ -430,21 +439,21 @@ public class ProjectHypothesisService {
         BigDecimal commitmentAfter = commitmentBefore.subtract(oldMonthlySaving).add(newMonthlySaving);
 
         User user = userRepository.findById(userId).orElse(null);
-        Long before = safeSpendingOrNull(user, commitmentBefore);
-        Long after = safeSpendingOrNull(user, commitmentAfter);
+        Long before = envelopeOrNull(user, commitmentBefore);
+        Long after = envelopeOrNull(user, commitmentAfter);
 
         boolean shorten = operation == ChatResponse.ProjectChangeOperation.SHORTEN;
         String reason = english
                 ? String.format(
-                        "'%s' new deadline %s -> %,.0f VND/month (was %,.0f). %s",
-                        target.getName(), newDeadline, newMonthlySaving, oldMonthlySaving,
-                        shorten ? "Available budget decreases — spending will be tighter."
-                                : "Available budget stays stable or improves slightly — keep spending disciplined rather than increasing lifestyle expenses.")
+                "'%s' new deadline %s -> %,.0f VND/month (was %,.0f). %s",
+                target.getName(), newDeadline, newMonthlySaving, oldMonthlySaving,
+                shorten ? "Available budget decreases — spending will be tighter."
+                : "Available budget stays stable or improves slightly — keep spending disciplined rather than increasing lifestyle expenses.")
                 : String.format(
-                        "'%s' hạn mới %s → %,.0f VND/tháng (trước %,.0f). %s",
-                        target.getName(), newDeadline, newMonthlySaving, oldMonthlySaving,
-                        shorten ? "Ngân sách khả dụng sẽ giảm — chi tiêu sẽ eo hẹp hơn."
-                                : "Ngân sách khả dụng giữ ổn định hoặc nhỉnh hơn — nên duy trì kỷ luật chi tiêu thay vì tăng chi tiêu sinh hoạt.");
+                "'%s' hạn mới %s → %,.0f VND/tháng (trước %,.0f). %s",
+                target.getName(), newDeadline, newMonthlySaving, oldMonthlySaving,
+                shorten ? "Ngân sách khả dụng sẽ giảm — chi tiêu sẽ eo hẹp hơn."
+                : "Ngân sách khả dụng giữ ổn định hoặc nhỉnh hơn — nên duy trì kỷ luật chi tiêu thay vì tăng chi tiêu sinh hoạt.");
 
         return ChatResponse.ProjectChangeSuggestion.builder()
                 .projectId(target.getId().toString())
@@ -461,10 +470,25 @@ public class ProjectHypothesisService {
                 .build();
     }
 
-    private Long safeSpendingOrNull(User user, BigDecimal commitment) {
+    /**
+     * Returns the user's post-commitment envelope (safeSpending − targetSavings) for a given
+     * hypothetical total commitment, or {@code null} if the user hasn't completed financial
+     * setup or the calculator fails for any other reason.
+     *
+     * <p>Replaces the pre-EnvelopeCalculator implementation, which called
+     * {@code user.calculateSafeSpending(commitment)} directly and returned just the safeSpending
+     * half — never subtracting the trait-target savings. For BALANCED users with commitment ≥
+     * savingCapacity, both formulas give the same number (targetSavings is 0). For AGGRESSIVE
+     * users or users whose projects don't fully consume savingCapacity, the two diverge by up
+     * to {@code savingCapacity − commitment} VND per month, which is what this fix removes.
+     */
+    private Long envelopeOrNull(User user, BigDecimal commitment) {
         if (user == null || !user.hasCompletedFinancialSetup()) return null;
         try {
-            return user.calculateSafeSpending(commitment).longValue();
+            return envelopeCalculator
+                    .computeFromCommitment(user, commitment, null)
+                    .envelope()
+                    .longValue();
         } catch (Exception e) {
             return null;
         }
