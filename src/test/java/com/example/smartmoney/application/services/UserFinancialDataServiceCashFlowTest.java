@@ -18,6 +18,8 @@ import com.example.smartmoney.domain.models.user.enums.Focus_Mode;
 import com.example.smartmoney.domain.models.user.enums.Intervention_Level;
 import com.example.smartmoney.domain.models.user.enums.Saving_Pace;
 import com.example.smartmoney.domain.repositories.BudgetRepository;
+import com.example.smartmoney.domain.repositories.GroupProjectRepository;
+import com.example.smartmoney.domain.repositories.GroupRepository;
 import com.example.smartmoney.domain.repositories.ProjectRepository;
 import com.example.smartmoney.domain.repositories.TransactionRepository;
 import com.example.smartmoney.domain.repositories.UserRepository;
@@ -59,8 +61,14 @@ class UserFinancialDataServiceCashFlowTest {
     private final BudgetRepository budgetRepository = mock(BudgetRepository.class);
     private final UserRepository userRepository = mock(UserRepository.class);
 
+    // Group lookups are mocked to return nothing: these tests assert on the cash-flow block, and
+    // an empty group list simply omits the "=== Nhóm ===" section entirely.
+    private final GroupRepository groupRepository = mock(GroupRepository.class);
+    private final GroupProjectRepository groupProjectRepository = mock(GroupProjectRepository.class);
+
     private final UserFinancialDataService service = new UserFinancialDataService(
-            transactionRepository, projectRepository, budgetRepository, userRepository);
+            transactionRepository, projectRepository, budgetRepository, userRepository,
+            groupRepository, groupProjectRepository);
 
     private final UUID userId = UUID.randomUUID();
 

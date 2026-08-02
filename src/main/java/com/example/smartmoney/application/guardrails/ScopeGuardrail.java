@@ -94,7 +94,21 @@ public class ScopeGuardrail implements PromptGuardrail {
             "sửa.*(giao dịch|khoản)", "xóa.*(giao dịch|khoản)", "nhập nhầm", "ghi nhầm",
             "record.*(expense|income|transaction|spending)", "log.*(expense|income|transaction)",
             "add.*(expense|income|transaction)", "edit.*transaction", "delete.*transaction",
-            "remove.*transaction", "i (just )?(spent|paid|received|earned)"
+            "remove.*transaction", "i (just )?(spent|paid|received|earned)",
+            // Group / group-project / invite management. These are in-app operations on the
+            // user's own data (§4B of the chatbot prompt), but the natural phrasings contain
+            // none of the money nouns above — "mời bạn tôi vào nhóm qua email" has no finance
+            // keyword at all, and without these entries it falls through to the blocklist and
+            // then to the paid semantic classifier on every turn. Kept compound with a verb or
+            // an app noun rather than bare "nhóm"/"group"/"email", which would also allowlist
+            // "nhóm nhạc", "music group", "email marketing" and punch a hole in the blocklist.
+            "(tạo|lập|mở|vào|tham gia|rời|xóa|xoá|khóa|khoá|quản lý|của|trong) nhóm",
+            "nhóm (của|mới|tiết kiệm|chung|tôi)", "dự án nhóm", "quỹ (chung|nhóm)",
+            "(create|join|leave|lock|delete|manage|my|the) group", "group (project|saving|fund|member)",
+            "thành viên (nhóm|mới|khác|trong)", "(invite|add|remove).*member",
+            "mời (bạn|thành viên|người|ai|vào|qua|thêm)", "lời mời", "invitation",
+            "gửi (email|mail|lời mời)", "(invite|send).*(email|invitation)",
+            "đóng góp giúp", "sponsorship", "giải thể", "dissolve"
         };
         allowlistPatterns = toPatterns(allow);
 

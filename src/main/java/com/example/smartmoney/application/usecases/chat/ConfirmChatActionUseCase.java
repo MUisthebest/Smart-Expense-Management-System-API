@@ -24,6 +24,16 @@ import com.example.smartmoney.application.usecases.project.UpdateProjectUseCase;
 import com.example.smartmoney.application.usecases.transaction.CreateTransactionUseCase;
 import com.example.smartmoney.application.usecases.transaction.DeleteTransactionUseCase;
 import com.example.smartmoney.application.usecases.transaction.UpdateTransactionUseCase;
+import com.example.smartmoney.application.dtos.requests.group.CreateGroupProjectRequest;
+import com.example.smartmoney.application.dtos.requests.group.CreateGroupRequest;
+import com.example.smartmoney.application.dtos.requests.group.CreateSubPersonalProjectRequest;
+import com.example.smartmoney.application.dtos.requests.group.InviteGroupMemberRequest;
+import com.example.smartmoney.application.dtos.responses.group.GroupDetailResponse;
+import com.example.smartmoney.application.usecases.group.CreateGroupProjectUseCase;
+import com.example.smartmoney.application.usecases.group.CreateGroupUseCase;
+import com.example.smartmoney.application.usecases.group.CreateSubPersonalProjectUseCase;
+import com.example.smartmoney.application.usecases.group.InviteGroupMemberUseCase;
+import com.example.smartmoney.application.usecases.group.LockGroupUseCase;
 import com.example.smartmoney.domain.models.project.Project;
 import com.example.smartmoney.domain.models.project.enums.ProjectPriority;
 import com.example.smartmoney.domain.models.project.enums.ProjectType;
@@ -69,6 +79,15 @@ public class ConfirmChatActionUseCase {
     private final CreateTransactionUseCase createTransactionUseCase;
     private final UpdateTransactionUseCase updateTransactionUseCase;
     private final DeleteTransactionUseCase deleteTransactionUseCase;
+    // Group flows run the same use cases POST /api/v1/groups, POST /api/v1/groups/{id}/members/
+    // invite, POST /api/v1/groups/{id}/lock, POST /api/v1/group-projects and POST
+    // /api/v1/group-projects/{id}/join call — so confirming in chat and tapping in the Group
+    // screen produce identical results, invite email included.
+    private final CreateGroupUseCase createGroupUseCase;
+    private final InviteGroupMemberUseCase inviteGroupMemberUseCase;
+    private final LockGroupUseCase lockGroupUseCase;
+    private final CreateGroupProjectUseCase createGroupProjectUseCase;
+    private final CreateSubPersonalProjectUseCase createSubPersonalProjectUseCase;
     // §5 defense-in-depth (last line): even when the orchestrator's filter and the LLM's prompt
     // both fail, no confirm here is allowed to mutate a project with groupProjectId != null. A
     // pending action can outlive the turn that produced it (Redis TTL), so a fix that only
@@ -197,6 +216,24 @@ public class ConfirmChatActionUseCase {
                     ? "Transaction updated successfully." : "Đã cập nhật giao dịch thành công.";
             case TRANSACTION_DELETE -> english
                     ? "Transaction deleted successfully." : "Đã xóa giao dịch thành công.";
+            case PROJECT_CREATE -> english
+                    ? "Project created successfully — you'll find it in your project list."
+                    : "Đã tạo dự án thành công — bạn sẽ thấy nó trong danh sách dự án.";
+            case GROUP_CREATE -> english
+                    ? "Group created successfully. You're its admin — invite members next."
+                    : "Đã tạo nhóm thành công. Bạn là quản trị viên — bước tiếp theo là mời thành viên.";
+            case GROUP_INVITE_MEMBER -> english
+                    ? "Invitation email sent. The link expires in 7 days."
+                    : "Đã gửi email lời mời. Liên kết hết hạn sau 7 ngày.";
+            case GROUP_LOCK -> english
+                    ? "Group locked. You can now create its group project."
+                    : "Đã khoá nhóm. Bây giờ bạn có thể tạo dự án nhóm.";
+            case GROUP_PROJECT_CREATE -> english
+                    ? "Group project created. Members have been notified."
+                    : "Đã tạo dự án nhóm. Các thành viên đã được thông báo.";
+            case GROUP_PROJECT_JOIN -> english
+                    ? "You've joined the group project — your linked personal project is ready."
+                    : "Bạn đã tham gia dự án nhóm — dự án cá nhân liên kết đã sẵn sàng.";
             default -> english ? "Update applied successfully." : "Đã cập nhật thành công.";
         };
     }
@@ -249,6 +286,19 @@ public class ConfirmChatActionUseCase {
                 req.setDeadline(action.getNewDeadline());
                 updateProjectUseCase.execute(actorId, action.getProjectId(), req);
             }
+            case PROJECT_UPDATE_DETAILS -> {
+                // Partial update, same contract as TRANSACTION_UPDATE: only the fields the user
+                // asked to change were stored, and UpdateProjectRequest leaves nulls untouched.
+                UpdateProjectRequest req = new UpdateProjectRequest();
+                req.setName(action.getName());
+                req.setDescription(action.getDescription());
+                req.setTargetAmount(action.getTargetAmount());
+                req.setCurrency(action.getCurrency());
+                req.setDeadline(action.getNewDeadline());
+                req.setPriority(action.getPriority() != null
+                        ? ProjectPriority.valueOf(action.getPriority()) : null);
+                updateProjectUseCase.execute(actorId, action.getProjectId(), req);
+            }
             case PROJECT_DELETE -> deleteProjectUseCase.execute(actorId, action.getProjectId());
             case PROJECT_TRACKING_UPDATE -> {
                 UpdateProjectTrackingRequest req = new UpdateProjectTrackingRequest();
@@ -291,6 +341,38 @@ public class ConfirmChatActionUseCase {
                 req.setNote(action.getContributionNote() != null ? action.getContributionNote()
                         : (action.isEnglish() ? "Contribution via chat assistant" : "Góp từ trợ lý trò chuyện"));
                 addProjectContributionUseCase.execute(actorId, action.getProjectId(), req);
+            }
+            case GROUP_CREATE -> {
+                CreateGroupRequest req = new CreateGroupRequest();
+                req.setName(action.getGroupName());
+                req.setDescription(action.getGroupDescription());
+                GroupDetailResponse created = createGroupUseCase.execute(actorId, req);
+                // Stash the new id back onto the action so a follow-up turn ("giờ mời An vào
+                // nhóm đó") has something concrete to resolve against even before the group
+                // shows up in the next turn's context block.
+                action.setGroupId(created.getGroupId());
+            }
+            case GROUP_INVITE_MEMBER -> {
+                InviteGroupMemberRequest req = new InviteGroupMemberRequest();
+                req.setEmail(action.getInviteEmail());
+                inviteGroupMemberUseCase.execute(actorId, action.getGroupId(), req);
+            }
+            case GROUP_LOCK -> lockGroupUseCase.execute(actorId, action.getGroupId());
+            case GROUP_PROJECT_CREATE -> {
+                CreateGroupProjectRequest req = new CreateGroupProjectRequest();
+                req.setGroupId(action.getGroupId());
+                req.setName(action.getName());
+                req.setDescription(action.getDescription());
+                req.setTargetAmount(action.getTargetAmount());
+                req.setCurrency(action.getCurrency() != null ? action.getCurrency() : "VND");
+                req.setTotalMonths(action.getTotalMonths());
+                createGroupProjectUseCase.execute(actorId, req);
+            }
+            case GROUP_PROJECT_JOIN -> {
+                CreateSubPersonalProjectRequest req = new CreateSubPersonalProjectRequest();
+                req.setPriority(action.getPriority() != null
+                        ? ProjectPriority.valueOf(action.getPriority()) : ProjectPriority.MEDIUM);
+                createSubPersonalProjectUseCase.execute(actorId, action.getGroupProjectId(), req);
             }
         }
         return ActionOutcome.SINGLE_SUCCESS;
