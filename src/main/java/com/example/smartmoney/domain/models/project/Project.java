@@ -406,7 +406,7 @@ public class Project {
         long durationMonths = ChronoUnit.MONTHS.between(
                 createdMonth,
                 deadlineMonth
-        ) + 1;
+        );
 
         durationMonths = Math.max(durationMonths, 1);
 
