@@ -68,19 +68,14 @@ plan     = guard(plan, history, month)
 ### 3.1 Stage 0 — Spendable envelope
 
 ```
-savingCapacity = user.getSavingCapacity()                 // income × {0.10 | 0.20 | 0.35}
-targetSavings  = max(0, savingCapacity − projectCommitment)
-envelope       = safeSpending − targetSavings             // safeSpending = income − projectCommitment
+commitment    = activeProjects.monthlyCommitment
+safeSpending  = user.calculateSafeSpending(commitment)  // income − commitment
+targetSavings = commitment
+envelope      = safeSpending
 if envelope <= 0 → over-committed plan (all-zero limits + overCommitted flag)
 ```
 
-**Why `max(0, savingCapacity − projectCommitment)`?** `safeSpending` already subtracts
-project commitments, and `savingCapacity` is a *separate* trait-based target off gross income.
-Naively doing `safeSpending − savingCapacity` deducts savings twice for anyone who commits to
-projects. Because projects in this app are press-to-contribute **savings goals**, project
-contributions should *count toward* the savings ambition. This yields the clean identity
-`envelope = income × (1 − rate)` when commitments are within the savings target, and
-`envelope = income − commitment` when they already exceed it.
+**Envelope Calculation**: `savingCapacity` (e.g. 20% of income) serves as the maximum threshold for active project commitments (enforced during project creation). When a user has no active savings projects (`commitment = 0`), the spendable envelope equals 100% of income. When the user creates active projects, their total monthly commitment is held out for savings, and the remaining amount (`income − commitment`) is allocated as the spending budget.
 
 `savingCapacity` rates come straight from `User.getSavingCapacity()` — do not re-derive them:
 
