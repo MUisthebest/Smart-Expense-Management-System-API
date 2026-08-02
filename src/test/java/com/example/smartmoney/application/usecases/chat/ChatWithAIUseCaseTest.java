@@ -855,7 +855,7 @@ public class ChatWithAIUseCaseTest {
         }
 
         var leftover = projectUpdateSuggestionService.checkMonthEndLeftover(
-                userId, daysLeft, snapshot.safeSpending(), english);
+                userId, daysLeft, english);
         if (leftover.isPresent()) {
             builder.reply(appendToReply(reply, leftover.get().getReason()));
             return;

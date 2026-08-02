@@ -12,6 +12,7 @@ import com.example.smartmoney.domain.models.project.valueobjects.UserId;
 import com.example.smartmoney.domain.models.user.User;
 import com.example.smartmoney.domain.repositories.ProjectRepository;
 import com.example.smartmoney.domain.repositories.UserRepository;
+import com.example.smartmoney.domain.services.EnvelopeCalculator;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -32,8 +33,9 @@ class ProjectHypothesisServiceTest {
 
     private final ProjectRepository projectRepository = mock(ProjectRepository.class);
     private final UserRepository userRepository = mock(UserRepository.class);
+    private final EnvelopeCalculator envelopeCalculator = mock(EnvelopeCalculator.class);
     private final ProjectHypothesisService service =
-            new ProjectHypothesisService(projectRepository, userRepository);
+            new ProjectHypothesisService(projectRepository, userRepository, envelopeCalculator);
 
     private Project project(String name, BigDecimal moneySaved, BigDecimal monthlySaving,
                              int monthLeft, LocalDate deadline) {

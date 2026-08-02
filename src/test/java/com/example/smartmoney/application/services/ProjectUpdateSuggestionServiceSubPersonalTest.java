@@ -11,6 +11,8 @@ import com.example.smartmoney.domain.models.project.valueobjects.ProjectId;
 import com.example.smartmoney.domain.models.project.valueobjects.UserId;
 import com.example.smartmoney.domain.repositories.ProjectRepository;
 import com.example.smartmoney.domain.repositories.TransactionRepository;
+import com.example.smartmoney.domain.repositories.UserRepository;
+import com.example.smartmoney.domain.services.EnvelopeCalculator;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -44,8 +46,11 @@ class ProjectUpdateSuggestionServiceSubPersonalTest {
 
     private final ProjectRepository projectRepository = mock(ProjectRepository.class);
     private final TransactionRepository transactionRepository = mock(TransactionRepository.class);
+    private final UserRepository userRepository = mock(UserRepository.class);
+    private final EnvelopeCalculator envelopeCalculator = mock(EnvelopeCalculator.class);
+
     private final ProjectUpdateSuggestionService service =
-            new ProjectUpdateSuggestionService(projectRepository, transactionRepository);
+            new ProjectUpdateSuggestionService(projectRepository, transactionRepository, userRepository, envelopeCalculator);
 
     private final UUID userId = UUID.randomUUID();
 

@@ -1,13 +1,16 @@
 package com.example.smartmoney.application.services;
 
 import com.example.smartmoney.application.dtos.responses.ChatResponse;
-import com.example.smartmoney.domain.models.budget.Budget;
+import com.example.smartmoney.domain.exceptions.DomainException;
 import com.example.smartmoney.domain.models.project.Project;
-import com.example.smartmoney.domain.models.project.enums.ProjectPriority;
+import com.example.smartmoney.domain.models.project.enums.ProjectStatus;
 import com.example.smartmoney.domain.models.project.valueobjects.UserId;
-import com.example.smartmoney.domain.repositories.BudgetRepository;
+import com.example.smartmoney.domain.models.user.User;
 import com.example.smartmoney.domain.repositories.ProjectRepository;
 import com.example.smartmoney.domain.repositories.TransactionRepository;
+import com.example.smartmoney.domain.repositories.UserRepository;
+import com.example.smartmoney.domain.services.EnvelopeCalculator;
+import com.example.smartmoney.domain.services.EnvelopeSnapshot;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -22,23 +25,32 @@ import java.util.stream.Collectors;
 
 /**
  * UC2 — What-if Simulation:
- * Given a hypothetical extra spend, computes the resulting safe-spending balance and
- * which saving projects would be delayed.
+ * Given a hypothetical extra spend, computes the resulting balance and which saving projects
+ * would be delayed.
  *
- * This service is PURELY READ-ONLY — no data is written.
+ * <p>This service is PURELY READ-ONLY — no data is written.
  *
- * Project-impact algorithm:
- *   Projects are sorted HIGH → LOW priority. Starting from the remaining budget
- *   after the extra spend, high-priority projects are funded first. Any project
- *   that cannot be funded within remaining budget is marked as "delayed".
+ * <p><b>Envelope arithmetic</b>: the "still-spendable this month" answer is computed via
+ * {@link EnvelopeCalculator#compute(User, List, BigDecimal)} — the trait-aware envelope
+ * (safeSpending − targetSavings) minus the month-to-date actual spend — NOT the old
+ * {@code totalBudget − totalSpent} shortcut. The old formula depended on the user having set
+ * budgets for every relevant category and treated any un-budgeted headroom as spendable, which
+ * silently over- or under-counted by a savingCapacity-linked amount. See {@link
+ * EnvelopeCalculator} javadoc for the specific inconsistencies this fix removes.
+ *
+ * <p><b>Project-impact algorithm</b>:
+ * Projects are sorted HIGH → LOW priority. Starting from the still-spendable remainder after
+ * the extra spend, high-priority projects are funded first. Any project that cannot be funded
+ * within the remaining amount is marked as "delayed".
  */
 @Service
 @RequiredArgsConstructor
 public class SpendingSimulationService {
 
-    private final BudgetRepository budgetRepository;
     private final ProjectRepository projectRepository;
     private final TransactionRepository transactionRepository;
+    private final UserRepository userRepository;
+    private final EnvelopeCalculator envelopeCalculator;
 
     // Matches Vietnamese/English monetary amounts: "1M", "1 triệu", "500K", "1,500,000"
     private static final Pattern AMOUNT_PATTERN = Pattern.compile(
@@ -55,7 +67,7 @@ public class SpendingSimulationService {
      * @param month      month being simulated (1-12)
      * @param year       year being simulated
      * @param messageLow user message in lowercase, used to parse the extra spend amount
-     * @return SimulationResult with scenario description, new safe spending, and project impact
+     * @return SimulationResult with scenario description, new spendable-remainder, and project impact
      */
     public ChatResponse.SimulationResult simulate(UUID userId, int month, int year, String messageLow) {
 
@@ -66,34 +78,45 @@ public class SpendingSimulationService {
             extraAmount = DEFAULT_EXTRA_AMOUNT;
         }
 
-        // UC2 step 2: Total budget limit set by the user for this month
-        List<Budget> budgets = budgetRepository.findByUserIdMonthYear(userId, month, year);
-        BigDecimal totalBudget = budgets.stream()
-                .map(Budget::getAmountLimit)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        // UC2 step 3: Actual expenses already recorded this month
+        // UC2 step 2: Actual expenses already recorded this month (excludes PROJECT_CONTRIBUTION —
+        // that's bookkeeping, not real spending; the repository already filters those out).
         LocalDate monthStart = LocalDate.of(year, month, 1);
         LocalDate monthEnd = monthStart.withDayOfMonth(monthStart.lengthOfMonth());
         BigDecimal totalSpent = transactionRepository.getTotalExpenseBetween(userId, monthStart, monthEnd);
         if (totalSpent == null) totalSpent = BigDecimal.ZERO;
 
-        // UC2 step 4: Budget still available before the extra spend
-        BigDecimal remainingBudget = totalBudget.subtract(totalSpent).max(BigDecimal.ZERO);
+        // UC2 step 3: Compute the true envelope + real remaining via the calculator. This
+        // replaces the pre-fix "totalBudget − totalSpent" shortcut. Fails gracefully if the user
+        // hasn't completed financial setup — a domain exception carries through so ChatWithAI can
+        // present a helpful message rather than crashing the turn.
+        Optional<User> userOpt = userRepository.findById(userId);
+        List<Project> active = activeProjects(userId);
 
-        // UC2 step 5: Remaining after the hypothetical extra spend (can go negative)
-        BigDecimal newSafeSpending = remainingBudget.subtract(extraAmount);
+        BigDecimal envelope;
+        BigDecimal realRemaining;
+        BigDecimal newSpendableRemainder;
+        try {
+            EnvelopeSnapshot snap = envelopeCalculator.compute(userOpt.orElse(null), active, totalSpent);
+            envelope = snap.envelope();
+            realRemaining = snap.realRemaining();
+            newSpendableRemainder = realRemaining.subtract(extraAmount);
+        } catch (DomainException e) {
+            // No income/setup yet — degrade to a purely descriptive result, no project impact
+            envelope = BigDecimal.ZERO;
+            realRemaining = BigDecimal.ZERO;
+            newSpendableRemainder = extraAmount.negate();
+        }
 
-        // UC2 step 6: Determine which projects (if any) would be delayed
-        String projectImpact = analyseProjectImpact(userId, newSafeSpending);
+        // UC2 step 4: Determine which projects (if any) would be delayed under the new remainder
+        String projectImpact = analyseProjectImpact(active, newSpendableRemainder);
 
         String scenario = String.format(
-                "Chi thêm %,.0f VND → ngân sách còn lại: %,.0f VND (đã chi: %,.0f / %,.0f VND tháng này)",
-                extraAmount, newSafeSpending, totalSpent, totalBudget);
+                "Chi thêm %,.0f VND → còn lại: %,.0f VND (envelope tháng %,.0f, đã chi %,.0f)",
+                extraAmount, newSpendableRemainder, envelope, totalSpent);
 
         return ChatResponse.SimulationResult.builder()
                 .scenario(scenario)
-                .newSafeSpending(newSafeSpending.longValue())
+                .newSafeSpending(newSpendableRemainder.longValue())
                 .projectImpact(projectImpact)
                 .build();
     }
@@ -106,49 +129,43 @@ public class SpendingSimulationService {
         ChatResponse.SimulationResult result = simulate(userId, month, year, messageLow);
         return String.format(
                 "Kết quả mô phỏng kịch bản:\n" +
-                "- %s\n" +
-                "- Ngân sách an toàn còn lại: %,.0f VND\n" +
-                "- Tác động đến dự án: %s\n",
+                        "- %s\n" +
+                        "- Ngân sách an toàn còn lại: %,.0f VND\n" +
+                        "- Tác động đến dự án: %s\n",
                 result.getScenario(),
                 (double) result.getNewSafeSpending(),
                 result.getProjectImpact());
     }
 
     /**
-     * Determines which saving projects are at risk given the remaining budget.
+     * Determines which saving projects are at risk given the remaining spendable amount.
      *
-     * Priority ordering: HIGH → MEDIUM → LOW.
+     * <p>Priority ordering: HIGH → MEDIUM → LOW.
      * Each project's required monthly contribution = remaining_target / months_left.
-     * Projects that cannot be funded within the remaining budget are marked delayed.
+     * Projects that cannot be funded within the remaining amount are marked delayed.
      */
-    private String analyseProjectImpact(UUID userId, BigDecimal newSafeSpending) {
-        List<Project> projects = projectRepository.findAllByUser(UserId.of(userId.toString()));
+    private String analyseProjectImpact(List<Project> activeProjects, BigDecimal newRemainder) {
         LocalDate today = LocalDate.now();
-
-        // Filter to only active projects that have future deadlines
-        List<Project> activeProjects = projects.stream()
-                .filter(p -> ChronoUnit.MONTHS.between(today, p.getDeadline()) > 0)
-                .sorted(Comparator.comparing((Project p) -> p.getPriority().ordinal()).reversed()) // HIGH first
-                .collect(Collectors.toList());
 
         if (activeProjects.isEmpty()) {
             return "Không có dự án đang hoạt động.";
         }
 
-        if (newSafeSpending.compareTo(BigDecimal.ZERO) < 0) {
+        if (newRemainder.compareTo(BigDecimal.ZERO) < 0) {
             // Completely over budget — all projects will be starved of contributions
             return String.format(
                     "Ngân sách bị vượt mức (âm %,.0f VND). TẤT CẢ %d dự án có nguy cơ bị trễ tiến độ tháng này.",
-                    newSafeSpending.abs(), activeProjects.size());
+                    newRemainder.abs(), activeProjects.size());
         }
 
         // Greedy allocation: fund HIGH priority first, delay LOW priority when budget runs out
-        BigDecimal available = newSafeSpending;
+        BigDecimal available = newRemainder;
         List<String> funded = new ArrayList<>();
         List<String> delayed = new ArrayList<>();
 
         for (Project p : activeProjects) {
             long monthsLeft = ChronoUnit.MONTHS.between(today, p.getDeadline());
+            if (monthsLeft <= 0) continue;
             BigDecimal monthlyNeeded = p.remaining().amount()
                     .divide(BigDecimal.valueOf(monthsLeft), 0, RoundingMode.CEILING);
 
@@ -156,9 +173,9 @@ public class SpendingSimulationService {
                 available = available.subtract(monthlyNeeded);
                 funded.add(p.getName());
             } else {
-                // Calculate how many months this project gets delayed
-                // Delay = 1 month if we can fund nothing this month, more if deficit is large
-                delayed.add(p.getName() + " (thiếu " + String.format("%,.0f VND", monthlyNeeded.subtract(available.max(BigDecimal.ZERO))) + ")");
+                delayed.add(p.getName() + " (thiếu "
+                        + String.format("%,.0f VND", monthlyNeeded.subtract(available.max(BigDecimal.ZERO)))
+                        + ")");
             }
         }
 
@@ -173,6 +190,21 @@ public class SpendingSimulationService {
         }
         sb.append("Dự án có nguy cơ bị trễ tiến độ: ").append(String.join(", ", delayed)).append(".");
         return sb.toString();
+    }
+
+    /**
+     * Active projects with future deadlines, highest priority first (HIGH → MEDIUM → LOW).
+     * Same filter shape as {@code ProjectHypothesisService#activeProjects}, used both for the
+     * envelope calculation and for the project-impact allocation.
+     */
+    private List<Project> activeProjects(UUID userId) {
+        LocalDate today = LocalDate.now();
+        return projectRepository.findAllByUser(UserId.of(userId.toString())).stream()
+                .filter(p -> p.getStatus() == ProjectStatus.ACTIVE
+                        && p.getDeadline() != null
+                        && ChronoUnit.MONTHS.between(today, p.getDeadline()) > 0)
+                .sorted(Comparator.comparing((Project p) -> p.getPriority().ordinal()).reversed())
+                .collect(Collectors.toList());
     }
 
     /**
