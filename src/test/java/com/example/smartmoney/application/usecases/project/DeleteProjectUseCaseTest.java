@@ -1,5 +1,6 @@
 package com.example.smartmoney.application.usecases.project;
 
+import com.example.smartmoney.application.services.ProjectRefundService;
 import com.example.smartmoney.domain.exceptions.ProjectException;
 import com.example.smartmoney.domain.models.project.Project;
 import com.example.smartmoney.domain.models.project.enums.ProjectPriority;
@@ -25,6 +26,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -40,6 +42,7 @@ class DeleteProjectUseCaseTest {
     @Mock private ProjectTrackingRepository projectTrackingRepository;
     @Mock private ProjectHistoryRepository projectHistoryRepository;
     @Mock private SafeSpendingService safeSpendingService;
+    @Mock private ProjectRefundService projectRefundService;
 
     private DeleteProjectUseCase useCase;
 
@@ -49,7 +52,8 @@ class DeleteProjectUseCaseTest {
     @BeforeEach
     void setUp() {
         useCase = new DeleteProjectUseCase(
-                projectRepository, projectTrackingRepository, projectHistoryRepository, safeSpendingService);
+                projectRepository, projectTrackingRepository, projectHistoryRepository,
+                safeSpendingService, projectRefundService);
     }
 
     private Project project(UUID groupProjectId, ProjectStatus status) {
@@ -119,5 +123,69 @@ class DeleteProjectUseCaseTest {
         useCase.execute(ownerUuid.toString(), pid.toString());
 
         verify(projectRepository).deleteById(pid);
+    }
+
+    @Test
+    @DisplayName("standalone deletion refunds the project's contributions")
+    void standalone_refunds() {
+        Project p = project(null, ProjectStatus.ACTIVE);
+        when(projectRepository.findById(pid)).thenReturn(Optional.of(p));
+
+        useCase.execute(ownerUuid.toString(), pid.toString());
+
+        verify(projectRefundService).refundOnCancellation(p);
+    }
+
+    @Test
+    @DisplayName("sub-personal abandonment refunds the project's contributions")
+    void subPersonal_refunds() {
+        Project p = project(UUID.randomUUID(), ProjectStatus.ACTIVE);
+        when(projectRepository.findById(pid)).thenReturn(Optional.of(p));
+
+        useCase.execute(ownerUuid.toString(), pid.toString());
+
+        verify(projectRefundService).refundOnCancellation(p);
+    }
+
+    @Test
+    @DisplayName("refund runs before abandon(), so the refund rule still sees the real status")
+    void refundsBeforeStatusIsOverwritten() {
+        // abandon() rewrites status to ABANDONED. If the refund ran afterwards it could no longer
+        // tell a COMPLETED project (not refundable) from a cancelled one — so it must run first.
+        Project p = project(UUID.randomUUID(), ProjectStatus.COMPLETED);
+        when(projectRepository.findById(pid)).thenReturn(Optional.of(p));
+
+        AtomicReference<ProjectStatus> statusAtRefund = new AtomicReference<>();
+        when(projectRefundService.refundOnCancellation(p)).thenAnswer(inv -> {
+            statusAtRefund.set(inv.getArgument(0, Project.class).getStatus());
+            return BigDecimal.ZERO;
+        });
+
+        useCase.execute(ownerUuid.toString(), pid.toString());
+
+        assertThat(statusAtRefund.get()).isEqualTo(ProjectStatus.COMPLETED);
+    }
+
+    @Test
+    @DisplayName("an already-abandoned sub-personal project is rejected before any refund")
+    void subPersonalAlreadyAbandoned_doesNotRefund() {
+        when(projectRepository.findById(pid)).thenReturn(
+                Optional.of(project(UUID.randomUUID(), ProjectStatus.ABANDONED)));
+
+        assertThatThrownBy(() -> useCase.execute(ownerUuid.toString(), pid.toString()))
+                .isInstanceOf(ProjectException.class);
+
+        verify(projectRefundService, never()).refundOnCancellation(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    @DisplayName("non-owner deletion refunds nothing")
+    void nonOwner_doesNotRefund() {
+        when(projectRepository.findById(pid)).thenReturn(Optional.of(project(null, ProjectStatus.ACTIVE)));
+
+        assertThatThrownBy(() -> useCase.execute(UUID.randomUUID().toString(), pid.toString()))
+                .isInstanceOf(ProjectException.class);
+
+        verify(projectRefundService, never()).refundOnCancellation(org.mockito.ArgumentMatchers.any());
     }
 }

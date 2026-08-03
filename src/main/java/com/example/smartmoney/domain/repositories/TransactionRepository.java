@@ -15,6 +15,16 @@ public interface TransactionRepository {
     Transaction save(Transaction transaction);
     Optional<Transaction> findById(UUID id);
     List<Transaction> findByUserId(UUID userId);
+
+    /**
+     * Every ledger row carrying this {@code projectId} — the PROJECT_CONTRIBUTION expenses written by
+     * press-to-contribute and any PROJECT_REFUND income written back on cancellation. Used by
+     * {@code ProjectRefundService} to net the two, so a refund is computed from what actually hit the
+     * ledger rather than from {@code sum(contributions)} (which also includes settlement auto-savings
+     * that never wrote a row).
+     */
+    List<Transaction> findByProjectId(UUID projectId);
+
     List<Transaction> findByUserIdSorted(UUID userId, String sortBy, String sortOrder, int page, int size);
     List<Transaction> findByUserIdWithFilters(
         UUID userId,

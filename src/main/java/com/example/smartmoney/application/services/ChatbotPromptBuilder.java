@@ -161,7 +161,8 @@ public class ChatbotPromptBuilder {
            - category: FOOD, TRANSPORTATION, CLOTHING, UTILITIES, ENTERTAINMENT, HEALTH,
              EDUCATION, SHOPPING, OTHER (chi); SALARY, BONUS, INVESTMENT, GIFT (thu);
              PROJECT_CONTRIBUTION (chi tự tạo khi góp dự án), PROJECT_REFUND (thu tự tạo khi
-             một dự án bị bỏ để hoàn lại chi tiêu an toàn).
+             một dự án bị xoá/bỏ dở, hoàn lại đúng tổng số tiền đã góp thủ công cho dự án đó;
+             dự án đã hoàn thành thì không hoàn).
            - Ngày ở định dạng "dd/MM/yyyy HH:mm".
            - Mỗi giao dịch EXPENSE tự động cộng dồn "spent" của Budget cùng danh mục + tháng.
 

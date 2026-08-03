@@ -1,5 +1,6 @@
 package com.example.smartmoney.application.usecases.group;
 
+import com.example.smartmoney.application.services.ProjectRefundService;
 import com.example.smartmoney.domain.exceptions.ProjectErrorCode;
 import com.example.smartmoney.domain.exceptions.ProjectException;
 import com.example.smartmoney.domain.models.group.Group;
@@ -35,6 +36,7 @@ public class DissolveGroupProjectUseCase {
     private final ProjectRepository projectRepository;
     private final GroupProjectSponsorshipRequestRepository sponsorshipRequestRepository;
     private final SafeSpendingService safeSpendingService;
+    private final ProjectRefundService projectRefundService;
 
     @Transactional
     public void execute(String actorId, String groupProjectId) {
@@ -58,12 +60,13 @@ public class DissolveGroupProjectUseCase {
         List<Project> subProjects = projectRepository.findAllByGroupProjectId(gp.getId().value());
 
         // Delete only ACTIVE/FROZEN sub-projects; COMPLETED/EXPIRED/ABANDONED are preserved
-        // so members retain their history. The all-auto model records no contributions, so
-        // there is nothing to refund — deletion releases the obligation. See
-        // docs/project-tracking-all-auto-plan.md §3.4 / §7.
+        // so members retain their history. Each deleted sub-project refunds its owner's
+        // contributions first: dissolving the group cancels goals members were actively
+        // funding, so their money must return to the ledger before the project disappears.
         Set<UserId> ownersToRecalculate = new LinkedHashSet<>();
         for (Project sub : subProjects) {
             if (sub.getStatus() == ProjectStatus.ACTIVE || sub.getStatus() == ProjectStatus.FROZEN) {
+                projectRefundService.refundOnCancellation(sub);
                 projectRepository.deleteById(sub.getId());
                 ownersToRecalculate.add(sub.getOwnerId());
             }

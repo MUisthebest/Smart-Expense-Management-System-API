@@ -48,6 +48,13 @@ public class TransactionRepositoryImpl implements TransactionRepository {
     }
 
     @Override
+    public List<Transaction> findByProjectId(UUID projectId) {
+        return jpaTransactionRepository.findByProjectId(projectId).stream()
+                .map(transactionMapper::toDomain)
+                .collect(Collectors.toList());
+    }
+
+    @Override
     public List<Transaction> findByUserIdSorted(UUID userId, String sortBy, String sortOrder, int page, int size) {
         // Get all transactions for user
         List<Transaction> allTransactions = findByUserId(userId);

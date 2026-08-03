@@ -1,5 +1,6 @@
 package com.example.smartmoney.application.usecases.project;
 
+import com.example.smartmoney.application.services.ProjectRefundService;
 import com.example.smartmoney.domain.exceptions.ProjectErrorCode;
 import com.example.smartmoney.domain.exceptions.ProjectException;
 import com.example.smartmoney.domain.models.project.Project;
@@ -15,6 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.UUID;
 
 /**
@@ -29,9 +31,11 @@ import java.util.UUID;
  *       (the member shows as a clean drop-out rather than a missing row).</li>
  * </ul>
  *
- * <p>Either path releases the owner's obligation by recalculating safe spending.
- * The all-auto model holds no real money, so there is nothing to refund. See
- * docs/project-tracking-all-auto-plan.md §3.4 / §7.
+ * <p>Either path releases the owner's obligation by recalculating safe spending, and
+ * either path refunds the project's contribution expenses via {@link ProjectRefundService}
+ * — under press-to-contribute the ledger holds real money against the project, so
+ * cancelling it must give that money back. (The pre-pivot all-auto model recorded no
+ * contributions and so had nothing to refund; that is no longer true.)
  */
 @Service
 @Slf4j
@@ -42,6 +46,7 @@ public class DeleteProjectUseCase {
     private final ProjectTrackingRepository projectTrackingRepository;
     private final ProjectHistoryRepository projectHistoryRepository;
     private final SafeSpendingService safeSpendingService;
+    private final ProjectRefundService projectRefundService;
 
     @Transactional
     public void execute(String actorId, String projectId) {
@@ -62,25 +67,37 @@ public class DeleteProjectUseCase {
             );
         }
 
-        if (project.getGroupProjectId() == null) {
+        boolean subPersonal = project.getGroupProjectId() != null;
+
+        // Hoisted out of the sub-personal branch so it runs before the refund below —
+        // an already-abandoned project was refunded when it was abandoned, and must not
+        // reach the ledger again.
+        if (subPersonal && project.getStatus() == ProjectStatus.ABANDONED) {
+            throw new ProjectException(
+                    "Project already abandoned",
+                    ProjectErrorCode.PROJECT_ABANDONED
+            );
+        }
+
+        // Give the contributed money back before anything mutates the project. Order matters:
+        // abandon() overwrites the status that the "COMPLETED is not refundable" rule reads, so
+        // refunding afterwards would wrongly reverse a completed project's spending. Deleting the
+        // project does not touch its ledger rows, so the standalone branch is safe either way.
+        BigDecimal refunded = projectRefundService.refundOnCancellation(project);
+
+        if (!subPersonal) {
             // Standalone personal project — hard delete. Remove dependent rows first
             // (history, tracking), then the project (which also clears contributions).
             projectHistoryRepository.deleteByProjectId(pid);
             projectTrackingRepository.deleteByProjectId(pid);
             projectRepository.deleteById(pid);
-            log.info("Hard-deleted standalone personal project {}", projectId);
+            log.info("Hard-deleted standalone personal project {} (refunded {})", projectId, refunded);
         } else {
             // Sub-personal project — abandon instead, to keep the group consistent.
-            if (project.getStatus() == ProjectStatus.ABANDONED) {
-                throw new ProjectException(
-                        "Project already abandoned",
-                        ProjectErrorCode.PROJECT_ABANDONED
-                );
-            }
             project.abandon(actor);
             projectRepository.save(project);
-            log.info("Abandoned sub-personal project {} (group {})",
-                    projectId, project.getGroupProjectId());
+            log.info("Abandoned sub-personal project {} (group {}, refunded {})",
+                    projectId, project.getGroupProjectId(), refunded);
         }
 
         // Release the obligation: recompute the owner's safe spending now that this
