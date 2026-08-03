@@ -82,11 +82,10 @@ public class ComputeBudgetAllocationUseCase {
                 .map(Project::calculateMonthlyCommitment)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         BigDecimal safeSpending = user.calculateSafeSpending(commitment);
-        BigDecimal savingCapacity = user.getSavingCapacity();
-        // Projects are press-to-contribute savings, so they count toward the savings ambition:
-        // only the shortfall between the trait target and what projects already reserve is held back.
-        BigDecimal targetSavings = savingCapacity.subtract(commitment).max(BigDecimal.ZERO);
-        BigDecimal envelope = safeSpending.subtract(targetSavings).max(BigDecimal.ZERO);
+        // Spending budget equals safeSpending (income - active project commitment).
+        // Target savings equals active project commitment.
+        BigDecimal targetSavings = commitment;
+        BigDecimal envelope = safeSpending;
 
         // ---- Load trailing history and derive per-category signals via the analyzer ----
         LocalDateTime windowStart = period.minusMonths(SpendingInsightAnalyzer.TRAILING_WINDOW)

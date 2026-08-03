@@ -49,6 +49,23 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    @DisplayName("string value for integer field (e.g. \"year\": \"a\") returns 400, not 500")
+    void stringForIntegerFieldReturns400() {
+        InvalidFormatException cause = InvalidFormatException.from(
+                mock(JsonParser.class), "Cannot deserialize value of type `java.lang.Integer` from String \"a\"", "a", Integer.class);
+        cause.prependPath(new JsonMappingException.Reference(null, "year"));
+        HttpMessageNotReadableException ex =
+                new HttpMessageNotReadableException("JSON parse error", cause, null);
+
+        ResponseEntity<CheckResponse<ErrorDetails>> response = handler.handleMessageNotReadable(ex, request);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody().isSuccess()).isFalse();
+        assertThat(response.getBody().getErrorCode()).isEqualTo("INVALID_REQUEST_BODY");
+        assertThat(response.getBody().getMessage()).contains("year").contains("a").contains("Integer");
+    }
+
+    @Test
     @DisplayName("unknown enum literal (invalid category) returns 400, not 500")
     void invalidEnumValueReturns400() {
         InvalidFormatException cause = InvalidFormatException.from(

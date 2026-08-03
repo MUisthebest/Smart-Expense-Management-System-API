@@ -77,7 +77,7 @@ class ComputeBudgetAllocationUseCaseTest {
     }
 
     @Test
-    @DisplayName("established user: envelope = income − targetSavings; FOOD funded from its median + buffer")
+    @DisplayName("established user: envelope = income when no active project; FOOD funded from its median + buffer")
     void computesEnvelopeAndAllocation() {
         // 3 prior months of 5M FOOD spend (distinct descriptions → not detected as recurring).
         List<Transaction> history = new ArrayList<>();
@@ -95,17 +95,17 @@ class ComputeBudgetAllocationUseCaseTest {
         assertEquals(6, plan.getMonth());
         assertEquals(2026, plan.getYear());
         assertEquals(0, new BigDecimal("20000000").compareTo(plan.getSafeSpending())); // no project commitment
-        assertEquals(0, new BigDecimal("4000000").compareTo(plan.getTargetSavings())); // 20M × 0.20
-        assertEquals(0, new BigDecimal("16000000").compareTo(plan.getEnvelope()));      // 20M − 4M
+        assertEquals(0, BigDecimal.ZERO.compareTo(plan.getTargetSavings()));            // no project commitment → 0
+        assertEquals(0, new BigDecimal("20000000").compareTo(plan.getEnvelope()));      // 20M full income
         assertFalse(plan.isColdStart());
         assertFalse(plan.isOverCommitted());
         // FOOD median 5M + GENTLE 10% buffer = 5.5M; the rest is surplus.
         assertEquals(0, new BigDecimal("5500000").compareTo(amountOf(plan, Category.FOOD)));
-        assertEquals(0, new BigDecimal("10500000").compareTo(plan.getSurplusToSavings()));
+        assertEquals(0, new BigDecimal("14500000").compareTo(plan.getSurplusToSavings()));
     }
 
     @Test
-    @DisplayName("no transaction history → cold-start template plan")
+    @DisplayName("no transaction history → cold-start template plan uses full income envelope when no projects")
     void coldStartWhenNoHistory() {
         when(userRepository.findById(userId)).thenReturn(Optional.of(fullySetUpUser()));
         when(projectRepository.findAllByUser(any(), any())).thenReturn(List.<Project>of());
@@ -115,78 +115,41 @@ class ComputeBudgetAllocationUseCaseTest {
         BudgetAllocationPlanResponse plan = useCase.execute(userId, AS_OF);
 
         assertTrue(plan.isColdStart());
-        assertEquals(0, new BigDecimal("16000000").compareTo(plan.getEnvelope()));
+        assertEquals(0, new BigDecimal("20000000").compareTo(plan.getEnvelope()));
     }
 
     @Test
-    @DisplayName("TRACK_ONLY without projects: floored top-up drawn from savings, surplus untouched")
-    void trackOnlyWithoutProjectsFundsFloorAllowanceFromSavings() {
-        // TRACK_ONLY → savingCapacity 0.10 = 2M → envelope 18M. FOOD median 5M, but 7M already
-        // spent in June floors it; the GENTLE 10% allowance (700k) must come from savings.
+    @DisplayName("10M income with 0 projects uses 10M envelope; with 1M project uses 9M envelope")
+    void allocationEnvelopeScalesWithProjectCommitments() {
         User user = User.builder()
                 .id(userId)
-                .income(new BigDecimal("20000000"))
+                .income(new BigDecimal("10000000"))
                 .savingPace(Saving_Pace.BALANCED)
-                .focusMode(Focus_Mode.TRACK_ONLY)
+                .focusMode(Focus_Mode.SAVE_MORE)
                 .interventionLevel(Intervention_Level.GENTLE)
                 .autoInvestSurplus(true)
                 .build();
-        List<Transaction> history = new ArrayList<>();
-        history.add(foodExpense(3, new BigDecimal("5000000"), "groceries-mar"));
-        history.add(foodExpense(4, new BigDecimal("5000000"), "groceries-apr"));
-        history.add(foodExpense(5, new BigDecimal("5000000"), "groceries-may"));
-        history.add(foodExpense(6, new BigDecimal("7000000"), "groceries-jun"));
 
+        // 1. Without active projects
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(projectRepository.findAllByUser(any(), any())).thenReturn(List.<Project>of());
         when(transactionRepository.findByUserIdWithFilters(any(), any(), any(), any(), any(), any(), any()))
-                .thenReturn(history);
+                .thenReturn(List.<Transaction>of());
 
-        BudgetAllocationPlanResponse plan = useCase.execute(userId, AS_OF);
+        BudgetAllocationPlanResponse planNoProjects = useCase.execute(userId, AS_OF);
+        assertEquals(0, new BigDecimal("10000000").compareTo(planNoProjects.getSafeSpending()));
+        assertEquals(0, BigDecimal.ZERO.compareTo(planNoProjects.getTargetSavings()));
+        assertEquals(0, new BigDecimal("10000000").compareTo(planNoProjects.getEnvelope()));
 
-        assertEquals(0, new BigDecimal("7700000").compareTo(amountOf(plan, Category.FOOD)));
-        // Surplus is exactly envelope − spend (18M − 7M): the allowance never dips into it.
-        assertEquals(0, new BigDecimal("11000000").compareTo(plan.getSurplusToSavings()));
-        // The 700k draw is taken from the savings ambition and added to the reported envelope.
-        assertEquals(0, new BigDecimal("1300000").compareTo(plan.getTargetSavings()));
-        assertEquals(0, new BigDecimal("18700000").compareTo(plan.getEnvelope()));
-    }
+        // 2. With 1M active project commitment
+        Project mockProject = org.mockito.Mockito.mock(Project.class);
+        when(mockProject.calculateMonthlyCommitment()).thenReturn(new BigDecimal("1000000"));
+        when(projectRepository.findAllByUser(any(), any())).thenReturn(List.of(mockProject));
 
-    @Test
-    @DisplayName("user-reported: 5M income TRACK_ONLY, food floored at 1.4M → savings 500k drops to 360k")
-    void reportedScenarioIncomeFiveMillionTrackOnly() {
-        // income 5M, TRACK_ONLY → capacity 10% = 500k → envelope 4.5M. Food median 1.2M →
-        // computed 1.32M, but 1.4M already spent in June floors it. GENTLE allowance
-        // = 10% × max(1.4M, 1.2M) = 140k, funded from savings (no projects).
-        User user = User.builder()
-                .id(userId)
-                .income(new BigDecimal("5000000"))
-                .savingPace(Saving_Pace.BALANCED)
-                .focusMode(Focus_Mode.TRACK_ONLY)
-                .interventionLevel(Intervention_Level.GENTLE)
-                .autoInvestSurplus(true)
-                .build();
-        List<Transaction> history = new ArrayList<>();
-        history.add(foodExpense(3, new BigDecimal("1200000"), "an-uong-mar"));
-        history.add(foodExpense(4, new BigDecimal("1200000"), "an-uong-apr"));
-        history.add(foodExpense(5, new BigDecimal("1200000"), "an-uong-may"));
-        history.add(foodExpense(6, new BigDecimal("1400000"), "an-uong-jun"));
-
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-        when(projectRepository.findAllByUser(any(), any())).thenReturn(List.<Project>of());
-        when(transactionRepository.findByUserIdWithFilters(any(), any(), any(), any(), any(), any(), any()))
-                .thenReturn(history);
-
-        BudgetAllocationPlanResponse plan = useCase.execute(userId, AS_OF);
-
-        assertEquals(0, new BigDecimal("5000000").compareTo(plan.getSafeSpending())); // no commitment
-        assertEquals(0, new BigDecimal("1540000").compareTo(amountOf(plan, Category.FOOD)));
-        assertEquals("FLOORED", plan.getAllocations().stream()
-                .filter(a -> a.getCategory() == Category.FOOD).findFirst().orElseThrow().getBasis());
-        assertEquals(0, new BigDecimal("360000").compareTo(plan.getTargetSavings()));
-        assertEquals(0, new BigDecimal("4640000").compareTo(plan.getEnvelope()));
-        // Surplus untouched by the top-up: 4.5M − 1.4M = 3.1M.
-        assertEquals(0, new BigDecimal("3100000").compareTo(plan.getSurplusToSavings()));
+        BudgetAllocationPlanResponse planWithProject = useCase.execute(userId, AS_OF);
+        assertEquals(0, new BigDecimal("9000000").compareTo(planWithProject.getSafeSpending()));
+        assertEquals(0, new BigDecimal("1000000").compareTo(planWithProject.getTargetSavings()));
+        assertEquals(0, new BigDecimal("9000000").compareTo(planWithProject.getEnvelope()));
     }
 
     @Test
