@@ -19,6 +19,8 @@ public interface JpaTransactionRepository extends JpaRepository<TransactionEntit
 
     List<TransactionEntity> findByUserId(UUID userId);
 
+    List<TransactionEntity> findByProjectId(UUID projectId);
+
     // Using nativeQuery with CAST function (Spring Data JPA compatible)
     @Query(value = "SELECT * FROM transactions t WHERE t.user_id = CAST(:userId AS uuid) " +
             "AND (CAST(:minAmount AS numeric) IS NULL OR t.amount >= CAST(:minAmount AS numeric)) " +
