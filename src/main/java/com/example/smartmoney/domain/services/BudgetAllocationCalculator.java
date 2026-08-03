@@ -47,6 +47,9 @@ public class BudgetAllocationCalculator {
         COLD_START_TEMPLATE = Collections.unmodifiableMap(template);
     }
 
+    /** Minimum months of real history required before switching from template to history-based allocation. */
+    public static final int MIN_HISTORY_MONTHS = 3;
+
     /** Discretionary "wants" trimmed for save-oriented users during cold start. */
     private static final Set<Category> WANTS =
             Set.of(Category.ENTERTAINMENT, Category.SHOPPING, Category.CLOTHING);
@@ -71,8 +74,8 @@ public class BudgetAllocationCalculator {
             return overCommittedPlan(in);
         }
 
-        // Cold start when there is no month of history OR the history carries no spend signal at all.
-        boolean coldStart = in.monthsOfHistory() <= 0 || totalMedian(in).signum() == 0;
+        // Cold start when there are fewer than MIN_HISTORY_MONTHS of history OR the history carries no spend signal at all.
+        boolean coldStart = in.monthsOfHistory() < MIN_HISTORY_MONTHS || totalMedian(in).signum() == 0;
 
         Map<Category, BigDecimal> raw = coldStart
                 ? allocateColdStart(envelope, in)
