@@ -299,6 +299,18 @@ class BudgetAllocationCalculatorTest {
     }
 
     @Test
+    @DisplayName("fewer than 3 months of history → still treated as cold start")
+    void historyLessThan3MonthsTreatedAsColdStart() {
+        BudgetAllocationPlan plan1 = calculator.allocate(
+                inputs("10000000", map(Category.FOOD, "5000000"), map(), map(), 1));
+        BudgetAllocationPlan plan2 = calculator.allocate(
+                inputs("10000000", map(Category.FOOD, "5000000"), map(), map(), 2));
+
+        assertTrue(plan1.coldStart());
+        assertTrue(plan2.coldStart());
+    }
+
+    @Test
     @DisplayName("history months present but all medians zero → still treated as cold start")
     void zeroMedianFallsBackToColdStart() {
         BudgetAllocationPlan plan = calculator.allocate(
