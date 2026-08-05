@@ -50,8 +50,13 @@ public class BudgetAllocationCalculator {
     /** Minimum months of real history required before switching from template to history-based allocation. */
     public static final int MIN_HISTORY_MONTHS = 3;
 
-    /** Discretionary "wants" trimmed for save-oriented users during cold start. */
-    private static final Set<Category> WANTS =
+    /**
+     * Discretionary "wants" trimmed for save-oriented users during cold start. Public because the
+     * suggestion producer draws on the same classification when deciding which budget to take from
+     * to cover another — the two must agree on what counts as discretionary, or the app would trim a
+     * category when planning and then protect it when reallocating.
+     */
+    public static final Set<Category> WANTS =
             Set.of(Category.ENTERTAINMENT, Category.SHOPPING, Category.CLOTHING);
     /** Multiplier applied to WANTS weights for SAVE_MORE / REDUCE_SPENDING users at cold start. */
     private static final double WANTS_TILT = 0.70;
@@ -60,7 +65,7 @@ public class BudgetAllocationCalculator {
      * Every proposed limit is snapped to a multiple of this step (VND) so proportional scaling
      * never surfaces amounts like 2,923,076.92; the shaved remainder rolls into surplusToSavings.
      */
-    private static final BigDecimal ROUNDING_STEP = new BigDecimal("10000");
+    private static final BigDecimal ROUNDING_STEP = MoneyRounding.DEFAULT_STEP;
 
     /**
      * Build a per-category plan for the given inputs. Never returns {@code null}; an envelope of

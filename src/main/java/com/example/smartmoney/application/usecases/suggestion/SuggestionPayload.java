@@ -42,7 +42,11 @@ public class SuggestionPayload {
      * a recompute recipe. The shape is polymorphic across {@code SuggestionType}; each accept
      * branch validates only the fields it needs:
      * <ul>
-     *   <li>RAISE_BUDGET — {@code budgetId} + {@code resolvedValue} (new limit)</li>
+     *   <li>RAISE_BUDGET / REALLOCATE_BUDGET — {@code budgetAdjustments} (the whole re-planned month:
+     *       the recipient's new limit plus any donor cuts funding it) + {@code budgetId} and
+     *       {@code category} naming the recipient; {@code resolvedValue} is the headline number — the
+     *       recipient's new limit for a RAISE, the amount moved for a zero-sum REALLOCATE. Cards raised
+     *       before the snapshot existed carry only {@code budgetId} + {@code resolvedValue}</li>
      *   <li>CREATE_BUDGET — {@code category} + {@code month}/{@code year} + {@code resolvedValue} (limit)</li>
      *   <li>CONTRIBUTE_TO_PROJECT — {@code projectId} + {@code resolvedValue} (contribution amount)</li>
      *   <li>REBALANCE_BUDGETS — {@code budgetAdjustments} (per-budget new limits) + {@code month}/

@@ -27,6 +27,8 @@ import com.example.smartmoney.domain.repositories.SuggestionRepository;
 import com.example.smartmoney.domain.repositories.SuggestionTopicStatRepository;
 import com.example.smartmoney.domain.repositories.TransactionRepository;
 import com.example.smartmoney.domain.repositories.UserRepository;
+import com.example.smartmoney.domain.services.BudgetAllocationCalculator;
+import com.example.smartmoney.domain.services.MoneyRounding;
 import com.example.smartmoney.domain.services.SpendingInsightAnalyzer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.Builder;
@@ -56,8 +58,11 @@ import java.util.UUID;
  * analyzer and — gated by the user's {@code interventionLevel} trait — may persist a
  * {@link Suggestion} and push a deep-linked notification:
  * <ul>
- *   <li>EXPENSE → {@code RAISE_BUDGET} (BUDGET_PACE overshoot, category has a budget) or
- *       {@code CREATE_BUDGET} (OVERSPEND_ANOMALY, category has no budget) — P2-B.</li>
+ *   <li>EXPENSE → {@code REALLOCATE_BUDGET} (BUDGET_PACE overshoot, category has a budget — see
+ *       {@link #fundedRaiseCandidate}, which re-plans the month's whole budget set in one zero-sum
+ *       pass) or {@code CREATE_BUDGET} (OVERSPEND_ANOMALY, category has no budget) — P2-B.
+ *       {@code RAISE_BUDGET} is no longer produced: every ask now funds itself by cutting elsewhere,
+ *       so the committed total never grows. The type survives only for cards raised before that.</li>
  *   <li>INCOME → {@code CONTRIBUTE_TO_PROJECT} (SAVINGS_CAPACITY headroom toward an active
  *       saving project, amount scaled by {@code savingPace}) — P2-B/D/E.</li>
  * </ul>
@@ -80,6 +85,12 @@ public class SuggestionProducer {
     static final int SUPPRESS_AFTER_DISMISSALS = 2;
     /** Headroom over the median actual when proposing a reduced budget limit (REDUCE_BUDGET). */
     private static final BigDecimal REDUCE_HEADROOM = new BigDecimal("1.15");
+    /** Variance buffer over the trailing norm when proposing a raised limit — REDUCE_HEADROOM's mirror. */
+    private static final BigDecimal RAISE_BUFFER = new BigDecimal("1.15");
+    /** Ceiling on a single raise, as a multiple of the current limit. */
+    private static final BigDecimal MAX_RAISE_GROWTH = new BigDecimal("1.5");
+    /** Most of its own limit a single budget may give up to fund another in one ask. */
+    private static final BigDecimal MAX_DONOR_CUT = new BigDecimal("0.25");
     /** Floor for a rebalanced budget limit — never propose scaling a limit below one cent. */
     private static final BigDecimal MIN_LIMIT = new BigDecimal("0.01");
     /** Smallest overshoot worth a REALLOCATE_BUDGET ask — don't nag to move a trivial amount. */
@@ -94,6 +105,7 @@ public class SuggestionProducer {
     private static final BigDecimal MONTHLY_OBLIGATION_RATE = new BigDecimal("0.20");
 
     private final SpendingInsightAnalyzer analyzer;
+    private final MoneyRounding rounding;
     private final TransactionRepository transactionRepository;
     private final BudgetRepository budgetRepository;
     private final UserRepository userRepository;
@@ -138,7 +150,7 @@ public class SuggestionProducer {
 
     /**
      * Evaluate the affected category after an expense create and maybe raise a budget-related
-     * suggestion (RAISE_BUDGET if the category has a budget, else CREATE_BUDGET). Never throws.
+     * suggestion (REALLOCATE_BUDGET if the category has a budget, else CREATE_BUDGET). Never throws.
      */
     public void maybeProduce(UUID userId, Category affectedCategory, LocalDate asOf) {
         try {
@@ -160,12 +172,11 @@ public class SuggestionProducer {
 
             Candidate candidate;
             if (budget != null && budget.getId() != null) {
-                // Prefer a zero-sum reallocation from underspent budgets (no new money); else raise the
-                // limit; else, on a healthy budget, a persistent underspend can suggest trimming it.
-                candidate = reallocateBudgetCandidate(insights, affectedCategory, budget, gate, budgets, period);
-                if (candidate == null) {
-                    candidate = raiseBudgetCandidate(insights, affectedCategory, budget, gate, history, period, user.getIncome());
-                }
+                // One pass that re-plans the whole month: fund the overshoot from uncommitted income
+                // and the other budgets' slack, and only then raise the committed total. Failing that,
+                // a persistent underspend on a healthy budget can suggest trimming it.
+                candidate = fundedRaiseCandidate(insights, affectedCategory, budget, gate,
+                        budgets, history, period, asOf);
                 if (candidate == null) {
                     candidate = reduceBudgetCandidate(insights, affectedCategory, budget, period);
                 }
@@ -426,118 +437,99 @@ public class SuggestionProducer {
 
     // ---- candidate builders --------------------------------------------------------------
 
-    /** RAISE_BUDGET: BUDGET_PACE overshoot on a category that already has a budget. */
-    private Candidate raiseBudgetCandidate(List<Insight> insights, Category category, Budget budget,
-                                           Severity gate, List<Transaction> history, YearMonth period,
-                                           BigDecimal income) {
-        Insight insight = bestQualifying(insights, InsightType.BUDGET_PACE, category, gate);
-        if (insight == null) {
-            return null;
-        }
-        BigDecimal resolvedValue = capByIncome(
-                analyzer.trailing3MonthMedian(history, category, period)
-                        .max(toBigDecimal(insight.getMetrics().get("projectedEndOfMonth"))),
-                income);
-        // After capping, a "raise" that isn't above the current limit is meaningless — don't ask.
-        if (resolvedValue.compareTo(budget.getAmountLimit()) <= 0) {
-            return null;
-        }
-
-        SuggestionPayload.ProposedAction action = SuggestionPayload.ProposedAction.builder()
-                .category(category)
-                .budgetId(budget.getId())
-                .resolvedValue(resolvedValue)
-                .build();
-
-        return candidate(SuggestionType.RAISE_BUDGET, insight, action,
-                "RAISE_BUDGET:" + category.name() + ":" + period,
-                "notification.suggestion.raise_budget|" + category.name());
-    }
-
     /**
-     * REALLOCATE_BUDGET: a budgeted category on pace to overshoot (BUDGET_PACE), funded by pulling
-     * headroom from other budgets the same month that are confirmed underspent (BUDGET_UNDERSPEND).
-     * Zero-sum — the committed total is unchanged, so it never trips BUDGET_OVER_INCOME. Returns
-     * null (so the caller falls back to RAISE_BUDGET) when the underspent donors can't <em>fully</em>
-     * fund the gap; a strict full-cover keeps the card honest.
+     * Plans a {@code REALLOCATE_BUDGET} ask: a budgeted category is on pace to overshoot
+     * (BUDGET_PACE), and the month's budgets are re-planned in one pass so it has room.
+     *
+     * <p><b>The plan is strictly zero-sum.</b> Every unit the category gains is given up by another
+     * budget, so the month's committed total is identical before and after. Uncommitted income is not
+     * a funding source, even when there is plenty of it: it is the {@code disposable} figure behind
+     * SAVINGS_CAPACITY and project contributions, so spending it to widen a budget quietly converts
+     * saving into spending. It also means the user can accept the card without re-checking it against
+     * their income — nothing about their total commitment changed.
+     *
+     * <p>Three separate limits keep the ask proportionate, and any of them can shrink or cancel it:
+     * <ul>
+     *   <li>the target is the trailing norm plus a variance buffer, never an extrapolation;</li>
+     *   <li>{@link #MAX_RAISE_GROWTH} caps one ask's growth against the current limit;</li>
+     *   <li>{@link #MAX_DONOR_CUT} caps what any single donor gives up — see {@link #donorsFor}.</li>
+     * </ul>
+     * When no category has room to give, there is no ask: a category that needs more money than the
+     * month contains is not something a single button can fix.
+     *
+     * <p>The result is always a full {@code budgetAdjustments} snapshot — the recipient's new limit
+     * plus every donor's cut — so the card shows what is being taken and from where, rather than a
+     * lone number.
      */
-    private Candidate reallocateBudgetCandidate(List<Insight> insights, Category category, Budget recipient,
-                                                Severity gate, List<Budget> budgets, YearMonth period) {
+    private Candidate fundedRaiseCandidate(List<Insight> insights, Category category, Budget recipient,
+                                           Severity gate, List<Budget> budgets, List<Transaction> history,
+                                           YearMonth period, LocalDate asOf) {
         Insight pace = bestQualifying(insights, InsightType.BUDGET_PACE, category, gate);
         if (pace == null) {
             return null;
         }
         BigDecimal currentLimit = recipient.getAmountLimit();
-        // How much more the recipient needs so it doesn't finish over its limit, rounded up to the cent.
-        BigDecimal gap = toBigDecimal(pace.getMetrics().get("projectedEndOfMonth"))
-                .subtract(currentLimit).setScale(2, RoundingMode.CEILING);
+        if (currentLimit == null) {
+            return null;
+        }
+        // A limit is what this category normally costs plus room to vary — never an extrapolation.
+        // Deriving it from projectedEndOfMonth (as this did) meant answering "you're on pace for 5.4M"
+        // with "then your budget is 5.4M", which capitulates to the forecast instead of budgeting
+        // against it. The trailing median is the norm; with no history the current limit stands in,
+        // being the user's own statement of what a normal month costs.
+        BigDecimal median = analyzer.trailing3MonthMedian(history, category, period);
+        BigDecimal norm = median.compareTo(BigDecimal.ZERO) > 0 ? median : currentLimit;
+        BigDecimal spent = recipient.getSpent() != null ? recipient.getSpent() : BigDecimal.ZERO;
+        // Floored at what's already spent, or accepting would leave the budget instantly exceeded.
+        BigDecimal target = norm.multiply(RAISE_BUFFER).max(spent);
+
+        // One ask never multiplies a limit by more than MAX_RAISE_GROWTH. Past that the month isn't a
+        // budget that's slightly too small, it's a month that has already gone badly — and no button
+        // fixes that, so don't offer one.
+        BigDecimal ceiling = currentLimit.multiply(MAX_RAISE_GROWTH);
+        if (spent.compareTo(ceiling) > 0) {
+            return null;
+        }
+        BigDecimal gap = target.min(ceiling).subtract(currentLimit);
         if (gap.compareTo(MIN_MOVE) < 0) {
             return null; // trivial overshoot — not worth an ask
         }
 
-        // Donors: every OTHER budget this month carrying a BUDGET_UNDERSPEND insight. That insight
-        // only fires when the trailing median AND the current pace both sit well under the limit, so
-        // the budget is safe to borrow from. Available headroom is floored at what the donor has
-        // spent or is on pace to spend, so a donor can never be left born-exceeded or starved.
-        List<Donor> donors = new ArrayList<>();
-        BigDecimal totalAvailable = BigDecimal.ZERO;
-        for (Budget b : budgets) {
-            if (b == null || b.getId() == null || b.getAmountLimit() == null
-                    || b.getId().equals(recipient.getId())) {
-                continue;
-            }
-            Insight underspend = insights.stream()
-                    .filter(i -> i.getType() == InsightType.BUDGET_UNDERSPEND)
-                    .filter(i -> i.getCategory() == b.getCategory())
-                    .findFirst().orElse(null);
-            if (underspend == null) {
-                continue;
-            }
-            BigDecimal spent = b.getSpent() != null ? b.getSpent() : BigDecimal.ZERO;
-            BigDecimal floor = spent.max(toBigDecimal(underspend.getMetrics().get("projectedEndOfMonth")));
-            BigDecimal available = b.getAmountLimit().subtract(floor).max(BigDecimal.ZERO)
-                    .setScale(2, RoundingMode.DOWN);
-            if (available.compareTo(BigDecimal.ZERO) <= 0) {
-                continue;
-            }
-            donors.add(new Donor(b, available));
-            totalAvailable = totalAvailable.add(available);
-        }
-        if (totalAvailable.compareTo(gap) < 0) {
-            return null; // donors can't fully fund the move — let RAISE_BUDGET handle it
-        }
+        // From here the plan is denominated in whole rounding steps rather than exact amounts, so every
+        // limit on the card moves by a round figure instead of the raw output of a proportional split.
+        // The requirement rounds UP (a raise that lands under the projection wouldn't do its job) while
+        // every funding source rounds DOWN (never promise money that isn't fully there). The difference
+        // the rounding creates is absorbed by uncommitted income — the surplus — which is exactly what
+        // that money is for; when the surplus can't absorb it, the raise itself drops a step.
+        long neededSteps = rounding.stepsCeil(gap);
 
-        // Take from each donor proportionally to its headroom (rounded DOWN), then hand the rounding
-        // remainder to donors with spare room, largest first, so the moved total equals the gap exactly.
-        donors.sort(Comparator.comparing(Donor::available).reversed());
-        BigDecimal[] takes = new BigDecimal[donors.size()];
-        BigDecimal allocated = BigDecimal.ZERO;
-        for (int i = 0; i < donors.size(); i++) {
-            BigDecimal take = gap.multiply(donors.get(i).available())
-                    .divide(totalAvailable, 2, RoundingMode.DOWN)
-                    .min(donors.get(i).available());
-            takes[i] = take;
-            allocated = allocated.add(take);
+        // The one funding source: slack on the month's other budgets. The committed total never moves —
+        // whatever this category gains, another gives up, to the cent. Uncommitted income is deliberately
+        // NOT drawn on: it looks free, but it is the {@code disposable} figure behind SAVINGS_CAPACITY
+        // and the project contributions, so spending it to widen a budget converts saving into spending
+        // without ever saying so. A plan that can only move money is also one the user can accept without
+        // re-checking it against their income.
+        List<Donor> donors = donorsFor(recipient, budgets, history, period, asOf);
+        long donorStepsAvailable = donors.stream().mapToLong(Donor::steps).sum();
+        long fundedSteps = Math.min(neededSteps, donorStepsAvailable);
+
+        BigDecimal raise = rounding.money(fundedSteps);
+        if (raise.compareTo(MIN_MOVE) < 0) {
+            // No category has room to give. Nothing honest to propose: the fix is either cutting
+            // spending or re-planning the whole month, neither of which is a one-button ask.
+            return null;
         }
-        BigDecimal remainder = gap.subtract(allocated);
-        for (int i = 0; i < donors.size() && remainder.compareTo(BigDecimal.ZERO) > 0; i++) {
-            BigDecimal add = donors.get(i).available().subtract(takes[i]).min(remainder);
-            takes[i] = takes[i].add(add);
-            remainder = remainder.subtract(add);
-        }
-        if (remainder.compareTo(BigDecimal.ZERO) > 0) {
-            return null; // couldn't place the full gap (shouldn't happen given the feasibility check)
-        }
+        long[] takes = allocateSteps(donors, fundedSteps);
 
         List<SuggestionPayload.BudgetAdjustment> adjustments = new ArrayList<>();
         adjustments.add(SuggestionPayload.BudgetAdjustment.builder()
                 .budgetId(recipient.getId())
                 .category(category)
                 .currentLimit(currentLimit)
-                .newLimit(currentLimit.add(gap)) // recipient absorbs the whole move
+                .newLimit(currentLimit.add(raise)) // the recipient absorbs the whole move
                 .build());
         for (int i = 0; i < donors.size(); i++) {
-            if (takes[i].compareTo(BigDecimal.ZERO) <= 0) {
+            if (takes[i] <= 0L) {
                 continue;
             }
             Budget d = donors.get(i).budget();
@@ -545,25 +537,136 @@ public class SuggestionProducer {
                     .budgetId(d.getId())
                     .category(d.getCategory())
                     .currentLimit(d.getAmountLimit())
-                    .newLimit(d.getAmountLimit().subtract(takes[i]))
+                    .newLimit(d.getAmountLimit().subtract(rounding.money(takes[i])))
                     .build());
         }
 
         SuggestionPayload.ProposedAction action = SuggestionPayload.ProposedAction.builder()
                 .category(category)
+                .budgetId(recipient.getId())
                 .month(period.getMonthValue())
                 .year(period.getYear())
-                .resolvedValue(gap) // the amount moved into the recipient, for display
+                .resolvedValue(raise) // headline number: the amount moved
                 .budgetAdjustments(adjustments)
                 .build();
 
+        // Always REALLOCATE_BUDGET, never RAISE_BUDGET: the plan is zero-sum by construction, so the
+        // committed total never moves and calling it a "raise" would misdescribe what is being agreed
+        // to. RAISE_BUDGET survives only for cards raised before this became true.
         return candidate(SuggestionType.REALLOCATE_BUDGET, pace, action,
                 "REALLOCATE_BUDGET:" + category.name() + ":" + period,
                 "notification.suggestion.reallocate_budget|" + category.name());
     }
 
-    /** A budget with spare headroom that can donate to a reallocation, and how much it can give. */
-    private record Donor(Budget budget, BigDecimal available) { }
+    /**
+     * Every other budget this month with slack to spare, richest first. Slack is the limit minus a
+     * floor of everything that budget is already committed to: what it has spent, what its own pace
+     * projects it will spend, and any recurring charge its category carries. Flooring on all three is
+     * what makes a cut safe — a donor can never be left below its own spending (which would make it
+     * born-exceeded and reject the ask at accept time), below its own trajectory, or below a
+     * subscription it still owes later in the month.
+     *
+     * <p>This deliberately does not require a {@code BUDGET_UNDERSPEND} insight on the donor. That
+     * rule needs the trailing median <em>and</em> the current pace to both sit under 60% of the limit,
+     * which is the right bar for suggesting a permanent cut but far too strict for lending unused room
+     * for one month — it left most real overshoots with no donors at all and forced a net raise.
+     */
+    private List<Donor> donorsFor(Budget recipient, List<Budget> budgets, List<Transaction> history,
+                                  YearMonth period, LocalDate asOf) {
+        Map<Category, BigDecimal> recurring = analyzer.recurringCostByCategory(history, period);
+        List<Donor> donors = new ArrayList<>();
+        for (Budget b : budgets) {
+            if (b == null || b.getId() == null || b.getCategory() == null || b.getAmountLimit() == null
+                    || b.getId().equals(recipient.getId())) {
+                continue;
+            }
+            BigDecimal spent = b.getSpent() != null ? b.getSpent() : BigDecimal.ZERO;
+            BigDecimal floor = spent
+                    .max(analyzer.projectedEndOfMonth(
+                            history, b.getCategory(), spent, b.getAmountLimit(), asOf))
+                    .max(recurring.getOrDefault(b.getCategory(), BigDecimal.ZERO));
+            // Two independent limits on what a donor gives, and the tighter one wins:
+            //  - it may not drop below the floor above (its own spending, pace and subscriptions);
+            //  - it may not give up more than MAX_DONOR_CUT of its limit in one ask, however idle it
+            //    looks. Slack is evidence about a month in progress, not permission to empty a
+            //    category — a budget cut to a fraction of itself reads as the plan taking it away,
+            //    and the user still has three weeks in which to want that money.
+            BigDecimal available = b.getAmountLimit().subtract(floor).max(BigDecimal.ZERO)
+                    .min(b.getAmountLimit().multiply(MAX_DONOR_CUT));
+            // Whole steps only, rounded DOWN: a donor lends a round amount, and the part of its slack
+            // too small to make a step stays with it rather than being shaved off into the move.
+            long steps = rounding.stepsFloor(available);
+            if (steps > 0L) {
+                donors.add(new Donor(b, steps));
+            }
+        }
+        donors.sort(Comparator.comparingLong(Donor::steps).reversed());
+        return donors;
+    }
+
+    /**
+     * Split {@code totalSteps} across the donors, discretionary categories first.
+     *
+     * <p>Spare room in Entertainment, Shopping or Clothing is not the same thing as spare room in
+     * Health or Utilities, even when the arithmetic says both have slack. A single proportional split
+     * across every budget would quietly shave the essentials to top up a category the user overspent
+     * on, so the discretionary tier is exhausted before the rest is touched at all. The classification
+     * is {@link BudgetAllocationCalculator#WANTS} — the same one the allocator trims first when it
+     * plans a month, so planning and reallocation can't disagree about what is discretionary.
+     *
+     * <p>Within each tier the split is proportional to what each donor can spare. The caller
+     * guarantees the two tiers together can cover {@code totalSteps}.
+     */
+    private long[] allocateSteps(List<Donor> donors, long totalSteps) {
+        long[] takes = new long[donors.size()];
+        if (totalSteps <= 0L) {
+            return takes;
+        }
+        List<Integer> discretionary = new ArrayList<>();
+        List<Integer> essential = new ArrayList<>();
+        for (int i = 0; i < donors.size(); i++) {
+            (BudgetAllocationCalculator.WANTS.contains(donors.get(i).budget().getCategory())
+                    ? discretionary : essential).add(i);
+        }
+        long remaining = allocateWithinTier(donors, discretionary, totalSteps, takes);
+        allocateWithinTier(donors, essential, remaining, takes);
+        return takes;
+    }
+
+    /**
+     * Proportional split of {@code totalSteps} across one tier (rounded DOWN), with the integer
+     * remainder handed to donors that still have room, largest first, so the tier takes exactly what
+     * it can. Returns whatever the tier could not absorb, for the next tier to carry.
+     */
+    private long allocateWithinTier(List<Donor> donors, List<Integer> tier, long totalSteps, long[] takes) {
+        if (totalSteps <= 0L || tier.isEmpty()) {
+            return totalSteps;
+        }
+        long available = tier.stream().mapToLong(i -> donors.get(i).steps()).sum();
+        if (available <= 0L) {
+            return totalSteps;
+        }
+        long capped = Math.min(totalSteps, available);
+        long allocated = 0L;
+        for (int i : tier) {
+            long take = Math.min(capped * donors.get(i).steps() / available, donors.get(i).steps());
+            takes[i] = take;
+            allocated += take;
+        }
+        long remainder = capped - allocated;
+        for (int i : tier) {
+            if (remainder <= 0L) {
+                break;
+            }
+            long add = Math.min(donors.get(i).steps() - takes[i], remainder);
+            takes[i] += add;
+            remainder -= add;
+        }
+        return totalSteps - capped;
+    }
+
+    /** A budget with spare headroom that can donate to a reallocation, in whole rounding steps. */
+    private record Donor(Budget budget, long steps) { }
 
     /** CREATE_BUDGET: OVERSPEND_ANOMALY on a category with no budget to anchor spending. */
     private Candidate createBudgetCandidate(List<Insight> insights, Category category,
@@ -578,9 +681,11 @@ public class SuggestionProducer {
         // triggered this would be born already-EXCEEDED. The current-month total is carried on the
         // anomaly insight as "actual" (SpendingInsightAnalyzer#detectOverspendAnomalies).
         BigDecimal actualThisMonth = toBigDecimal(insight.getMetrics().get("actual"));
-        BigDecimal resolvedValue = capByIncome(
-                analyzer.trailing3MonthMedian(history, category, period), income)
-                .max(actualThisMonth);
+        // Snapped UP: rounding a first limit down could put it under the spend already on the books,
+        // which CreateBudget backfills — the budget would be born EXCEEDED.
+        BigDecimal resolvedValue = rounding.snapUp(
+                capByIncome(analyzer.trailing3MonthMedian(history, category, period), income)
+                        .max(actualThisMonth));
         if (resolvedValue.compareTo(BigDecimal.ZERO) <= 0) {
             return null; // no robust baseline to propose a limit from
         }
@@ -610,8 +715,9 @@ public class SuggestionProducer {
         // median; without this floor CreateBudget would backfill that spend onto a lower limit and
         // the budget would be born already-EXCEEDED (negative remaining). The floor wins even over
         // the income cap, mirroring createBudgetCandidate.
-        BigDecimal resolvedValue = capByIncome(analyzer.trailing3MonthMedian(history, category, period), income)
-                .max(analyzer.currentMonthTotal(history, category, period));
+        BigDecimal resolvedValue = rounding.snapUp(
+                capByIncome(analyzer.trailing3MonthMedian(history, category, period), income)
+                        .max(analyzer.currentMonthTotal(history, category, period)));
         if (resolvedValue.compareTo(BigDecimal.ZERO) <= 0) {
             return null; // no robust baseline to propose a limit from
         }
@@ -641,8 +747,10 @@ public class SuggestionProducer {
             return null;
         }
         // Trim to the median actual plus a little headroom, so the tighter limit still breathes.
-        BigDecimal resolvedValue = toBigDecimal(insight.getMetrics().get("medianActual"))
-                .multiply(REDUCE_HEADROOM).setScale(2, RoundingMode.HALF_UP);
+        // Snapped UP so the trim never eats into the headroom it just granted, then re-checked against
+        // the current limit — rounding can lift a marginal proposal back up to it, leaving no cut.
+        BigDecimal resolvedValue = rounding.snapUp(
+                toBigDecimal(insight.getMetrics().get("medianActual")).multiply(REDUCE_HEADROOM));
         // A "reduce" that isn't below the current limit is meaningless — don't ask.
         if (resolvedValue.compareTo(BigDecimal.ZERO) <= 0 || resolvedValue.compareTo(budget.getAmountLimit()) >= 0) {
             return null;
@@ -1154,12 +1262,13 @@ public class SuggestionProducer {
     private Candidate candidate(SuggestionType type, Insight insight,
                                 SuggestionPayload.ProposedAction action,
                                 String dedupKey, String fallbackCode) {
-        String narrative = narrator.narrate(insight);
+        Insight display = InsightDisplay.rounded(insight, rounding);
+        String narrative = narrator.narrate(display);
         return Candidate.builder()
                 .type(type)
-                .severity(insight.getSeverity())
+                .severity(display.getSeverity())
                 .dedupKey(dedupKey)
-                .payloadJson(payloadJson(insight, action, narrative))
+                .payloadJson(payloadJson(display, action, narrative))
                 .notificationContent(narrative != null ? narrative : fallbackCode)
                 .build();
     }

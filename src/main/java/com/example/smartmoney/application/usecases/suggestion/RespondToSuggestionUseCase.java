@@ -101,7 +101,18 @@ public class RespondToSuggestionUseCase {
     private void executeAction(Suggestion suggestion, UUID userId) {
         SuggestionPayload payload = parsePayload(suggestion);
         switch (suggestion.getType()) {
-            case RAISE_BUDGET, REDUCE_BUDGET -> resizeBudget(payload, userId);
+            // A RAISE_BUDGET now carries the whole re-planned month (the recipient's new limit plus any
+            // donor cuts that fund it), so it applies through the same snapshot executor as the other
+            // multi-budget asks. Rows raised before that change carry only budgetId + resolvedValue —
+            // resizeBudget still handles those, so pending cards survive the deploy.
+            case RAISE_BUDGET -> {
+                if (hasAdjustments(payload)) {
+                    rebalanceBudgets(payload, userId);
+                } else {
+                    resizeBudget(payload, userId);
+                }
+            }
+            case REDUCE_BUDGET -> resizeBudget(payload, userId);
             case CREATE_BUDGET, SET_CATEGORY_LIMIT -> createBudget(payload, userId);
             case CONTRIBUTE_TO_PROJECT, INCREASE_CONTRIBUTION -> contributeToProject(payload, userId);
             case REBALANCE_BUDGETS, REALLOCATE_BUDGET -> rebalanceBudgets(payload, userId);
@@ -116,7 +127,23 @@ public class RespondToSuggestionUseCase {
         }
     }
 
-    /** Set an existing budget's limit to the consented value — shared by RAISE_BUDGET and REDUCE_BUDGET. */
+    /** Whether this payload carries a full multi-budget snapshot rather than a single resolved limit. */
+    private boolean hasAdjustments(SuggestionPayload payload) {
+        SuggestionPayload.ProposedAction action = payload != null ? payload.getProposedAction() : null;
+        return action != null && action.getBudgetAdjustments() != null
+                && !action.getBudgetAdjustments().isEmpty();
+    }
+
+    /**
+     * Set an existing budget's limit to the consented value — REDUCE_BUDGET, and legacy RAISE_BUDGET
+     * rows raised before the payload carried a full snapshot.
+     *
+     * <p>The over-commitment re-check is suppressed ({@code rebalanceCheck = false}): it would run
+     * {@code SuggestionProducer} inside this accept's transaction, and a repository failure there
+     * marks the transaction rollback-only — the producer's own catch swallows the exception but the
+     * commit still fails, taking the whole accept with it. Nothing is lost by skipping it: a reduction
+     * cannot breach the income envelope, and a raise is now planned against that envelope up front.
+     */
     private void resizeBudget(SuggestionPayload payload, UUID userId) {
         SuggestionPayload.ProposedAction action = requireAction(payload);
         if (action.getBudgetId() == null || action.getResolvedValue() == null) {
@@ -124,7 +151,7 @@ public class RespondToSuggestionUseCase {
         }
         UpdateBudgetRequest request = new UpdateBudgetRequest();
         request.setAmountLimit(action.getResolvedValue()); // honor the consented number
-        updateBudgetUseCase.execute(action.getBudgetId(), userId, request);
+        updateBudgetUseCase.execute(action.getBudgetId(), userId, request, false);
     }
 
     private void createBudget(SuggestionPayload payload, UUID userId) {

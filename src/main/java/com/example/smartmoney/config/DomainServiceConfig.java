@@ -2,11 +2,13 @@ package com.example.smartmoney.config;
 
 import com.example.smartmoney.domain.services.BudgetAllocationCalculator;
 import com.example.smartmoney.domain.services.ForecastMethod;
+import com.example.smartmoney.domain.services.MoneyRounding;
 import com.example.smartmoney.domain.services.SpendingInsightAnalyzer;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import java.math.BigDecimal;
 import java.time.Clock;
 
 /**
@@ -25,6 +27,17 @@ public class DomainServiceConfig {
     public SpendingInsightAnalyzer spendingInsightAnalyzer(
             @Value("${app.insight.forecast-method:LINEAR}") ForecastMethod forecastMethod) {
         return new SpendingInsightAnalyzer(forecastMethod);
+    }
+
+    /**
+     * Step that proposed budget limits are snapped to, so a card never asks the user to approve
+     * the raw output of a proportional split. Currency-dependent, hence configurable; the default
+     * is VND-scale.
+     */
+    @Bean
+    public MoneyRounding moneyRounding(
+            @Value("${app.money.rounding-step:10000}") BigDecimal roundingStep) {
+        return new MoneyRounding(roundingStep);
     }
 
     /**
