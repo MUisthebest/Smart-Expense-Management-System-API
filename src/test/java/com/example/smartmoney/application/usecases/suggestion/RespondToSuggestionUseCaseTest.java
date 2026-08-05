@@ -96,7 +96,9 @@ class RespondToSuggestionUseCaseTest {
         useCase.execute(userId, suggestion.getId(), true);
 
         ArgumentCaptor<UpdateBudgetRequest> captor = ArgumentCaptor.forClass(UpdateBudgetRequest.class);
-        verify(updateBudgetUseCase).execute(eq(budgetId), eq(userId), captor.capture());
+        // rebalanceCheck=false: running the producer inside this transaction could mark it
+        // rollback-only and fail the whole accept (see resizeBudget).
+        verify(updateBudgetUseCase).execute(eq(budgetId), eq(userId), captor.capture(), eq(false));
         assertEquals(0, new BigDecimal("1500").compareTo(captor.getValue().getAmountLimit()));
     }
 
@@ -323,7 +325,7 @@ class RespondToSuggestionUseCaseTest {
         useCase.execute(userId, s.getId(), true);
 
         ArgumentCaptor<UpdateBudgetRequest> captor = ArgumentCaptor.forClass(UpdateBudgetRequest.class);
-        verify(updateBudgetUseCase).execute(eq(budgetId), eq(userId), captor.capture());
+        verify(updateBudgetUseCase).execute(eq(budgetId), eq(userId), captor.capture(), eq(false));
         assertEquals(0, new BigDecimal("115").compareTo(captor.getValue().getAmountLimit()));
     }
 
@@ -462,6 +464,45 @@ class RespondToSuggestionUseCaseTest {
         assertEquals(0, new BigDecimal("1200").compareTo(captor.getValue().getAmountLimit()));
         verify(updateBudgetUseCase).execute(eq(shoppingBudgetId), eq(userId), captor.capture(), eq(false));
         assertEquals(0, new BigDecimal("800").compareTo(captor.getValue().getAmountLimit()));
+    }
+
+    @Test
+    @DisplayName("UC1: a RAISE_BUDGET carrying a snapshot applies every line — the raise AND the cuts funding it")
+    void acceptHybridRaiseAppliesWholeSnapshot() {
+        UUID foodBudgetId = UUID.randomUUID();
+        UUID shoppingBudgetId = UUID.randomUUID();
+        // A partly-funded raise: FOOD up 200, of which 70 comes out of SHOPPING.
+        SuggestionPayload payload = SuggestionPayload.builder()
+                .proposedAction(SuggestionPayload.ProposedAction.builder()
+                        .category(Category.FOOD).budgetId(foodBudgetId).month(6).year(2026)
+                        .resolvedValue(new BigDecimal("1200")) // the recipient's new limit
+                        .budgetAdjustments(List.of(
+                                SuggestionPayload.BudgetAdjustment.builder()
+                                        .budgetId(foodBudgetId).category(Category.FOOD)
+                                        .currentLimit(new BigDecimal("1000"))
+                                        .newLimit(new BigDecimal("1200")).build(),
+                                SuggestionPayload.BudgetAdjustment.builder()
+                                        .budgetId(shoppingBudgetId).category(Category.SHOPPING)
+                                        .currentLimit(new BigDecimal("100"))
+                                        .newLimit(new BigDecimal("30")).build()))
+                        .build())
+                .build();
+        Suggestion s = suggestionOf(userId, SuggestionType.RAISE_BUDGET, payload, "RAISE_BUDGET:FOOD:2026-06");
+        when(suggestionRepository.findById(s.getId())).thenReturn(Optional.of(s));
+        when(suggestionRepository.markDecidedIfPending(eq(s.getId()), eq(userId),
+                eq(SuggestionStatus.ACCEPTED), any())).thenReturn(1);
+        when(budgetRepository.findById(foodBudgetId))
+                .thenReturn(Optional.of(budget(foodBudgetId, Category.FOOD, "1000", "600")));
+        when(budgetRepository.findById(shoppingBudgetId))
+                .thenReturn(Optional.of(budget(shoppingBudgetId, Category.SHOPPING, "100", "5")));
+
+        useCase.execute(userId, s.getId(), true);
+
+        ArgumentCaptor<UpdateBudgetRequest> captor = ArgumentCaptor.forClass(UpdateBudgetRequest.class);
+        verify(updateBudgetUseCase).execute(eq(foodBudgetId), eq(userId), captor.capture(), eq(false));
+        assertEquals(0, new BigDecimal("1200").compareTo(captor.getValue().getAmountLimit()));
+        verify(updateBudgetUseCase).execute(eq(shoppingBudgetId), eq(userId), captor.capture(), eq(false));
+        assertEquals(0, new BigDecimal("30").compareTo(captor.getValue().getAmountLimit()));
     }
 
     @Test

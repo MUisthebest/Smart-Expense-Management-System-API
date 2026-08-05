@@ -11,6 +11,7 @@ import com.example.smartmoney.domain.models.user.enums.Focus_Mode;
 import com.example.smartmoney.domain.repositories.BudgetRepository;
 import com.example.smartmoney.domain.repositories.TransactionRepository;
 import com.example.smartmoney.domain.repositories.UserRepository;
+import com.example.smartmoney.domain.services.MoneyRounding;
 import com.example.smartmoney.domain.services.SpendingInsightAnalyzer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -40,6 +41,7 @@ public class GenerateInsightsUseCase {
     private final UserRepository userRepository;
     private final SpendingInsightAnalyzer analyzer;
     private final InsightNarrator narrator;
+    private final MoneyRounding rounding;
 
     /** Generate insights for the user's current month (as of {@code LocalDate.now()}). */
     @Transactional(readOnly = true)
@@ -80,10 +82,19 @@ public class GenerateInsightsUseCase {
         return insights.stream().map(this::toResponse).toList();
     }
 
-    /** Map to the FE DTO, attaching a best-effort LLM narrative (P3-C; null when narration is off). */
+    /**
+     * Map to the FE DTO, attaching a best-effort LLM narrative (P3-C; null when narration is off).
+     *
+     * <p>Figures are display-rounded through the same {@link InsightDisplay} the suggestion cards use.
+     * The same insight reaches the user twice — here as a live list item, and frozen onto a card by
+     * {@code SuggestionProducer} — and quoting two different month-end forecasts for one budget makes
+     * both look made up. Rounding before narration matters for the same reason: otherwise the LLM
+     * sentence would carry the raw figure while the metrics beside it carry the rounded one.
+     */
     private InsightResponse toResponse(Insight insight) {
-        InsightResponse response = InsightResponse.fromDomain(insight);
-        response.setNarrative(narrator.narrate(insight));
+        Insight display = InsightDisplay.rounded(insight, rounding);
+        InsightResponse response = InsightResponse.fromDomain(display);
+        response.setNarrative(narrator.narrate(display));
         return response;
     }
 

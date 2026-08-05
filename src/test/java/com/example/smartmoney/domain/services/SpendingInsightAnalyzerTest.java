@@ -185,15 +185,16 @@ class SpendingInsightAnalyzerTest {
     }
 
     @Test
-    @DisplayName("early-month guard: on day 3 the projection is trusted again (and still no divide-by-zero)")
+    @DisplayName("early-month guard: on day 3 the projection resumes, credibility-weighted (and still no divide-by-zero)")
     void paceResumesOnMinDay() {
-        // day 3 of 30: projected = 100/3*30 = 1000 → exactly at the limit → not over → no insight,
-        // but a clear overshoot does surface, proving the guard opened rather than the math breaking.
+        // The guard opens on day 3, but three days is still a thin sample, so the observed rate carries
+        // only w = 3/30 of the weight and the budget's own allowance carries the rest:
+        //   rate = 0.1 × (200/3) + 0.9 × (1000/30) = 36.67 → projected = 200 + 27 × 36.67 = 1190
+        // The raw extrapolation would have claimed 2000 — twice the budget off three days of data.
         Insight insight = paceOn(budget(Category.FOOD, new BigDecimal("1000"), new BigDecimal("200")),
                 LocalDate.of(2026, 6, 3)).orElseThrow();
-        // projected = 200/3*30 = 2000 → ratio 2.0 → CRITICAL
-        assertEquals(Severity.CRITICAL, insight.getSeverity());
-        assertEquals(2000.0, ((BigDecimal) insight.getMetrics().get("projectedEndOfMonth")).doubleValue(), 0.001);
+        assertEquals(Severity.WARN, insight.getSeverity()); // ratio 1.19, not the old 2.0
+        assertEquals(1190.0, ((BigDecimal) insight.getMetrics().get("projectedEndOfMonth")).doubleValue(), 0.001);
     }
 
     // ---- P3-B: exponential-smoothing forecast --------------------------------------------
@@ -239,7 +240,11 @@ class SpendingInsightAnalyzerTest {
         Insight insight = expPace(history, budget).orElseThrow();
         assertEquals(Severity.WARN, insight.getSeverity());
         assertEquals("EXP_SMOOTHING", insight.getMetrics().get("forecastMethod"));
-        assertEquals(1200.0, ((BigDecimal) insight.getMetrics().get("projectedEndOfMonth")).doubleValue(), 0.001);
+        // Half the month observed, so the smoothed 40/day is blended half-and-half with the budget's
+        // own 33.33/day allowance: rate = 36.67 → 600 + 15 × 36.67 = 1150. Below the raw 1200 trend by
+        // design — credibility weighting trades some responsiveness for not blowing up on thin data —
+        // and the smoothedDailyRate metric still reports the unshrunk 40 it measured.
+        assertEquals(1150.0, ((BigDecimal) insight.getMetrics().get("projectedEndOfMonth")).doubleValue(), 0.001);
         assertEquals(40.0, ((BigDecimal) insight.getMetrics().get("smoothedDailyRate")).doubleValue(), 0.001);
     }
 
@@ -250,8 +255,9 @@ class SpendingInsightAnalyzerTest {
         Insight insight = expPace(List.of(),
                 budget(Category.FOOD, new BigDecimal("1000"), new BigDecimal("600"))).orElseThrow();
         assertEquals(Severity.WARN, insight.getSeverity());
-        // projected = 600/15×30 = 1200, and the method is honestly reported as LINEAR.
-        assertEquals(1200.0, ((BigDecimal) insight.getMetrics().get("projectedEndOfMonth")).doubleValue(), 0.001);
+        // rate = 0.5 × (600/15) + 0.5 × (1000/30) = 36.67 → 600 + 15 × 36.67 = 1150, and the method is
+        // honestly reported as LINEAR.
+        assertEquals(1150.0, ((BigDecimal) insight.getMetrics().get("projectedEndOfMonth")).doubleValue(), 0.001);
         assertEquals("LINEAR", insight.getMetrics().get("forecastMethod"));
         assertNull(insight.getMetrics().get("smoothedDailyRate"));
     }

@@ -32,6 +32,7 @@ import com.example.smartmoney.domain.repositories.SuggestionRepository;
 import com.example.smartmoney.domain.repositories.SuggestionTopicStatRepository;
 import com.example.smartmoney.domain.repositories.TransactionRepository;
 import com.example.smartmoney.domain.repositories.UserRepository;
+import com.example.smartmoney.domain.services.MoneyRounding;
 import com.example.smartmoney.domain.services.SpendingInsightAnalyzer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.json.JsonMapper;
@@ -88,10 +89,16 @@ class SuggestionProducerTest {
     }
 
     private SuggestionProducer buildProducer(boolean settlementEnabled) {
-        return new SuggestionProducer(new SpendingInsightAnalyzer(), transactionRepository,
-                budgetRepository, userRepository, projectRepository, suggestionRepository,
-                topicStatRepository, createNotificationUseCase, objectMapper, fatigue, clock, narrator,
-                new SettlementProperties(settlementEnabled));
+        // Step of 1 = rounding is an identity on the whole-unit amounts these tests use, so they keep
+        // exercising the funding logic alone. The VND-scale step has its own tests further down.
+        return buildProducer(settlementEnabled, new MoneyRounding(BigDecimal.ONE));
+    }
+
+    private SuggestionProducer buildProducer(boolean settlementEnabled, MoneyRounding rounding) {
+        return new SuggestionProducer(new SpendingInsightAnalyzer(), rounding,
+                transactionRepository, budgetRepository, userRepository, projectRepository,
+                suggestionRepository, topicStatRepository, createNotificationUseCase, objectMapper,
+                fatigue, clock, narrator, new SettlementProperties(settlementEnabled));
     }
 
     /** FOOD budget projected to overshoot (600 by day 15 of 30 → 1200 vs 1000 limit) → WARN pace. */
@@ -105,11 +112,24 @@ class SuggestionProducerTest {
                 .thenReturn(Optional.of(User.builder().id(userId).interventionLevel(level).build()));
     }
 
+    /** A donor with room to give, so the zero-sum planner has somewhere to move money from. */
+    private final UUID donorBudgetId = UUID.randomUUID();
+
+    private Budget idleDonorBudget() {
+        return Budget.builder().id(donorBudgetId).userId(userId).category(Category.SHOPPING)
+                .amountLimit(new BigDecimal("2000")).spent(BigDecimal.ZERO).month(6).year(2026).build();
+    }
+
+    /**
+     * The standard scene: FOOD on pace to overshoot, plus an idle SHOPPING budget to fund the move.
+     * The donor is mandatory — the planner is zero-sum, so a user with a single budget has no funding
+     * source and gets no ask at all, which would leave most of the tests below with nothing to assert.
+     */
     private void stubAnalysisData() {
         when(transactionRepository.findByUserIdWithFilters(any(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(List.of());
         when(budgetRepository.findByUserIdMonthYear(eq(userId), eq(6), eq(2026)))
-                .thenReturn(List.of(warnPaceBudget()));
+                .thenReturn(List.of(warnPaceBudget(), idleDonorBudget()));
     }
 
     @Test
@@ -124,7 +144,7 @@ class SuggestionProducerTest {
     }
 
     @Test
-    @DisplayName("GENTLE + WARN → persists a RAISE_BUDGET suggestion and pushes a deep-linked notification")
+    @DisplayName("GENTLE + WARN → persists a REALLOCATE_BUDGET suggestion and pushes a deep-linked notification")
     void gentleWarnInsertsAndPushes() throws Exception {
         stubUser(Intervention_Level.GENTLE);
         stubAnalysisData();
@@ -137,14 +157,15 @@ class SuggestionProducerTest {
         ArgumentCaptor<Suggestion> captor = ArgumentCaptor.forClass(Suggestion.class);
         verify(suggestionRepository).save(captor.capture());
         Suggestion saved = captor.getValue();
-        assertEquals(SuggestionType.RAISE_BUDGET, saved.getType());
-        assertEquals("RAISE_BUDGET:FOOD:2026-06", saved.getDedupKey());
+        assertEquals(SuggestionType.REALLOCATE_BUDGET, saved.getType());
+        assertEquals("REALLOCATE_BUDGET:FOOD:2026-06", saved.getDedupKey());
 
         SuggestionPayload payload = objectMapper.readValue(saved.getPayloadJson(), SuggestionPayload.class);
         assertEquals(budgetId, payload.getProposedAction().getBudgetId());
         assertEquals(Category.FOOD, payload.getProposedAction().getCategory());
-        // resolvedValue = max(median=0, projected=1200) = 1200
-        assertEquals(0, new BigDecimal("1200").compareTo(payload.getProposedAction().getResolvedValue()));
+        // Target = norm × 1.15; no history, so the current limit is the norm → 1150, a 150 move.
+        // The headline number is what MOVED, not the new limit — nothing is being added.
+        assertEquals(0, new BigDecimal("150").compareTo(payload.getProposedAction().getResolvedValue()));
 
         verify(createNotificationUseCase).createNotification(eq(userId), anyString(),
                 startsWith("app://suggestions/"));
@@ -192,7 +213,7 @@ class SuggestionProducerTest {
         SuggestionPayload payload = objectMapper.readValue(captor.getValue().getPayloadJson(), SuggestionPayload.class);
         assertNull(payload.getNarrative());
         verify(createNotificationUseCase).createNotification(eq(userId),
-                eq("notification.suggestion.raise_budget|FOOD"), startsWith("app://suggestions/"));
+                eq("notification.suggestion.reallocate_budget|FOOD"), startsWith("app://suggestions/"));
     }
 
     @Test
@@ -209,13 +230,12 @@ class SuggestionProducerTest {
         verify(createNotificationUseCase, never()).createNotification(any(), any(), any());
     }
 
-    // ---- affordability cap: a budget limit never exceeds income --------------------------
+    // ---- the core invariant: the month's committed total never moves ----------------------
 
     @Test
-    @DisplayName("RAISE_BUDGET: the proposed limit is capped at the user's monthly income")
-    void raiseBudgetCappedAtIncome() throws Exception {
-        // projected 1200 (600 by day 15 of 30) would be the raw raise; income 1100 clamps it.
-        stubUserWithIncome(Intervention_Level.GENTLE, "1100");
+    @DisplayName("zero-sum: every unit the recipient gains is given up by a donor — the committed total is identical")
+    void committedTotalNeverChanges() throws Exception {
+        stubUser(Intervention_Level.GENTLE);
         stubAnalysisData();
         when(suggestionRepository.findOpenByUserIdAndDedupKey(eq(userId), anyString()))
                 .thenReturn(Optional.empty());
@@ -225,17 +245,29 @@ class SuggestionProducerTest {
 
         ArgumentCaptor<Suggestion> captor = ArgumentCaptor.forClass(Suggestion.class);
         verify(suggestionRepository).save(captor.capture());
-        SuggestionPayload payload = objectMapper.readValue(captor.getValue().getPayloadJson(), SuggestionPayload.class);
-        // raw 1200 → capped to income 1100
-        assertEquals(0, new BigDecimal("1100").compareTo(payload.getProposedAction().getResolvedValue()));
+        List<SuggestionPayload.BudgetAdjustment> adj = objectMapper
+                .readValue(captor.getValue().getPayloadJson(), SuggestionPayload.class)
+                .getProposedAction().getBudgetAdjustments();
+
+        BigDecimal before = adj.stream().map(SuggestionPayload.BudgetAdjustment::getCurrentLimit)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal after = adj.stream().map(SuggestionPayload.BudgetAdjustment::getNewLimit)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        assertEquals(0, before.compareTo(after));
+        // And it really did move something — a no-op snapshot would satisfy the equality above.
+        assertEquals(2, adj.size());
     }
 
     @Test
-    @DisplayName("RAISE_BUDGET: if the income cap leaves nothing above the current limit, no ask is raised")
-    void raiseBudgetSuppressedWhenCapNotAboveLimit() {
-        // income 1000 == the current limit → capping the raise to 1000 is no raise at all → skip.
-        stubUserWithIncome(Intervention_Level.GENTLE, "1000");
-        stubAnalysisData();
+    @DisplayName("no category has room to give → no ask at all, rather than an ask that grows the total")
+    void noAskWhenNoDonorHasRoom() {
+        stubUser(Intervention_Level.GENTLE);
+        when(transactionRepository.findByUserIdWithFilters(any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(List.of());
+        // A single budget: nothing else exists to move money from. Uncommitted income is deliberately
+        // not a fallback, so the honest outcome is silence — not a card that raises the total.
+        when(budgetRepository.findByUserIdMonthYear(eq(userId), eq(6), eq(2026)))
+                .thenReturn(List.of(warnPaceBudget()));
         lenient().when(suggestionRepository.findOpenByUserIdAndDedupKey(eq(userId), anyString()))
                 .thenReturn(Optional.empty());
 
@@ -243,6 +275,43 @@ class SuggestionProducerTest {
 
         verify(suggestionRepository, never()).save(any());
         verify(createNotificationUseCase, never()).createNotification(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("a donor never gives up more than a quarter of its limit, even when asked for more and holding the slack to pay it")
+    void donorIsNeverStrippedBeyondTheCutCap() throws Exception {
+        UUID smallDonorId = UUID.randomUUID();
+        stubUser(Intervention_Level.GENTLE);
+        when(transactionRepository.findByUserIdWithFilters(any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(List.of());
+        // The cap has to be the BINDING constraint or this test proves nothing. SHOPPING's limit of 400
+        // projects to 100 by month end, so 300 of slack is genuinely idle and FOOD is asking for 150 —
+        // both larger than the 100 the 25% cap allows. Remove the cap and the donor would hand over the
+        // full 150; the numbers below only hold because it is there.
+        when(budgetRepository.findByUserIdMonthYear(eq(userId), eq(6), eq(2026)))
+                .thenReturn(List.of(warnPaceBudget(), idleBudget(smallDonorId, Category.SHOPPING, "400")));
+        when(suggestionRepository.findOpenByUserIdAndDedupKey(eq(userId), anyString()))
+                .thenReturn(Optional.empty());
+        when(suggestionRepository.save(any(Suggestion.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        producer.maybeProduce(userId, Category.FOOD, AS_OF);
+
+        ArgumentCaptor<Suggestion> captor = ArgumentCaptor.forClass(Suggestion.class);
+        verify(suggestionRepository).save(captor.capture());
+        List<SuggestionPayload.BudgetAdjustment> adj = objectMapper
+                .readValue(captor.getValue().getPayloadJson(), SuggestionPayload.class)
+                .getProposedAction().getBudgetAdjustments();
+        SuggestionPayload.BudgetAdjustment shop = adj.stream()
+                .filter(a -> a.getBudgetId().equals(smallDonorId)).findFirst().orElseThrow();
+        SuggestionPayload.BudgetAdjustment food = adj.stream()
+                .filter(a -> a.getBudgetId().equals(budgetId)).findFirst().orElseThrow();
+
+        // Exactly the 25% cap — not the 150 requested, and not the 300 of slack it could have covered.
+        assertEquals(0, new BigDecimal("100").compareTo(
+                shop.getCurrentLimit().subtract(shop.getNewLimit())));
+        assertEquals(0, new BigDecimal("300").compareTo(shop.getNewLimit()));
+        // The recipient therefore gets a partial move: 100 of the 150 it needed.
+        assertEquals(0, new BigDecimal("1100").compareTo(food.getNewLimit()));
     }
 
     // ---- P2-A: dismissal suppression -----------------------------------------------------
@@ -270,7 +339,8 @@ class SuggestionProducerTest {
         when(transactionRepository.findByUserIdWithFilters(any(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(List.of());
         when(budgetRepository.findByUserIdMonthYear(eq(userId), eq(6), eq(2026)))
-                .thenReturn(List.of(criticalPaceBudget())); // ratio 1.4 → CRITICAL
+                // ratio 1.4 → CRITICAL, plus a donor so the zero-sum planner can fund the move.
+                .thenReturn(List.of(criticalPaceBudget(), idleDonorBudget()));
         when(suggestionRepository.findOpenByUserIdAndDedupKey(eq(userId), anyString()))
                 .thenReturn(Optional.empty());
         // No topicStat stub: a CRITICAL ask short-circuits before the suppression lookup.
@@ -367,7 +437,8 @@ class SuggestionProducerTest {
         when(transactionRepository.findByUserIdWithFilters(any(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(List.of());
         when(budgetRepository.findByUserIdMonthYear(eq(userId), eq(6), eq(2026)))
-                .thenReturn(List.of(criticalPaceBudget())); // ratio 1.4 → CRITICAL
+                // ratio 1.4 → CRITICAL, plus a donor so the zero-sum planner can fund the move.
+                .thenReturn(List.of(criticalPaceBudget(), idleDonorBudget()));
         when(suggestionRepository.findOpenByUserIdAndDedupKey(eq(userId), anyString()))
                 .thenReturn(Optional.empty());
         // Cooldown active + cap exceeded — both should be ignored for a CRITICAL ask (lenient: skipped).
@@ -397,7 +468,7 @@ class SuggestionProducerTest {
         verify(topicStatRepository).save(captor.capture());
         SuggestionTopicStat stamped = captor.getValue();
         assertEquals(NOW, stamped.getLastPushedAt());
-        assertEquals("RAISE_BUDGET:FOOD:2026-06", stamped.getDedupKey());
+        assertEquals("REALLOCATE_BUDGET:FOOD:2026-06", stamped.getDedupKey());
     }
 
     // ---- P2-B: CREATE_BUDGET (overspend anomaly, no budget) ------------------------------
@@ -655,9 +726,16 @@ class SuggestionProducerTest {
                 .amountLimit(new BigDecimal("1000")).spent(new BigDecimal("700")).month(6).year(2026).build();
     }
 
+    /**
+     * A user whose financial setup is COMPLETE — every field {@code hasCompletedFinancialSetup()}
+     * checks — so the producer can derive a spendable envelope. With no active projects that envelope
+     * equals income, which is what the envelope-ceiling tests below assume.
+     */
     private void stubUserWithIncome(Intervention_Level level, String income) {
         when(userRepository.findById(userId)).thenReturn(Optional.of(
-                User.builder().id(userId).interventionLevel(level).income(new BigDecimal(income)).build()));
+                User.builder().id(userId).interventionLevel(level).income(new BigDecimal(income))
+                        .savingPace(Saving_Pace.BALANCED).focusMode(Focus_Mode.REDUCE_SPENDING)
+                        .autoInvestSurplus(false).build()));
     }
 
     private void stubUser(Intervention_Level level, Saving_Pace pace) {
@@ -913,16 +991,17 @@ class SuggestionProducerTest {
 
         SuggestionPayload payload = objectMapper.readValue(saved.getPayloadJson(), SuggestionPayload.class);
         SuggestionPayload.ProposedAction action = payload.getProposedAction();
-        assertEquals(0, new BigDecimal("200").compareTo(action.getResolvedValue())); // amount moved
+        assertEquals(0, new BigDecimal("150").compareTo(action.getResolvedValue())); // amount moved
 
         List<SuggestionPayload.BudgetAdjustment> adj = action.getBudgetAdjustments();
         SuggestionPayload.BudgetAdjustment food = adj.stream()
                 .filter(a -> a.getBudgetId().equals(budgetId)).findFirst().orElseThrow();
         SuggestionPayload.BudgetAdjustment shop = adj.stream()
                 .filter(a -> a.getBudgetId().equals(shoppingBudgetId)).findFirst().orElseThrow();
-        // Recipient up to 1200, donor down to 800 — and the donor's new limit stays above its 50 spent.
-        assertEquals(0, new BigDecimal("1200").compareTo(food.getNewLimit()));
-        assertEquals(0, new BigDecimal("800").compareTo(shop.getNewLimit()));
+        // Recipient up to 1150 (norm 1000 × 1.15), donor down to 850 — and the donor's new limit stays
+        // above its 50 spent.
+        assertEquals(0, new BigDecimal("1150").compareTo(food.getNewLimit()));
+        assertEquals(0, new BigDecimal("850").compareTo(shop.getNewLimit()));
         assertTrue(shop.getNewLimit().compareTo(new BigDecimal("50")) >= 0);
         // Zero-sum: the deltas across all adjustments cancel out.
         BigDecimal netDelta = adj.stream()
@@ -935,11 +1014,12 @@ class SuggestionProducerTest {
     }
 
     @Test
-    @DisplayName("UC1: an overshoot the underspent budgets can't fully cover → falls back to RAISE_BUDGET")
-    void overshootWithoutEnoughHeadroomFallsBackToRaise() throws Exception {
+    @DisplayName("UC1: when the donors can only partly cover the gap, the ask moves what it can rather than topping up from income")
+    void partialCoverMovesOnlyWhatTheDonorsCanSpare() throws Exception {
         UUID shoppingBudgetId = UUID.randomUUID();
         stubUser(Intervention_Level.GENTLE);
-        // FOOD gap is 200 but the only underspent budget can spare at most ~90 → reallocation isn't offered.
+        // FOOD needs 150. SHOPPING's limit is 100, so the 25% cut cap lets it give at most 25 —
+        // and there is no second source, so the ask is that 25 and nothing more.
         when(transactionRepository.findByUserIdWithFilters(any(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(steadyShoppingHistory("30"));
         when(budgetRepository.findByUserIdMonthYear(eq(userId), eq(6), eq(2026)))
@@ -953,8 +1033,233 @@ class SuggestionProducerTest {
         ArgumentCaptor<Suggestion> captor = ArgumentCaptor.forClass(Suggestion.class);
         verify(suggestionRepository).save(captor.capture());
         Suggestion saved = captor.getValue();
-        assertEquals(SuggestionType.RAISE_BUDGET, saved.getType());
-        assertEquals("RAISE_BUDGET:FOOD:2026-06", saved.getDedupKey());
+        assertEquals(SuggestionType.REALLOCATE_BUDGET, saved.getType());
+
+        SuggestionPayload.ProposedAction action =
+                objectMapper.readValue(saved.getPayloadJson(), SuggestionPayload.class).getProposedAction();
+        List<SuggestionPayload.BudgetAdjustment> adj = action.getBudgetAdjustments();
+        SuggestionPayload.BudgetAdjustment food = adj.stream()
+                .filter(a -> a.getBudgetId().equals(budgetId)).findFirst().orElseThrow();
+        SuggestionPayload.BudgetAdjustment shop = adj.stream()
+                .filter(a -> a.getBudgetId().equals(shoppingBudgetId)).findFirst().orElseThrow();
+        // A partial fix, honestly sized: FOOD may still finish over, but nothing was invented to
+        // cover it. Previously the shortfall became a net raise funded from uncommitted income.
+        assertEquals(0, new BigDecimal("1025").compareTo(food.getNewLimit()));
+        assertEquals(0, new BigDecimal("75").compareTo(shop.getNewLimit()));
+        assertEquals(0, new BigDecimal("25").compareTo(action.getResolvedValue()));
+        BigDecimal netDelta = adj.stream()
+                .map(a -> a.getNewLimit().subtract(a.getCurrentLimit()))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        assertEquals(0, BigDecimal.ZERO.compareTo(netDelta));
+    }
+
+    /** An untouched budget in an arbitrary category — used to contrast wants against essentials. */
+    private Budget idleBudget(UUID id, Category category, String limit) {
+        return Budget.builder().id(id).userId(userId).category(category)
+                .amountLimit(new BigDecimal(limit)).spent(BigDecimal.ZERO).month(6).year(2026).build();
+    }
+
+    @Test
+    @DisplayName("UC1: discretionary budgets are drained first — an essential category is left alone while wants can cover it")
+    void discretionaryCategoriesAreTakenFromFirst() throws Exception {
+        UUID shoppingId = UUID.randomUUID();
+        UUID healthId = UUID.randomUUID();
+        stubUser(Intervention_Level.GENTLE);
+        when(transactionRepository.findByUserIdWithFilters(any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(List.of());
+        // Both are equally idle and equally able to give on the arithmetic alone; only the
+        // classification separates them.
+        when(budgetRepository.findByUserIdMonthYear(eq(userId), eq(6), eq(2026)))
+                .thenReturn(List.of(warnPaceBudget(),
+                        idleBudget(shoppingId, Category.SHOPPING, "2000"),
+                        idleBudget(healthId, Category.HEALTH, "2000")));
+        when(suggestionRepository.findOpenByUserIdAndDedupKey(eq(userId), anyString()))
+                .thenReturn(Optional.empty());
+        when(suggestionRepository.save(any(Suggestion.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        producer.maybeProduce(userId, Category.FOOD, AS_OF);
+
+        ArgumentCaptor<Suggestion> captor = ArgumentCaptor.forClass(Suggestion.class);
+        verify(suggestionRepository).save(captor.capture());
+        List<SuggestionPayload.BudgetAdjustment> adj = objectMapper
+                .readValue(captor.getValue().getPayloadJson(), SuggestionPayload.class)
+                .getProposedAction().getBudgetAdjustments();
+
+        // Shopping covers the whole 150 on its own, so Health is not in the snapshot at all.
+        assertEquals(2, adj.size());
+        assertTrue(adj.stream().noneMatch(a -> a.getBudgetId().equals(healthId)));
+        SuggestionPayload.BudgetAdjustment shop = adj.stream()
+                .filter(a -> a.getBudgetId().equals(shoppingId)).findFirst().orElseThrow();
+        assertEquals(0, new BigDecimal("1850").compareTo(shop.getNewLimit()));
+    }
+
+    @Test
+    @DisplayName("UC1: essentials contribute only what the discretionary budgets couldn't cover")
+    void essentialsCoverOnlyTheShortfall() throws Exception {
+        UUID shoppingId = UUID.randomUUID();
+        UUID healthId = UUID.randomUUID();
+        stubUser(Intervention_Level.GENTLE);
+        when(transactionRepository.findByUserIdWithFilters(any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(List.of());
+        // Shopping's 200 limit can only spare 50 (its 25% cap); the other 100 has to come from Health.
+        when(budgetRepository.findByUserIdMonthYear(eq(userId), eq(6), eq(2026)))
+                .thenReturn(List.of(warnPaceBudget(),
+                        idleBudget(shoppingId, Category.SHOPPING, "200"),
+                        idleBudget(healthId, Category.HEALTH, "2000")));
+        when(suggestionRepository.findOpenByUserIdAndDedupKey(eq(userId), anyString()))
+                .thenReturn(Optional.empty());
+        when(suggestionRepository.save(any(Suggestion.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        producer.maybeProduce(userId, Category.FOOD, AS_OF);
+
+        ArgumentCaptor<Suggestion> captor = ArgumentCaptor.forClass(Suggestion.class);
+        verify(suggestionRepository).save(captor.capture());
+        List<SuggestionPayload.BudgetAdjustment> adj = objectMapper
+                .readValue(captor.getValue().getPayloadJson(), SuggestionPayload.class)
+                .getProposedAction().getBudgetAdjustments();
+
+        SuggestionPayload.BudgetAdjustment shop = adj.stream()
+                .filter(a -> a.getBudgetId().equals(shoppingId)).findFirst().orElseThrow();
+        SuggestionPayload.BudgetAdjustment health = adj.stream()
+                .filter(a -> a.getBudgetId().equals(healthId)).findFirst().orElseThrow();
+        assertEquals(0, new BigDecimal("150").compareTo(shop.getNewLimit()));   // gave its full 50
+        assertEquals(0, new BigDecimal("1900").compareTo(health.getNewLimit())); // gave only the 100 left
+        BigDecimal netDelta = adj.stream()
+                .map(a -> a.getNewLimit().subtract(a.getCurrentLimit()))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        assertEquals(0, BigDecimal.ZERO.compareTo(netDelta));
+    }
+
+    @Test
+    @DisplayName("UC1: a donor is never cut below the recurring charge its category still owes")
+    void donorIsFlooredAtItsRecurringObligation() throws Exception {
+        UUID shoppingBudgetId = UUID.randomUUID();
+        stubUser(Intervention_Level.GENTLE);
+        // SHOPPING has spent nothing yet this month, so a spend/pace-only floor would offer its whole
+        // 1000 limit — but it carries a 900/month subscription that simply hasn't posted yet.
+        when(transactionRepository.findByUserIdWithFilters(any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(steadyShoppingHistory("900"));
+        when(budgetRepository.findByUserIdMonthYear(eq(userId), eq(6), eq(2026)))
+                .thenReturn(List.of(warnPaceBudget(), underspentShoppingBudget(shoppingBudgetId, "1000", "0")));
+        when(suggestionRepository.findOpenByUserIdAndDedupKey(eq(userId), anyString()))
+                .thenReturn(Optional.empty());
+        when(suggestionRepository.save(any(Suggestion.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        producer.maybeProduce(userId, Category.FOOD, AS_OF);
+
+        ArgumentCaptor<Suggestion> captor = ArgumentCaptor.forClass(Suggestion.class);
+        verify(suggestionRepository).save(captor.capture());
+        SuggestionPayload.ProposedAction action = objectMapper
+                .readValue(captor.getValue().getPayloadJson(), SuggestionPayload.class).getProposedAction();
+
+        SuggestionPayload.BudgetAdjustment shop = action.getBudgetAdjustments().stream()
+                .filter(a -> a.getBudgetId().equals(shoppingBudgetId)).findFirst().orElseThrow();
+        // Only the 100 above the subscription was lent, leaving the charge fully covered.
+        assertEquals(0, new BigDecimal("900").compareTo(shop.getNewLimit()));
+    }
+
+    // ---- rounding: proposed limits move in whole money steps -----------------------------
+
+    /** OTHER budget at 710k, 500k spent by day 15 of 30 — on pace to overshoot, not yet blown past it. */
+    private Budget vndPaceBudget() {
+        return Budget.builder().id(budgetId).userId(userId).category(Category.OTHER)
+                .amountLimit(new BigDecimal("710000")).spent(new BigDecimal("500000"))
+                .month(6).year(2026).build();
+    }
+
+    @Test
+    @DisplayName("rounding: the move lands on whole 10,000 steps, rounded UP so the buffer survives the snap")
+    void raiseIsSnappedUpToTheMoneyStep() throws Exception {
+        UUID shoppingBudgetId = UUID.randomUUID();
+        producer = buildProducer(false, new MoneyRounding(new BigDecimal("10000")));
+        stubUser(Intervention_Level.GENTLE);
+        when(transactionRepository.findByUserIdWithFilters(any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(List.of());
+        when(budgetRepository.findByUserIdMonthYear(eq(userId), eq(6), eq(2026)))
+                .thenReturn(List.of(vndPaceBudget(),
+                        underspentShoppingBudget(shoppingBudgetId, "2000000", "0")));
+        when(suggestionRepository.findOpenByUserIdAndDedupKey(eq(userId), anyString()))
+                .thenReturn(Optional.empty());
+        when(suggestionRepository.save(any(Suggestion.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        producer.maybeProduce(userId, Category.OTHER, AS_OF);
+
+        ArgumentCaptor<Suggestion> captor = ArgumentCaptor.forClass(Suggestion.class);
+        verify(suggestionRepository).save(captor.capture());
+        SuggestionPayload payload = objectMapper
+                .readValue(captor.getValue().getPayloadJson(), SuggestionPayload.class);
+        SuggestionPayload.ProposedAction action = payload.getProposedAction();
+
+        // Norm 710,000 × 1.15 = 816,500 → gap 106,500 → 11 steps → 110,000 moved → new limit 820,000.
+        assertEquals(0, new BigDecimal("110000").compareTo(action.getResolvedValue()));
+        BigDecimal newLimit = action.getBudgetAdjustments().stream()
+                .filter(a -> a.getBudgetId().equals(budgetId)).findFirst().orElseThrow().getNewLimit();
+        assertEquals(0, new BigDecimal("820000").compareTo(newLimit));
+        assertEquals(0, newLimit.remainder(new BigDecimal("10000")).compareTo(BigDecimal.ZERO));
+
+        // The forecast the "why we're asking" line renders is snapped to the same step, so the card
+        // can't show an odd 927,500 above a table of clean 10,000 moves.
+        @SuppressWarnings("unchecked")
+        Map<String, Object> metrics = (Map<String, Object>) payload.getInsightSnapshot().get("metrics");
+        BigDecimal projected = new BigDecimal(String.valueOf(metrics.get("projectedEndOfMonth")));
+        assertEquals(0, projected.remainder(new BigDecimal("10000")).compareTo(BigDecimal.ZERO),
+                "projectedEndOfMonth was " + projected);
+    }
+
+    @Test
+    @DisplayName("rounding: a donor lends whole steps only — slack too small to make a step stays with it")
+    void donorLendsWholeStepsOnly() throws Exception {
+        UUID shoppingBudgetId = UUID.randomUUID();
+        producer = buildProducer(false, new MoneyRounding(new BigDecimal("10000")));
+        stubUser(Intervention_Level.GENTLE);
+        // SHOPPING carries a 900,000 subscription, so its 934,567 limit has only 34,567 of real slack.
+        when(transactionRepository.findByUserIdWithFilters(any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(steadyShoppingHistory("900000"));
+        when(budgetRepository.findByUserIdMonthYear(eq(userId), eq(6), eq(2026)))
+                .thenReturn(List.of(vndPaceBudget(),
+                        underspentShoppingBudget(shoppingBudgetId, "934567", "0")));
+        when(suggestionRepository.findOpenByUserIdAndDedupKey(eq(userId), anyString()))
+                .thenReturn(Optional.empty());
+        when(suggestionRepository.save(any(Suggestion.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        producer.maybeProduce(userId, Category.OTHER, AS_OF);
+
+        ArgumentCaptor<Suggestion> captor = ArgumentCaptor.forClass(Suggestion.class);
+        verify(suggestionRepository).save(captor.capture());
+        SuggestionPayload.ProposedAction action = objectMapper
+                .readValue(captor.getValue().getPayloadJson(), SuggestionPayload.class).getProposedAction();
+
+        SuggestionPayload.BudgetAdjustment shop = action.getBudgetAdjustments().stream()
+                .filter(a -> a.getBudgetId().equals(shoppingBudgetId)).findFirst().orElseThrow();
+        // 34,567 of slack lends 3 whole steps; the 4,567 that can't make a step stays with the donor,
+        // so the move itself is round even though the donor's base limit never was.
+        BigDecimal moved = shop.getCurrentLimit().subtract(shop.getNewLimit());
+        assertEquals(0, new BigDecimal("30000").compareTo(moved));
+        assertEquals(0, moved.remainder(new BigDecimal("10000")).compareTo(BigDecimal.ZERO));
+        assertEquals(0, new BigDecimal("904567").compareTo(shop.getNewLimit()));
+    }
+
+    @Test
+    @DisplayName("a budget already blown far past its limit gets no raise — a bigger number doesn't fix a spent month")
+    void noRaiseWhenSpendingIsAlreadyPastTheGrowthCeiling() {
+        producer = buildProducer(false, new MoneyRounding(new BigDecimal("10000")));
+        stubUser(Intervention_Level.GENTLE);
+        when(transactionRepository.findByUserIdWithFilters(any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(List.of());
+        // The reported case: 710,000 limit with 2,712,500 already spent — 3.8× over. The old formula
+        // answered this by proposing the raw projection (5,425,000) as the new limit, a 7.6× raise that
+        // read as broken. Spending past limit × 1.5 means the month is gone, not that the limit is small.
+        when(budgetRepository.findByUserIdMonthYear(eq(userId), eq(6), eq(2026)))
+                .thenReturn(List.of(Budget.builder().id(budgetId).userId(userId).category(Category.OTHER)
+                        .amountLimit(new BigDecimal("710000")).spent(new BigDecimal("2712500"))
+                        .month(6).year(2026).build()));
+        lenient().when(suggestionRepository.findOpenByUserIdAndDedupKey(eq(userId), anyString()))
+                .thenReturn(Optional.empty());
+
+        producer.maybeProduce(userId, Category.OTHER, AS_OF);
+
+        verify(suggestionRepository, never()).save(any());
+        verify(createNotificationUseCase, never()).createNotification(any(), any(), any());
     }
 
     // ---- Wave 1: notification-only per-transaction anomalies -----------------------------

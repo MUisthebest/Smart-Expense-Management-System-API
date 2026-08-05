@@ -12,6 +12,7 @@ import com.example.smartmoney.domain.models.user.enums.Focus_Mode;
 import com.example.smartmoney.domain.repositories.BudgetRepository;
 import com.example.smartmoney.domain.repositories.TransactionRepository;
 import com.example.smartmoney.domain.repositories.UserRepository;
+import com.example.smartmoney.domain.services.MoneyRounding;
 import com.example.smartmoney.domain.services.SpendingInsightAnalyzer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -48,8 +49,11 @@ class GenerateInsightsUseCaseTest {
     void setUp() {
         // Narration disabled → narrate() returns null; insights carry no narrative (Phase-1 behaviour).
         InsightNarrator narrator = new InsightNarrator(prompt -> { throw new IllegalStateException("no LLM"); }, false);
+        // Rounding step of 1 = an identity on the whole-unit amounts these tests use, so the exact
+        // analyzer figures stay assertable here; the VND-scale step is covered in SuggestionProducerTest.
         useCase = new GenerateInsightsUseCase(
-                transactionRepository, budgetRepository, userRepository, new SpendingInsightAnalyzer(), narrator);
+                transactionRepository, budgetRepository, userRepository, new SpendingInsightAnalyzer(),
+                narrator, new MoneyRounding(BigDecimal.ONE));
     }
 
     private Transaction expense(Category category, int month, BigDecimal amount) {

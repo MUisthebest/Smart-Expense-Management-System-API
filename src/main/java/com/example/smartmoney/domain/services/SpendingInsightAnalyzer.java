@@ -186,8 +186,8 @@ public class SpendingInsightAnalyzer {
             }
             BigDecimal spent = budget.getSpent() != null ? budget.getSpent() : BigDecimal.ZERO;
 
-            Projection projection = projectEndOfMonth(
-                    history, budget.getCategory(), period, spent.doubleValue(), dayOfMonth, daysInMonth);
+            Projection projection = projectEndOfMonth(history, budget.getCategory(), period,
+                    spent.doubleValue(), budget.getAmountLimit().doubleValue(), dayOfMonth, daysInMonth);
             double projected = projection.projectedEndOfMonth();
             double limit = budget.getAmountLimit().doubleValue();
             if (projected <= limit) {
@@ -224,9 +224,27 @@ public class SpendingInsightAnalyzer {
      * Project a category's end-of-month spend by the configured {@link #forecastMethod}.
      * EXP_SMOOTHING needs a daily series; when none is available (the spend is only on the budget),
      * it degrades to the LINEAR projection so a budget-only caller still gets a forecast.
+     *
+     * <p>Whichever method produced it, the observed daily rate is <em>credibility-weighted</em>
+     * against the budget's own daily allowance before the remaining days are projected:
+     * <pre>
+     *   w    = dayOfMonth / daysInMonth
+     *   rate = w · observedRate + (1 − w) · (limit / daysInMonth)
+     *   projected = spent + rate · (daysInMonth − dayOfMonth)
+     * </pre>
+     * Early in the month the observed rate rests on a handful of days and multiplying it out
+     * produced figures like 700,000 spent by day 4 becoming a 5,425,000 forecast — a 7.75× blow-up
+     * that read as broken. The weight is the share of the month actually observed, so the forecast
+     * leans on the budget (the user's own statement of what a normal month costs) while evidence is
+     * thin and converges on pure observation as the month fills in: at {@code dayOfMonth ==
+     * daysInMonth} the weight is 1 and the projection is exactly what was spent.
      */
     private Projection projectEndOfMonth(List<Transaction> history, Category category, YearMonth period,
-                                         double spent, int dayOfMonth, int daysInMonth) {
+                                         double spent, double limit, int dayOfMonth, int daysInMonth) {
+        double observedRate = spent / dayOfMonth;
+        ForecastMethod method = ForecastMethod.LINEAR;
+        Double smoothedRate = null;
+
         if (forecastMethod == ForecastMethod.EXP_SMOOTHING) {
             double[] daily = dailyExpenseSeries(history, category, period, dayOfMonth);
             double observed = 0d;
@@ -234,14 +252,17 @@ public class SpendingInsightAnalyzer {
                 observed += d;
             }
             if (observed > 0d) {
-                double rate = exponentiallySmoothedRate(daily);
-                double projected = spent + rate * (daysInMonth - dayOfMonth);
-                return new Projection(projected, ForecastMethod.EXP_SMOOTHING, rate);
+                smoothedRate = exponentiallySmoothedRate(daily);
+                observedRate = smoothedRate;
+                method = ForecastMethod.EXP_SMOOTHING;
             }
-            // No daily granularity → fall back to the linear projection (still labelled honestly).
+            // No daily granularity → keep the linear rate (still labelled honestly).
         }
-        double projected = spent / dayOfMonth * daysInMonth;
-        return new Projection(projected, ForecastMethod.LINEAR, null);
+
+        double weight = (double) dayOfMonth / daysInMonth;
+        double rate = weight * observedRate + (1d - weight) * (limit / daysInMonth);
+        double projected = spent + rate * (daysInMonth - dayOfMonth);
+        return new Projection(projected, method, smoothedRate);
     }
 
     /** Per-day expense totals for {@code category} in {@code period}, for days 1..{@code upToDay}. */
@@ -317,9 +338,12 @@ public class SpendingInsightAnalyzer {
             }
 
             // Pace confirmation: this month must also be tracking under the limit — don't suggest a
-            // cut in a month that's on pace to use the budget after all.
+            // cut in a month that's on pace to use the budget after all. Shares the credibility-weighted
+            // projection, which early in the month sits near the limit — so a barely-started month can
+            // never look like evidence of chronic underspending.
             BigDecimal spent = budget.getSpent() != null ? budget.getSpent() : BigDecimal.ZERO;
-            double projected = spent.doubleValue() / dayOfMonth * daysInMonth;
+            double projected = projectEndOfMonth(history, category, period, spent.doubleValue(),
+                    limit.doubleValue(), dayOfMonth, daysInMonth).projectedEndOfMonth();
             if (projected > threshold) {
                 continue;
             }
@@ -491,6 +515,29 @@ public class SpendingInsightAnalyzer {
         Map<Category, Map<YearMonth, BigDecimal>> byCategory = monthlyExpenseTotalsByCategory(history);
         Map<YearMonth, BigDecimal> totals = byCategory.get(category);
         return totals == null ? BigDecimal.ZERO : round(totals.getOrDefault(period, BigDecimal.ZERO));
+    }
+
+    /**
+     * The projected end-of-month spend for one category under the configured {@link ForecastMethod} —
+     * the same figure {@code BUDGET_PACE} reports, exposed on its own. {@code analyze()} only produces
+     * a projection for the two tails (a budget on pace to overshoot, or one sitting well under), so a
+     * category spending 70–99% of its limit carries no insight and no projection. Callers that must
+     * reason about <em>every</em> budget — e.g. deciding how much slack a budget can safely donate —
+     * need the figure regardless of whether a rule fired, which is what this provides.
+     *
+     * @param spent what the budget has recorded so far this month ({@code null} → zero)
+     * @param limit that budget's limit — the prior the observed rate is weighted against
+     * @param asOf  the reference date; its month is the projected period
+     */
+    public BigDecimal projectedEndOfMonth(List<Transaction> history, Category category,
+                                          BigDecimal spent, BigDecimal limit, LocalDate asOf) {
+        YearMonth period = YearMonth.from(asOf);
+        int dayOfMonth = Math.max(1, asOf.getDayOfMonth());
+        double spentValue = spent == null ? 0d : spent.doubleValue();
+        double limitValue = limit == null ? 0d : limit.doubleValue();
+        Projection projection = projectEndOfMonth(history, category, period,
+                spentValue, limitValue, dayOfMonth, period.lengthOfMonth());
+        return round(BigDecimal.valueOf(projection.projectedEndOfMonth()));
     }
 
     // ---- P2-C Method D: category trend (least-squares slope) -----------------------------
