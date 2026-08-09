@@ -2,6 +2,7 @@ package com.example.smartmoney.application.usecases.transaction;
 
 import com.example.smartmoney.application.dtos.requests.transactions.UpdateTransactionRequest;
 import com.example.smartmoney.application.dtos.responses.TransactionResponse;
+import com.example.smartmoney.application.services.BudgetSyncService;
 import com.example.smartmoney.domain.exceptions.DomainException;
 import com.example.smartmoney.domain.models.transaction.Transaction;
 import com.example.smartmoney.domain.models.transaction.enums.Category;
@@ -19,6 +20,7 @@ import java.time.format.DateTimeFormatter;
 @RequiredArgsConstructor
 public class UpdateTransactionUseCase {
     private final TransactionRepository transactionRepository;
+    private final BudgetSyncService budgetSyncService;
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
     
     public TransactionResponse execute(UUID userId, UUID transactionId, UpdateTransactionRequest request) {
@@ -37,6 +39,11 @@ public class UpdateTransactionUseCase {
         if (!transaction.getUserId().equals(userId)) {
             throw new DomainException("Unauthorized: Transaction does not belong to user");
         }
+
+        // Capture old state for budget sync
+        TransactionType oldType = transaction.getType();
+        Category oldCategory = transaction.getCategory();
+        LocalDateTime oldDate = transaction.getDate();
         
         // Parse date if provided
         LocalDateTime transactionDate = null;
@@ -71,6 +78,25 @@ public class UpdateTransactionUseCase {
         
         // Save and return
         Transaction updatedTransaction = transactionRepository.save(transaction);
+
+        // Sync old budget if it was an EXPENSE
+        if (oldType == TransactionType.EXPENSE && oldCategory != null && oldDate != null) {
+            budgetSyncService.syncBudgetSpent(userId, oldCategory, oldDate.getMonthValue(), oldDate.getYear());
+        }
+
+        // Sync new budget if updated transaction is an EXPENSE
+        if (updatedTransaction.getType() == TransactionType.EXPENSE && updatedTransaction.getCategory() != null && updatedTransaction.getDate() != null) {
+            boolean sameCategoryAndPeriod = oldType == TransactionType.EXPENSE
+                    && oldCategory == updatedTransaction.getCategory()
+                    && oldDate != null
+                    && oldDate.getMonthValue() == updatedTransaction.getDate().getMonthValue()
+                    && oldDate.getYear() == updatedTransaction.getDate().getYear();
+
+            if (!sameCategoryAndPeriod) {
+                budgetSyncService.syncBudgetSpent(userId, updatedTransaction.getCategory(), updatedTransaction.getDate().getMonthValue(), updatedTransaction.getDate().getYear());
+            }
+        }
+
         return TransactionResponse.fromDomain(updatedTransaction);
     }
 

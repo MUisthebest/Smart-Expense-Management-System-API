@@ -2,13 +2,13 @@ package com.example.smartmoney.application.usecases.transaction;
 
 import com.example.smartmoney.application.dtos.requests.transactions.CreateTransactionRequest;
 import com.example.smartmoney.application.dtos.responses.TransactionResponse;
+import com.example.smartmoney.application.services.BudgetSyncService;
 import com.example.smartmoney.application.usecases.insight.SuggestionProducer;
 import com.example.smartmoney.application.usecases.notification.CreateNotificationUseCase;
 import com.example.smartmoney.domain.exceptions.DomainException;
 import com.example.smartmoney.domain.models.transaction.Transaction;
 import com.example.smartmoney.domain.models.transaction.enums.TransactionType;
 import com.example.smartmoney.domain.models.transaction.valueobjects.Amount;
-import com.example.smartmoney.domain.repositories.BudgetRepository;
 import com.example.smartmoney.domain.repositories.TransactionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -23,7 +23,7 @@ import java.util.UUID;
 public class CreateTransactionUseCase {
     private final TransactionRepository transactionRepository;
     private final CreateNotificationUseCase createNotificationUseCase;
-    private final BudgetRepository budgetRepository;
+    private final BudgetSyncService budgetSyncService;
     private final SuggestionProducer suggestionProducer;
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
 
@@ -52,16 +52,12 @@ public class CreateTransactionUseCase {
         Transaction savedTransaction = transactionRepository.save(transaction);
 
         if (request.getType() == TransactionType.EXPENSE) {
-            budgetRepository.findByUserIdCategoryMonthYear(
+            budgetSyncService.syncBudgetSpent(
                     userId,
                     request.getCategory(),
                     transactionDate.getMonthValue(),
                     transactionDate.getYear()
-            ).ifPresent(budget -> {
-                BigDecimal currentSpent = budget.getSpent() != null ? budget.getSpent() : BigDecimal.ZERO;
-                budget.updateSpent(currentSpent.add(amount.getValue()));
-                budgetRepository.save(budget);
-            });
+            );
 
             // interventionLevel trait and never allowed to break the transaction-create flow.
             suggestionProducer.maybeProduce(userId, request.getCategory(), transactionDate.toLocalDate());
