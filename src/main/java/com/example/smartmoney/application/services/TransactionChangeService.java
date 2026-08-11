@@ -143,13 +143,15 @@ public class TransactionChangeService {
                 .newCategory(category.name())
                 .newDescription(description)
                 .newDate(formattedDate)
+                // The structured newCategory field above keeps the enum name for the client;
+                // this sentence is read by a person, so it gets the plain label instead.
                 .reason(english
                         ? String.format("Record a new %s of %,d VND in %s on %s.",
                         type == TransactionType.EXPENSE ? "expense" : "income",
-                        amount.longValue(), category.name(), formattedDate)
+                        amount.longValue(), FinancialTermFormatter.category(category, true), formattedDate)
                         : String.format("Ghi nhận khoản %s %,d VND thuộc danh mục %s vào %s.",
                         type == TransactionType.EXPENSE ? "chi" : "thu",
-                        amount.longValue(), category.name(), formattedDate))
+                        amount.longValue(), FinancialTermFormatter.category(category, false), formattedDate))
                 .build();
 
         var action = PendingChatAction.builder()
@@ -264,10 +266,10 @@ public class TransactionChangeService {
                 .reason(english
                         ? String.format("Delete the %s of %,d VND in %s recorded on %s.",
                         describeType(existing.getType(), true), currentAmount == null ? 0L : currentAmount,
-                        existing.getCategory(), currentDate)
+                        FinancialTermFormatter.category(existing.getCategory(), true), currentDate)
                         : String.format("Xóa khoản %s %,d VND thuộc danh mục %s ghi ngày %s.",
                         describeType(existing.getType(), false), currentAmount == null ? 0L : currentAmount,
-                        existing.getCategory(), currentDate))
+                        FinancialTermFormatter.category(existing.getCategory(), false), currentDate))
                 .build();
 
         var action = PendingChatAction.builder()

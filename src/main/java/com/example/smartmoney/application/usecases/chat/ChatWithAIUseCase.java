@@ -11,6 +11,7 @@ import com.example.smartmoney.application.ports.chat.ChatPendingActionPort;
 import com.example.smartmoney.application.services.BudgetAdvisorService;
 import com.example.smartmoney.application.services.ChatHistoryCacheService;
 import com.example.smartmoney.application.services.ChatbotPromptBuilder;
+import com.example.smartmoney.application.services.FinancialTermFormatter;
 import com.example.smartmoney.application.services.LlmRouter;
 import com.example.smartmoney.application.services.MessageLanguageDetector;
 import com.example.smartmoney.application.services.ProjectHypothesisService;
@@ -1149,14 +1150,19 @@ public class ChatWithAIUseCase {
         return plan.getAllocations().stream()
                 .map(a -> ChatResponse.BudgetUpdateSuggestion.builder()
                         .budgetId(null)
+                        // The structured `category` field keeps the enum name — the client maps it
+                        // back to a real category. The `reason` sentence is prose shown to the
+                        // user, so it gets the plain label instead of the constant.
                         .category(a.getCategory().name())
                         .currentAmount(null)
                         .suggestedAmount(a.getAmount().longValue())
                         .reason(english
                                 ? String.format("Suggested %s budget for %d/%d: %,.0f VND.",
-                                a.getCategory().name(), plan.getMonth(), plan.getYear(), a.getAmount())
+                                FinancialTermFormatter.category(a.getCategory(), true),
+                                plan.getMonth(), plan.getYear(), a.getAmount())
                                 : String.format("Đề xuất ngân sách %s cho tháng %d/%d: %,.0f VND.",
-                                a.getCategory().name(), plan.getMonth(), plan.getYear(), a.getAmount()))
+                                FinancialTermFormatter.category(a.getCategory(), false),
+                                plan.getMonth(), plan.getYear(), a.getAmount()))
                         .build())
                 .toList();
     }
@@ -1204,7 +1210,11 @@ public class ChatWithAIUseCase {
         if (abnormal.isEmpty()) return null;
 
         boolean english = MessageLanguageDetector.isEnglish(messageLow);
-        String categories = String.join(", ", abnormal);
+        // This warning is appended directly to the reply the user reads, so the categories are
+        // named in words — "ăn uống, giải trí", never "FOOD, ENTERTAINMENT".
+        String categories = abnormal.stream()
+                .map(c -> FinancialTermFormatter.category(c, english))
+                .collect(java.util.stream.Collectors.joining(", "));
         Saving_Pace pace = user != null ? user.getSavingPace() : null;
 
         if (pace == Saving_Pace.AGGRESSIVE) {
