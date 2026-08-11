@@ -23,6 +23,8 @@ import com.example.smartmoney.domain.repositories.GroupRepository;
 import com.example.smartmoney.domain.repositories.ProjectRepository;
 import com.example.smartmoney.domain.repositories.TransactionRepository;
 import com.example.smartmoney.domain.repositories.UserRepository;
+import com.example.smartmoney.domain.services.EnvelopeCalculator;
+import com.example.smartmoney.domain.services.SpendingInsightAnalyzer;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -66,9 +68,15 @@ class UserFinancialDataServiceCashFlowTest {
     private final GroupRepository groupRepository = mock(GroupRepository.class);
     private final GroupProjectRepository groupProjectRepository = mock(GroupProjectRepository.class);
 
+    // Both of these are pure computation over what the repositories return, so the real
+    // implementations are used rather than mocks — a stubbed envelope would make the
+    // "context and backend agree" assertions below vacuous, which is the whole point of them.
+    private final EnvelopeCalculator envelopeCalculator = new EnvelopeCalculator();
+    private final SpendingInsightAnalyzer insightAnalyzer = new SpendingInsightAnalyzer();
+
     private final UserFinancialDataService service = new UserFinancialDataService(
             transactionRepository, projectRepository, budgetRepository, userRepository,
-            groupRepository, groupProjectRepository);
+            groupRepository, groupProjectRepository, envelopeCalculator, insightAnalyzer);
 
     private final UUID userId = UUID.randomUUID();
 
@@ -108,6 +116,9 @@ class UserFinancialDataServiceCashFlowTest {
         when(user.isAutoInvestSurplus()).thenReturn(false);
         when(user.calculateSafeSpending(any()))
                 .thenAnswer(inv -> monthlyIncome.subtract((BigDecimal) inv.getArgument(0)).max(BigDecimal.ZERO));
+        // EnvelopeCalculator reads the pace-derived capacity directly off the user; a mock that
+        // returns null there would NPE inside the real calculator the service now delegates to.
+        when(user.getSavingCapacity()).thenReturn(monthlyIncome.multiply(BigDecimal.valueOf(0.20)));
         return user;
     }
 
@@ -120,6 +131,11 @@ class UserFinancialDataServiceCashFlowTest {
     }
 
     private Project projectWith(String name, boolean subPersonal) {
+        return projectWith(name, subPersonal, ProjectStatus.ACTIVE, LocalDate.now().plusMonths(12));
+    }
+
+    private Project projectWith(String name, boolean subPersonal,
+                                ProjectStatus status, LocalDate deadline) {
         ProjectId projectId = ProjectId.newId();
         ProjectTracking tracking = new ProjectTracking(
                 UUID.randomUUID(), projectId,
@@ -130,9 +146,9 @@ class UserFinancialDataServiceCashFlowTest {
         UUID groupProjectId = subPersonal ? UUID.randomUUID() : null;
         return Project.rehydrate(
                 projectId, UserId.of(userId.toString()), ProjectType.PERSONAL,
-                ProjectStatus.ACTIVE, ProjectPriority.HIGH, name, "desc",
+                status, ProjectPriority.HIGH, name, "desc",
                 new Money(BigDecimal.valueOf(20_000_000), "VND"),
-                LocalDate.now().plusMonths(12), groupProjectId, List.of(), tracking, Instant.now());
+                deadline, groupProjectId, List.of(), tracking, Instant.now());
     }
 
     // ── §A: classifyCashFlow — the single source of truth ────────────────────
@@ -258,7 +274,7 @@ class UserFinancialDataServiceCashFlowTest {
         }
 
         @Test
-        @DisplayName("safe_spending line carries the explicit formula and 'not-actual-cash' warning")
+        @DisplayName("safe-spending block carries the formula plus the precomputed remaining figure")
         void safeSpendingCarriesFormulaAnnotation() {
             when(transactionRepository.findByUserIdWithFilters(eq(userId), any(), any(), any(), any(), any(), any()))
                     .thenReturn(List.of(income(10_000_000L)));
@@ -270,9 +286,50 @@ class UserFinancialDataServiceCashFlowTest {
             String context = service.buildChatContext(userId, 6, 2026);
 
             assertThat(context)
-                    .contains("safe_spending")
+                    .contains("Chi tiêu an toàn hàng tháng theo kế hoạch")
                     .contains("Công thức:")
-                    .contains("KHÔNG trừ chi tiêu thực tế đã phát sinh");
+                    .contains("CHI TIÊU AN TOÀN CÒN LẠI THỰC TẾ")
+                    // The old raw field name must not reach the prompt at all: §10 forbids it in
+                    // the reply, and the surest way to stop the model echoing it is to never show
+                    // it one.
+                    .doesNotContain("safe_spending");
+        }
+
+        @Test
+        @DisplayName("both incomes are labelled separately so neither can stand in for the other")
+        void bothIncomesLabelledSeparately() {
+            when(transactionRepository.findByUserIdWithFilters(eq(userId), any(), any(), any(), any(), any(), any()))
+                    .thenReturn(List.of(income(7_000_000L), expense(2_000_000L)));
+            when(budgetRepository.findByUserIdMonthYear(any(), any(), any())).thenReturn(List.of());
+            when(projectRepository.findAllByUser(any())).thenReturn(List.of());
+            User user = onboardedUser(BigDecimal.valueOf(10_000_000));
+            when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+
+            String context = service.buildChatContext(userId, 6, 2026);
+
+            assertThat(context)
+                    .contains("Thu nhập THỰC TẾ đã ghi nhận trong tháng: 7,000,000 VND")
+                    .contains("Thu nhập hàng tháng theo hồ sơ: 10,000,000 VND")
+                    // 7M actual vs 10M planned — the gap must be stated, not left for the model
+                    // to compute (or, worse, to overlook).
+                    .contains("Chênh lệch thu nhập thực tế so với hồ sơ: -3,000,000 VND");
+        }
+
+        @Test
+        @DisplayName("no recorded income is reported as 'not entered yet', never as zero income")
+        void missingIncomeIsNotZeroIncome() {
+            when(transactionRepository.findByUserIdWithFilters(eq(userId), any(), any(), any(), any(), any(), any()))
+                    .thenReturn(List.of(expense(2_000_000L)));
+            when(budgetRepository.findByUserIdMonthYear(any(), any(), any())).thenReturn(List.of());
+            when(projectRepository.findAllByUser(any())).thenReturn(List.of());
+            User user = onboardedUser(BigDecimal.valueOf(10_000_000));
+            when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+
+            String context = service.buildChatContext(userId, 6, 2026);
+
+            assertThat(context)
+                    .contains("CHƯA GHI NHẬN khoản thu")
+                    .contains("Trạng thái dòng tiền tháng: UNKNOWN");
         }
 
         @Test
@@ -357,6 +414,113 @@ class UserFinancialDataServiceCashFlowTest {
                 if (line.contains(needle)) return line;
             }
             throw new AssertionError("Line containing '" + needle + "' not found in context");
+        }
+    }
+
+    // ── §B2: only live projects reserve money out of the month ──────────────
+
+    @Nested
+    @DisplayName("safe spending vs project lifecycle")
+    class SafeSpendingCommitment {
+
+        /** 20,000,000 target spread over the 12 months from creation to deadline. */
+        private static final BigDecimal RUNNING_PROJECT_COMMITMENT = new BigDecimal("1666666.67");
+
+        private void stubMonth(List<Project> projects) {
+            when(transactionRepository.findByUserIdWithFilters(eq(userId), any(), any(), any(), any(), any(), any()))
+                    .thenReturn(List.of(income(10_000_000L)));
+            when(budgetRepository.findByUserIdMonthYear(any(), any(), any())).thenReturn(List.of());
+            when(projectRepository.findAllByUser(any())).thenReturn(projects);
+            // Built before the when(...) call: onboardedUser() stubs its own mock, and Mockito
+            // rejects stubbing that happens inside another when(...) argument.
+            User user = onboardedUser(BigDecimal.valueOf(10_000_000));
+            when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        }
+
+        @Test
+        @DisplayName("a running project is subtracted from safe spending")
+        void runningProjectIsSubtracted() {
+            stubMonth(List.of(standaloneProject("Mua nhà")));
+
+            var snapshot = service.getFinancialSnapshot(userId, 6, 2026);
+
+            assertThat(snapshot.activeCommitment()).isEqualByComparingTo(RUNNING_PROJECT_COMMITMENT);
+            assertThat(snapshot.safeSpending())
+                    .isEqualByComparingTo(BigDecimal.valueOf(10_000_000).subtract(RUNNING_PROJECT_COMMITMENT));
+        }
+
+        @Test
+        @DisplayName("an EXPIRED project releases its commitment — safe spending recovers in full")
+        void expiredProjectReleasesCommitment() {
+            stubMonth(List.of(projectWith("Mua xe", false, ProjectStatus.EXPIRED,
+                    LocalDate.now().plusMonths(12))));
+
+            var snapshot = service.getFinancialSnapshot(userId, 6, 2026);
+
+            // The deadline is still in the future, which is exactly the case the old
+            // deadline-only filter got wrong: it kept charging the user for a failed goal.
+            assertThat(snapshot.activeCommitment()).isEqualByComparingTo(BigDecimal.ZERO);
+            assertThat(snapshot.releasedCommitment()).isEqualByComparingTo(RUNNING_PROJECT_COMMITMENT);
+            assertThat(snapshot.safeSpending()).isEqualByComparingTo(BigDecimal.valueOf(10_000_000));
+        }
+
+        @Test
+        @DisplayName("COMPLETED / ABANDONED / FROZEN projects release their commitment too")
+        void otherTerminalStatusesRelease() {
+            for (ProjectStatus status : List.of(ProjectStatus.COMPLETED, ProjectStatus.ABANDONED,
+                    ProjectStatus.FROZEN)) {
+                stubMonth(List.of(projectWith("Quỹ dự phòng", false, status,
+                        LocalDate.now().plusMonths(12))));
+
+                assertThat(service.getFinancialSnapshot(userId, 6, 2026).safeSpending())
+                        .as("status %s must not reserve money", status)
+                        .isEqualByComparingTo(BigDecimal.valueOf(10_000_000));
+            }
+        }
+
+        @Test
+        @DisplayName("a past-deadline project still stored as ACTIVE is treated as expired")
+        void lazilyExpiredProjectIsTreatedAsExpired() {
+            // Expiry is applied lazily by the project screens, so findAllByUser can hand back a
+            // row whose status says ACTIVE long after its deadline passed.
+            stubMonth(List.of(projectWith("Du lịch hè", false, ProjectStatus.ACTIVE,
+                    LocalDate.now().minusMonths(2))));
+
+            var snapshot = service.getFinancialSnapshot(userId, 6, 2026);
+            assertThat(snapshot.activeCommitment()).isEqualByComparingTo(BigDecimal.ZERO);
+            assertThat(snapshot.safeSpending()).isEqualByComparingTo(BigDecimal.valueOf(10_000_000));
+
+            // ...and the context must not describe it as running, either.
+            String context = service.buildChatContext(userId, 6, 2026);
+            assertThat(context).contains("countsTowardSafeSpending=false");
+            assertThat(context).contains("status=EXPIRED");
+        }
+
+        @Test
+        @DisplayName("remaining safe spending subtracts living costs but not project contributions")
+        void remainingExcludesProjectContributions() {
+            Transaction contribution = Transaction.builder()
+                    .id(UUID.randomUUID())
+                    .userId(userId)
+                    .amount(new Amount(BigDecimal.valueOf(3_000_000)))
+                    .type(TransactionType.EXPENSE)
+                    .category(Category.PROJECT_CONTRIBUTION)
+                    .description("góp dự án")
+                    .date(LocalDateTime.of(2026, 6, 10, 9, 0))
+                    .build();
+            when(transactionRepository.findByUserIdWithFilters(eq(userId), any(), any(), any(), any(), any(), any()))
+                    .thenReturn(List.of(income(10_000_000L), expense(2_000_000L), contribution));
+            when(budgetRepository.findByUserIdMonthYear(any(), any(), any())).thenReturn(List.of());
+            when(projectRepository.findAllByUser(any())).thenReturn(List.of());
+            User user = onboardedUser(BigDecimal.valueOf(10_000_000));
+            when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+
+            var snapshot = service.getFinancialSnapshot(userId, 6, 2026);
+
+            assertThat(snapshot.recordedExpense()).isEqualByComparingTo(BigDecimal.valueOf(5_000_000));
+            assertThat(snapshot.livingExpense()).isEqualByComparingTo(BigDecimal.valueOf(2_000_000));
+            // Moving 3M into a saving goal must not read as 3M less to live on.
+            assertThat(snapshot.remainingSafeSpending()).isEqualByComparingTo(BigDecimal.valueOf(8_000_000));
         }
     }
 

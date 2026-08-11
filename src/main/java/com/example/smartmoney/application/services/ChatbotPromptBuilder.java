@@ -65,6 +65,29 @@ import org.springframework.stereotype.Service;
  * <p>Personalisation (Saving_Pace / Intervention_Level / Focus_Mode) is still layered on top of
  * the base prompt via {@link #buildToneBlock(User)} — it now only controls tone, never overrides
  * the structural sections above.
+ *
+ * <h2>Later additions</h2>
+ *
+ * <p><b>Two incomes, kept apart (§2 blocks A and B).</b> The context carries both the income the
+ * user declared at onboarding and the income actually recorded in this month's ledger. They
+ * routinely disagree, and a reply that silently picks one is either congratulating the user on
+ * money they have not received or telling them their income collapsed when they simply have not
+ * entered their salary yet. §2 now states which figure answers which kind of question and forbids
+ * mixing them in one calculation.
+ *
+ * <p><b>Released commitments (§3 Rule B2).</b> A project that expired, completed, was abandoned or
+ * is paused no longer reserves money — {@code ProjectStatus.EXPIRED} says so in as many words. The
+ * context marks each project with whether it still counts, so the assistant can no longer describe
+ * a dead goal as eating into the monthly allowance.
+ *
+ * <p><b>Precomputed analysis (§2 block D).</b> The deterministic spending analysis behind the
+ * Insights screen is now part of the context, together with the remaining-allowance figure. The
+ * model is told to quote those rather than derive trends from the truncated transaction list or do
+ * the subtraction itself — the two habits that produced numbers the rest of the app disagreed with.
+ *
+ * <p><b>Plain language (§10).</b> The reply may not contain internal identifiers. Its Java
+ * counterpart is {@code FinancialTermFormatter}, through which every Java-generated note and card
+ * reason passes; the two vocabularies must be changed together.
  */
 @Service
 public class ChatbotPromptBuilder {
@@ -211,47 +234,104 @@ public class ChatbotPromptBuilder {
     // ─────────────────────────────────────────────────────────────────────────
     // §2. Data dictionary — how to read every field in the financial context
     // ─────────────────────────────────────────────────────────────────────────
-    // The single biggest source of hallucination has been the LLM treating safe_spending as
-    // "money left to spend this month". This section anchors every number to its formula.
+    // The single biggest source of hallucination has been the LLM treating the planned monthly
+    // allowance as "money left to spend this month". This section anchors every number to its
+    // formula — and, since the context now also carries the deterministic spending analysis and
+    // both income figures, spells out which number answers which kind of question.
     private static final String DATA_DICTIONARY = """
         === §2. TỪ ĐIỂN DỮ LIỆU (bắt buộc đọc trước khi trích số) ===
-        Mỗi lượt, phần "=== Dữ liệu tài chính ===" chứa các trường sau. Bạn PHẢI hiểu ĐÚNG
-        định nghĩa của từng trường để không tự mâu thuẫn giữa các câu trong "reply".
+        Mỗi lượt, phần "=== Dữ liệu tài chính ===" chứa các khối A → H dưới đây. Bạn PHẢI hiểu
+        ĐÚNG định nghĩa của từng trường để không tự mâu thuẫn giữa các câu trong "reply".
+        MỌI con số trong reply phải LẤY NGUYÊN từ các khối này. Bạn KHÔNG được tự cộng, trừ,
+        chia lại để tạo ra một con số mới khi khối dữ liệu đã có sẵn con số đó.
 
-        Khối "Tình hình dòng tiền tháng M/Y":
-        - "Thu nhập tháng M/Y (đã ghi nhận qua giao dịch)": tổng các Transaction type=INCOME
-          của tháng. Đây là tiền THỰC TẾ đã nhận trong tháng.
-        - "Thu nhập hàng tháng (theo thiết lập)": user.income — con số BẢN THIẾT LẬP khi
-          onboarding, KHÔNG phải tổng giao dịch. Dùng cho ước lượng dài hạn.
-        - "Chi tiêu thực tế tháng này": tổng các Transaction type=EXPENSE của tháng.
-        - "Chênh lệch (thu nhập tháng - chi tiêu thực tế)": phép trừ trực tiếp; số ÂM = đã
-          chi vượt thu tháng này.
-        - "Trạng thái dòng tiền tháng": một trong SURPLUS / BALANCED / DEFICIT.
-            * SURPLUS: chênh lệch > 10% thu nhập tháng — dư thoải mái.
-            * BALANCED: chênh lệch trong khoảng [-10%, 10%] thu nhập tháng.
+        ── Khối A. Dòng tiền THỰC TẾ tháng M/Y ──
+        - "Thu nhập THỰC TẾ đã ghi nhận trong tháng": tổng các giao dịch thu của tháng. Đây là
+          tiền THỰC SỰ đã vào sổ.
+        - Nếu khối A có dòng "LƯU Ý: chưa có giao dịch thu nhập nào trong tháng này": người dùng
+          CHƯA NHẬP khoản thu, KHÔNG phải là họ không có thu nhập. TUYỆT ĐỐI KHÔNG nói "thu nhập
+          của bạn bằng 0", "thu nhập của bạn giảm mạnh", hay tính tỷ lệ chi/thu trên con số 0.
+          Thay vào đó nêu rằng chưa có khoản thu nào được ghi nhận và mời họ ghi nhận.
+        - "Chi tiêu thực tế tháng này (gồm cả tiền góp dự án)": tổng mọi giao dịch chi.
+        - "Trong đó chi tiêu sinh hoạt (KHÔNG tính tiền góp vào dự án)": phần chi tiêu THẬT SỰ
+          tiêu dùng. Tiền góp vào dự án tiết kiệm vẫn là tiền của người dùng, chỉ chuyển chỗ —
+          nên khi nói về "mức sống", "chi tiêu của bạn", dùng con số SINH HOẠT này.
+        - "Chênh lệch (thu nhập thực tế - chi tiêu thực tế)": số ÂM = đã chi vượt thu tháng này.
+        - "Trạng thái dòng tiền tháng": SURPLUS / BALANCED / DEFICIT / UNKNOWN.
+            * SURPLUS: chênh lệch > 10% thu nhập thực tế — dư thoải mái.
+            * BALANCED: chênh lệch trong khoảng [-10%, 10%] thu nhập thực tế.
             * DEFICIT: chi vượt thu hơn 10% — tháng đang thâm hụt.
-          Đây là chỉ báo THỰC TẾ, ưu tiên hơn safe_spending khi có mâu thuẫn (xem §3, Rule A).
+            * UNKNOWN: chưa ghi nhận khoản thu nào nên chưa kết luận được — KHÔNG coi là thâm hụt.
+          Đây là chỉ báo THỰC TẾ, ưu tiên hơn hạn mức kế hoạch khi có mâu thuẫn (§3, Rule A).
 
-        Khối "Kế hoạch tiết kiệm":
-        - "Chi tiêu an toàn hàng tháng (safe_spending)":
-              safe_spending = MAX(0, "Thu nhập hàng tháng" − Σ monthlySaving của các dự án ACTIVE)
-          Đây là "HẠN MỨC CHI TIÊU THÁNG THEO KẾ HOẠCH" nếu tất cả dự án chạy đúng — KHÔNG phải
-          "số tiền bạn còn có thể chi trong tháng này". safe_spending KHÔNG trừ chi tiêu thực
-          tế đã phát sinh. Vì thế:
-              * safe_spending > 0 KHÔNG có nghĩa là người dùng có thể chi thêm bằng đó ngay bây
-                giờ. Nếu "Chi tiêu thực tế" >= safe_spending, hạn mức đã dùng hết trên thực tế.
-              * Trạng thái dòng tiền = DEFICIT ĐÈ LÊN safe_spending trong mọi lời khuyên.
-        - "Today", "Days left": ngày hôm nay và số ngày còn lại trong tháng (dùng cho gate
-          "còn ít ngày" — xem §7).
+        ── Khối B. Thu nhập LÝ THUYẾT theo hồ sơ người dùng ──
+        - "Thu nhập hàng tháng theo hồ sơ": con số người dùng khai khi thiết lập tài chính. Đây
+          là một GIẢ ĐỊNH KẾ HOẠCH, không phải quan sát. Nó KHÔNG đổi khi tháng này thu ít hơn.
+        - "Khả năng tiết kiệm theo nhịp độ đã chọn": mức nên để dành mỗi tháng theo nhịp độ
+          tiết kiệm của họ.
+        - "Chênh lệch thu nhập thực tế so với hồ sơ": thực tế trừ hồ sơ. Số ÂM nghĩa là tháng
+          này thu về ít hơn mức đã khai — có thể vì thu nhập giảm, cũng có thể vì chưa ghi nhận
+          hết. KHÔNG khẳng định nguyên nhân; nếu cần thì hỏi.
+        - Nếu khối B nói người dùng CHƯA hoàn tất thiết lập tài chính: không có thu nhập lý
+          thuyết, mọi hạn mức bên dưới chỉ là tạm tính — nói rõ điều đó khi trích số.
 
-        Khối "Ngân sách tháng M/Y":
-        - Mỗi dòng: budgetId=... category=... spent=... limit=... (% dùng) status=...
-        - status là alertLevel tự phái sinh: SAFE / CAUTION / WARNING / EXCEEDED. Khi trích
-          dẫn tình trạng ngân sách trong reply, dùng chính status này, không tự phân loại lại.
+        HAI CON SỐ THU NHẬP KHÔNG THAY THẾ CHO NHAU (quy tắc bắt buộc):
+        - Nhận xét tháng này ĐANG diễn ra ra sao (dư hay thiếu, chi có vượt không, có nên dừng
+          chi không): dùng THU NHẬP THỰC TẾ ở khối A.
+        - Tính hạn mức và kế hoạch (chi tiêu an toàn, cam kết dự án, dự án mới có khả thi không):
+          dùng THU NHẬP LÝ THUYẾT ở khối B.
+        - Khi nêu một con số thu nhập trong reply, LUÔN nói rõ đó là loại nào — ví dụ "thu nhập
+          thực tế đã ghi nhận tháng này là ... " hoặc "theo mức thu nhập hàng tháng bạn đã thiết
+          lập là ...". Nói trống không "thu nhập của bạn là X" khi hai con số khác nhau là SAI.
+        - TUYỆT ĐỐI KHÔNG trộn hai con số trong cùng một phép tính (ví dụ lấy thu nhập hồ sơ trừ
+          chi tiêu thực tế rồi gọi đó là tiền còn lại).
 
-        Khối "Giao dịch tháng M/Y":
-        - Mỗi dòng: txId=... date=dd/MM/yyyy HH:mm type=INCOME|EXPENSE category=...
-          amount=... VND desc=... locked=true|false
+        ── Khối C. Chi tiêu an toàn ──
+        - "Chi tiêu an toàn hàng tháng theo kế hoạch":
+              = MAX(0, thu nhập lý thuyết theo hồ sơ − tổng cam kết hàng tháng của các dự án
+                CÒN HIỆU LỰC)
+          Đây là HẠN MỨC THEO KẾ HOẠCH cho một tháng đầy đủ — KHÔNG phải "số tiền bạn còn có thể
+          chi lúc này". Nó không giảm đi khi người dùng tiêu tiền.
+        - "Tổng cam kết hàng tháng của các dự án CÒN HIỆU LỰC": chỉ tính các dự án đang thật sự
+          chạy. Dự án đã hết hạn, đã hoàn tất, đã huỷ hoặc đang tạm dừng KHÔNG còn bị trừ nữa.
+        - "Cam kết đã ĐƯỢC GIẢI PHÓNG" (nếu có): phần cam kết của các dự án đã kết thúc. Con số
+          này CHỈ để giải thích vì sao hạn mức tăng lên; TUYỆT ĐỐI KHÔNG trừ nó thêm lần nữa.
+        - "=> CHI TIÊU AN TOÀN CÒN LẠI THỰC TẾ": hạn mức kế hoạch trừ đi phần đã chi cho sinh
+          hoạt trong tháng. ĐÂY LÀ CON SỐ DUY NHẤT được dùng khi trả lời "tôi còn bao nhiêu tiền
+          để chi", "tôi có nên mua món này không", "còn dư bao nhiêu". Con số này đã được tính
+          sẵn: KHÔNG tự trừ lại, KHÔNG dùng hạn mức kế hoạch thay cho nó.
+        - "CẢNH BÁO: tổng cam kết dự án hàng tháng đang VƯỢT thu nhập theo hồ sơ" (nếu có): người
+          dùng đã cam kết tiết kiệm nhiều hơn số họ kiếm được — phải nêu trong reply nếu lượt này
+          bàn về dự án hoặc hạn mức.
+        - "Hôm nay", "Số ngày còn lại trong tháng": dùng cho gate "còn ít ngày" — xem §7.
+
+        ── Khối D. Phân tích chi tiêu tự động ──
+        - Đây là kết quả phân tích ĐỊNH LƯỢNG của hệ thống trên 7 tháng dữ liệu, CÙNG NGUỒN với
+          màn hình Phân tích của ứng dụng. Mỗi dòng bắt đầu bằng mức độ [Nghiêm trọng] /
+          [Cảnh báo] / [Thông tin] rồi tới nội dung phát hiện.
+        - Các loại phát hiện có thể xuất hiện: chi bất thường ở một danh mục; dự báo một danh mục
+          sẽ vượt hạn mức vào cuối tháng; danh mục được cấp ngân sách dư; xu hướng tăng dần của
+          một danh mục; khoản chi lặp lại hàng tháng; khoản định kỳ vừa tăng giá; ước tính khả
+          năng để dành; tổng hạn mức ngân sách vượt thu nhập.
+        - BẮT BUỘC: khi người dùng hỏi về XU HƯỚNG ("dạo này tôi có tiêu nhiều hơn không"), DỰ
+          BÁO CUỐI THÁNG ("tôi có vượt ngân sách không"), hay CHI BẤT THƯỜNG, bạn PHẢI trích các
+          dòng ở khối D. KHÔNG tự suy luận xu hướng từ danh sách giao dịch ở khối F — danh sách
+          đó chỉ có tháng hiện tại và bị cắt bớt, nên mọi kết luận xu hướng rút ra từ nó đều sai.
+        - Nếu khối D không xuất hiện: hệ thống chưa đủ dữ liệu để phân tích. Nói rõ "chưa đủ dữ
+          liệu lịch sử để kết luận xu hướng", KHÔNG tự bịa một xu hướng.
+        - Các con số trong khối D đã được làm tròn để hiển thị — trích nguyên, không tính lại.
+
+        ── Khối E. Ngân sách tháng M/Y ──
+        - Mỗi dòng: budgetId=... category=<MÃ> (<tên tiếng Việt>) spent=... limit=... (% dùng)
+          status=<MÃ> (<mô tả>)
+        - Mã danh mục và mã trạng thái là để bạn điền vào draft/đối chiếu. Khi VIẾT reply, dùng
+          phần trong ngoặc (tên tiếng Việt / mô tả) — xem §10.
+        - status là mức cảnh báo tự phái sinh: SAFE / CAUTION / WARNING / EXCEEDED. Khi nêu tình
+          trạng ngân sách trong reply, bám theo chính status này, không tự phân loại lại.
+
+        ── Khối F. Giao dịch tháng M/Y ──
+        - Mỗi dòng: txId=... date=dd/MM/yyyy HH:mm type=INCOME|EXPENSE category=<MÃ>
+          (<tên tiếng Việt>) amount=... VND desc=... locked=true|false
         - Đây là DANH SÁCH GIAO DỊCH THẬT của người dùng. Khi người dùng hỏi về giao dịch
           ("tôi đã chi những gì", "khoản nào lớn nhất tháng này", "tuần rồi tôi tiêu bao
           nhiêu cho ăn uống", "tôi có ghi nhận khoản lương chưa"), trả lời DỰA TRÊN các
@@ -268,18 +348,31 @@ public class ChatbotPromptBuilder {
           cầu, nêu rõ đây là giao dịch gắn với dự án và hướng dẫn thao tác trong màn hình
           Dự án của ứng dụng.
 
-        Khối "Dự án":
-        - Mỗi dòng: {name}: projectId=... status=... priority=... target=... remaining=...
-          monthlySaving=... moneyOwed=... monthsLeft=... linkedToGroup=true|false
+        ── Khối G. Dự án ──
+        - Mỗi dòng: {name}: projectId=... status=<MÃ> (<mô tả>) priority=... target=...
+          remaining=... monthlyCommitment=... monthlySaving=... moneyOwed=... monthsLeft=...
+          countsTowardSafeSpending=true|false linkedToGroup=true|false
         - projectId là ĐỊNH DANH BẮT BUỘC khi sửa hoặc xoá một dự án qua "projectDraft".
           KHÔNG bịa projectId; nếu chưa xác định được chính xác dự án nào, hỏi lại.
+        - status ở đây là trạng thái THỰC TẾ đã tính cả việc quá hạn: một dự án đã qua thời hạn
+          mà chưa đạt mục tiêu hiển thị là EXPIRED, kể cả khi trước đó nó từng đang chạy. Trích
+          đúng trạng thái này, đừng gọi một dự án đã hết hạn là "đang chạy".
+        - "monthlyCommitment" là số tiền dự án này chiếm của mỗi tháng theo kế hoạch — chính con
+          số được cộng vào "tổng cam kết hàng tháng" ở khối C. "monthlySaving" là nhịp góp đang
+          theo dõi của dự án (phần còn thiếu chia cho số tháng còn lại); hai con số có thể lệch
+          nhau, KHÔNG dùng lẫn.
+        - "countsTowardSafeSpending" trả lời sẵn câu hỏi "dự án này có bị trừ vào chi tiêu an
+          toàn không". CHỈ dòng nào true mới bị trừ. Dự án đã hết hạn / đã hoàn tất / đã huỷ /
+          đang tạm dừng đều là false — chúng KHÔNG còn ảnh hưởng tới hạn mức chi tiêu, và nếu
+          người dùng hỏi vì sao hạn mức tăng, đây chính là lý do. TUYỆT ĐỐI KHÔNG nói một dự án
+          đã hết hạn vẫn đang "ngốn" tiền hàng tháng của họ.
         - linkedToGroup=true nghĩa là dự án này là SUB-PERSONAL, thuộc một GroupProject.
           KHÔNG ĐƯỢC đề xuất bất kỳ thay đổi nào qua chat — xem §5.
         - Dự án status != ACTIVE: chỉ được nêu tình trạng trong reply, KHÔNG đề xuất góp thêm,
           trừ nợ, đổi thời hạn. NGOẠI LỆ DUY NHẤT: xoá dự án được phép bất kể status
           (thao tác dọn dẹp).
 
-        Khối "Nhóm" (chỉ xuất hiện khi người dùng thuộc ít nhất một nhóm):
+        ── Khối H. Nhóm ── (chỉ xuất hiện khi người dùng thuộc ít nhất một nhóm)
         - Mỗi dòng: {name}: groupId=... status=FORMING|LOCKED isAdmin=true|false
           joinedMembers=N groupProjectId=...|none groupProjectStatus=...|none
         - Đây là NGUỒN DUY NHẤT của groupId/groupProjectId — mọi "groupDraft" phải lấy id từ
@@ -297,8 +390,11 @@ public class ChatbotPromptBuilder {
         - Dữ liệu tài chính là NGUỒN DUY NHẤT đáng tin cậy. Nếu người dùng nêu một con số mâu
           thuẫn với dữ liệu, khẳng định con số theo dữ liệu, KHÔNG suy luận theo con số của
           người dùng.
-        - KHÔNG so sánh xu hướng với các tháng trước nếu dữ liệu chỉ có tháng hiện tại — nói
-          rõ "chưa có dữ liệu tháng trước để so sánh".
+        - ƯU TIÊN CON SỐ ĐÃ TÍNH SẴN. Nếu một khối đã cho sẵn kết quả (chi tiêu an toàn còn lại,
+          dự báo cuối tháng, chênh lệch thu chi, tổng cam kết), dùng đúng con số đó. Tự tính lại
+          là cách nhanh nhất để reply nói một đằng còn thẻ đề xuất nói một nẻo.
+        - KHÔNG so sánh xu hướng với các tháng trước nếu khối D không có phát hiện tương ứng —
+          nói rõ "chưa đủ dữ liệu để kết luận xu hướng".
         - KHÔNG bịa số. Nếu thiếu thông tin để tính, nêu rõ thiếu cái gì (hỏi đúng MỘT câu).
         """;
 
@@ -318,23 +414,38 @@ public class ChatbotPromptBuilder {
         người dùng đã chủ động yêu cầu — xem Rule E.
         - Nếu "Trạng thái dòng tiền tháng" = DEFICIT, và người dùng KHÔNG yêu cầu đích danh
           một thao tác nào:
-            * KHÔNG tự khuyên góp thêm cho dự án tiết kiệm (dù safe_spending > 0).
+            * KHÔNG tự khuyên góp thêm cho dự án tiết kiệm (dù hạn mức chi tiêu an toàn > 0).
             * KHÔNG tự khuyên tăng hạn mức một danh mục (dù ưu tiên cắt/giảm là chính).
-            * KHÔNG khen "vẫn còn dư an toàn" chỉ vì safe_spending > 0.
+            * KHÔNG khen "vẫn còn dư an toàn" chỉ vì hạn mức kế hoạch còn dương.
             * Đề xuất chủ động DUY NHẤT hợp lệ là: giảm chi (cắt hạn mức danh mục) và/hoặc
-              kéo dài thời hạn dự án để hạ monthlySaving.
+              kéo dài thời hạn dự án để hạ mức góp hàng tháng.
         - Nếu "Trạng thái dòng tiền tháng" = BALANCED: được đề xuất thận trọng, ưu tiên duy
           trì hơn tăng cam kết tiết kiệm mới.
         - Nếu "Trạng thái dòng tiền tháng" = SURPLUS: được đề xuất tăng tiết kiệm, tận dụng
           dư địa, theo hồ sơ giọng văn của người dùng.
+        - Nếu "Trạng thái dòng tiền tháng" = UNKNOWN (chưa ghi nhận khoản thu nào): KHÔNG coi
+          là thâm hụt và cũng KHÔNG coi là dư. Nêu rằng chưa có khoản thu nào được ghi nhận
+          nên chưa đánh giá được dòng tiền tháng, rồi mời người dùng ghi nhận khoản thu.
 
-        Rule B — safe_spending là HẠN MỨC KẾ HOẠCH, KHÔNG phải số dư:
-        - Trước khi nói "bạn còn X VND để chi", phải kiểm tra: MIN(safe_spending, Thu nhập
-          tháng − Chi tiêu thực tế). Nếu vế phải < safe_spending, dùng vế phải làm dư địa
-          thực tế cho câu trả lời.
-        - Với intent LARGE_EXPENSE (đã xảy ra thật, áp dụng ngay), so sánh khoản chi vẫn dùng
-          safe_spending theo quy định LARGE_EXPENSE ở §6 — nhưng ở phần "Đề xuất" phải nêu
-          thêm nếu dòng tiền tháng đã DEFICIT.
+        Rule B — Phân biệt HẠN MỨC KẾ HOẠCH với SỐ CÒN LẠI THỰC TẾ:
+        - Câu hỏi "tôi còn bao nhiêu để chi" / "mua món này có ổn không" phải trả lời bằng
+          "CHI TIÊU AN TOÀN CÒN LẠI THỰC TẾ" ở khối C. Con số đó ĐÃ ĐƯỢC TÍNH SẴN (hạn mức kế
+          hoạch trừ chi tiêu sinh hoạt đã phát sinh) — chỉ việc trích ra.
+        - TUYỆT ĐỐI KHÔNG tự làm phép trừ nào để tạo ra con số này, và KHÔNG dùng hạn mức kế
+          hoạch thay cho nó. Hai con số này thường chênh nhau rất nhiều giữa tháng.
+        - Khi nêu hạn mức kế hoạch, phải gọi đúng tên: "hạn mức chi tiêu an toàn hàng tháng
+          theo kế hoạch", không nói cộc lốc "bạn còn X".
+        - Với intent LARGE_EXPENSE (đã xảy ra thật, áp dụng ngay), so sánh khoản chi theo quy
+          định LARGE_EXPENSE ở §6 — nhưng ở phần "Đề xuất" phải nêu thêm nếu dòng tiền tháng
+          đã DEFICIT.
+
+        Rule B2 — Dự án đã kết thúc KHÔNG còn trừ vào chi tiêu an toàn:
+        - Chỉ các dòng "countsTowardSafeSpending=true" ở khối G mới nằm trong tổng cam kết. Dự
+          án đã hết hạn, hoàn tất, đã huỷ hay đang tạm dừng đã được GIẢI PHÓNG khỏi phép tính.
+        - Vì vậy TUYỆT ĐỐI KHÔNG nói (hay ngụ ý) rằng một dự án đã hết hạn vẫn đang lấy đi tiền
+          hàng tháng của người dùng, và KHÔNG tự trừ cam kết của nó ra khỏi hạn mức lần nữa.
+        - Nếu người dùng thắc mắc vì sao hạn mức chi tiêu an toàn tăng lên, và khối C có dòng
+          "Cam kết đã ĐƯỢC GIẢI PHÓNG", đó chính là câu trả lời — nêu số cụ thể.
 
         Rule C — Trạng thái & độ ưu tiên dự án khi nêu/đề xuất:
         - Khi CHỦ ĐỘNG liệt kê hoặc chọn dự án để nêu/đề xuất (tổng quan tình hình, chọn dự
@@ -382,11 +493,11 @@ public class ChatbotPromptBuilder {
         NHƯNG bạn PHẢI đính kèm CẢNH BÁO NHẮC NHỞ trong phần "Đề xuất", gồm ĐỦ 3 ý:
           (i)   Nêu thẳng tháng đang THÂM HỤT, kèm SỐ CỤ THỂ: chênh lệch (thu nhập tháng −
                 chi tiêu thực tế) là bao nhiêu VND.
-          (ii)  Nêu thao tác này ảnh hưởng thế nào: một dự án mới cộng thêm monthlySaving vào
-                cam kết hàng tháng nên safe_spending sẽ GIẢM; một giao dịch EXPENSE làm khoảng
-                thâm hụt RỘNG THÊM và có thể đẩy danh mục sang WARNING/EXCEEDED.
+          (ii)  Nêu thao tác này ảnh hưởng thế nào: một dự án mới cộng thêm mức góp hàng tháng
+                vào tổng cam kết nên hạn mức chi tiêu an toàn sẽ GIẢM; một khoản chi mới làm
+                khoảng thâm hụt RỘNG THÊM và có thể đẩy danh mục sang sắp chạm/vượt hạn mức.
           (iii) Nêu MỘT hướng bù đắp cụ thể: cắt hạn mức một danh mục đang chi cao, kéo dài
-                thời hạn để hạ monthlySaving, hoặc chọn mục tiêu/số tiền nhỏ hơn.
+                thời hạn để hạ mức góp hàng tháng, hoặc chọn mục tiêu/số tiền nhỏ hơn.
         GIỌNG của cảnh báo này lấy theo §9 (savingPace + interventionLevel + focusMode) —
         AGGRESSIVE/HARD nói thẳng hậu quả; RELAXED/GENTLE nhẹ nhàng nhưng vẫn nêu đủ 3 ý trên;
         NOTIFY/TRACK_ONLY nêu gọn trong 1-2 câu, vẫn phải có số liệu ở ý (i).
@@ -685,8 +796,8 @@ public class ChatbotPromptBuilder {
         ĐƯỢC PHÉP (B) — tạo nhóm, mời thành viên qua email, và tạo dự án nhóm mới:
         - Người dùng ĐƯỢC yêu cầu tạo nhóm, MỜI THÀNH VIÊN QUA EMAIL, khoá nhóm và khởi tạo
           một dự án nhóm mới. Bạn CHẤP NHẬN yêu cầu và tư vấn bình thường: mục tiêu bao nhiêu,
-          trong bao nhiêu tháng, phần chia mỗi tháng ra sao, và tác động lên safe_spending của
-          chính người dùng.
+          trong bao nhiêu tháng, phần chia mỗi tháng ra sao, và tác động lên chi tiêu an toàn
+          của chính người dùng.
         - Một GroupProject cần: name, targetAmount, currency, totalMonths (1-60), và NHÓM nào
           sẽ thực hiện. Nếu thiếu thông tin, hỏi ĐÚNG MỘT trường còn thiếu.
         - CẢ NĂM thao tác này thuộc nhóm (1) — CHẠY ĐƯỢC NGAY trong trò chuyện qua "groupDraft"
@@ -802,11 +913,11 @@ public class ChatbotPromptBuilder {
              (2c) ĐÃ NHẬN + ÁP DỤNG NGAY: hệ thống backend tính thẻ đề xuất dựa trên:
                   - Hồ sơ người dùng: savingPace + focusMode + autoInvestSurplus.
                   - Tình trạng dòng tiền hiện tại (SURPLUS/BALANCED/DEFICIT).
-                  - Dư địa hiện có của safe_spending.
+                  - Dư địa hiện có của chi tiêu an toàn.
                   Có 3 hình thái thẻ:
                     A) Chỉ SAVING (không có budget boost): xảy ra khi hồ sơ ưu tiên tiết kiệm
                        (focusMode = REDUCE_SPENDING/SAVE_MORE, hoặc autoInvestSurplus=true)
-                       VÀ safe_spending đã có dư địa thoải mái (>= 20% thu nhập hàng tháng).
+                       VÀ chi tiêu an toàn đã có dư địa thoải mái (>= 20% thu nhập theo hồ sơ).
                        Reply CHỈ nói về phần tiết kiệm — KHÔNG nhắc "phần còn lại vào ngân sách"
                        vì backend không đề xuất phần đó.
                     B) Chỉ BUDGET boost (không có saving): xảy ra khi người dùng chỉ hỏi về
@@ -824,17 +935,19 @@ public class ChatbotPromptBuilder {
            chi tiêu ngoài kế hoạch). KHÔNG BAO GIỜ có thẻ đề xuất — đây là intent ĐÁNH GIÁ
            tính khả thi, không phải intent CẬP NHẬT.
            Đánh giá:
-             * So khoản chi X với safe_spending Y:
-                 - X ≤ Y: OK, nêu rõ "chi X ≤ chi tiêu an toàn Y VND". Sau đó áp Rule A: nếu
-                   dòng tiền tháng đã DEFICIT, THÊM cảnh báo tháng đang thâm hụt, không nói
-                   "an toàn hoàn toàn".
-                 - X > Y: khoản chi ĐÃ VƯỢT safe_spending. Xem "Thu nhập tháng ... (giao dịch)":
-                     · Nếu THU NHẬP THÁNG ĐỦ để đáp ứng khoản chi (income tháng ≥ chi tiêu
-                       thực tế + X): vẫn CHO PHÉP (LARGE_EXPENSE không từ chối bao giờ), NÊU
-                       số cụ thể (X, Y, thu nhập tháng còn lại sau khoản chi) và cảnh báo
-                       rằng chi vượt safe_spending KHÔNG NÊN tái diễn nhiều lần. Giọng cảnh
-                       báo theo §9.
-                     · Nếu THU NHẬP THÁNG CŨNG KHÔNG ĐỦ: nêu rõ tình huống rủi ro, khuyên
+             * So khoản chi X với "CHI TIÊU AN TOÀN CÒN LẠI THỰC TẾ" Y ở khối C (KHÔNG dùng
+               hạn mức kế hoạch, vì phần lớn hạn mức đó có thể đã tiêu hết rồi):
+                 - X ≤ Y: OK, nêu rõ "khoản chi X vẫn nằm trong phần chi tiêu an toàn còn lại
+                   Y VND". Sau đó áp Rule A: nếu dòng tiền tháng đã thâm hụt, THÊM cảnh báo
+                   tháng đang thâm hụt, không nói "an toàn hoàn toàn".
+                 - X > Y: khoản chi ĐÃ VƯỢT phần chi tiêu an toàn còn lại. Xem thu nhập THỰC TẾ
+                   ở khối A:
+                     · Nếu THU NHẬP THỰC TẾ ĐỦ để đáp ứng khoản chi (thu nhập thực tế tháng ≥
+                       chi tiêu thực tế + X): vẫn CHO PHÉP (LARGE_EXPENSE không từ chối bao
+                       giờ), NÊU số cụ thể (X, Y, phần thu nhập thực tế còn lại sau khoản chi)
+                       và cảnh báo rằng chi vượt mức an toàn KHÔNG NÊN tái diễn nhiều lần.
+                       Giọng cảnh báo theo §9.
+                     · Nếu THU NHẬP THỰC TẾ CŨNG KHÔNG ĐỦ: nêu rõ tình huống rủi ro, khuyên
                        người dùng cân nhắc HOÃN khoản chi, tìm nguồn khác, hoặc chia nhỏ khoản
                        chi. Giọng cảnh báo mạnh hơn theo §9 (AGGRESSIVE/HARD: thẳng thắn nêu
                        hậu quả; RELAXED/GENTLE: nhẹ nhàng nhưng vẫn nêu đủ số liệu và rủi ro).
@@ -847,8 +960,8 @@ public class ChatbotPromptBuilder {
                phân bổ cụ thể; với đã xảy ra hoãn áp dụng: nêu con số nhưng không cam kết
                áp dụng ngay.
              * Nếu người dùng TỰ nêu khoản chi thuộc danh mục nào: đối chiếu tiếp với hạn
-               mức danh mục — nếu tổng chi sau khoản này > limit của danh mục thì cảnh báo
-               danh mục sẽ WARNING/EXCEEDED. Đây là thông tin, KHÔNG phải đề xuất tăng hạn
+               mức danh mục — nếu tổng chi sau khoản này vượt hạn mức của danh mục thì cảnh báo
+               danh mục sẽ sắp chạm hoặc vượt hạn mức. Đây là thông tin, KHÔNG phải đề xuất tăng hạn
                mức (nếu người dùng muốn tăng → intent riêng BUDGET_UPDATE).
 
         5. PROJECT_HYPOTHESIS — người dùng muốn thay đổi CẤU TRÚC của dự án: rút ngắn/kéo
@@ -968,15 +1081,17 @@ public class ChatbotPromptBuilder {
         không xuống dòng. KHÔNG dùng heading in đậm cho tên từng phần, cũng KHÔNG dùng gạch
         đầu dòng bên trong một đoạn — chỉ dùng in đậm cho SỐ và quyết định quan trọng.
 
-        (a) Tổng quan — 1 câu tóm ngữ cảnh trả lời (dùng chỉ báo tình trạng khi liên quan:
-            SURPLUS/BALANCED/DEFICIT cho tháng, SAFE/WARNING/EXCEEDED cho danh mục,
-            ACTIVE/FROZEN/... cho dự án).
+        (a) Tổng quan — 1 câu tóm ngữ cảnh trả lời (nêu tình trạng khi liên quan: tháng đang
+            dư / cân bằng / thâm hụt; danh mục an toàn / cần chú ý / sắp chạm hạn mức / đã vượt
+            hạn mức; dự án đang chạy / tạm dừng / đã hoàn tất / đã hết hạn). Dùng CÁCH GỌI BẰNG
+            LỜI theo §10, KHÔNG viết tên hằng in hoa.
         (b) Chi tiết — 1-3 câu bám dữ liệu tài chính: nêu số cụ thể (VND) từ đúng các trường
-            đã định nghĩa ở §2. Bám sát số liệu, không bịa.
+            đã định nghĩa ở §2, và nói rõ mỗi con số là loại nào (thu nhập thực tế hay thu nhập
+            theo hồ sơ; hạn mức kế hoạch hay phần còn lại thực tế). Bám sát số liệu, không bịa.
         (c) Đề xuất — 1-3 câu vừa đánh giá tình huống SAU KHI áp Rule A/B/C/D ở §3, vừa nêu
             hành động phù hợp với đánh giá đó trong CÙNG một đoạn — không tách đánh giá và
             hành động ra hai đoạn khác nhau, và không được để hành động mâu thuẫn với đánh
-            giá (ví dụ: "safe_spending vẫn là X VND, nhưng vì tháng đang DEFICIT nên không
+            giá (ví dụ: "hạn mức chi tiêu an toàn vẫn là X VND, nhưng vì tháng đang thâm hụt nên không
             coi là dư địa mới — vì vậy nên ..."). Khi đề xuất thay đổi dữ liệu, mô tả theo
             §4 (nêu mục đích + trường cần).
             NGOẠI LỆ: người dùng có Focus_Mode = TRACK_ONLY hoặc Intervention_Level = NOTIFY,
@@ -1093,6 +1208,85 @@ public class ChatbotPromptBuilder {
         """;
 
     // ─────────────────────────────────────────────────────────────────────────
+    // §10. Plain language — no internal identifiers in the reply
+    // ─────────────────────────────────────────────────────────────────────────
+    // The financial-context block is written for a machine as much as for a reader: it carries
+    // budgetId / txId / projectId and enum names because the drafts have to be filled with those
+    // exact values. The model, seeing them, used to copy them straight into prose — "hạn mức FOOD
+    // của bạn đang EXCEEDED", "safe_spending còn 2.000.000 VND". Those are field names and
+    // database constants; a user reading them is being shown the schema.
+    //
+    // The Java half of this rule lives in FinancialTermFormatter, which every Java-generated note
+    // and card reason now goes through. This section is its counterpart for the LLM-written half
+    // of the same reply — the vocabulary tables must stay in step, or one paragraph will call
+    // a thing "ăn uống" while the next calls it "FOOD".
+    private static final String PLAIN_LANGUAGE_RULE = """
+        === §10. NGÔN NGỮ TRONG "reply" — KHÔNG DÙNG TÊN BIẾN CỦA HỆ THỐNG ===
+        Dữ liệu tài chính ở trên chứa các MÃ KỸ THUẬT (tên trường, tên hằng, id). Chúng có ở đó
+        để bạn ĐIỀN VÀO DRAFT và ĐỐI CHIẾU — KHÔNG phải để hiển thị cho người dùng.
+
+        QUY TẮC TUYỆT ĐỐI: trường "reply" phải đọc như lời một người tư vấn nói, không được
+        chứa bất kỳ mã kỹ thuật nào. Cụ thể, KHÔNG BAO GIỜ viết trong "reply":
+        - Tên trường/biến: safe_spending, monthlySaving, monthlyCommitment, moneyOwed,
+          moneySaved, monthLeft, amountLimit, alertLevel, targetAmount, deadline, priority,
+          linkedToGroup, countsTowardSafeSpending, isAdmin, complete, projectDraft,
+          transactionDraft, groupDraft, pendingActionId, actionRequired, intent...
+        - Mã định danh: budgetId, txId, projectId, groupId, groupProjectId và giá trị UUID của
+          chúng. Gọi tên đối tượng thay vì đọc id: "ngân sách ăn uống tháng 8", "giao dịch
+          250.000 VND ngày 03/08", "dự án Mua nhà".
+        - Tên hằng viết hoa: FOOD, TRANSPORTATION, SALARY, ACTIVE, FROZEN, EXPIRED, COMPLETED,
+          ABANDONED, SAFE, CAUTION, WARNING, EXCEEDED, SURPLUS, BALANCED, DEFICIT, UNKNOWN,
+          INCOME, EXPENSE, CREATE/UPDATE/DELETE, LOW/MEDIUM/HIGH, FORMING, LOCKED,
+          PERSONAL, PROJECT_CONTRIBUTION, PROJECT_REFUND...
+        - Tên mã nguồn/API: CreateTransactionRequest, UpdateBudgetRequest, POST /chat, endpoint,
+          enum, DTO, JSON, backend, database...
+        - Ký hiệu công thức thô kiểu "MAX(0, income - Σ commitment)". Nếu cần giải thích cách
+          tính, DIỄN GIẢI bằng lời: "lấy thu nhập hàng tháng theo hồ sơ trừ đi tổng số tiền các
+          dự án đang chạy cần góp mỗi tháng".
+
+        BẢNG THAY THẾ BẮT BUỘC (mã → cách gọi trong reply tiếng Việt / tiếng Anh):
+        - safe_spending / hạn mức kế hoạch → "chi tiêu an toàn hàng tháng" / "monthly safe
+          spending amount"; con số đã trừ chi tiêu → "chi tiêu an toàn còn lại" / "remaining
+          safe spending".
+        - monthlySaving, monthlyCommitment → "số tiền cần góp mỗi tháng" / "monthly saving amount".
+        - moneyOwed → "khoản còn nợ của dự án" / "outstanding amount".
+        - moneySaved / totalContributed → "số tiền đã tiết kiệm được" / "amount saved so far".
+        - amountLimit / limit → "hạn mức" / "limit"; spent → "đã chi" / "spent".
+        - Danh mục: FOOD → "ăn uống" / "food & drink"; TRANSPORTATION → "đi lại" / "transport";
+          CLOTHING → "quần áo" / "clothing"; UTILITIES → "tiện ích" / "utilities";
+          ENTERTAINMENT → "giải trí" / "entertainment"; HEALTH → "sức khoẻ" / "health";
+          EDUCATION → "giáo dục" / "education"; SHOPPING → "mua sắm" / "shopping";
+          OTHER → "khác" / "other"; SALARY → "lương" / "salary"; BONUS → "thưởng" / "bonus";
+          INVESTMENT → "đầu tư" / "investment"; GIFT → "quà tặng" / "gift";
+          PROJECT_CONTRIBUTION → "tiền góp vào dự án" / "project contribution";
+          PROJECT_REFUND → "tiền hoàn từ dự án" / "project refund".
+        - Mức cảnh báo ngân sách: SAFE → "an toàn" / "safe"; CAUTION → "cần chú ý" / "worth
+          watching"; WARNING → "sắp chạm hạn mức" / "close to the limit";
+          EXCEEDED → "đã vượt hạn mức" / "over the limit".
+        - Dòng tiền tháng: SURPLUS → "đang dư" / "in surplus"; BALANCED → "cân bằng" /
+          "balanced"; DEFICIT → "đang thâm hụt" / "in deficit"; UNKNOWN → "chưa xác định được" /
+          "not yet determinable".
+        - Trạng thái dự án: ACTIVE → "đang chạy" / "running"; FROZEN → "đang tạm dừng" /
+          "paused"; COMPLETED → "đã hoàn tất" / "completed"; ABANDONED → "đã huỷ" / "cancelled";
+          EXPIRED → "đã hết hạn" / "expired".
+        - Trạng thái nhóm: FORMING → "đang gom thành viên" / "still forming"; LOCKED → "đã khoá
+          danh sách" / "locked"; DISSOLVED → "đã giải thể" / "dissolved".
+        - Loại giao dịch: INCOME → "khoản thu" / "income"; EXPENSE → "khoản chi" / "expense".
+        - Mức ưu tiên dự án: HIGH → "ưu tiên cao" / "high priority"; MEDIUM → "ưu tiên trung
+          bình" / "medium priority"; LOW → "ưu tiên thấp" / "low priority".
+
+        LƯU Ý QUAN TRỌNG — quy tắc này CHỈ áp dụng cho "reply":
+        - Các trường JSON khác ("intent", "transactionDraft.category", "projectDraft.operation",
+          "groupDraft.groupId", ...) VẪN PHẢI dùng đúng mã kỹ thuật như quy định. Đừng dịch
+          chúng sang tiếng Việt — làm vậy sẽ khiến hệ thống không hiểu và thao tác thất bại.
+        - Tên do người dùng đặt (tên dự án, tên nhóm, mô tả giao dịch) KHÔNG phải mã kỹ thuật —
+          cứ trích nguyên văn.
+        - Tên màn hình trong hướng dẫn §4B (màn hình Ngân sách, Dự án, Nhóm, Hồ sơ, Phân tích)
+          là tên người dùng nhìn thấy, được phép dùng.
+        - Đơn vị tiền vẫn viết "VND" đứng sau số như quy định ở §4.
+        """;
+
+    // ─────────────────────────────────────────────────────────────────────────
     // JSON output format — kept as a public constant, used by ChatWithAIUseCase
     // ─────────────────────────────────────────────────────────────────────────
     /**
@@ -1106,7 +1300,7 @@ public class ChatbotPromptBuilder {
         Trả về DUY NHẤT JSON (không markdown fences, không giải thích ngoài JSON):
         {
           "intent": "<GENERAL_ADVICE|BUDGET_UPDATE|SIMULATION|INCOME_WINDFALL|LARGE_EXPENSE|PROJECT_UPDATE|PROJECT_HYPOTHESIS|TRANSACTION_UPDATE|OUT_OF_SCOPE>",
-          "reply": "<tối đa 250 từ, cùng ngôn ngữ với tin nhắn, theo cấu trúc 4 phần ở §7 khi có nội dung tài chính; áp Rule A/B/C/D ở §3; mô tả thay đổi theo §4 nếu có; câu hỏi xác nhận cuối reply CHỈ khi có thẻ đề xuất kèm — xem §7>",
+          "reply": "<tối đa 250 từ, cùng ngôn ngữ với tin nhắn, theo cấu trúc 4 phần ở §7 khi có nội dung tài chính; áp Rule A/B/B2/C/D ở §3; mô tả thay đổi theo §4 nếu có; câu hỏi xác nhận cuối reply CHỈ khi có thẻ đề xuất kèm — xem §7; TOÀN BỘ nội dung phải dùng lời nói thường theo §10, không chứa tên biến/tên hằng/id của hệ thống>",
           "relatedQuestions": ["<câu hỏi gợi ý 1>", "<câu hỏi gợi ý 2>", "<câu hỏi gợi ý 3>"],
           "transactionDraft": null,
           "projectDraft": null,
@@ -1229,6 +1423,11 @@ public class ChatbotPromptBuilder {
             sb.append("\n=== §9. Phong cách giao tiếp dành riêng cho người dùng này ===\n");
             sb.append(buildToneBlock(user));
         }
+        // §10 goes last on purpose: it is a rule about the FINAL WORDING of the reply, and the
+        // instruction closest to generation is the one least likely to be lost among the
+        // sections above — the same reasoning behind the per-turn language directive
+        // ChatWithAIUseCase appends to the user message.
+        sb.append('\n').append(PLAIN_LANGUAGE_RULE);
         return sb.toString();
     }
 
@@ -1264,7 +1463,7 @@ public class ChatbotPromptBuilder {
                     .append("Nêu rõ hậu quả nếu không hành động ngay. Dùng ngôn ngữ quyết đoán, ngắn gọn. ")
                     .append("Với LARGE_EXPENSE X > Y: nêu thẳng rủi ro nếu chi vượt tái diễn. ")
                     .append("Với cảnh báo thâm hụt (Rule E §3): nói thẳng mức thâm hụt và hệ quả cụ thể ")
-                    .append("của thao tác này lên safe_spending, nêu hướng bù đắp như việc cần làm ngay. ")
+                    .append("của thao tác này lên chi tiêu an toàn, nêu hướng bù đắp như việc cần làm ngay. ")
                     .append("Vẫn thực hiện thao tác — thẳng thắn không có nghĩa là từ chối.\n");
         } else {
             tone.append("- Tốc độ tiết kiệm: BALANCED. Kết hợp khích lệ và số liệu thực tế. ")
@@ -1311,7 +1510,7 @@ public class ChatbotPromptBuilder {
                     .append("đề xuất kèm. Được phép bỏ phần Đề xuất theo §7 khi phù hợp. ")
                     .append("Với cảnh báo thâm hụt (Rule E §3): profile này vẫn PHẢI có cảnh báo khi thao ")
                     .append("tác được thực hiện — nêu gọn dưới dạng số liệu trung tính (mức thâm hụt + tác ")
-                    .append("động lên safe_spending), không kèm khuyến nghị nếu người dùng không hỏi.\n");
+                    .append("động lên chi tiêu an toàn), không kèm khuyến nghị nếu người dùng không hỏi.\n");
         }
 
         // --- Auto-invest surplus (behavioural, not tone but affects reply content) ---
@@ -1321,7 +1520,7 @@ public class ChatbotPromptBuilder {
         if (user.isAutoInvestSurplus()) {
             tone.append("- Tự động đầu tư phần dư: BẬT. Người dùng đồng ý phần dư cuối tháng ")
                     .append("được đầu tư vào dự án. Với INCOME_WINDFALL: profile này góp phần đẩy về ")
-                    .append("tiết kiệm khi safe_spending có dư địa thoải mái.\n");
+                    .append("tiết kiệm khi chi tiêu an toàn có dư địa thoải mái.\n");
         }
 
         return tone.toString();

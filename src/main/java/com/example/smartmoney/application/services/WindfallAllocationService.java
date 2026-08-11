@@ -146,11 +146,12 @@ public class WindfallAllocationService {
                             .suggestedAmount(newLimit.longValue())
                             .reason(english
                                     ? String.format(
-                                    "Increase %s budget by %,.0f VND (%.0f%% of the windfall) -> new limit: %,.0f VND.",
-                                    b.getCategory().name(), share, BUDGET_RATIO * 100, newLimit)
+                                    "Increase the %s budget by %,.0f VND (%.0f%% of the windfall) -> new limit: %,.0f VND.",
+                                    FinancialTermFormatter.category(b.getCategory(), true),
+                                    share, BUDGET_RATIO * 100, newLimit)
                                     : String.format(
                                     "Tăng ngân sách %s thêm %,.0f VND (%.0f%% khoản thu đột xuất) → giới hạn mới: %,.0f VND.",
-                                    b.getCategory().name(), share,
+                                    FinancialTermFormatter.category(b.getCategory(), false), share,
                                     BUDGET_RATIO * 100, newLimit))
                             .build();
                 })
@@ -202,11 +203,11 @@ public class WindfallAllocationService {
                         .suggestedAmount(b.getAmountLimit().longValue()) // no change needed
                         .reason(english
                                 ? String.format(
-                                "%s budget has %,.0f VND headroom left — enough to cover the %,.0f VND unplanned expense.",
-                                b.getCategory().name(), headroom, expense)
+                                "The %s budget has %,.0f VND headroom left — enough to cover the %,.0f VND unplanned expense.",
+                                FinancialTermFormatter.category(b.getCategory(), true), headroom, expense)
                                 : String.format(
                                 "Ngân sách %s còn dư %,.0f VND — đủ để trang trải chi phí đột xuất %,.0f VND.",
-                                b.getCategory().name(), headroom, expense))
+                                FinancialTermFormatter.category(b.getCategory(), false), headroom, expense))
                         .build());
                 remaining = BigDecimal.ZERO;
             } else {
@@ -220,11 +221,11 @@ public class WindfallAllocationService {
                         .suggestedAmount(newLimit.longValue())
                         .reason(english
                                 ? String.format(
-                                "Increase %s limit by %,.0f VND to cover the unplanned expense.",
-                                b.getCategory().name(), needed)
+                                "Increase the %s limit by %,.0f VND to cover the unplanned expense.",
+                                FinancialTermFormatter.category(b.getCategory(), true), needed)
                                 : String.format(
                                 "Tăng hạn mức %s thêm %,.0f VND để trang trải chi phí đột xuất.",
-                                b.getCategory().name(), needed))
+                                FinancialTermFormatter.category(b.getCategory(), false), needed))
                         .build());
                 remaining = remaining.subtract(headroom.add(needed));
             }
