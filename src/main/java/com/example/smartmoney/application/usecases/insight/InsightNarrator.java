@@ -55,7 +55,20 @@ public class InsightNarrator {
             if (reply == null || reply.isBlank()) {
                 return null;
             }
-            return reply.trim();
+            // The prompt asks for VND; this enforces it. The FE renders `narrative` verbatim —
+            // skipping the formatting it applies to every other money field — so a "$" the model
+            // slipped in reaches the user's screen unaltered.
+            String cleaned = reply.trim();
+            String guarded = NarrationCurrencyGuard.enforce(cleaned);
+            if (guarded == null) {
+                log.warn("[Narration] dropped a {} narrative carrying a foreign currency — "
+                        + "falling back to code", insight.getCode());
+            } else if (!guarded.equals(cleaned)) {
+                // Not fatal — the amount was relabelled, not changed — but a steady stream of these
+                // means the prompt's CURRENCY rule has stopped landing and is worth looking at.
+                log.debug("[Narration] relabelled currency in a {} narrative", insight.getCode());
+            }
+            return guarded;
         } catch (Exception e) {
             // Narration is a garnish: a model outage must never break the insight response or a push.
             log.warn("[Narration] LLM narration failed for {} — falling back to code: {}",
@@ -77,7 +90,10 @@ public class InsightNarrator {
                 + "short, friendly sentence in " + language + " for the user.\n"
                 + "STRICT RULES: use ONLY the numbers given; do not invent, recompute, convert, round "
                 + "differently, or add any figure; do not give advice beyond the insight; output only "
-                + "the sentence.\n\n"
+                + "the sentence.\n"
+                + "CURRENCY: every amount below is Vietnamese dong. Write amounts as the number "
+                + "followed by VND, e.g. \"1,200,000 VND\". NEVER write \"$\", \"USD\", \"US$\", "
+                + "\"dollar\", \"₫\" or \"đ\" — the figures are not dollars and must not be converted.\n\n"
                 + "Insight code: " + insight.getCode() + "\n"
                 + "Type: " + insight.getType()
                 + "; severity: " + insight.getSeverity()
