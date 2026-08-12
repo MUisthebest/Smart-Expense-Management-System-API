@@ -77,6 +77,43 @@ class InsightNarratorTest {
     }
 
     @Test
+    @DisplayName("currency guard: a '$' amount is relabelled VND before it reaches the FE")
+    void dollarAmountIsRelabelled() {
+        LlmPort llm = mock(LlmPort.class);
+        when(llm.call(anyString())).thenReturn("Your food spending is on track to hit $1,200,000 this month.");
+        InsightNarrator narrator = new InsightNarrator(llm, true);
+
+        // The FE renders `narrative` verbatim, so the symbol must be gone by the time we return it.
+        assertEquals("Your food spending is on track to hit 1,200,000 VND this month.",
+                narrator.narrate(budgetPaceInsight()));
+    }
+
+    @Test
+    @DisplayName("currency guard: an unsalvageable foreign currency → null (code fallback)")
+    void unsalvageableCurrencyFallsBackToCode() {
+        LlmPort llm = mock(LlmPort.class);
+        when(llm.call(anyString())).thenReturn("Your food budget is tracked in USD this month.");
+        InsightNarrator narrator = new InsightNarrator(llm, true);
+
+        assertNull(narrator.narrate(budgetPaceInsight()));
+    }
+
+    @Test
+    @DisplayName("guardrail: the prompt tells the model the figures are VND and bans '$' / USD")
+    void promptPinsCurrencyToVnd() {
+        LlmPort llm = mock(LlmPort.class);
+        when(llm.call(anyString())).thenReturn("ok");
+        InsightNarrator narrator = new InsightNarrator(llm, true);
+
+        String prompt = narrator.buildPrompt(budgetPaceInsight(), InsightNarrator.DEFAULT_LANGUAGE);
+
+        assertTrue(prompt.contains("VND"), prompt);
+        assertTrue(prompt.contains("Vietnamese dong"), prompt);
+        assertTrue(prompt.contains("$"), prompt);
+        assertTrue(prompt.contains("USD"), prompt);
+    }
+
+    @Test
     @DisplayName("guardrail: the prompt hands the LLM the computed figures and forbids inventing numbers")
     void promptCarriesComputedFiguresAndForbidsInvention() {
         LlmPort llm = mock(LlmPort.class);
