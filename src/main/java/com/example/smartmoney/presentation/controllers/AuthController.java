@@ -185,11 +185,13 @@ public class AuthController {
                             .message("Email verified and user created")
                             .data(null)
                             .build());
-        } catch (Exception e) {
-            return ResponseEntity.ok(
+        } catch (DomainException e) {
+            log.error("Failed to verify email for: {}", request.getEmail(), e);
+
+            return ResponseEntity.badRequest().body(
                     CheckResponse.<Void>builder()
-                            .success(true)
-                            .message("Invalid OTP")
+                            .success(false)
+                            .message(e.getMessage())
                             .data(null)
                             .build());
         }
