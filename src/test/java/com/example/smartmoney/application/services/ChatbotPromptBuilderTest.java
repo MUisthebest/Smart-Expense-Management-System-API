@@ -1,5 +1,8 @@
 package com.example.smartmoney.application.services;
 
+import com.example.smartmoney.domain.models.budget.Budget;
+import com.example.smartmoney.domain.models.project.enums.ProjectStatus;
+import com.example.smartmoney.domain.models.transaction.enums.Category;
 import com.example.smartmoney.domain.models.user.User;
 import com.example.smartmoney.domain.models.user.enums.Focus_Mode;
 import com.example.smartmoney.domain.models.user.enums.Intervention_Level;
@@ -18,10 +21,11 @@ import static org.mockito.Mockito.when;
  * Structural tests for the chatbot system prompt.
  *
  * <p>These tests deliberately don't run the LLM — they only verify that the prompt CONTAINS
- * the invariants downstream logic assumes: section anchors, the safe_spending formula, the
- * group-project isolation clause, the response format's four parts, and the profile-driven
- * tone rules. That way, a refactor of the prompt that accidentally deletes a clause (as
- * happened in the first rewrite pass) breaks a test instead of silently regressing the LLM.
+ * the invariants downstream logic assumes: section anchors, the safe-spending formula, the
+ * separation of profile income from recorded income, the group-project isolation clause, the
+ * response format's four parts, the plain-language rule, and the profile-driven tone rules. That
+ * way, a refactor of the prompt that accidentally deletes a clause (as happened in the first
+ * rewrite pass) breaks a test instead of silently regressing the LLM.
  *
  * <p>Style: string-contains rather than exact-match, because rephrasings of an existing rule
  * are fine but removing the rule shouldn't be.
@@ -98,12 +102,51 @@ class ChatbotPromptBuilderTest {
         void safeSpendingFormulaIsExplicit() {
             String prompt = builder.build(null);
             assertThat(prompt)
-                    .contains("safe_spending = MAX(0, \"Thu nhập hàng tháng\" − Σ monthlySaving của các dự án ACTIVE)")
-                    .contains("HẠN MỨC CHI TIÊU THÁNG THEO KẾ HOẠCH")
+                    // The formula is stated in words rather than as a field expression, because
+                    // §10 forbids the model from echoing field names back at the user — showing it
+                    // one in the dictionary is the surest way to have it copied.
+                    .contains("= MAX(0, thu nhập lý thuyết theo hồ sơ − tổng cam kết hàng tháng")
+                    .contains("HẠN MỨC THEO KẾ HOẠCH")
                     .contains("KHÔNG phải")
                     // Text block wraps this sentence across two lines — check for the load-bearing
                     // half that fits on one line rather than a phrase that would straddle the break.
-                    .contains("safe_spending KHÔNG trừ chi tiêu thực");
+                    .contains("Nó không giảm đi khi người dùng tiêu tiền");
+            // The raw field name survives only inside §10 — once in the list of tokens the reply
+            // may not contain, once in the table giving its replacement. Anywhere above §10 would
+            // be teaching the model the word in the same breath as forbidding it.
+            int section10 = prompt.indexOf("§10. NGÔN NGỮ TRONG \"reply\"");
+            assertThat(section10).isPositive();
+            assertThat(prompt.substring(0, section10)).doesNotContain("safe_spending");
+        }
+
+        @Test
+        @DisplayName("the precomputed remaining figure is named as the ONLY answer to 'how much is left'")
+        void remainingSafeSpendingIsTheOnlyAnswer() {
+            String prompt = builder.build(null);
+            assertThat(prompt)
+                    .contains("CHI TIÊU AN TOÀN CÒN LẠI THỰC TẾ")
+                    .contains("KHÔNG tự trừ lại, KHÔNG dùng hạn mức kế hoạch thay cho nó");
+        }
+
+        @Test
+        @DisplayName("both incomes are defined separately, with a rule against mixing them")
+        void twoIncomesAreKeptApart() {
+            String prompt = builder.build(null);
+            assertThat(prompt)
+                    .contains("Thu nhập THỰC TẾ đã ghi nhận trong tháng")
+                    .contains("Thu nhập hàng tháng theo hồ sơ")
+                    .contains("HAI CON SỐ THU NHẬP KHÔNG THAY THẾ CHO NHAU")
+                    // Zero recorded income is "not entered yet", not "earned nothing".
+                    .contains("CHƯA NHẬP khoản thu");
+        }
+
+        @Test
+        @DisplayName("the automated spending analysis block is documented and made mandatory for trend questions")
+        void insightBlockDocumented() {
+            String prompt = builder.build(null);
+            assertThat(prompt)
+                    .contains("Khối D. Phân tích chi tiêu tự động")
+                    .contains("KHÔNG tự suy luận xu hướng từ danh sách giao dịch");
         }
 
         @Test
@@ -129,7 +172,7 @@ class ChatbotPromptBuilderTest {
         void transactionBlockDocumented() {
             String prompt = builder.build(null);
             assertThat(prompt)
-                    .contains("Khối \"Giao dịch tháng M/Y\"")
+                    .contains("Khối F. Giao dịch tháng M/Y")
                     .contains("txId=")
                     .contains("locked=true|false")
                     .contains("TUYỆT ĐỐI KHÔNG bịa ra");
@@ -198,9 +241,21 @@ class ChatbotPromptBuilderTest {
             String prompt = builder.build(null);
             assertThat(prompt)
                     .contains("Rule B")
-                    // MIN formula wraps across two lines in the text block — check for the
-                    // load-bearing opening that fits on one line.
-                    .contains("MIN(safe_spending, Thu nhập");
+                    // The model no longer computes the remaining figure at all — the context
+                    // hands it over precomputed, and Rule B's job is to stop it doing its own
+                    // subtraction and getting a different answer.
+                    .contains("phải trả lời bằng")
+                    .contains("TUYỆT ĐỐI KHÔNG tự làm phép trừ nào");
+        }
+
+        @Test
+        @DisplayName("Rule B2 states that a finished project no longer reduces safe spending")
+        void ruleB2ReleasesFinishedProjects() {
+            String prompt = builder.build(null);
+            assertThat(prompt)
+                    .contains("Rule B2")
+                    .contains("countsTowardSafeSpending=true")
+                    .contains("Cam kết đã ĐƯỢC GIẢI PHÓNG");
         }
 
         @Test
@@ -517,8 +572,10 @@ class ChatbotPromptBuilderTest {
             String prompt = builder.build(null);
             assertThat(prompt)
                     .contains("X > Y")
-                    .contains("THU NHẬP THÁNG ĐỦ")
-                    .contains("THU NHẬP THÁNG CŨNG KHÔNG ĐỦ")
+                    // Judged against the RECORDED income, not the profile figure — the split
+                    // §2 now insists on.
+                    .contains("THU NHẬP THỰC TẾ ĐỦ")
+                    .contains("THU NHẬP THỰC TẾ CŨNG KHÔNG ĐỦ")
                     // Never refuse — LARGE_EXPENSE is advisory, not gate-keeping
                     .contains("KHÔNG TỪ CHỐI");
         }
@@ -758,7 +815,7 @@ class ChatbotPromptBuilderTest {
             assertThat(prompt)
                     .contains("Tự động đầu tư phần dư: BẬT")
                     .contains("đẩy về ")
-                    .contains("tiết kiệm khi safe_spending có dư địa thoải mái");
+                    .contains("tiết kiệm khi chi tiêu an toàn có dư địa thoải mái");
         }
 
         @Test
@@ -767,6 +824,62 @@ class ChatbotPromptBuilderTest {
             String prompt = builder.build(
                     userWith(Saving_Pace.BALANCED, Intervention_Level.GENTLE, Focus_Mode.TRACK_ONLY, false));
             assertThat(prompt).doesNotContain("Tự động đầu tư phần dư: BẬT");
+        }
+    }
+
+    // ── §10 plain language ──────────────────────────────────────────────────
+
+    @Nested
+    @DisplayName("§10 keeps internal identifiers out of the reply")
+    class PlainLanguage {
+
+        @Test
+        @DisplayName("the rule is present for every user, including one with no profile")
+        void ruleIsAlwaysPresent() {
+            assertThat(builder.build(null)).contains("§10. NGÔN NGỮ TRONG \"reply\"");
+
+            User user = mock(User.class);
+            when(user.getSavingPace()).thenReturn(Saving_Pace.AGGRESSIVE);
+            when(user.getInterventionLevel()).thenReturn(Intervention_Level.HARD);
+            when(user.getFocusMode()).thenReturn(Focus_Mode.SAVE_MORE);
+            when(user.isAutoInvestSurplus()).thenReturn(true);
+            // The tone block is appended before §10, so this also pins the ORDER: a wording rule
+            // that landed above the personalisation block would be the easiest one to lose.
+            assertThat(builder.build(user)).contains("§10. NGÔN NGỮ TRONG \"reply\"");
+        }
+
+        @Test
+        @DisplayName("field names, ids and constants are each named as forbidden in the reply")
+        void forbidsFieldNamesIdsAndConstants() {
+            String prompt = builder.build(null);
+            assertThat(prompt)
+                    .contains("KHÔNG BAO GIỜ viết trong \"reply\"")
+                    .contains("safe_spending, monthlySaving")
+                    .contains("budgetId, txId, projectId")
+                    .contains("FOOD, TRANSPORTATION");
+        }
+
+        @Test
+        @DisplayName("a replacement phrase is published for every user-visible enum family")
+        void publishesReplacementVocabulary() {
+            String prompt = builder.build(null);
+            assertThat(prompt)
+                    .contains("BẢNG THAY THẾ BẮT BUỘC")
+                    // Must agree with FinancialTermFormatter — the two halves of one reply.
+                    .contains(FinancialTermFormatter.category(Category.FOOD, false))
+                    .contains(FinancialTermFormatter.alertLevel(Budget.AlertLevel.EXCEEDED, false))
+                    .contains(FinancialTermFormatter.projectStatus(ProjectStatus.EXPIRED, false))
+                    .contains(FinancialTermFormatter.cashFlow(
+                            UserFinancialDataService.CashFlowStatus.DEFICIT, false));
+        }
+
+        @Test
+        @DisplayName("the ban is scoped to reply only — draft fields must keep their machine values")
+        void draftFieldsKeepMachineValues() {
+            String prompt = builder.build(null);
+            assertThat(prompt)
+                    .contains("quy tắc này CHỈ áp dụng cho \"reply\"")
+                    .contains("VẪN PHẢI dùng đúng mã kỹ thuật");
         }
     }
 

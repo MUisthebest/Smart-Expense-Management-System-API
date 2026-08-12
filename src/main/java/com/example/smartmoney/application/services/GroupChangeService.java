@@ -300,9 +300,13 @@ public class GroupChangeService {
                 .impact(english
                         ? "A linked personal project is created to track your own share."
                         : "Một dự án cá nhân liên kết sẽ được tạo để theo dõi phần đóng góp của bạn.")
+                // The structured `priority` field above keeps the enum name for the client; this
+                // sentence is read by the user, so it spells the level out in words.
                 .reason(english
-                        ? String.format("Join group project '%s' at %s priority.", gp.getName(), priority)
-                        : String.format("Tham gia dự án nhóm '%s' với mức ưu tiên %s.", gp.getName(), priority))
+                        ? String.format("Join group project '%s' at %s.", gp.getName(),
+                        FinancialTermFormatter.projectPriority(priority, true))
+                        : String.format("Tham gia dự án nhóm '%s' với %s.", gp.getName(),
+                        FinancialTermFormatter.projectPriority(priority, false)))
                 .build();
 
         var action = PendingChatAction.builder()

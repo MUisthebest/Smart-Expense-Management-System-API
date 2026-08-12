@@ -96,15 +96,21 @@ public class BudgetAdvisorService {
 
         // UC1: reason string displayed in the confirm card and given to the AI for context.
         // Matches the spec: "Food is 2.8M (35%). Cut to 2M, freeing 800K — move to which fund?"
-        String reason = MessageLanguageDetector.isEnglish(messageLow)
+        //
+        // The category is printed through FinancialTermFormatter, never as its enum name: this
+        // string is read by the user on the confirmation card, and "FOOD hiện là 2.800.000 VND"
+        // shows them a database constant.
+        boolean english = MessageLanguageDetector.isEnglish(messageLow);
+        String categoryLabel = FinancialTermFormatter.category(b.getCategory(), english);
+        String reason = english
                 ? String.format(
                         "%s is currently %,.0f VND (%.1f%% of total budget). " +
                         "Cut it to %,.0f VND, freeing up %,.0f VND — which fund should it go to?",
-                        b.getCategory().name(), current, pct, suggested, freed)
+                        categoryLabel, current, pct, suggested, freed)
                 : String.format(
-                        "%s hiện là %,.0f VND (%.1f%% tổng ngân sách). " +
+                        "Ngân sách %s hiện là %,.0f VND (%.1f%% tổng ngân sách). " +
                         "Giảm xuống %,.0f VND, giải phóng %,.0f VND — bạn muốn chuyển khoản này sang quỹ nào?",
-                        b.getCategory().name(), current, pct, suggested, freed);
+                        categoryLabel, current, pct, suggested, freed);
 
         return List.of(ChatResponse.BudgetUpdateSuggestion.builder()
                 .budgetId(b.getId().toString())
@@ -145,15 +151,17 @@ public class BudgetAdvisorService {
                 .multiply(BigDecimal.valueOf(1.0 - REDUCTION_RATIO))
                 .setScale(0, RoundingMode.HALF_UP);
 
+        // This one is appended straight into the chat reply by attachProactiveSuggestions, so it
+        // is the most visible place an enum name could leak — use the human label.
         String reason = english
                 ? String.format(
                         "You've used %.0f%% of your %s budget with %d day(s) left this month — " +
                         "want to lower the limit to %,.0f VND?",
-                        pct, b.getCategory().name(), daysLeft, suggested)
+                        pct, FinancialTermFormatter.category(b.getCategory(), true), daysLeft, suggested)
                 : String.format(
                         "Bạn đã dùng %.0f%% ngân sách %s, còn %d ngày nữa trong tháng — " +
                         "bạn có muốn điều chỉnh xuống %,.0f VND không?",
-                        pct, b.getCategory().name(), daysLeft, suggested);
+                        pct, FinancialTermFormatter.category(b.getCategory(), false), daysLeft, suggested);
 
         return Optional.of(ChatResponse.BudgetUpdateSuggestion.builder()
                 .budgetId(b.getId().toString())
@@ -217,10 +225,10 @@ public class BudgetAdvisorService {
                     .currentAmount(b.getAmountLimit().longValue())
                     .suggestedAmount(newLimit.longValue())
                     .reason(english
-                            ? String.format("Increase %s by %,.0f VND -> new limit %,.0f VND.",
-                                    b.getCategory().name(), perRequested, newLimit)
-                            : String.format("Tăng %s thêm %,.0f VND → hạn mức mới %,.0f VND.",
-                                    b.getCategory().name(), perRequested, newLimit))
+                            ? String.format("Increase the %s budget by %,.0f VND -> new limit %,.0f VND.",
+                                    FinancialTermFormatter.category(b.getCategory(), true), perRequested, newLimit)
+                            : String.format("Tăng ngân sách %s thêm %,.0f VND → hạn mức mới %,.0f VND.",
+                                    FinancialTermFormatter.category(b.getCategory(), false), perRequested, newLimit))
                     .build());
         }
         for (Budget b : offsetCandidates) {
@@ -234,11 +242,11 @@ public class BudgetAdvisorService {
                             ? String.format(
                                     "%s has the lowest spending this month — reduce it by %,.0f VND -> " +
                                     "%,.0f VND to keep your total budget unchanged.",
-                                    b.getCategory().name(), perOffset, newLimit)
+                                    FinancialTermFormatter.category(b.getCategory(), true), perOffset, newLimit)
                             : String.format(
-                                    "%s có mức chi thấp nhất tháng này — giảm %,.0f VND → %,.0f VND để giữ " +
-                                    "tổng ngân sách không đổi.",
-                                    b.getCategory().name(), perOffset, newLimit))
+                                    "Danh mục %s có mức chi thấp nhất tháng này — giảm %,.0f VND → %,.0f VND " +
+                                    "để giữ tổng ngân sách không đổi.",
+                                    FinancialTermFormatter.category(b.getCategory(), false), perOffset, newLimit))
                     .build());
         }
         return result;

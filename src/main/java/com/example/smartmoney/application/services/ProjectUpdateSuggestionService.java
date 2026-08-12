@@ -6,6 +6,8 @@ import com.example.smartmoney.domain.models.project.Project;
 import com.example.smartmoney.domain.models.project.ProjectTracking;
 import com.example.smartmoney.domain.models.project.enums.ProjectStatus;
 import com.example.smartmoney.domain.models.project.valueobjects.UserId;
+import com.example.smartmoney.domain.models.transaction.enums.Category;
+import com.example.smartmoney.domain.models.transaction.enums.TransactionType;
 import com.example.smartmoney.domain.models.user.User;
 import com.example.smartmoney.domain.repositories.ProjectRepository;
 import com.example.smartmoney.domain.repositories.TransactionRepository;
@@ -203,7 +205,7 @@ public class ProjectUpdateSuggestionService {
 
         LocalDate monthStart = LocalDate.now().withDayOfMonth(1);
         LocalDate monthEnd = monthStart.withDayOfMonth(monthStart.lengthOfMonth());
-        BigDecimal actualExpense = transactionRepository.getTotalExpenseBetween(userId, monthStart, monthEnd);
+        BigDecimal actualExpense = livingExpenseThisMonth(userId, monthStart, monthEnd);
 
         BigDecimal realRemaining;
         try {
@@ -220,6 +222,28 @@ public class ProjectUpdateSuggestionService {
         if (target == null || target.getTracking() == null) return Optional.empty();
 
         return Optional.of(buildLeftoverSuggestion(target, realRemaining, daysLeft, english));
+    }
+
+    /**
+     * Month-to-date spending EXCLUDING project contributions.
+     *
+     * <p>{@code getTotalExpenseBetween} counts every expense row, and a contribution to a saving
+     * goal is stored as one. Using it here made the nudge self-defeating: the moment the user put
+     * money into a project, the "unused leftover" it wanted to offer them shrank by that amount,
+     * as though the money had been consumed. It also disagreed with the remaining-allowance figure
+     * the chat prompt now carries — two numbers for the same thing in one reply. The other
+     * {@code getTotalExpenseBetween} callers genuinely want the all-in total, so the filtering is
+     * done here rather than by changing the shared repository method.
+     */
+    private BigDecimal livingExpenseThisMonth(UUID userId, LocalDate monthStart, LocalDate monthEnd) {
+        return transactionRepository.findByUserIdWithFilters(
+                        userId, null, null, monthStart.atStartOfDay(), monthEnd.atTime(23, 59, 59), null, null)
+                .stream()
+                .filter(t -> t != null && t.getType() == TransactionType.EXPENSE)
+                .filter(t -> t.getCategory() != Category.PROJECT_CONTRIBUTION)
+                .map(t -> t.getAmount() != null && t.getAmount().getValue() != null
+                        ? t.getAmount().getValue() : BigDecimal.ZERO)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
     private ChatResponse.SavingsPlanSuggestion buildLeftoverSuggestion(
