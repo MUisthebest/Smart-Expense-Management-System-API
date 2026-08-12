@@ -2,10 +2,12 @@ package com.example.smartmoney.application.services;
 
 import com.example.smartmoney.domain.models.budget.Budget;
 import com.example.smartmoney.domain.models.project.Project;
+import com.example.smartmoney.domain.models.project.ProjectContribution;
 import com.example.smartmoney.domain.models.project.ProjectTracking;
 import com.example.smartmoney.domain.models.project.enums.ProjectPriority;
 import com.example.smartmoney.domain.models.project.enums.ProjectStatus;
 import com.example.smartmoney.domain.models.project.enums.ProjectType;
+import com.example.smartmoney.domain.models.project.valueobjects.ContributionId;
 import com.example.smartmoney.domain.models.project.valueobjects.Money;
 import com.example.smartmoney.domain.models.project.valueobjects.ProjectId;
 import com.example.smartmoney.domain.models.project.valueobjects.UserId;
@@ -95,15 +97,50 @@ class UserFinancialDataServiceCashFlowTest {
     }
 
     private Transaction expense(long amount) {
+        return expense(amount, Category.FOOD, LocalDateTime.of(2026, 6, 15, 10, 0));
+    }
+
+    private Transaction expense(long amount, Category category, LocalDateTime date) {
         return Transaction.builder()
                 .id(UUID.randomUUID())
                 .userId(userId)
                 .amount(new Amount(BigDecimal.valueOf(amount)))
                 .type(TransactionType.EXPENSE)
-                .category(Category.FOOD)
+                .category(category)
                 .description("test")
-                .date(LocalDateTime.of(2026, 6, 15, 10, 0))
+                .date(date)
                 .build();
+    }
+
+    private Transaction income(long amount, LocalDateTime date) {
+        return Transaction.builder()
+                .id(UUID.randomUUID())
+                .userId(userId)
+                .amount(new Amount(BigDecimal.valueOf(amount)))
+                .type(TransactionType.INCOME)
+                .category(Category.SALARY)
+                .description("test")
+                .date(date)
+                .build();
+    }
+
+    /**
+     * Stubs the repository the way the real one behaves — honouring the date range — because the
+     * context now issues two differently-scoped reads (the month, and the trailing history
+     * window). A blanket {@code any()} stub would hand every past month's rows back as if they
+     * were this month's, which is precisely the confusion these blocks exist to prevent.
+     */
+    private void stubTransactions(List<Transaction> all) {
+        when(transactionRepository.findByUserIdWithFilters(
+                eq(userId), any(), any(), any(), any(), any(), any()))
+                .thenAnswer(inv -> {
+                    LocalDateTime start = inv.getArgument(3);
+                    LocalDateTime end = inv.getArgument(4);
+                    return all.stream()
+                            .filter(t -> start == null || !t.getDate().isBefore(start))
+                            .filter(t -> end == null || !t.getDate().isAfter(end))
+                            .toList();
+                });
     }
 
     private User onboardedUser(BigDecimal monthlyIncome) {
@@ -136,6 +173,21 @@ class UserFinancialDataServiceCashFlowTest {
 
     private Project projectWith(String name, boolean subPersonal,
                                 ProjectStatus status, LocalDate deadline) {
+        return projectWith(name, subPersonal, status, deadline, List.of());
+    }
+
+    /** A project whose contributions already cover its 20,000,000 target, with its deadline still
+     *  a year away and its row never flipped to COMPLETED — the exact shape that used to keep
+     *  charging the user for a goal they had finished paying for. */
+    private Project fullyFundedProject(String name) {
+        return projectWith(name, false, ProjectStatus.ACTIVE, LocalDate.now().plusMonths(12),
+                List.of(new ProjectContribution(
+                        ContributionId.newId(), UserId.of(userId.toString()),
+                        new Money(BigDecimal.valueOf(20_000_000), "VND"), "done", Instant.now())));
+    }
+
+    private Project projectWith(String name, boolean subPersonal, ProjectStatus status,
+                                LocalDate deadline, List<ProjectContribution> contributions) {
         ProjectId projectId = ProjectId.newId();
         ProjectTracking tracking = new ProjectTracking(
                 UUID.randomUUID(), projectId,
@@ -148,7 +200,7 @@ class UserFinancialDataServiceCashFlowTest {
                 projectId, UserId.of(userId.toString()), ProjectType.PERSONAL,
                 status, ProjectPriority.HIGH, name, "desc",
                 new Money(BigDecimal.valueOf(20_000_000), "VND"),
-                deadline, groupProjectId, List.of(), tracking, Instant.now());
+                deadline, groupProjectId, contributions, tracking, Instant.now());
     }
 
     // ── §A: classifyCashFlow — the single source of truth ────────────────────
@@ -384,6 +436,7 @@ class UserFinancialDataServiceCashFlowTest {
             assertThat(teamLine).contains("linkedToGroup=true");
         }
 
+
         @Test
         @DisplayName("budgets carry the alertLevel status the prompt refers to by name")
         void budgetsCarryAlertLevel() {
@@ -407,13 +460,6 @@ class UserFinancialDataServiceCashFlowTest {
             assertThat(context)
                     .contains("category=FOOD")
                     .contains("status=");  // exact enum name depends on Budget.getAlertLevel thresholds
-        }
-
-        private String extractLine(String haystack, String needle) {
-            for (String line : haystack.split("\n")) {
-                if (line.contains(needle)) return line;
-            }
-            throw new AssertionError("Line containing '" + needle + "' not found in context");
         }
     }
 
@@ -522,6 +568,164 @@ class UserFinancialDataServiceCashFlowTest {
             // Moving 3M into a saving goal must not read as 3M less to live on.
             assertThat(snapshot.remainingSafeSpending()).isEqualByComparingTo(BigDecimal.valueOf(8_000_000));
         }
+    }
+
+    // ── §B3: category breakdown + previous months ───────────────────────────
+
+    @Nested
+    @DisplayName("category breakdown and month history blocks")
+    class CategoryAndHistory {
+
+        private void stubMonth(List<Transaction> transactions, List<Budget> budgets) {
+            stubTransactions(transactions);
+            when(budgetRepository.findByUserIdMonthYear(any(), any(), any())).thenReturn(budgets);
+            when(projectRepository.findAllByUser(any())).thenReturn(List.of());
+            User user = onboardedUser(BigDecimal.valueOf(10_000_000));
+            when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        }
+
+        @Test
+        @DisplayName("this month's expenses are broken down per category with their share of total spending")
+        void categoryBreakdownListsEveryCategory() {
+            stubMonth(List.of(
+                    income(10_000_000L),
+                    expense(3_000_000L, Category.FOOD, LocalDateTime.of(2026, 6, 5, 8, 0)),
+                    expense(1_000_000L, Category.FOOD, LocalDateTime.of(2026, 6, 9, 8, 0)),
+                    expense(1_000_000L, Category.TRANSPORTATION, LocalDateTime.of(2026, 6, 11, 8, 0))),
+                    List.of());
+
+            String context = service.buildChatContext(userId, 6, 2026);
+
+            assertThat(context).contains("A2. Chi tiêu theo danh mục trong tháng 6/2026");
+            // 4M of 5M total spend, from two rows merged into one category line.
+            assertThat(extractLine(context, "category=FOOD"))
+                    .contains("spent=4,000,000 VND")
+                    .contains("80.0%")
+                    .contains("2 giao dịch");
+            assertThat(extractLine(context, "category=TRANSPORTATION")).contains("spent=1,000,000 VND");
+        }
+
+        @Test
+        @DisplayName("no expenses recorded → the block says so explicitly instead of being omitted")
+        void emptyCategoryBreakdownStatesNothingRecorded() {
+            stubMonth(List.of(income(10_000_000L)), List.of());
+
+            String context = service.buildChatContext(userId, 6, 2026);
+
+            // The whole point: a silent omission reads to the model as "nothing worth saying",
+            // which is how it ended up describing spending for a user who logged none.
+            assertThat(context)
+                    .contains("CHƯA GHI NHẬN GIAO DỊCH CHI TIÊU PHÁT SINH TỪ BẤT KỲ DANH MỤC NÀO")
+                    .contains("mời họ ghi nhận giao dịch");
+        }
+
+        @Test
+        @DisplayName("a budgeted category with no transactions is reported as unrecorded, not as zero spending")
+        void budgetedCategoryWithoutTransactionsIsListed() {
+            Budget budget = Budget.builder()
+                    .id(UUID.randomUUID())
+                    .category(Category.ENTERTAINMENT)
+                    .amountLimit(BigDecimal.valueOf(1_000_000))
+                    .spent(BigDecimal.ZERO)
+                    .month(6).year(2026)
+                    .build();
+            stubMonth(List.of(income(10_000_000L), expense(2_000_000L)), List.of(budget));
+
+            String context = service.buildChatContext(userId, 6, 2026);
+
+            assertThat(extractLine(context, "CHƯA ghi nhận giao dịch nào trong tháng:"))
+                    .contains("ENTERTAINMENT");
+        }
+
+        @Test
+        @DisplayName("previous months are summarised with their own totals and cash-flow status")
+        void previousMonthsAreSummarised() {
+            stubMonth(List.of(
+                    // Tháng đang xét
+                    income(10_000_000L),
+                    expense(2_000_000L),
+                    // Tháng 5/2026 — thâm hụt
+                    income(8_000_000L, LocalDateTime.of(2026, 5, 3, 9, 0)),
+                    expense(11_000_000L, Category.FOOD, LocalDateTime.of(2026, 5, 20, 9, 0)),
+                    // Tháng 4/2026 — dư
+                    income(9_000_000L, LocalDateTime.of(2026, 4, 3, 9, 0)),
+                    expense(4_000_000L, Category.SHOPPING, LocalDateTime.of(2026, 4, 18, 9, 0))),
+                    List.of());
+
+            String context = service.buildChatContext(userId, 6, 2026);
+
+            assertThat(context).contains("A3. Tình hình tài chính 6 tháng TRƯỚC tháng 6/2026");
+            assertThat(extractLine(context, "Tháng 5/2026:"))
+                    .contains("thu nhập=8,000,000 VND")
+                    .contains("chi tiêu=11,000,000 VND")
+                    .contains("trạng thái=DEFICIT");
+            assertThat(extractLine(context, "Tháng 4/2026:")).contains("trạng thái=SURPLUS");
+            // The averages are precomputed so no caller — and no LLM — divides them itself.
+            assertThat(context).contains("Trung bình 2 tháng có dữ liệu");
+            // The month under discussion belongs to block A; repeating it here would let the
+            // assistant compare the month against itself.
+            assertThat(context).doesNotContain("Tháng 6/2026: thu nhập=");
+        }
+
+        @Test
+        @DisplayName("no earlier transactions → the history block says the data is missing, so nothing is invented")
+        void emptyHistoryStatesMissingData() {
+            stubMonth(List.of(income(10_000_000L), expense(2_000_000L)), List.of());
+
+            String context = service.buildChatContext(userId, 6, 2026);
+
+            assertThat(context)
+                    .contains("Chưa có giao dịch nào được ghi nhận trong các tháng trước")
+                    .contains("KHÔNG bịa số liệu tháng cũ");
+        }
+    }
+
+    // ── §B4: a goal already paid for stops costing the user its monthly slice ─
+
+    @Nested
+    @DisplayName("fully funded project releases its monthly commitment")
+    class FullyFundedProject {
+
+        private void stubMonth(List<Project> projects) {
+            stubTransactions(List.of(income(10_000_000L)));
+            when(budgetRepository.findByUserIdMonthYear(any(), any(), any())).thenReturn(List.of());
+            when(projectRepository.findAllByUser(any())).thenReturn(projects);
+            User user = onboardedUser(BigDecimal.valueOf(10_000_000));
+            when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        }
+
+        @Test
+        @DisplayName("a project at its target no longer reserves money, even with the deadline a year away")
+        void targetReachedReleasesCommitment() {
+            stubMonth(List.of(fullyFundedProject("Mua xe")));
+
+            var snapshot = service.getFinancialSnapshot(userId, 6, 2026);
+
+            assertThat(snapshot.activeCommitment()).isEqualByComparingTo(BigDecimal.ZERO);
+            assertThat(snapshot.releasedCommitment()).isEqualByComparingTo(new BigDecimal("1666666.67"));
+            assertThat(snapshot.safeSpending()).isEqualByComparingTo(BigDecimal.valueOf(10_000_000));
+        }
+
+        @Test
+        @DisplayName("context reports it as completed with monthlyCommitment=0, not as a live monthly cost")
+        void contextReportsZeroCommitment() {
+            stubMonth(List.of(fullyFundedProject("Mua xe")));
+
+            String line = extractLine(service.buildChatContext(userId, 6, 2026), "Mua xe:");
+
+            assertThat(line)
+                    .contains("status=COMPLETED")
+                    .contains("monthlyCommitment=0")
+                    .contains("countsTowardSafeSpending=false")
+                    .contains("ĐÃ ĐƯỢC GIẢI PHÓNG");
+        }
+    }
+
+    private static String extractLine(String haystack, String needle) {
+        for (String line : haystack.split("\n")) {
+            if (line.contains(needle)) return line;
+        }
+        throw new AssertionError("Line containing '" + needle + "' not found in context");
     }
 
     // ── §C: source-of-truth invariant — classifier and context agree ────────
