@@ -190,17 +190,18 @@ class AuthControllerTest {
         }
 
         @Test
-        @DisplayName("returns 200 with success=true even on invalid OTP (email enumeration prevention)")
-        void verifyEmailReturnsTrueOnInvalidOtp() {
+        @DisplayName("returns 400 with success=false on invalid OTP")
+        void verifyEmailFailsOnInvalidOtp() {
             VerifyEmailRequest req = new VerifyEmailRequest();
             req.setEmail("test@example.com");
             req.setOtp("000000");
-            doThrow(new RuntimeException("Invalid OTP")).when(verifyEmailUseCase).execute(any());
+            doThrow(new DomainException("Invalid or expired OTP")).when(verifyEmailUseCase).execute(any());
 
             ResponseEntity<CheckResponse<Void>> response = controller.verifyEmail(req);
 
-            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-            assertThat(response.getBody().getMessage()).contains("Invalid OTP");
+            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+            assertThat(response.getBody().isSuccess()).isFalse();
+            assertThat(response.getBody().getMessage()).contains("Invalid or expired OTP");
         }
     }
 
