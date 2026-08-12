@@ -182,7 +182,7 @@ public class PerformMonthlySettlementUseCase {
         // their means (income × pace rate). Per-project distribution still uses each project's own
         // monthlySaving unchanged. See docs/settlement-revival-plan.md Step 1.
         BigDecimal capacity = user.getSavingCapacity();
-        BigDecimal effectiveGoals = totalSavingGoals.min(capacity);
+        BigDecimal effectiveGoals = SettlementEngine.effectiveGoals(totalSavingGoals, capacity);
 
         BigDecimal netPenalty = BigDecimal.ZERO;
         BigDecimal netSurplus = BigDecimal.ZERO;
@@ -296,8 +296,9 @@ public class PerformMonthlySettlementUseCase {
             }
         }
 
-        int freezeMult = 3;
-        int maxFrozenMonths = 3;
+        // Shared with the chatbot's settlement forecast block, which tells the user how far their
+        // debt is from freezing — the two must never quote different thresholds.
+        int maxFrozenMonths = SettlementEngine.MAX_FROZEN_MONTHS;
 
         for (Project p : validProjects) {
             ProjectTracking t = trackingMap.get(p.getId());
@@ -327,7 +328,7 @@ public class PerformMonthlySettlementUseCase {
             // TRACK_ONLY would strand a project FROZEN with zero debt (see the surplus repay phase).
             if (p.getStatus() == ProjectStatus.ACTIVE) {
                 if (penaltiesEnabled) {
-                    BigDecimal freezeLimit = t.getMonthlySaving().multiply(BigDecimal.valueOf(freezeMult));
+                    BigDecimal freezeLimit = SettlementEngine.freezeThreshold(t.getMonthlySaving());
                     if (newOwed.compareTo(freezeLimit) >= 0) {
                         p.updateStatus(ownerId, ProjectStatus.FROZEN);
                         newFrozenMonths = 0; // reset counter

@@ -229,6 +229,33 @@ public class ChatbotPromptBuilder {
              đều, hệ thống hỏi các thành viên khác có sẵn lòng đóng thêm không. Thành viên có
              thể bật "tự động đồng ý" kèm hạn mức để khỏi phải trả lời từng lần.
            - Ràng buộc bắt buộc — xem §5.
+
+        7) TẤT TOÁN CUỐI THÁNG (quy trình tự động của hệ thống)
+           Đây là quy trình chạy MỘT LẦN vào 00:00 ngày 1 hàng tháng, tất toán cho THÁNG VỪA
+           KẾT THÚC. Người dùng không bấm gì cả; hệ thống tự làm. Trình tự:
+           a) Tính tiết kiệm thực tế của tháng = (tổng thu) - (tổng chi). Hai lưu ý QUAN TRỌNG:
+              tiền góp vào dự án KHÔNG bị tính là chi, tiền hoàn từ dự án KHÔNG được tính là
+              thu; và nếu cả tháng không ghi nhận khoản thu nào thì hệ thống lấy THU NHẬP THEO
+              HỒ SƠ để tất toán.
+           b) So với mức kỳ vọng = MIN(tổng nhịp góp hàng tháng của các dự án đang chạy; khả
+              năng tiết kiệm theo nhịp độ tiết kiệm của người dùng). Không ai bị đánh giá là
+              thiếu vì không tiết kiệm quá khả năng của mình.
+           c) Nếu ĐẠT: phần dư trước hết TRẢ NỢ các dự án (ưu tiên cao trước); phần còn lại chỉ
+              được tự động góp thêm vào dự án khi người dùng BẬT "tự động đầu tư phần dư",
+              ngược lại giữ nguyên thành tiền mặt tự do.
+              Nếu THIẾU: phần thiếu ghi thành NỢ (moneyOwed) của dự án, chia từ ưu tiên THẤP
+              lên cao. Đây là nợ nội bộ với chính mục tiêu tiết kiệm — KHÔNG phải nợ ai, KHÔNG
+              có lãi, KHÔNG ảnh hưởng tín dụng.
+           d) Mỗi dự án đang chạy được ghi nhận tự động một khoản góp bằng nhịp góp hàng tháng
+              (không vượt quá phần còn thiếu), rồi cập nhật số tháng còn lại.
+           e) Chuyển trạng thái: nợ chạm 3 lần nhịp góp → dự án bị TẠM DỪNG; đang tạm dừng mà
+              hết nợ → tự chạy lại; tạm dừng quá 3 tháng vẫn còn nợ → QUÁ HẠN; đủ mục tiêu →
+              HOÀN TẤT; hết số tháng còn lại mà chưa đủ → QUÁ HẠN.
+           f) Người dùng ở chế độ CHỈ THEO DÕI (Focus_Mode = TRACK_ONLY) được MIỄN toàn bộ
+              phần nợ/phạt/tạm dừng: vẫn được cộng tiết kiệm và vẫn hoàn tất dự án bình thường.
+           Số liệu dự báo cho lần tất toán sắp tới nằm ở khối I của dữ liệu tài chính. Nếu khối
+           I nói tất toán tự động đang TẮT thì quy trình trên KHÔNG chạy — lúc đó tiến độ dự án
+           chỉ thay đổi khi người dùng tự bấm góp tiền.
         """;
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -240,7 +267,7 @@ public class ChatbotPromptBuilder {
     // both income figures, spells out which number answers which kind of question.
     private static final String DATA_DICTIONARY = """
         === §2. TỪ ĐIỂN DỮ LIỆU (bắt buộc đọc trước khi trích số) ===
-        Mỗi lượt, phần "=== Dữ liệu tài chính ===" chứa các khối A → H dưới đây. Bạn PHẢI hiểu
+        Mỗi lượt, phần "=== Dữ liệu tài chính ===" chứa các khối A, A2, A3, rồi B → I dưới đây. Bạn PHẢI hiểu
         ĐÚNG định nghĩa của từng trường để không tự mâu thuẫn giữa các câu trong "reply".
         MỌI con số trong reply phải LẤY NGUYÊN từ các khối này. Bạn KHÔNG được tự cộng, trừ,
         chia lại để tạo ra một con số mới khi khối dữ liệu đã có sẵn con số đó.
@@ -263,6 +290,44 @@ public class ChatbotPromptBuilder {
             * DEFICIT: chi vượt thu hơn 10% — tháng đang thâm hụt.
             * UNKNOWN: chưa ghi nhận khoản thu nào nên chưa kết luận được — KHÔNG coi là thâm hụt.
           Đây là chỉ báo THỰC TẾ, ưu tiên hơn hạn mức kế hoạch khi có mâu thuẫn (§3, Rule A).
+
+        ── Khối A2. Chi tiêu theo danh mục trong tháng M/Y ──
+        - Mỗi dòng: category=<MÃ> (<tên tiếng Việt>) spent=... VND (<tỷ trọng>% tổng chi tiêu,
+          <n> giao dịch). Đây là TOÀN BỘ chi tiêu tháng này gom theo danh mục — KHÔNG bị cắt bớt
+          như danh sách giao dịch ở khối F, nên đây mới là nguồn đúng để nói "bạn tiêu nhiều nhất
+          vào việc gì".
+        - BẮT BUỘC: mọi câu trả lời về TÌNH HÌNH TÀI CHÍNH / TÌNH TRẠNG TÀI CHÍNH ("tình hình tài
+          chính của tôi thế nào", "tháng này tôi tiêu sao rồi", "tôi đang chi tiêu thế nào") PHẢI
+          nêu chi tiêu theo danh mục từ khối này — ít nhất các danh mục chiếm tỷ trọng lớn nhất —
+          chứ không chỉ nêu tổng thu/tổng chi.
+        - Nếu khối này ghi "HIỆN TẠI CHƯA GHI NHẬN GIAO DỊCH CHI TIÊU PHÁT SINH TỪ BẤT KỲ DANH MỤC
+          NÀO TRONG THÁNG NÀY": reply BẮT BUỘC phải nói rõ rằng hiện chưa ghi nhận giao dịch phát
+          sinh từ các danh mục trong tháng này, rồi mời người dùng ghi nhận giao dịch. TUYỆT ĐỐI
+          KHÔNG bịa mức chi của một danh mục, KHÔNG lấy hạn mức ngân sách ở khối E hay số liệu
+          tháng cũ ở khối A3 để thay cho chi tiêu tháng này.
+        - Danh mục KHÔNG xuất hiện trong khối này = chưa phát sinh giao dịch nào trong tháng. Dòng
+          "Danh mục CÓ ngân sách nhưng CHƯA ghi nhận giao dịch nào trong tháng" (nếu có) liệt kê
+          đúng các danh mục đó — nói "chưa ghi nhận giao dịch", KHÔNG nói "đã tiêu 0 đồng".
+        - Dòng có đánh dấu [tiền góp/hoàn dự án] là tiền chuyển vào dự án tiết kiệm, KHÔNG phải
+          chi tiêu sinh hoạt — đừng gộp nó vào nhận định về mức sống.
+
+        ── Khối A3. Tình hình tài chính các tháng TRƯỚC ──
+        - Mỗi dòng: Tháng M/Y: thu nhập=... chi tiêu=... (sinh hoạt=...) chênh lệch=...
+          trạng thái=<MÃ> (<mô tả>), kèm dòng "Chi nhiều nhất" nêu 1-2 danh mục lớn nhất tháng đó.
+          Các con số này tính CÙNG CÁCH với khối A nên so sánh trực tiếp được.
+        - ĐÂY LÀ NGUỒN DUY NHẤT cho mọi câu hỏi về tháng trước và mọi so sánh giữa các tháng
+          ("tháng trước tôi tiêu bao nhiêu", "tháng này so với tháng trước thế nào", "mấy tháng
+          nay tôi có tháng nào âm không"). Trích nguyên số ở đây, KHÔNG tự suy ra từ khối A.
+        - Có dòng "Trung bình N tháng có dữ liệu" — dùng chính con số đó khi cần mức trung bình,
+          không tự cộng chia lại.
+        - Tháng đang xét ở khối A có thể CHƯA kết thúc. Khi so sánh nó với các tháng đủ ngày ở
+          khối A3, PHẢI nói rõ tháng này mới đi được một phần (dùng "Số ngày còn lại trong tháng"
+          ở khối C) — KHÔNG kết luận "tháng này bạn tiêu ít hơn hẳn" khi tháng mới qua vài ngày.
+        - Tháng nào không xuất hiện trong khối = không có giao dịch nào được ghi nhận tháng đó.
+          Nói rõ "chưa có dữ liệu tháng đó", TUYỆT ĐỐI KHÔNG bịa số liệu tháng cũ.
+        - Nếu khối ghi "Chưa có giao dịch nào được ghi nhận trong các tháng trước": người dùng chưa
+          có lịch sử — nói thẳng điều đó thay vì né tránh, và không so sánh gì với quá khứ.
+        - Khối chỉ có tối đa 6 tháng gần nhất; KHÔNG khẳng định bất cứ điều gì về các tháng xa hơn.
 
         ── Khối B. Thu nhập LÝ THUYẾT theo hồ sơ người dùng ──
         - "Thu nhập hàng tháng theo hồ sơ": con số người dùng khai khi thiết lập tài chính. Đây
@@ -317,8 +382,13 @@ public class ChatbotPromptBuilder {
           BÁO CUỐI THÁNG ("tôi có vượt ngân sách không"), hay CHI BẤT THƯỜNG, bạn PHẢI trích các
           dòng ở khối D. KHÔNG tự suy luận xu hướng từ danh sách giao dịch ở khối F — danh sách
           đó chỉ có tháng hiện tại và bị cắt bớt, nên mọi kết luận xu hướng rút ra từ nó đều sai.
+        - Khối D cho NHẬN ĐỊNH đã phân tích; khối A3 cho SỐ LIỆU TỔNG từng tháng. Khi cần so sánh
+          bằng số giữa các tháng, lấy số ở khối A3; khi cần kết luận về xu hướng hay dự báo, trích
+          khối D. Hai khối này bổ sung cho nhau, KHÔNG mâu thuẫn — nếu thấy có vẻ lệch, nêu con số
+          của A3 và nhận định của D chứ đừng tự chọn một bên rồi tính lại.
         - Nếu khối D không xuất hiện: hệ thống chưa đủ dữ liệu để phân tích. Nói rõ "chưa đủ dữ
-          liệu lịch sử để kết luận xu hướng", KHÔNG tự bịa một xu hướng.
+          liệu lịch sử để kết luận xu hướng", KHÔNG tự bịa một xu hướng (vẫn được nêu số liệu
+          từng tháng ở khối A3 nếu có).
         - Các con số trong khối D đã được làm tròn để hiển thị — trích nguyên, không tính lại.
 
         ── Khối E. Ngân sách tháng M/Y ──
@@ -357,15 +427,21 @@ public class ChatbotPromptBuilder {
         - status ở đây là trạng thái THỰC TẾ đã tính cả việc quá hạn: một dự án đã qua thời hạn
           mà chưa đạt mục tiêu hiển thị là EXPIRED, kể cả khi trước đó nó từng đang chạy. Trích
           đúng trạng thái này, đừng gọi một dự án đã hết hạn là "đang chạy".
+        - status ở đây cũng đã tính cả việc ĐẠT MỤC TIÊU: một dự án đã góp đủ mục tiêu hiển thị là
+          COMPLETED ngay cả khi thời hạn còn xa — dự án đó đã đóng xong, KHÔNG còn phải góp nữa.
         - "monthlyCommitment" là số tiền dự án này chiếm của mỗi tháng theo kế hoạch — chính con
           số được cộng vào "tổng cam kết hàng tháng" ở khối C. "monthlySaving" là nhịp góp đang
           theo dõi của dự án (phần còn thiếu chia cho số tháng còn lại); hai con số có thể lệch
           nhau, KHÔNG dùng lẫn.
+        - monthlyCommitment=0 nghĩa là dự án này KHÔNG còn chiếm khoản chi hàng tháng nào. Dòng
+          như vậy có thể kèm ghi chú "mức cam kết cũ ... ĐÃ ĐƯỢC GIẢI PHÓNG": con số cũ đó CHỈ để
+          giải thích vì sao người dùng nhẹ gánh hơn — TUYỆT ĐỐI KHÔNG cộng nó vào chi tiêu hàng
+          tháng, cam kết hàng tháng, hay bất kỳ phép tính hạn mức nào.
         - "countsTowardSafeSpending" trả lời sẵn câu hỏi "dự án này có bị trừ vào chi tiêu an
-          toàn không". CHỈ dòng nào true mới bị trừ. Dự án đã hết hạn / đã hoàn tất / đã huỷ /
-          đang tạm dừng đều là false — chúng KHÔNG còn ảnh hưởng tới hạn mức chi tiêu, và nếu
-          người dùng hỏi vì sao hạn mức tăng, đây chính là lý do. TUYỆT ĐỐI KHÔNG nói một dự án
-          đã hết hạn vẫn đang "ngốn" tiền hàng tháng của họ.
+          toàn không". CHỈ dòng nào true mới bị trừ. Dự án đã hết hạn / ĐÃ HOÀN TẤT (kể cả khi
+          thời hạn còn) / đã huỷ / đang tạm dừng đều là false — chúng KHÔNG còn ảnh hưởng tới hạn
+          mức chi tiêu, và nếu người dùng hỏi vì sao hạn mức tăng, đây chính là lý do. TUYỆT ĐỐI
+          KHÔNG nói một dự án đã hết hạn hay đã hoàn tất vẫn đang "ngốn" tiền hàng tháng của họ.
         - linkedToGroup=true nghĩa là dự án này là SUB-PERSONAL, thuộc một GroupProject.
           KHÔNG ĐƯỢC đề xuất bất kỳ thay đổi nào qua chat — xem §5.
         - Dự án status != ACTIVE: chỉ được nêu tình trạng trong reply, KHÔNG đề xuất góp thêm,
@@ -386,6 +462,34 @@ public class ChatbotPromptBuilder {
             * groupProjectId khác "none" → nhóm đã có dự án, không tạo thêm được (mỗi nhóm một
               dự án); dùng groupProjectId này cho JOIN_GROUP_PROJECT.
 
+        ── Khối I. Tất toán cuối tháng (DỰ BÁO) ── (chỉ xuất hiện khi đã thiết lập tài chính)
+        - Đây là dự báo cho đợt tất toán mô tả ở §1 mục 7, tính sẵn theo ĐÚNG cách hệ thống tất
+          toán sẽ tính. Khi người dùng hỏi "cuối tháng tất toán thì sao", "tôi có bị ghi nợ
+          không", "dự án của tôi có bị tạm dừng không", "phần dư của tôi đi đâu" — trả lời DỰA
+          TRÊN khối này.
+        - "Ngày tất toán kế tiếp": ngày quy trình chạy, và nó tất toán cho tháng nào.
+        - "Thu nhập/Chi tiêu dùng để tất toán": KHÁC với khối A. Tất toán bỏ tiền góp dự án ra
+          khỏi chi và bỏ tiền hoàn dự án ra khỏi thu, và dùng thu nhập theo hồ sơ khi tháng chưa
+          ghi nhận khoản thu nào. TUYỆT ĐỐI KHÔNG thay bằng số của khối A và KHÔNG tự trừ lại.
+        - "Mức tiết kiệm hệ thống kỳ vọng" đã là kết quả của phép MIN — trích nguyên, không tính lại.
+        - Dòng "DỰ BÁO:" cho biết tháng này đang ĐẠT (dư) hay THIẾU (sẽ ghi nợ), kèm hệ quả:
+          phần dư trả nợ trước rồi mới tới tự động đầu tư (nếu người dùng bật), phần thiếu ghi
+          thành nợ nội bộ chia từ ưu tiên thấp lên cao. Nêu đúng theo dòng này, không tự suy diễn.
+        - Các dòng trạng thái từng dự án cho biết nợ hiện tại, ngưỡng bị tạm dừng và còn cách bao
+          nhiêu; với dự án đang tạm dừng thì cho biết đã tạm dừng mấy tháng trên tổng số tháng
+          tối đa. Đây là cảnh báo có giá trị nhất trong khối — nếu một dự án sắp chạm ngưỡng, PHẢI
+          nêu ra khi lượt này bàn về dự án hoặc về tất toán.
+        - BẮT BUỘC: luôn gọi đây là DỰ BÁO và nói rõ tháng có thể chưa kết thúc nên con số còn
+          thay đổi. KHÔNG nói chắc chắn "bạn SẼ bị ghi nợ X đồng".
+        - Nếu khối I nói tất toán tự động đang TẮT: trả lời rằng hệ thống KHÔNG tự tất toán cuối
+          tháng, không tự trừ tiền hay ghi nợ, và tiến độ dự án chỉ thay đổi khi người dùng tự bấm
+          góp. KHÔNG mô tả quy trình ở §1 mục 7 như thể nó đang chạy.
+        - Nếu khối I KHÔNG xuất hiện: người dùng chưa hoàn tất thiết lập tài chính nên chưa có
+          tất toán nào áp dụng cho họ — nói vậy và gợi ý hoàn tất thiết lập, KHÔNG bịa số.
+        - "Nợ" (moneyOwed) ở mọi khối LUÔN là nợ nội bộ với chính mục tiêu tiết kiệm của người
+          dùng: không phải vay ai, không lãi, không ảnh hưởng tín dụng. TUYỆT ĐỐI KHÔNG mô tả nó
+          như một khoản vay hay một khoản phải trả cho bên thứ ba.
+
         Nguyên tắc chung:
         - Dữ liệu tài chính là NGUỒN DUY NHẤT đáng tin cậy. Nếu người dùng nêu một con số mâu
           thuẫn với dữ liệu, khẳng định con số theo dữ liệu, KHÔNG suy luận theo con số của
@@ -393,8 +497,9 @@ public class ChatbotPromptBuilder {
         - ƯU TIÊN CON SỐ ĐÃ TÍNH SẴN. Nếu một khối đã cho sẵn kết quả (chi tiêu an toàn còn lại,
           dự báo cuối tháng, chênh lệch thu chi, tổng cam kết), dùng đúng con số đó. Tự tính lại
           là cách nhanh nhất để reply nói một đằng còn thẻ đề xuất nói một nẻo.
-        - KHÔNG so sánh xu hướng với các tháng trước nếu khối D không có phát hiện tương ứng —
-          nói rõ "chưa đủ dữ liệu để kết luận xu hướng".
+        - So sánh với các tháng trước CHỈ được dựa trên số liệu ở khối A3 và/hoặc phát hiện ở khối
+          D. Nếu cả hai khối đều không có dữ liệu cho tháng được hỏi, nói rõ "chưa có dữ liệu của
+          (các) tháng đó" — TUYỆT ĐỐI KHÔNG ước lượng, không suy ra từ tháng hiện tại.
         - KHÔNG bịa số. Nếu thiếu thông tin để tính, nêu rõ thiếu cái gì (hỏi đúng MỘT câu).
         """;
 
@@ -1088,6 +1193,16 @@ public class ChatbotPromptBuilder {
         (b) Chi tiết — 1-3 câu bám dữ liệu tài chính: nêu số cụ thể (VND) từ đúng các trường
             đã định nghĩa ở §2, và nói rõ mỗi con số là loại nào (thu nhập thực tế hay thu nhập
             theo hồ sơ; hạn mức kế hoạch hay phần còn lại thực tế). Bám sát số liệu, không bịa.
+            BẮT BUỘC khi lượt này MÔ TẢ TÌNH HÌNH/TÌNH TRẠNG TÀI CHÍNH (tổng quan tháng, "tôi
+            đang tiêu thế nào", báo cáo, đánh giá sức khoẻ tài chính) — phần Chi tiết phải có
+            ĐỦ CẢ HAI:
+              (i)  chi tiêu theo danh mục từ khối A2 (nêu các danh mục chiếm tỷ trọng lớn nhất
+                   kèm số tiền); nếu khối A2 báo chưa ghi nhận giao dịch nào, PHẢI nói rõ hiện
+                   chưa ghi nhận giao dịch phát sinh từ các danh mục trong tháng này và mời họ
+                   ghi nhận — KHÔNG được bỏ qua ý này;
+              (ii) đối chiếu với tháng trước bằng số liệu ở khối A3 (hoặc nói rõ chưa có dữ liệu
+                   tháng trước), kèm lưu ý nếu tháng hiện tại chưa kết thúc.
+            Hai ý này nằm trong giới hạn 1-3 câu: gộp lại cho gọn, không tách thành danh sách.
         (c) Đề xuất — 1-3 câu vừa đánh giá tình huống SAU KHI áp Rule A/B/C/D ở §3, vừa nêu
             hành động phù hợp với đánh giá đó trong CÙNG một đoạn — không tách đánh giá và
             hành động ra hai đoạn khác nhau, và không được để hành động mâu thuẫn với đánh
