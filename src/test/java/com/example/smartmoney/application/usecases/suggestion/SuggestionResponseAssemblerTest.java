@@ -55,6 +55,19 @@ class SuggestionResponseAssemblerTest {
     }
 
     @Test
+    @DisplayName("an ungrouped stored amount is regrouped as whole dong on both fields")
+    void legacyUngroupedAmountIsFormatted() {
+        Suggestion suggestion = suggestionWith(payloadJsonWithNarrative(
+                "Raise your food budget to 1500000.00 VND to stay on pace."));
+
+        SuggestionResponse response = assembler.toResponse(suggestion);
+
+        String expected = "Raise your food budget to 1,500,000 VND to stay on pace.";
+        assertEquals(expected, response.getNarrative());
+        assertEquals(expected, response.getPayload().getNarrative());
+    }
+
+    @Test
     @DisplayName("an unsalvageable legacy narrative is dropped, so the FE localizes the code instead")
     void unsalvageableLegacyNarrativeIsDropped() {
         Suggestion suggestion = suggestionWith(payloadJsonWithNarrative(

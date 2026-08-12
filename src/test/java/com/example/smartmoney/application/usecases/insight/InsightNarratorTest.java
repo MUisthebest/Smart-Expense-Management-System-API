@@ -89,6 +89,20 @@ class InsightNarratorTest {
     }
 
     @Test
+    @DisplayName("currency guard: a raw metric figure reaches the FE as whole dong, grouped in threes")
+    void amountIsFormattedAsGroupedInteger() {
+        LlmPort llm = mock(LlmPort.class);
+        when(llm.call(anyString()))
+                .thenReturn("Your food spending is on track to hit 1200000.00 VND this month.");
+        InsightNarrator narrator = new InsightNarrator(llm, true);
+
+        // The model copies the metric's own shape out of the prompt; the FE formats every money
+        // field but this one, so the grouping has to be applied before we hand the sentence over.
+        assertEquals("Your food spending is on track to hit 1,200,000 VND this month.",
+                narrator.narrate(budgetPaceInsight()));
+    }
+
+    @Test
     @DisplayName("currency guard: an unsalvageable foreign currency → null (code fallback)")
     void unsalvageableCurrencyFallsBackToCode() {
         LlmPort llm = mock(LlmPort.class);
@@ -111,6 +125,9 @@ class InsightNarratorTest {
         assertTrue(prompt.contains("Vietnamese dong"), prompt);
         assertTrue(prompt.contains("$"), prompt);
         assertTrue(prompt.contains("USD"), prompt);
+        // And the shape, so the guard rarely has to rewrite: whole dong, grouped in threes.
+        assertTrue(prompt.contains("comma every three digits"), prompt);
+        assertTrue(prompt.contains("1,200,000 VND"), prompt);
     }
 
     @Test
