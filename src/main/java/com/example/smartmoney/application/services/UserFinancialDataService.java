@@ -16,14 +16,17 @@ import com.example.smartmoney.domain.models.transaction.Transaction;
 import com.example.smartmoney.domain.models.transaction.enums.Category;
 import com.example.smartmoney.domain.models.transaction.enums.TransactionType;
 import com.example.smartmoney.domain.models.user.User;
+import com.example.smartmoney.domain.models.user.enums.Focus_Mode;
 import com.example.smartmoney.domain.repositories.BudgetRepository;
 import com.example.smartmoney.domain.repositories.GroupProjectRepository;
 import com.example.smartmoney.domain.repositories.GroupRepository;
 import com.example.smartmoney.domain.repositories.ProjectRepository;
 import com.example.smartmoney.domain.repositories.TransactionRepository;
 import com.example.smartmoney.domain.repositories.UserRepository;
+import com.example.smartmoney.application.usecases.settlement.SettlementProperties;
 import com.example.smartmoney.domain.services.EnvelopeCalculator;
 import com.example.smartmoney.domain.services.EnvelopeSnapshot;
+import com.example.smartmoney.domain.services.SettlementEngine;
 import com.example.smartmoney.domain.services.SpendingInsightAnalyzer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -63,6 +66,9 @@ public class UserFinancialDataService {
      *  so the assistant quotes the SAME analysis the Insights screen shows, rather than
      *  re-deriving a trend from the 15 transaction rows it can see. */
     private final SpendingInsightAnalyzer insightAnalyzer;
+    /** Whether the month-end settlement cron is live. The forecast block describes what settlement
+     *  WILL do on the 1st, so it must not promise a run that is switched off in this deployment. */
+    private final SettlementProperties settlementProperties;
 
     public enum DataType {
         TRANSACTIONS, PROJECTS, INCOME, PROFILE
@@ -557,6 +563,10 @@ public class UserFinancialDataService {
         LocalDate asOf = period.equals(YearMonth.now()) ? today : period.atEndOfMonth();
         List<Transaction> history = loadTrailingWindow(userId, period, asOf);
 
+        // Loaded once here and handed to the blocks that need it — the settlement forecast reads
+        // the saving pace and the focus mode, the insight block needs the income.
+        User contextUser = userRepository.findById(userId).orElse(null);
+
         // One snapshot, reusing the transactions already loaded above — every figure below comes
         // from it, so the prompt cannot contain two different answers to the same question.
         FinancialSnapshot snapshot = getFinancialSnapshot(userId, month, year, txs);
@@ -677,7 +687,7 @@ public class UserFinancialDataService {
         // The same findings GET /api/v1/insights returns. Without this the assistant had to infer
         // trends from the 15 transaction rows below — which is how it ended up describing a
         // "trend" the Insights screen disagreed with.
-        appendInsights(sb, userId, budgets, history, asOf, period);
+        appendInsights(sb, contextUser, budgets, history, asOf);
 
         // ── Ngân sách tháng ───────────────────────────────────────────────────
         // status is alertLevel (SAFE/CAUTION/WARNING/EXCEEDED) — surfaced so the AI never has
@@ -784,7 +794,149 @@ public class UserFinancialDataService {
 
         appendGroups(sb, userId);
 
+        // ── Tất toán cuối tháng ───────────────────────────────────────────────
+        appendSettlementForecast(sb, contextUser, projects, txs, snapshot, period);
+
         return sb.toString();
+    }
+
+    /**
+     * What the month-end settlement run will do to this user's projects, computed the way the
+     * engine computes it.
+     *
+     * <p>The assistant could see {@code moneyOwed} and {@code monthlySaving} on the project rows
+     * but had no idea where either number comes from or what happens to them on the 1st: the whole
+     * settlement process — the auto-saving credit, the debt/surplus split, the freeze at
+     * {@value SettlementEngine#FREEZE_DEBT_MULTIPLIER}× monthly saving, the expiry after
+     * {@value SettlementEngine#MAX_FROZEN_MONTHS} frozen months — appeared nowhere in the prompt.
+     * Asked "cuối tháng tất toán thì sao", it could only invent an answer, and a plausible-sounding
+     * invention about someone's savings being penalised is about the worst output this chat has.
+     *
+     * <h3>Why every figure is computed here rather than left to the model</h3>
+     * Settlement does NOT judge the month by the numbers in block A. It excludes the synthetic
+     * project ledger rows from both sides, and — the part no LLM would ever guess — falls back to
+     * the profile income when the month recorded none. Its saving expectation is the sum of
+     * {@code tracking.monthlySaving} capped by the saving pace, which is a different quantity from
+     * block C's commitment sum. Any of those differences is enough to make a hand-derived answer
+     * wrong, so the projection is spelled out and the prompt is told to quote it verbatim.
+     *
+     * <p>Stated as a forecast, not a fact: the month is usually still running, and every number
+     * below moves with each transaction recorded before the 1st.
+     */
+    private void appendSettlementForecast(StringBuilder sb, User user, List<Project> projects,
+                                          List<Transaction> txs, FinancialSnapshot snapshot,
+                                          YearMonth period) {
+        if (user == null || !snapshot.financialSetupDone()) return;
+
+        LocalDate settlementDate = period.plusMonths(1).atDay(1);
+
+        sb.append("\n=== I. Tất toán cuối tháng ").append(period.getMonthValue()).append("/")
+                .append(period.getYear()).append(" (DỰ BÁO) ===\n");
+
+        if (!settlementProperties.isEnabled()) {
+            sb.append("Hệ thống tất toán tự động đang TẮT ở phiên bản này: cuối tháng KHÔNG có đợt\n")
+                    .append("tất toán nào chạy, không tự trừ tiền, không tự cộng nợ, không tự đóng băng dự án.\n")
+                    .append("Tiến độ dự án chỉ thay đổi khi người dùng tự bấm góp tiền. Nếu người dùng hỏi về\n")
+                    .append("tất toán cuối tháng, nói đúng như vậy.\n");
+            return;
+        }
+
+        // Settlement's own view of the month: synthetic project rows excluded on both sides, and
+        // the profile income standing in when nothing was recorded.
+        BigDecimal settlementIncome = sumOf(txs, t -> t.getType() == TransactionType.INCOME
+                && t.getCategory() != Category.PROJECT_REFUND);
+        boolean incomeFallback = settlementIncome.signum() == 0;
+        if (incomeFallback) {
+            settlementIncome = snapshot.monthlyIncome();
+        }
+        BigDecimal settlementExpense = snapshot.livingExpense();
+        BigDecimal actualSavings = settlementIncome.subtract(settlementExpense);
+
+        BigDecimal totalSavingGoals = BigDecimal.ZERO;
+        for (Project p : projects) {
+            if (p == null || p.getStatus() != ProjectStatus.ACTIVE) continue;
+            ProjectTracking t = p.getTracking();
+            if (t != null && t.getMonthlySaving() != null) {
+                totalSavingGoals = totalSavingGoals.add(t.getMonthlySaving());
+            }
+        }
+        BigDecimal capacity = user.getSavingCapacity() != null ? user.getSavingCapacity() : BigDecimal.ZERO;
+        BigDecimal effectiveGoals = SettlementEngine.effectiveGoals(totalSavingGoals, capacity);
+        boolean penaltiesEnabled = user.getFocusMode() != Focus_Mode.TRACK_ONLY;
+
+        sb.append(String.format("Ngày tất toán kế tiếp: %s (00:00), tất toán cho tháng %d/%d.\n",
+                settlementDate, period.getMonthValue(), period.getYear()));
+        sb.append(String.format(
+                "Thu nhập dùng để tất toán: %,.0f VND%s\n", settlementIncome,
+                incomeFallback
+                        ? " (chưa ghi nhận khoản thu nào nên hệ thống LẤY THU NHẬP THEO HỒ SƠ để tất toán)"
+                        : " (tổng giao dịch thu, KHÔNG tính tiền hoàn từ dự án)"));
+        sb.append(String.format(
+                "Chi tiêu dùng để tất toán: %,.0f VND (KHÔNG tính tiền góp vào dự án — góp tiền không bị coi là tiêu)\n",
+                settlementExpense));
+        sb.append(String.format("Tiết kiệm thực tế = thu - chi: %,.0f VND\n", actualSavings));
+        sb.append(String.format(
+                "Mức tiết kiệm hệ thống kỳ vọng tháng này: %,.0f VND\n", effectiveGoals));
+        sb.append(String.format(
+                "  = MIN(tổng nhịp góp hàng tháng của dự án đang chạy %,.0f VND; khả năng tiết kiệm "
+                        + "theo nhịp độ %,.0f VND)\n", totalSavingGoals, capacity));
+
+        if (actualSavings.compareTo(effectiveGoals) >= 0) {
+            BigDecimal surplus = actualSavings.subtract(effectiveGoals);
+            sb.append(String.format("DỰ BÁO: ĐẠT kỳ vọng, dư %,.0f VND.\n", surplus));
+            sb.append("  Phần dư sẽ được dùng để TRẢ NỢ các dự án trước (ưu tiên cao trước).\n");
+            sb.append(user.isAutoInvestSurplus()
+                    ? "  Sau khi hết nợ, phần còn lại được TỰ ĐỘNG GÓP THÊM vào dự án (người dùng đã bật tự động đầu tư phần dư).\n"
+                    : "  Người dùng ĐANG TẮT tự động đầu tư phần dư, nên sau khi trả nợ xong phần còn lại giữ nguyên là tiền mặt tự do.\n");
+        } else if (penaltiesEnabled) {
+            BigDecimal shortfall = effectiveGoals.subtract(actualSavings);
+            sb.append(String.format("DỰ BÁO: THIẾU %,.0f VND so với kỳ vọng.\n", shortfall));
+            sb.append("  Khoản thiếu này sẽ được ghi thành NỢ (moneyOwed) của các dự án, chia từ dự án\n")
+                    .append("  ưu tiên THẤP lên cao. Đây là nợ nội bộ với chính mục tiêu tiết kiệm, KHÔNG\n")
+                    .append("  phải nợ tiền với bên nào và không có lãi.\n");
+        } else {
+            sb.append(String.format(
+                    "DỰ BÁO: thiếu %,.0f VND so với kỳ vọng, NHƯNG người dùng đang ở chế độ chỉ theo dõi\n",
+                    effectiveGoals.subtract(actualSavings)))
+                    .append("  (TRACK_ONLY) nên hệ thống KHÔNG ghi nợ, KHÔNG phạt, KHÔNG đóng băng dự án.\n");
+        }
+
+        sb.append("Mỗi dự án đang chạy còn được tự động ghi nhận một khoản góp bằng đúng nhịp góp\n")
+                .append("hàng tháng của nó (không vượt quá phần còn thiếu), rồi cập nhật số tháng còn lại.\n");
+
+        List<Project> settled = projects.stream()
+                .filter(p -> p != null && p.getTracking() != null)
+                .filter(p -> p.getStatus() == ProjectStatus.ACTIVE || p.getStatus() == ProjectStatus.FROZEN)
+                .limit(5)
+                .toList();
+        if (!settled.isEmpty()) {
+            sb.append("Trạng thái nợ/đóng băng từng dự án sẽ được tất toán:\n");
+            for (Project p : settled) {
+                ProjectTracking t = p.getTracking();
+                BigDecimal owed = t.getMoneyOwed() != null ? t.getMoneyOwed() : BigDecimal.ZERO;
+                BigDecimal monthlySaving = t.getMonthlySaving() != null ? t.getMonthlySaving() : BigDecimal.ZERO;
+                BigDecimal freezeAt = SettlementEngine.freezeThreshold(monthlySaving);
+                if (p.getStatus() == ProjectStatus.FROZEN) {
+                    sb.append(String.format(
+                            "  %s: ĐANG TẠM DỪNG, nợ=%,.0f VND, đã tạm dừng %d/%d tháng. Hết nợ thì tự chạy\n"
+                                    + "    lại; nếu vẫn còn nợ sau %d tháng tạm dừng thì dự án chuyển thành quá hạn.\n",
+                            p.getName(), owed, t.getFrozenMonths(), SettlementEngine.MAX_FROZEN_MONTHS,
+                            SettlementEngine.MAX_FROZEN_MONTHS));
+                } else {
+                    sb.append(String.format(
+                            "  %s: nợ=%,.0f VND, sẽ bị TẠM DỪNG khi nợ chạm %,.0f VND (=%d lần nhịp góp %,.0f VND);"
+                                    + " còn cách %,.0f VND.\n",
+                            p.getName(), owed, freezeAt, SettlementEngine.FREEZE_DEBT_MULTIPLIER,
+                            monthlySaving, freezeAt.subtract(owed).max(BigDecimal.ZERO)));
+                }
+            }
+        }
+        sb.append("Sau khi tất toán, dự án đủ mục tiêu chuyển thành đã hoàn tất; dự án hết số tháng\n")
+                .append("còn lại mà chưa đủ mục tiêu chuyển thành quá hạn.\n");
+        sb.append("LƯU Ý BẮT BUỘC: đây là DỰ BÁO theo số liệu tới thời điểm hiện tại, tháng có thể\n")
+                .append("chưa kết thúc — mọi giao dịch ghi thêm trước ngày tất toán đều làm các con số này\n")
+                .append("thay đổi. Khi trả lời phải nói rõ là dự báo, và TRÍCH NGUYÊN các con số ở khối này,\n")
+                .append("KHÔNG tự tính lại từ khối A hay khối C (cách tính của tất toán khác).\n");
     }
 
     /**
@@ -1018,20 +1170,19 @@ public class UserFinancialDataService {
      * {@code {zScore: 2.4, baseline: ...}}. Best-effort — this is enrichment, so a failure to
      * compute it silently omits the section rather than costing the user their turn.
      */
-    private void appendInsights(StringBuilder sb, UUID userId, List<Budget> budgets,
-                                List<Transaction> history, LocalDate asOf, YearMonth period) {
+    private void appendInsights(StringBuilder sb, User user, List<Budget> budgets,
+                                List<Transaction> history, LocalDate asOf) {
         if (history.isEmpty()) return;
         List<Insight> insights;
         try {
             insights = new ArrayList<>(insightAnalyzer.analyze(history, budgets, asOf));
             // Income lives on the User, which the pure analyzer deliberately doesn't load — the
             // pull use case adds this finding the same way.
-            User user = userRepository.findById(userId).orElse(null);
-            insightAnalyzer.detectBudgetOverIncome(budgets, user == null ? null : user.getIncome(), period)
+            insightAnalyzer.detectBudgetOverIncome(budgets, user == null ? null : user.getIncome(),
+                            YearMonth.from(asOf))
                     .ifPresent(insights::add);
         } catch (Exception e) {
-            log.warn("UserFinancialDataService: could not compute insights for user {}: {}",
-                    userId, e.getMessage());
+            log.warn("UserFinancialDataService: could not compute insights: {}", e.getMessage());
             return;
         }
         if (insights.isEmpty()) return;

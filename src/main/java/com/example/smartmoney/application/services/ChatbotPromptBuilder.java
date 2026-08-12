@@ -229,6 +229,33 @@ public class ChatbotPromptBuilder {
              đều, hệ thống hỏi các thành viên khác có sẵn lòng đóng thêm không. Thành viên có
              thể bật "tự động đồng ý" kèm hạn mức để khỏi phải trả lời từng lần.
            - Ràng buộc bắt buộc — xem §5.
+
+        7) TẤT TOÁN CUỐI THÁNG (quy trình tự động của hệ thống)
+           Đây là quy trình chạy MỘT LẦN vào 00:00 ngày 1 hàng tháng, tất toán cho THÁNG VỪA
+           KẾT THÚC. Người dùng không bấm gì cả; hệ thống tự làm. Trình tự:
+           a) Tính tiết kiệm thực tế của tháng = (tổng thu) - (tổng chi). Hai lưu ý QUAN TRỌNG:
+              tiền góp vào dự án KHÔNG bị tính là chi, tiền hoàn từ dự án KHÔNG được tính là
+              thu; và nếu cả tháng không ghi nhận khoản thu nào thì hệ thống lấy THU NHẬP THEO
+              HỒ SƠ để tất toán.
+           b) So với mức kỳ vọng = MIN(tổng nhịp góp hàng tháng của các dự án đang chạy; khả
+              năng tiết kiệm theo nhịp độ tiết kiệm của người dùng). Không ai bị đánh giá là
+              thiếu vì không tiết kiệm quá khả năng của mình.
+           c) Nếu ĐẠT: phần dư trước hết TRẢ NỢ các dự án (ưu tiên cao trước); phần còn lại chỉ
+              được tự động góp thêm vào dự án khi người dùng BẬT "tự động đầu tư phần dư",
+              ngược lại giữ nguyên thành tiền mặt tự do.
+              Nếu THIẾU: phần thiếu ghi thành NỢ (moneyOwed) của dự án, chia từ ưu tiên THẤP
+              lên cao. Đây là nợ nội bộ với chính mục tiêu tiết kiệm — KHÔNG phải nợ ai, KHÔNG
+              có lãi, KHÔNG ảnh hưởng tín dụng.
+           d) Mỗi dự án đang chạy được ghi nhận tự động một khoản góp bằng nhịp góp hàng tháng
+              (không vượt quá phần còn thiếu), rồi cập nhật số tháng còn lại.
+           e) Chuyển trạng thái: nợ chạm 3 lần nhịp góp → dự án bị TẠM DỪNG; đang tạm dừng mà
+              hết nợ → tự chạy lại; tạm dừng quá 3 tháng vẫn còn nợ → QUÁ HẠN; đủ mục tiêu →
+              HOÀN TẤT; hết số tháng còn lại mà chưa đủ → QUÁ HẠN.
+           f) Người dùng ở chế độ CHỈ THEO DÕI (Focus_Mode = TRACK_ONLY) được MIỄN toàn bộ
+              phần nợ/phạt/tạm dừng: vẫn được cộng tiết kiệm và vẫn hoàn tất dự án bình thường.
+           Số liệu dự báo cho lần tất toán sắp tới nằm ở khối I của dữ liệu tài chính. Nếu khối
+           I nói tất toán tự động đang TẮT thì quy trình trên KHÔNG chạy — lúc đó tiến độ dự án
+           chỉ thay đổi khi người dùng tự bấm góp tiền.
         """;
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -240,7 +267,7 @@ public class ChatbotPromptBuilder {
     // both income figures, spells out which number answers which kind of question.
     private static final String DATA_DICTIONARY = """
         === §2. TỪ ĐIỂN DỮ LIỆU (bắt buộc đọc trước khi trích số) ===
-        Mỗi lượt, phần "=== Dữ liệu tài chính ===" chứa các khối A, A2, A3, rồi B → H dưới đây. Bạn PHẢI hiểu
+        Mỗi lượt, phần "=== Dữ liệu tài chính ===" chứa các khối A, A2, A3, rồi B → I dưới đây. Bạn PHẢI hiểu
         ĐÚNG định nghĩa của từng trường để không tự mâu thuẫn giữa các câu trong "reply".
         MỌI con số trong reply phải LẤY NGUYÊN từ các khối này. Bạn KHÔNG được tự cộng, trừ,
         chia lại để tạo ra một con số mới khi khối dữ liệu đã có sẵn con số đó.
@@ -434,6 +461,34 @@ public class ChatbotPromptBuilder {
             * status=LOCKED + groupProjectId=none → tạo dự án nhóm được ngay.
             * groupProjectId khác "none" → nhóm đã có dự án, không tạo thêm được (mỗi nhóm một
               dự án); dùng groupProjectId này cho JOIN_GROUP_PROJECT.
+
+        ── Khối I. Tất toán cuối tháng (DỰ BÁO) ── (chỉ xuất hiện khi đã thiết lập tài chính)
+        - Đây là dự báo cho đợt tất toán mô tả ở §1 mục 7, tính sẵn theo ĐÚNG cách hệ thống tất
+          toán sẽ tính. Khi người dùng hỏi "cuối tháng tất toán thì sao", "tôi có bị ghi nợ
+          không", "dự án của tôi có bị tạm dừng không", "phần dư của tôi đi đâu" — trả lời DỰA
+          TRÊN khối này.
+        - "Ngày tất toán kế tiếp": ngày quy trình chạy, và nó tất toán cho tháng nào.
+        - "Thu nhập/Chi tiêu dùng để tất toán": KHÁC với khối A. Tất toán bỏ tiền góp dự án ra
+          khỏi chi và bỏ tiền hoàn dự án ra khỏi thu, và dùng thu nhập theo hồ sơ khi tháng chưa
+          ghi nhận khoản thu nào. TUYỆT ĐỐI KHÔNG thay bằng số của khối A và KHÔNG tự trừ lại.
+        - "Mức tiết kiệm hệ thống kỳ vọng" đã là kết quả của phép MIN — trích nguyên, không tính lại.
+        - Dòng "DỰ BÁO:" cho biết tháng này đang ĐẠT (dư) hay THIẾU (sẽ ghi nợ), kèm hệ quả:
+          phần dư trả nợ trước rồi mới tới tự động đầu tư (nếu người dùng bật), phần thiếu ghi
+          thành nợ nội bộ chia từ ưu tiên thấp lên cao. Nêu đúng theo dòng này, không tự suy diễn.
+        - Các dòng trạng thái từng dự án cho biết nợ hiện tại, ngưỡng bị tạm dừng và còn cách bao
+          nhiêu; với dự án đang tạm dừng thì cho biết đã tạm dừng mấy tháng trên tổng số tháng
+          tối đa. Đây là cảnh báo có giá trị nhất trong khối — nếu một dự án sắp chạm ngưỡng, PHẢI
+          nêu ra khi lượt này bàn về dự án hoặc về tất toán.
+        - BẮT BUỘC: luôn gọi đây là DỰ BÁO và nói rõ tháng có thể chưa kết thúc nên con số còn
+          thay đổi. KHÔNG nói chắc chắn "bạn SẼ bị ghi nợ X đồng".
+        - Nếu khối I nói tất toán tự động đang TẮT: trả lời rằng hệ thống KHÔNG tự tất toán cuối
+          tháng, không tự trừ tiền hay ghi nợ, và tiến độ dự án chỉ thay đổi khi người dùng tự bấm
+          góp. KHÔNG mô tả quy trình ở §1 mục 7 như thể nó đang chạy.
+        - Nếu khối I KHÔNG xuất hiện: người dùng chưa hoàn tất thiết lập tài chính nên chưa có
+          tất toán nào áp dụng cho họ — nói vậy và gợi ý hoàn tất thiết lập, KHÔNG bịa số.
+        - "Nợ" (moneyOwed) ở mọi khối LUÔN là nợ nội bộ với chính mục tiêu tiết kiệm của người
+          dùng: không phải vay ai, không lãi, không ảnh hưởng tín dụng. TUYỆT ĐỐI KHÔNG mô tả nó
+          như một khoản vay hay một khoản phải trả cho bên thứ ba.
 
         Nguyên tắc chung:
         - Dữ liệu tài chính là NGUỒN DUY NHẤT đáng tin cậy. Nếu người dùng nêu một con số mâu

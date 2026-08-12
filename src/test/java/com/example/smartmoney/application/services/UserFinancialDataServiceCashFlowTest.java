@@ -1,5 +1,6 @@
 package com.example.smartmoney.application.services;
 
+import com.example.smartmoney.application.usecases.settlement.SettlementProperties;
 import com.example.smartmoney.domain.models.budget.Budget;
 import com.example.smartmoney.domain.models.project.Project;
 import com.example.smartmoney.domain.models.project.ProjectContribution;
@@ -76,9 +77,16 @@ class UserFinancialDataServiceCashFlowTest {
     private final EnvelopeCalculator envelopeCalculator = new EnvelopeCalculator();
     private final SpendingInsightAnalyzer insightAnalyzer = new SpendingInsightAnalyzer();
 
-    private final UserFinancialDataService service = new UserFinancialDataService(
-            transactionRepository, projectRepository, budgetRepository, userRepository,
-            groupRepository, groupProjectRepository, envelopeCalculator, insightAnalyzer);
+    private final UserFinancialDataService service = serviceWithSettlement(true);
+
+    /** The forecast block describes what the month-end run WILL do, so the flag that decides
+     *  whether that run happens at all is part of the fixture. */
+    private UserFinancialDataService serviceWithSettlement(boolean settlementEnabled) {
+        return new UserFinancialDataService(
+                transactionRepository, projectRepository, budgetRepository, userRepository,
+                groupRepository, groupProjectRepository, envelopeCalculator, insightAnalyzer,
+                new SettlementProperties(settlementEnabled));
+    }
 
     private final UUID userId = UUID.randomUUID();
 
@@ -718,6 +726,101 @@ class UserFinancialDataServiceCashFlowTest {
                     .contains("monthlyCommitment=0")
                     .contains("countsTowardSafeSpending=false")
                     .contains("ĐÃ ĐƯỢC GIẢI PHÓNG");
+        }
+    }
+
+    // ── §B5: month-end settlement forecast ──────────────────────────────────
+
+    @Nested
+    @DisplayName("month-end settlement forecast")
+    class SettlementForecast {
+
+        /** One ACTIVE project: monthlySaving 500,000 (from the shared tracking fixture), which is
+         *  below the 2,000,000 pace capacity, so the expectation is the 500,000 itself. */
+        private User stubMonth(long recordedIncome, long recordedExpense) {
+            stubTransactions(List.of(income(recordedIncome), expense(recordedExpense)));
+            when(budgetRepository.findByUserIdMonthYear(any(), any(), any())).thenReturn(List.of());
+            when(projectRepository.findAllByUser(any())).thenReturn(List.of(standaloneProject("Mua nhà")));
+            User user = onboardedUser(BigDecimal.valueOf(10_000_000));
+            when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+            return user;
+        }
+
+        @Test
+        @DisplayName("saving short of the expectation is forecast as debt, with the freeze threshold spelled out")
+        void shortfallForecastsDebt() {
+            stubMonth(10_000_000L, 9_800_000L);   // tiết kiệm thực tế 200k < kỳ vọng 500k
+
+            String context = service.buildChatContext(userId, 6, 2026);
+
+            assertThat(context)
+                    .contains("I. Tất toán cuối tháng 6/2026 (DỰ BÁO)")
+                    .contains("Ngày tất toán kế tiếp: 2026-07-01")
+                    .contains("Tiết kiệm thực tế = thu - chi: 200,000 VND")
+                    .contains("Mức tiết kiệm hệ thống kỳ vọng tháng này: 500,000 VND")
+                    .contains("DỰ BÁO: THIẾU 300,000 VND");
+            // 3 × 500,000 — the number the engine itself freezes on.
+            assertThat(extractLine(context, "Mua nhà: nợ="))
+                    .contains("chạm 1,500,000 VND")
+                    .contains("còn cách 1,500,000 VND");
+        }
+
+        @Test
+        @DisplayName("meeting the expectation forecasts debt repayment, and says surplus stays as cash when auto-invest is off")
+        void surplusForecastRespectsAutoInvestFlag() {
+            stubMonth(10_000_000L, 2_000_000L);   // tiết kiệm thực tế 8M > kỳ vọng 500k
+
+            String context = service.buildChatContext(userId, 6, 2026);
+
+            assertThat(context)
+                    .contains("DỰ BÁO: ĐẠT kỳ vọng, dư 7,500,000 VND")
+                    .contains("TRẢ NỢ các dự án trước")
+                    .contains("ĐANG TẮT tự động đầu tư phần dư");
+        }
+
+        @Test
+        @DisplayName("TRACK_ONLY users are told outright that no debt or freeze applies to them")
+        void trackOnlyUsersAccrueNothing() {
+            User user = stubMonth(10_000_000L, 9_800_000L);
+            when(user.getFocusMode()).thenReturn(Focus_Mode.TRACK_ONLY);
+
+            String context = service.buildChatContext(userId, 6, 2026);
+
+            assertThat(context)
+                    .contains("TRACK_ONLY")
+                    .contains("KHÔNG ghi nợ, KHÔNG phạt, KHÔNG đóng băng");
+            assertThat(context).doesNotContain("DỰ BÁO: THIẾU");
+        }
+
+        @Test
+        @DisplayName("with the settlement cron switched off the block says so instead of promising a run")
+        void disabledSettlementIsStated() {
+            stubMonth(10_000_000L, 9_800_000L);
+
+            String context = serviceWithSettlement(false).buildChatContext(userId, 6, 2026);
+
+            assertThat(context)
+                    .contains("Hệ thống tất toán tự động đang TẮT")
+                    .contains("chỉ thay đổi khi người dùng tự bấm góp tiền");
+            assertThat(context).doesNotContain("Ngày tất toán kế tiếp");
+        }
+
+        @Test
+        @DisplayName("no recorded income → the forecast uses the profile income, exactly as the engine does")
+        void unrecordedIncomeFallsBackToProfile() {
+            stubTransactions(List.of(expense(1_000_000L)));
+            when(budgetRepository.findByUserIdMonthYear(any(), any(), any())).thenReturn(List.of());
+            when(projectRepository.findAllByUser(any())).thenReturn(List.of());
+            User user = onboardedUser(BigDecimal.valueOf(10_000_000));
+            when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+
+            String context = service.buildChatContext(userId, 6, 2026);
+
+            // Block A still reports 0 recorded income; settlement does not, and the difference is
+            // stated rather than left for the model to reconcile.
+            assertThat(context)
+                    .contains("Thu nhập dùng để tất toán: 10,000,000 VND (chưa ghi nhận khoản thu nào")
+                    .contains("Trạng thái dòng tiền tháng: UNKNOWN");
         }
     }
 

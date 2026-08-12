@@ -11,6 +11,29 @@ public class SettlementEngine {
 
     private SettlementEngine() {}
 
+    /** Debt at or above {@code monthlySaving ×} this multiplier freezes an ACTIVE project. */
+    public static final int FREEZE_DEBT_MULTIPLIER = 3;
+
+    /** A project that stays FROZEN for this many settlements expires. */
+    public static final int MAX_FROZEN_MONTHS = 3;
+
+    /**
+     * What the user is actually expected to save this month: their projects' combined monthly
+     * saving, capped by what their saving pace says they can afford. Nobody is penalised for
+     * failing to save beyond their means.
+     */
+    public static BigDecimal effectiveGoals(BigDecimal totalSavingGoals, BigDecimal savingCapacity) {
+        if (totalSavingGoals == null) return BigDecimal.ZERO;
+        if (savingCapacity == null) return totalSavingGoals;
+        return totalSavingGoals.min(savingCapacity);
+    }
+
+    /** Debt level at which an ACTIVE project is frozen. */
+    public static BigDecimal freezeThreshold(BigDecimal monthlySaving) {
+        if (monthlySaving == null) return BigDecimal.ZERO;
+        return monthlySaving.multiply(BigDecimal.valueOf(FREEZE_DEBT_MULTIPLIER));
+    }
+
     /**
      * Penalty = max(0, actualExpenses - safeSpending).
      * Returns ZERO when spending is within budget.
