@@ -55,18 +55,18 @@ public class InsightNarrator {
             if (reply == null || reply.isBlank()) {
                 return null;
             }
-            // The prompt asks for VND; this enforces it. The FE renders `narrative` verbatim —
-            // skipping the formatting it applies to every other money field — so a "$" the model
-            // slipped in reaches the user's screen unaltered.
+            // The prompt asks for whole dong grouped in threes; this enforces it. The FE renders
+            // `narrative` verbatim — skipping the formatting it applies to every other money field —
+            // so a "$" or a raw "1200000.00" the model slipped in reaches the screen unaltered.
             String cleaned = reply.trim();
             String guarded = NarrationCurrencyGuard.enforce(cleaned);
             if (guarded == null) {
                 log.warn("[Narration] dropped a {} narrative carrying a foreign currency — "
                         + "falling back to code", insight.getCode());
             } else if (!guarded.equals(cleaned)) {
-                // Not fatal — the amount was relabelled, not changed — but a steady stream of these
-                // means the prompt's CURRENCY rule has stopped landing and is worth looking at.
-                log.debug("[Narration] relabelled currency in a {} narrative", insight.getCode());
+                // Not fatal — the amount was relabelled and regrouped, not changed in value — but a
+                // steady stream of these means the prompt's CURRENCY rule has stopped landing.
+                log.debug("[Narration] normalized an amount in a {} narrative", insight.getCode());
             }
             return guarded;
         } catch (Exception e) {
@@ -91,9 +91,11 @@ public class InsightNarrator {
                 + "STRICT RULES: use ONLY the numbers given; do not invent, recompute, convert, round "
                 + "differently, or add any figure; do not give advice beyond the insight; output only "
                 + "the sentence.\n"
-                + "CURRENCY: every amount below is Vietnamese dong. Write amounts as the number "
-                + "followed by VND, e.g. \"1,200,000 VND\". NEVER write \"$\", \"USD\", \"US$\", "
-                + "\"dollar\", \"₫\" or \"đ\" — the figures are not dollars and must not be converted.\n\n"
+                + "CURRENCY: every amount below is Vietnamese dong. Write amounts as a whole number "
+                + "with a comma every three digits, followed by VND — e.g. \"1,200,000 VND\", never "
+                + "\"1200000\", \"1.200.000\" or \"1,200,000.00\"; drop any decimal part (dong has no "
+                + "minor unit). NEVER write \"$\", \"USD\", \"US$\", \"dollar\", \"₫\" or \"đ\" — the "
+                + "figures are not dollars and must not be converted.\n\n"
                 + "Insight code: " + insight.getCode() + "\n"
                 + "Type: " + insight.getType()
                 + "; severity: " + insight.getSeverity()

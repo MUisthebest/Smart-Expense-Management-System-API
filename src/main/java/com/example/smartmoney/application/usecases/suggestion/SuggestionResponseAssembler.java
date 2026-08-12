@@ -39,7 +39,8 @@ public class SuggestionResponseAssembler {
      * at generation, so for anything raised since, this is a no-op. It exists for the cards raised
      * <em>before</em> it did: a suggestion freezes its narrative into the payload at ask time and is
      * created with a null {@code expiresAt}, so an untreated card would keep serving its original
-     * "$" on every list request for as long as the user leaves it undecided.
+     * "$" — or its ungrouped "1200000" — on every list request for as long as the user leaves it
+     * undecided.
      *
      * <p>The parsed payload is mutated in step, because the FE reads the sentence from both
      * {@code narrative} and the nested {@code payload.narrative} — cleaning one and serving the
@@ -55,7 +56,7 @@ public class SuggestionResponseAssembler {
         // exactly the fallback it already uses for a card raised while narration was off.
         String guarded = NarrationCurrencyGuard.enforce(stored);
         if (!stored.equals(guarded)) {
-            log.info("[Suggestion] repaired currency in a stored narrative on read (dropped={})",
+            log.info("[Suggestion] repaired the amounts in a stored narrative on read (dropped={})",
                     guarded == null);
         }
         payload.setNarrative(guarded);

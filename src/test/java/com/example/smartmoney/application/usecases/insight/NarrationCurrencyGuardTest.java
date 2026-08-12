@@ -29,11 +29,12 @@ class NarrationCurrencyGuardTest {
                 "You saved 800,000 dollars last month.|You saved 800,000 VND last month.",
                 // Both at once — the model's favourite once the prompt mentions VND. Collapses to one.
                 "Budget is $1,200,000 VND for food.|Budget is 1,200,000 VND for food.",
-                // Vietnamese spellings fold onto the same token, so EN and VI quote money alike.
-                "Bạn đã chi 1.200.000 đồng cho ăn uống.|Bạn đã chi 1.200.000 VND cho ăn uống.",
-                "Bạn đã chi 1.200.000đ cho ăn uống.|Bạn đã chi 1.200.000 VND cho ăn uống.",
-                "Bạn đã chi 1.200.000 ₫ cho ăn uống.|Bạn đã chi 1.200.000 VND cho ăn uống.",
-                "Bạn đã chi 1.200.000 VNĐ cho ăn uống.|Bạn đã chi 1.200.000 VND cho ăn uống.",
+                // Vietnamese spellings fold onto the same token — and onto the same grouping — so EN
+                // and VI quote money alike.
+                "Bạn đã chi 1.200.000 đồng cho ăn uống.|Bạn đã chi 1,200,000 VND cho ăn uống.",
+                "Bạn đã chi 1.200.000đ cho ăn uống.|Bạn đã chi 1,200,000 VND cho ăn uống.",
+                "Bạn đã chi 1.200.000 ₫ cho ăn uống.|Bạn đã chi 1,200,000 VND cho ăn uống.",
+                "Bạn đã chi 1.200.000 VNĐ cho ăn uống.|Bạn đã chi 1,200,000 VND cho ăn uống.",
                 // Several amounts in one sentence.
                 "You spent $600,000 of your $1,000,000 limit.|You spent 600,000 VND of your 1,000,000 VND limit.",
         })
@@ -53,6 +54,46 @@ class NarrationCurrencyGuardTest {
         void prefixVndMovesToSuffix() {
             assertEquals("Your limit is 1,200,000 VND.",
                     NarrationCurrencyGuard.enforce("Your limit is VND 1,200,000."));
+        }
+    }
+
+    @Nested
+    @DisplayName("restates the amount as whole dong, grouped in threes")
+    class Formats {
+
+        @ParameterizedTest(name = "{0} → {1}")
+        @CsvSource(delimiter = '|', value = {
+                // The raw metric copied straight out of the prompt, ungrouped.
+                "You are on track to spend 1200000 VND this month.|You are on track to spend 1,200,000 VND this month.",
+                // A BigDecimal's decimal tail: dong has no minor unit, so it goes.
+                "You spent 600000.00 VND on food.|You spent 600,000 VND on food.",
+                "You spent $1234567.89 on food.|You spent 1,234,568 VND on food.",
+                // Vietnamese grouping is read as grouping, not as a decimal point.
+                "Bạn còn 2.500.000 VND.|Bạn còn 2,500,000 VND.",
+                // Both labels and both shapes wrong at once.
+                "Budget is $1200000.50 VND for food.|Budget is 1,200,001 VND for food.",
+                // Small amounts keep their exact value — there is nothing to group.
+                "A 500 VND rounding difference remains.|A 500 VND rounding difference remains.",
+                // Every amount in the sentence, not just the first.
+                "You spent 600000 VND of your 1000000 VND limit.|You spent 600,000 VND of your 1,000,000 VND limit.",
+        })
+        void amountsBecomeGroupedIntegers(String reply, String expected) {
+            assertEquals(expected, NarrationCurrencyGuard.enforce(reply));
+        }
+
+        @Test
+        @DisplayName("a three-digit tail is grouping, not a decimal — the right bet for dong")
+        void threeDigitTailIsGrouping() {
+            assertEquals("Your limit is 1,200 VND.", NarrationCurrencyGuard.enforce("Your limit is 1.200 VND."));
+            assertEquals("Your limit is 1,200 VND.", NarrationCurrencyGuard.enforce("Your limit is 1,200 VND."));
+        }
+
+        @Test
+        @DisplayName("running the guard twice changes nothing (the assembler re-runs it on read)")
+        void formattingIsIdempotent() {
+            String once = NarrationCurrencyGuard.enforce("You spent $1200000.75 on food.");
+            assertEquals("You spent 1,200,001 VND on food.", once);
+            assertEquals(once, NarrationCurrencyGuard.enforce(once));
         }
     }
 
