@@ -11,6 +11,7 @@ import com.example.smartmoney.domain.models.project.valueobjects.UserId;
 import com.example.smartmoney.domain.models.user.User;
 import com.example.smartmoney.domain.repositories.ProjectRepository;
 import com.example.smartmoney.domain.repositories.UserRepository;
+import com.example.smartmoney.domain.services.ProjectPacePlanner;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -25,8 +26,6 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class ProjectBudgetAdvisorUseCase {
-
-    private static final int MAX_MONTHS = 60;
 
     private final UserRepository userRepository;
     private final ProjectRepository projectRepository;
@@ -71,31 +70,17 @@ public class ProjectBudgetAdvisorUseCase {
             );
         }
 
-        BigDecimal pace;
-        BigDecimal monthlySaving;
-
-        if (req.getMode() == ProjectBudgetAdvisorRequest.Mode.URGENT) {
-            pace = maxAllowedNewMonthlySaving;
-        } else {
-            pace = maxAllowedNewMonthlySaving.divide(new BigDecimal("2"), 2, RoundingMode.FLOOR);
-            if (pace.compareTo(BigDecimal.ZERO) <= 0) {
-                pace = maxAllowedNewMonthlySaving;
-            }
-        }
-
-        // MAX_MONTHS must clamp both modes: capping only the relaxed plan let a squeezed
-        // budget push the urgent plan past 60 months and out past the relaxed one.
-        int months = req.getTargetAmount()
-                .divide(pace, 0, RoundingMode.CEILING)
-                .intValue();
-        months = Math.min(Math.max(1, months), MAX_MONTHS);
-
-        monthlySaving = req.getTargetAmount()
-                .divide(BigDecimal.valueOf(months), 2, RoundingMode.CEILING);
+        // Delegated so the chatbot's create flow, which offers the same two modes, cannot quote a
+        // different month count than this screen for the same target.
+        ProjectPacePlanner.Plan plan = ProjectPacePlanner.plan(
+                req.getTargetAmount(), maxAllowedNewMonthlySaving,
+                req.getMode() == ProjectBudgetAdvisorRequest.Mode.URGENT
+                        ? ProjectPacePlanner.Mode.URGENT
+                        : ProjectPacePlanner.Mode.RELAXED);
 
         return ProjectBudgetAdvisorResponse.builder()
-                .monthlySaving(monthlySaving)
-                .numberOfMonths(months)
+                .monthlySaving(plan.monthlySaving())
+                .numberOfMonths(plan.months())
                 .build();
     }
 

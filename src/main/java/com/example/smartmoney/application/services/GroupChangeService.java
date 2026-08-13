@@ -73,6 +73,21 @@ public class GroupChangeService {
                           PendingChatAction action) {}
 
     /**
+     * Either a card, or the reason there isn't one — same contract as
+     * {@code ProjectChangeService.Outcome}, and for the same reason: a silently dropped group
+     * operation left the model's reply ("I'll create that group project for you") as the last word
+     * on a turn where nothing was going to happen. The blockers here are all things the user can
+     * act on — lock the group first, you're not the admin, this group already has a project — so
+     * the note names the missing step.
+     */
+    public record Outcome(Preview preview, String note) {
+        static Outcome of(Preview preview) { return new Outcome(preview, null); }
+        static Outcome incomplete() { return new Outcome(null, null); }
+        static Outcome blocked(String note) { return new Outcome(null, note); }
+        public Optional<Preview> asOptional() { return Optional.ofNullable(preview); }
+    }
+
+    /**
      * Validates a draft and builds its preview.
      *
      * @param draft      the assistant's accumulated draft; null/incomplete yields empty
@@ -81,10 +96,16 @@ public class GroupChangeService {
      */
     public Optional<Preview> preview(UUID userId, JsonSchemaGuardrail.GroupDraft draft,
                                      String messageLow) {
-        if (draft == null || !draft.complete()) return Optional.empty();
+        return evaluate(userId, draft, messageLow).asOptional();
+    }
+
+    /** {@link #preview} plus the blocking reason, for callers that must not leave a false
+     *  success claim standing. */
+    public Outcome evaluate(UUID userId, JsonSchemaGuardrail.GroupDraft draft, String messageLow) {
+        if (draft == null || !draft.complete()) return Outcome.incomplete();
 
         ChatResponse.GroupChangeOperation operation = parseOperation(draft.operation());
-        if (operation == null) return Optional.empty();
+        if (operation == null) return Outcome.incomplete();
 
         boolean english = MessageLanguageDetector.isEnglish(messageLow);
         try {
@@ -98,15 +119,24 @@ public class GroupChangeService {
         } catch (Exception e) {
             log.warn("GroupChangeService: could not preview {} for user {}: {}",
                     operation, userId, e.getMessage());
-            return Optional.empty();
+            return Outcome.incomplete();
         }
+    }
+
+    /** "You administer no group by that name" — the same answer for every admin-only operation. */
+    private Outcome noAdministeredGroup(boolean english) {
+        return Outcome.blocked(english
+                ? "I couldn't find a group you administer that matches — only a group's admin can do "
+                + "this. Tell me the group's name, or create one first."
+                : "Mình không tìm thấy nhóm nào bạn làm quản trị viên khớp với yêu cầu — chỉ quản trị "
+                + "viên mới làm được việc này. Bạn cho mình tên nhóm, hoặc tạo nhóm mới trước nhé.");
     }
 
     // ── CREATE_GROUP ──────────────────────────────────────────────────────────
 
-    private Optional<Preview> previewCreateGroup(JsonSchemaGuardrail.GroupDraft draft, boolean english) {
+    private Outcome previewCreateGroup(JsonSchemaGuardrail.GroupDraft draft, boolean english) {
         String name = trim(draft.name(), MAX_NAME_LENGTH);
-        if (name == null) return Optional.empty();
+        if (name == null) return Outcome.incomplete();
         String description = trim(draft.description(), MAX_NAME_LENGTH);
 
         var suggestion = ChatResponse.GroupChangeSuggestion.builder()
@@ -126,20 +156,26 @@ public class GroupChangeService {
                 .groupDescription(description)
                 .build();
 
-        return Optional.of(new Preview(suggestion, action));
+        return Outcome.of(new Preview(suggestion, action));
     }
 
     // ── INVITE_MEMBER ─────────────────────────────────────────────────────────
 
-    private Optional<Preview> previewInvite(UUID userId, JsonSchemaGuardrail.GroupDraft draft,
-                                            boolean english) {
+    private Outcome previewInvite(UUID userId, JsonSchemaGuardrail.GroupDraft draft,
+                                  boolean english) {
         String email = draft.email() == null ? null : draft.email().trim().toLowerCase();
-        if (email == null || !EMAIL.matcher(email).matches()) return Optional.empty();
+        if (email == null || !EMAIL.matcher(email).matches()) return Outcome.incomplete();
 
         Group group = resolveAdministeredGroup(userId, draft.groupId(), draft.name());
-        if (group == null) return Optional.empty();
+        if (group == null) return noAdministeredGroup(english);
         // Once locked, the membership list is closed — inviting would be rejected downstream.
-        if (group.getStatus() != GroupStatus.FORMING) return Optional.empty();
+        if (group.getStatus() != GroupStatus.FORMING) {
+            return Outcome.blocked(english
+                    ? String.format("Group '%s' is already locked, so its member list is closed and no "
+                    + "further invitations can be sent.", group.getName())
+                    : String.format("Nhóm '%s' đã khoá nên danh sách thành viên đã chốt, không mời thêm "
+                    + "được nữa.", group.getName()));
+        }
 
         var suggestion = ChatResponse.GroupChangeSuggestion.builder()
                 .operation(ChatResponse.GroupChangeOperation.INVITE_MEMBER)
@@ -163,15 +199,20 @@ public class GroupChangeService {
                 .inviteEmail(email)
                 .build();
 
-        return Optional.of(new Preview(suggestion, action));
+        return Outcome.of(new Preview(suggestion, action));
     }
 
     // ── LOCK_GROUP ────────────────────────────────────────────────────────────
 
-    private Optional<Preview> previewLock(UUID userId, JsonSchemaGuardrail.GroupDraft draft,
-                                          boolean english) {
+    private Outcome previewLock(UUID userId, JsonSchemaGuardrail.GroupDraft draft,
+                                boolean english) {
         Group group = resolveAdministeredGroup(userId, draft.groupId(), draft.name());
-        if (group == null || group.getStatus() != GroupStatus.FORMING) return Optional.empty();
+        if (group == null) return noAdministeredGroup(english);
+        if (group.getStatus() != GroupStatus.FORMING) {
+            return Outcome.blocked(english
+                    ? String.format("Group '%s' is already locked — nothing left to do here.", group.getName())
+                    : String.format("Nhóm '%s' đã được khoá từ trước rồi, không cần khoá lại.", group.getName()));
+        }
 
         int joined = group.joinedMembers().size();
         var suggestion = ChatResponse.GroupChangeSuggestion.builder()
@@ -194,33 +235,45 @@ public class GroupChangeService {
                 .groupName(group.getName())
                 .build();
 
-        return Optional.of(new Preview(suggestion, action));
+        return Outcome.of(new Preview(suggestion, action));
     }
 
     // ── CREATE_GROUP_PROJECT ──────────────────────────────────────────────────
 
-    private Optional<Preview> previewCreateGroupProject(UUID userId, JsonSchemaGuardrail.GroupDraft draft,
-                                                        boolean english) {
+    private Outcome previewCreateGroupProject(UUID userId, JsonSchemaGuardrail.GroupDraft draft,
+                                              boolean english) {
         String name = trim(draft.name(), MAX_NAME_LENGTH);
-        if (name == null) return Optional.empty();
+        if (name == null) return Outcome.incomplete();
 
         BigDecimal target = draft.targetAmount();
-        if (target == null || target.compareTo(BigDecimal.ZERO) <= 0) return Optional.empty();
+        if (target == null || target.compareTo(BigDecimal.ZERO) <= 0) return Outcome.incomplete();
 
         Integer months = draft.totalMonths();
         if (months == null || months < MIN_TOTAL_MONTHS || months > MAX_TOTAL_MONTHS) {
-            return Optional.empty();
+            return Outcome.incomplete();
         }
 
         // The group is identified by id from the context block; a name match here would collide
         // with the PROJECT's name, which is also in this draft.
         Group group = resolveAdministeredGroup(userId, draft.groupId(), null);
-        if (group == null) return Optional.empty();
-        // Both are hard rejections in CreateGroupProjectUseCase — surface them as "not yet
-        // confirmable" so the assistant can explain the missing step instead.
-        if (group.getStatus() != GroupStatus.LOCKED) return Optional.empty();
+        if (group == null) return noAdministeredGroup(english);
+        // Both are hard rejections in CreateGroupProjectUseCase. Naming the missing step is the
+        // whole point: "lock the group first" is a one-tap fix, and staying silent made the turn
+        // read as though the group project had been created.
+        if (group.getStatus() != GroupStatus.LOCKED) {
+            return Outcome.blocked(english
+                    ? String.format("Group '%s' is still forming. Lock it first — that closes the member "
+                    + "list — and then its group project can be created. Want me to lock it?", group.getName())
+                    : String.format("Nhóm '%s' vẫn đang gom thành viên. Cần KHOÁ nhóm trước (chốt danh "
+                    + "sách thành viên) rồi mới tạo được dự án nhóm. Bạn muốn mình khoá nhóm luôn không?",
+                    group.getName()));
+        }
         if (groupProjectRepository.findByGroupId(group.getId().value()).isPresent()) {
-            return Optional.empty();
+            return Outcome.blocked(english
+                    ? String.format("Group '%s' already has a group project — each group can only have one. "
+                    + "Create another group for a second goal.", group.getName())
+                    : String.format("Nhóm '%s' đã có một dự án nhóm rồi — mỗi nhóm chỉ gắn với đúng một "
+                    + "dự án. Muốn làm mục tiêu thứ hai thì cần tạo nhóm khác.", group.getName()));
         }
 
         int memberCount = Math.max(1, group.joinedMembers().size());
@@ -261,26 +314,50 @@ public class GroupChangeService {
                 .totalMonths(months)
                 .build();
 
-        return Optional.of(new Preview(suggestion, action));
+        return Outcome.of(new Preview(suggestion, action));
     }
 
     // ── JOIN_GROUP_PROJECT ────────────────────────────────────────────────────
 
-    private Optional<Preview> previewJoin(UUID userId, JsonSchemaGuardrail.GroupDraft draft,
-                                          boolean english) {
+    private Outcome previewJoin(UUID userId, JsonSchemaGuardrail.GroupDraft draft,
+                                boolean english) {
         GroupProject gp = resolveJoinableGroupProject(userId, draft.groupProjectId());
-        if (gp == null || gp.getStatus() != GroupProjectStatus.ACTIVE) return Optional.empty();
+        if (gp == null) {
+            return Outcome.blocked(english
+                    ? "I couldn't find that group project among the groups you belong to."
+                    : "Mình không tìm thấy dự án nhóm đó trong các nhóm bạn đang tham gia.");
+        }
+        if (gp.getStatus() != GroupProjectStatus.ACTIVE) {
+            return Outcome.blocked(english
+                    ? String.format("Group project '%s' isn't open for joining right now (%s).",
+                    gp.getName(), gp.getStatus())
+                    : String.format("Dự án nhóm '%s' hiện chưa mở để tham gia (trạng thái %s).",
+                    gp.getName(), gp.getStatus()));
+        }
 
         List<Project> mine = projectRepository.findAllByUser(UserId.of(userId.toString()));
         boolean alreadyJoined = mine.stream()
                 .anyMatch(p -> gp.getId().value().equals(p.getGroupProjectId())
                         && p.getStatus() != ProjectStatus.ABANDONED);
-        if (alreadyJoined) return Optional.empty();
+        if (alreadyJoined) {
+            return Outcome.blocked(english
+                    ? String.format("You've already joined '%s' — your linked personal project is in your "
+                    + "project list.", gp.getName())
+                    : String.format("Bạn đã tham gia '%s' rồi — dự án cá nhân liên kết đang nằm trong danh "
+                    + "sách dự án của bạn.", gp.getName()));
+        }
 
         List<Project> live = mine.stream()
                 .filter(p -> p.getStatus() == ProjectStatus.ACTIVE || p.getStatus() == ProjectStatus.FROZEN)
                 .toList();
-        if (live.size() >= MAX_LIVE_PROJECTS) return Optional.empty();
+        if (live.size() >= MAX_LIVE_PROJECTS) {
+            return Outcome.blocked(english
+                    ? String.format("Joining opens a linked personal project, but you already have %d "
+                    + "running — the maximum. Finish or remove one first.", live.size())
+                    : String.format("Tham gia sẽ mở một dự án cá nhân liên kết, nhưng bạn đang có %d dự án "
+                    + "chạy song song — đã chạm giới hạn. Hãy hoàn tất hoặc xoá bớt một dự án trước.",
+                    live.size()));
+        }
 
         Set<ProjectPriority> taken = live.stream().map(Project::getPriority).collect(Collectors.toSet());
         ProjectPriority priority = parsePriority(draft.priority());
@@ -290,7 +367,7 @@ public class GroupChangeService {
                     .findFirst()
                     .orElse(null);
         }
-        if (priority == null) return Optional.empty();
+        if (priority == null) return Outcome.incomplete();
 
         var suggestion = ChatResponse.GroupChangeSuggestion.builder()
                 .operation(ChatResponse.GroupChangeOperation.JOIN_GROUP_PROJECT)
@@ -316,7 +393,7 @@ public class GroupChangeService {
                 .priority(priority.name())
                 .build();
 
-        return Optional.of(new Preview(suggestion, action));
+        return Outcome.of(new Preview(suggestion, action));
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

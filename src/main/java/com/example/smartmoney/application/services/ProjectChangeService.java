@@ -11,6 +11,7 @@ import com.example.smartmoney.domain.models.project.valueobjects.UserId;
 import com.example.smartmoney.domain.models.user.User;
 import com.example.smartmoney.domain.repositories.ProjectRepository;
 import com.example.smartmoney.domain.repositories.UserRepository;
+import com.example.smartmoney.domain.services.ProjectPacePlanner;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -77,6 +78,62 @@ public class ProjectChangeService {
                           PendingChatAction action) {}
 
     /**
+     * The result of evaluating a draft: either a card, or the reason there isn't one.
+     *
+     * <p>The reason matters as much as the card. Every rejection used to be an anonymous
+     * {@code Optional.empty()}, and the turn then returned the model's reply untouched — a reply
+     * written on the assumption that a complete draft becomes a project. Users were told their
+     * project was on its way and then found nothing in the project list, with no hint that the
+     * request had hit the three-project cap or run past their saving capacity. A {@code note} is
+     * attached for exactly those blockers, so the reply can say what went wrong and what to change.
+     *
+     * @param note user-facing explanation, already in the user's language; null when there is
+     *             nothing to explain (a card was built, or the assistant is still collecting
+     *             fields and its own question is the right thing to show)
+     */
+    public record Outcome(Preview preview, Rejection rejection, String note) {
+
+        static Outcome of(Preview preview) {
+            return new Outcome(preview, null, null);
+        }
+
+        /** Still gathering — the assistant's own follow-up question is the correct output. */
+        static Outcome incomplete() {
+            return new Outcome(null, Rejection.INCOMPLETE, null);
+        }
+
+        static Outcome blocked(Rejection rejection, String note) {
+            return new Outcome(null, rejection, note);
+        }
+
+        public Optional<Preview> asOptional() {
+            return Optional.ofNullable(preview);
+        }
+    }
+
+    /** Why a draft did not become a confirmable card. */
+    public enum Rejection {
+        /** Fields are still missing, or the draft is malformed — not an error the user must act on. */
+        INCOMPLETE,
+        /** Projects need a completed financial setup; the create would be rejected downstream. */
+        NO_FINANCIAL_SETUP,
+        /** The user already holds the maximum number of simultaneous projects. */
+        MAX_LIVE_PROJECTS,
+        /** Existing commitments already consume the whole saving capacity. */
+        NO_CAPACITY_LEFT,
+        /** This particular plan costs more per month than the capacity that is left. */
+        OVER_CAPACITY,
+        /** Deadline sits beyond the horizon the backend accepts. */
+        DEADLINE_TOO_FAR,
+        /** Named project could not be resolved, or the name matched more than one. */
+        PROJECT_NOT_FOUND,
+        /** Target belongs to a group project — chat may not change it (§5). */
+        GROUP_LINKED,
+        /** Target is completed / expired / abandoned / frozen, so its terms can't be changed. */
+        NOT_ACTIVE
+    }
+
+    /**
      * Validates a draft and builds its preview.
      *
      * @param draft      the assistant's accumulated draft; null/incomplete yields empty
@@ -85,10 +142,16 @@ public class ProjectChangeService {
      */
     public Optional<Preview> preview(UUID userId, JsonSchemaGuardrail.ProjectDraft draft,
                                      String messageLow) {
-        if (draft == null || !draft.complete()) return Optional.empty();
+        return evaluate(userId, draft, messageLow).asOptional();
+    }
+
+    /** {@link #preview} plus the reason, for callers that need to tell the user why nothing
+     *  happened rather than leaving a false success claim standing. */
+    public Outcome evaluate(UUID userId, JsonSchemaGuardrail.ProjectDraft draft, String messageLow) {
+        if (draft == null || !draft.complete()) return Outcome.incomplete();
 
         ChatResponse.ProjectChangeOperation operation = parseOperation(draft.operation());
-        if (operation == null) return Optional.empty();
+        if (operation == null) return Outcome.incomplete();
 
         boolean english = MessageLanguageDetector.isEnglish(messageLow);
         try {
@@ -102,67 +165,119 @@ public class ProjectChangeService {
             // the reply itself is already in hand by the time this runs.
             log.warn("ProjectChangeService: could not preview {} for user {}: {}",
                     operation, userId, e.getMessage());
-            return Optional.empty();
+            return Outcome.incomplete();
         }
     }
 
     // ── CREATE ────────────────────────────────────────────────────────────────
 
-    private Optional<Preview> previewCreate(UUID userId, JsonSchemaGuardrail.ProjectDraft draft,
-                                            boolean english) {
+    private Outcome previewCreate(UUID userId, JsonSchemaGuardrail.ProjectDraft draft,
+                                  boolean english) {
         String name = trim(draft.name(), MAX_NAME_LENGTH);
-        if (name == null) return Optional.empty();
+        if (name == null) return Outcome.incomplete();
 
         BigDecimal target = draft.targetAmount();
-        if (target == null || target.compareTo(BigDecimal.ZERO) <= 0) return Optional.empty();
+        if (target == null || target.compareTo(BigDecimal.ZERO) <= 0) return Outcome.incomplete();
+
+        User user = userRepository.findById(userId).orElse(null);
+        if (user == null || !user.hasCompletedFinancialSetup()) {
+            return Outcome.blocked(Rejection.NO_FINANCIAL_SETUP, english
+                    ? "Projects need your financial setup completed first — add your monthly income "
+                    + "and saving pace in Settings, then we can create this one."
+                    : "Cần hoàn tất thiết lập tài chính (thu nhập hàng tháng và nhịp độ tiết kiệm) "
+                    + "trước khi tạo dự án — sau đó chúng ta tạo ngay.");
+        }
+
+        // The cap, the priority-uniqueness rule and the capacity check all count exactly what
+        // CreateProjectUseCase counts: ACTIVE projects. Counting a different set here would either
+        // block a create the backend would accept, or wave through one it is about to reject.
+        List<Project> active = activeProjects(userId);
+        if (active.size() >= MAX_LIVE_PROJECTS) {
+            return Outcome.blocked(Rejection.MAX_LIVE_PROJECTS, english
+                    ? String.format("You already have %d projects running, which is the maximum. "
+                    + "Finish, cancel or delete one before adding another.", active.size())
+                    : String.format("Bạn đang có %d dự án chạy song song — đã chạm giới hạn. Hãy hoàn tất, "
+                    + "huỷ hoặc xoá bớt một dự án rồi tạo dự án mới.", active.size()));
+        }
+
+        ProjectPriority priority = resolvePriority(draft.priority(), active);
+        if (priority == null) return Outcome.incomplete();
+
+        BigDecimal capacity = user.getSavingCapacity() == null ? BigDecimal.ZERO : user.getSavingCapacity();
+        BigDecimal commitmentBefore = plannedCommitment(active);
+        BigDecimal capacityLeft = capacity.subtract(commitmentBefore);
+        if (capacityLeft.signum() <= 0) {
+            return Outcome.blocked(Rejection.NO_CAPACITY_LEFT, english
+                    ? String.format("Your current projects already use your whole monthly saving capacity "
+                    + "(%,d VND). Finish or shrink one before starting a new goal.", capacity.longValue())
+                    : String.format("Các dự án hiện tại đã dùng hết khả năng tiết kiệm hàng tháng của bạn "
+                    + "(%,d VND). Hãy hoàn tất hoặc giảm bớt một dự án trước khi mở mục tiêu mới.",
+                    capacity.longValue()));
+        }
 
         LocalDate today = LocalDate.now(clock);
         LocalDate deadline = parseDeadline(draft.deadline());
-        if (deadline == null || deadline.isBefore(today)) return Optional.empty();
+        int months;
+        BigDecimal monthlySaving;
 
-        List<Project> live = liveProjects(userId);
-        if (live.size() >= MAX_LIVE_PROJECTS) return Optional.empty();
+        if (deadline != null && !deadline.isBefore(today)) {
+            // The user named an actual date — honour it rather than re-planning around it.
+            months = monthsToDeadline(today, deadline);
+            if (months > MAX_MONTHS_TO_DEADLINE) {
+                return Outcome.blocked(Rejection.DEADLINE_TOO_FAR, english
+                        ? String.format("A project can run at most %d months; that deadline is %d months out. "
+                        + "Pick a closer date.", MAX_MONTHS_TO_DEADLINE, months)
+                        : String.format("Một dự án chỉ kéo dài tối đa %d tháng, còn thời hạn bạn nêu là %d tháng. "
+                        + "Bạn chọn giúp mốc gần hơn nhé.", MAX_MONTHS_TO_DEADLINE, months));
+            }
+            monthlySaving = ProjectPacePlanner.monthlyCommitment(target, months);
+        } else {
+            // No date: plan it from the pace the user picked, exactly like the create screen does.
+            ProjectPacePlanner.Mode mode = parsePace(draft.pace());
+            if (mode == null) return Outcome.incomplete();
+            ProjectPacePlanner.Plan plan = ProjectPacePlanner.plan(target, capacityLeft, mode);
+            months = plan.months();
+            monthlySaving = plan.monthlySaving();
+            // months is inclusive of the current month, so an N-month plan ends N-1 months out.
+            deadline = today.plusMonths(months - 1L);
+        }
 
-        int monthsLeft = monthsToDeadline(today, deadline);
-        if (monthsLeft > MAX_MONTHS_TO_DEADLINE) return Optional.empty();
-
-        // A priority the user named is honoured only if it's actually free; otherwise fall back
-        // to the same "pick an unused one" behaviour a user filling the form would land on. Both
-        // paths can come back empty when all three are taken — but that only happens alongside
-        // the live-project cap above, which already returned.
-        ProjectPriority priority = resolvePriority(draft.priority(), live);
-        if (priority == null) return Optional.empty();
-
-        BigDecimal monthlySaving = target.divide(BigDecimal.valueOf(monthsLeft), 2, RoundingMode.CEILING);
-        User user = userRepository.findById(userId).orElse(null);
-        BigDecimal commitmentBefore = totalCommitment(live);
         BigDecimal commitmentAfter = commitmentBefore.add(monthlySaving);
-
-        // Saving-capacity check mirrors CreateProjectUseCase's own. A user with no financial
-        // setup has no capacity to compare against — that request would be rejected there too,
-        // so it must not become a card either.
-        if (user == null || !user.hasCompletedFinancialSetup()) return Optional.empty();
-        BigDecimal capacity = user.getSavingCapacity();
-        if (capacity != null && commitmentAfter.compareTo(capacity) > 0) return Optional.empty();
+        if (monthlySaving.compareTo(capacityLeft) > 0) {
+            // Only reachable on the user-named-deadline branch: a planned horizon is derived from
+            // capacityLeft and so can never exceed it. The suggestion names the horizon that would
+            // fit, because "no" without a way forward is the least useful answer here.
+            int feasibleMonths = ProjectPacePlanner.plan(
+                    target, capacityLeft, ProjectPacePlanner.Mode.URGENT).months();
+            return Outcome.blocked(Rejection.OVER_CAPACITY, english
+                    ? String.format("That pace needs %,d VND/month but only %,d VND/month of your saving "
+                    + "capacity is free. Stretching it to about %d months would fit — or lower the target.",
+                    monthlySaving.longValue(), capacityLeft.longValue(), feasibleMonths)
+                    : String.format("Kế hoạch này cần %,d VND/tháng, trong khi khả năng tiết kiệm còn trống "
+                    + "chỉ %,d VND/tháng. Kéo dài khoảng %d tháng thì vừa — hoặc giảm số tiền mục tiêu.",
+                    monthlySaving.longValue(), capacityLeft.longValue(), feasibleMonths));
+        }
 
         String currency = draft.currency() == null ? "VND" : draft.currency();
         String description = trim(draft.description(), MAX_DESCRIPTION_LENGTH);
 
+        final LocalDate finalDeadline = deadline;
+        final int finalMonths = months;
         var suggestion = ChatResponse.ProjectChangeSuggestion.builder()
                 .projectId(null)
                 .projectName(name)
                 .operation(ChatResponse.ProjectChangeOperation.CREATE)
                 .targetAmount(target.longValue())
-                .newDeadline(deadline)
+                .newDeadline(finalDeadline)
                 .newMonthlySaving(monthlySaving.longValue())
                 .availableBudgetBefore(safeSpendingOrNull(user, commitmentBefore))
                 .availableBudgetAfter(safeSpendingOrNull(user, commitmentAfter))
                 .reason(english
                         ? String.format("Create '%s': target %,d VND by %s (%d months) -> %,d VND/month.",
-                        name, target.longValue(), DMY.format(deadline), monthsLeft,
+                        name, target.longValue(), DMY.format(finalDeadline), finalMonths,
                         monthlySaving.longValue())
                         : String.format("Tạo dự án '%s': mục tiêu %,d VND tới %s (%d tháng) -> %,d VND/tháng.",
-                        name, target.longValue(), DMY.format(deadline), monthsLeft,
+                        name, target.longValue(), DMY.format(finalDeadline), finalMonths,
                         monthlySaving.longValue()))
                 .build();
 
@@ -174,36 +289,68 @@ public class ProjectChangeService {
                 .priority(priority.name())
                 .targetAmount(target)
                 .currency(currency)
-                .newDeadline(deadline)
+                .newDeadline(finalDeadline)
                 .build();
 
-        return Optional.of(new Preview(suggestion, action));
+        return Outcome.of(new Preview(suggestion, action));
+    }
+
+    private ProjectPacePlanner.Mode parsePace(String raw) {
+        if (raw == null) return null;
+        return switch (raw.trim().toUpperCase()) {
+            case "URGENT" -> ProjectPacePlanner.Mode.URGENT;
+            case "RELAXED" -> ProjectPacePlanner.Mode.RELAXED;
+            default -> null;
+        };
     }
 
     // ── UPDATE (deadline / target / name / priority) ─────────────────────────
 
-    private Optional<Preview> previewUpdate(UUID userId, JsonSchemaGuardrail.ProjectDraft draft,
-                                            boolean english) {
+    private Outcome previewUpdate(UUID userId, JsonSchemaGuardrail.ProjectDraft draft,
+                                  boolean english) {
         Project target = resolveOwnedProject(userId, draft.projectId(), draft.name());
-        if (target == null || target.getTracking() == null) return Optional.empty();
+        if (target == null) {
+            return Outcome.blocked(Rejection.PROJECT_NOT_FOUND, english
+                    ? "I couldn't tell which project you mean — could you give me its exact name?"
+                    : "Mình chưa xác định được bạn muốn sửa dự án nào — bạn cho mình tên chính xác của dự án nhé.");
+        }
+        if (target.getTracking() == null) return Outcome.incomplete();
         // A sub-personal project's terms are a shared commitment — §5 of the chatbot prompt keeps
         // those in the Group screen, and ConfirmChatActionUseCase rejects them as a last line of
         // defence. Never build a card that would only be thrown away.
-        if (target.getGroupProjectId() != null) return Optional.empty();
-        if (target.getStatus() != ProjectStatus.ACTIVE) return Optional.empty();
+        if (target.getGroupProjectId() != null) {
+            return Outcome.blocked(Rejection.GROUP_LINKED, english
+                    ? String.format("'%s' belongs to a group project, so its terms are changed from the "
+                    + "Group screen rather than here.", target.getName())
+                    : String.format("Dự án '%s' thuộc một dự án nhóm, nên phần điều khoản được sửa trong "
+                    + "màn hình Nhóm chứ không sửa qua trò chuyện.", target.getName()));
+        }
+        if (target.getStatus() != ProjectStatus.ACTIVE) {
+            return Outcome.blocked(Rejection.NOT_ACTIVE, english
+                    ? String.format("'%s' is not running any more (%s), so its terms can't be changed. "
+                    + "You can delete it or create a replacement.",
+                    target.getName(), ProjectUpdateSuggestionService.statusPhrase(target.getStatus(), true))
+                    : String.format("Dự án '%s' hiện không còn chạy (%s) nên không đổi được điều khoản. "
+                    + "Bạn có thể xoá nó hoặc tạo một dự án mới thay thế.",
+                    target.getName(), ProjectUpdateSuggestionService.statusPhrase(target.getStatus(), false)));
+        }
 
         LocalDate today = LocalDate.now(clock);
         LocalDate newDeadline = parseDeadline(draft.deadline());
-        if (newDeadline != null && (newDeadline.isBefore(today)
-                || monthsToDeadline(today, newDeadline) > MAX_MONTHS_TO_DEADLINE)) {
-            return Optional.empty();
+        if (newDeadline != null && newDeadline.isBefore(today)) return Outcome.incomplete();
+        if (newDeadline != null && monthsToDeadline(today, newDeadline) > MAX_MONTHS_TO_DEADLINE) {
+            return Outcome.blocked(Rejection.DEADLINE_TOO_FAR, english
+                    ? String.format("A project can run at most %d months, so that deadline is too far out.",
+                    MAX_MONTHS_TO_DEADLINE)
+                    : String.format("Một dự án chỉ kéo dài tối đa %d tháng nên mốc thời hạn đó xa quá.",
+                    MAX_MONTHS_TO_DEADLINE));
         }
 
         BigDecimal newTarget = draft.targetAmount();
-        if (newTarget != null && newTarget.compareTo(BigDecimal.ZERO) <= 0) return Optional.empty();
+        if (newTarget != null && newTarget.compareTo(BigDecimal.ZERO) <= 0) return Outcome.incomplete();
 
         // An "update" that updates nothing is a draft the assistant marked complete too eagerly.
-        if (newDeadline == null && newTarget == null) return Optional.empty();
+        if (newDeadline == null && newTarget == null) return Outcome.incomplete();
 
         LocalDate effectiveDeadline = newDeadline != null ? newDeadline : target.getDeadline();
         BigDecimal effectiveTarget = newTarget != null ? newTarget : target.getTargetAmount().amount();
@@ -254,18 +401,28 @@ public class ProjectChangeService {
                 .priority(parsePriority(draft.priority()) == null ? null : draft.priority().toUpperCase())
                 .build();
 
-        return Optional.of(new Preview(suggestion, action));
+        return Outcome.of(new Preview(suggestion, action));
     }
 
     // ── DELETE ────────────────────────────────────────────────────────────────
 
-    private Optional<Preview> previewDelete(UUID userId, JsonSchemaGuardrail.ProjectDraft draft,
-                                            boolean english) {
+    private Outcome previewDelete(UUID userId, JsonSchemaGuardrail.ProjectDraft draft,
+                                  boolean english) {
         // Deleting is valid cleanup at any status, so this searches all of the user's projects
         // rather than just the live ones.
         Project target = resolveOwnedProject(userId, draft.projectId(), draft.name());
-        if (target == null) return Optional.empty();
-        if (target.getGroupProjectId() != null) return Optional.empty();
+        if (target == null) {
+            return Outcome.blocked(Rejection.PROJECT_NOT_FOUND, english
+                    ? "I couldn't tell which project you mean — could you give me its exact name?"
+                    : "Mình chưa xác định được bạn muốn xoá dự án nào — bạn cho mình tên chính xác của dự án nhé.");
+        }
+        if (target.getGroupProjectId() != null) {
+            return Outcome.blocked(Rejection.GROUP_LINKED, english
+                    ? String.format("'%s' belongs to a group project — it is removed from the Group screen, "
+                    + "not from here.", target.getName())
+                    : String.format("Dự án '%s' thuộc một dự án nhóm — phần này được xử lý trong màn hình "
+                    + "Nhóm chứ không xoá qua trò chuyện.", target.getName()));
+        }
 
         var suggestion = ChatResponse.ProjectChangeSuggestion.builder()
                 .projectId(target.getId().toString())
@@ -285,7 +442,7 @@ public class ProjectChangeService {
                 .name(target.getName())
                 .build();
 
-        return Optional.of(new Preview(suggestion, action));
+        return Outcome.of(new Preview(suggestion, action));
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
@@ -312,6 +469,34 @@ public class ProjectChangeService {
         // Two projects with the same name is ambiguous — the assistant must ask which one rather
         // than have this pick for the user.
         return byName.size() == 1 ? byName.get(0) : null;
+    }
+
+    /**
+     * The set {@code CreateProjectUseCase.validateCreate} counts: ACTIVE projects only. The
+     * three-project cap, the one-project-per-priority rule and the saving-capacity check are all
+     * scoped to it there, so scoping them differently here would either block a create the backend
+     * would happily accept or explain the block with the wrong reason.
+     */
+    private List<Project> activeProjects(UUID userId) {
+        return projectRepository.findAllByUser(UserId.of(userId.toString())).stream()
+                .filter(p -> p.getStatus() == ProjectStatus.ACTIVE)
+                .sorted(Comparator.comparingInt(p -> -p.getPriority().ordinal()))
+                .toList();
+    }
+
+    /**
+     * Monthly commitment of a set of projects computed the way {@code CreateProjectUseCase} and
+     * the budget advisor compute it — target spread over the months to the deadline, rather than
+     * the tracking's {@code monthlySaving} (which is the remaining amount over the remaining
+     * months, a different figure once contributions land). The capacity check has to use the same
+     * arithmetic the backend will use, or a preview passes and the create throws.
+     */
+    private BigDecimal plannedCommitment(List<Project> projects) {
+        LocalDate today = LocalDate.now(clock);
+        return projects.stream()
+                .map(p -> ProjectPacePlanner.monthlyCommitment(
+                        p.getTargetAmount().amount(), monthsToDeadline(today, p.getDeadline())))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
     /** Projects that count toward the 3-project cap and the priority-uniqueness rule — the same

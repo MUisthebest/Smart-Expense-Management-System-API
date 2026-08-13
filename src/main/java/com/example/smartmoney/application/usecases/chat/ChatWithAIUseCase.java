@@ -329,16 +329,26 @@ public class ChatWithAIUseCase {
         // GroupChangeService has already verified the actor administers the group and that its
         // status permits the operation, so nothing here can be executed by the wrong person.
         if (!advisoryOnly && !looksFutureDated(messageLow)) {
-            var groupPreview = groupChangeService.preview(userId, groupDraft, messageLow);
-            if (groupPreview.isPresent()) {
+            var groupOutcome = groupChangeService.evaluate(userId, groupDraft, messageLow);
+            if (groupOutcome.preview() != null) {
                 String groupActionId = storePendingAction(
-                        userId, groupPreview.get().action(), messageLow);
+                        userId, groupOutcome.preview().action(), messageLow);
                 return ChatResponse.builder()
                         .reply(reply)
                         .intent(intent)
-                        .groupChangeSuggestions(List.of(groupPreview.get().suggestion()))
+                        .groupChangeSuggestions(List.of(groupOutcome.preview().suggestion()))
                         .pendingActionId(groupActionId)
                         .actionRequired(true)
+                        .relatedQuestions(relatedQuestions)
+                        .build();
+            }
+            // Blocked for a reason the user can fix (not the admin, group still forming, group
+            // already has a project, already joined). Without this the turn returned the model's
+            // reply alone — which had already promised the operation.
+            if (groupOutcome.note() != null) {
+                return ChatResponse.builder()
+                        .reply(appendToReply(reply, groupOutcome.note()))
+                        .intent(intent)
                         .relatedQuestions(relatedQuestions)
                         .build();
             }
@@ -548,17 +558,29 @@ public class ChatWithAIUseCase {
                 // actually creates a project in conversation) never satisfied it, so no card was
                 // produced and nothing was ever created — while the reply could still read as if
                 // it had been. The draft has no such constraint.
-                var draftPreview = advisoryOnly ? Optional.<ProjectChangeService.Preview>empty()
-                        : projectChangeService.preview(userId, projectDraft, messageLow);
-                if (draftPreview.isPresent()) {
+                var draftOutcome = advisoryOnly
+                        ? null
+                        : projectChangeService.evaluate(userId, projectDraft, messageLow);
+                if (draftOutcome != null && draftOutcome.preview() != null) {
                     String draftActionId = storePendingAction(
-                            userId, draftPreview.get().action(), messageLow);
+                            userId, draftOutcome.preview().action(), messageLow);
                     yield ChatResponse.builder()
                             .reply(reply)
                             .intent(intent)
-                            .projectChangeSuggestions(List.of(draftPreview.get().suggestion()))
+                            .projectChangeSuggestions(List.of(draftOutcome.preview().suggestion()))
                             .pendingActionId(draftActionId)
                             .actionRequired(true)
+                            .relatedQuestions(relatedQuestions)
+                            .build();
+                }
+                // A complete draft that produced no card is the failure users reported as "the
+                // chatbot said it created the project but nothing showed up": the reply was
+                // written expecting a card, and without one the turn ended with an unanswered
+                // promise. Say what blocked it instead.
+                if (draftOutcome != null && draftOutcome.note() != null) {
+                    yield ChatResponse.builder()
+                            .reply(appendToReply(reply, draftOutcome.note()))
+                            .intent(intent)
                             .relatedQuestions(relatedQuestions)
                             .build();
                 }
@@ -647,15 +669,21 @@ public class ChatWithAIUseCase {
                     // wording of its own and so lands on GENERAL_ADVICE. Throwing the card away
                     // there is exactly how a multi-turn "tạo dự án" ended in nothing being
                     // created. ProjectChangeService has already re-validated the whole draft.
-                    var projectPreview = projectChangeService.preview(userId, projectDraft, messageLow);
-                    if (projectPreview.isPresent()) {
+                    var projectOutcome = projectChangeService.evaluate(userId, projectDraft, messageLow);
+                    if (projectOutcome.preview() != null) {
                         String projectActionId =
-                                storePendingAction(userId, projectPreview.get().action(), messageLow);
+                                storePendingAction(userId, projectOutcome.preview().action(), messageLow);
                         yield builder
-                                .projectChangeSuggestions(List.of(projectPreview.get().suggestion()))
+                                .projectChangeSuggestions(List.of(projectOutcome.preview().suggestion()))
                                 .pendingActionId(projectActionId)
                                 .actionRequired(true)
                                 .build();
+                    }
+                    // Same "why is there no card" explanation as the PROJECT_HYPOTHESIS branch —
+                    // a create that hit the project cap or the saving-capacity ceiling must say so
+                    // rather than leave the reply's promise hanging.
+                    if (projectOutcome.note() != null) {
+                        yield builder.reply(appendToReply(reply, projectOutcome.note())).build();
                     }
                     var txPreview = transactionChangeService.preview(userId, transactionDraft, messageLow);
                     if (txPreview.isPresent()) {
