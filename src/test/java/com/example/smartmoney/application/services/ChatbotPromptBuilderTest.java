@@ -914,8 +914,16 @@ class ChatbotPromptBuilderTest {
             assertThat(ChatbotPromptBuilder.JSON_OUTPUT_FORMAT)
                     .contains("\"projectDraft\": null")
                     .contains("Quy tắc \"projectDraft\"")
-                    .contains("CREATE cần ĐỦ: name, targetAmount, deadline")
-                    .contains("TUYỆT ĐỐI KHÔNG viết \"đã tạo dự án\" trong \"reply\" khi complete = false");
+                    // The app's own create screen asks for a pace, not a deadline: the horizon is
+                    // computed from the user's free saving capacity. A chat that demanded a month
+                    // count was asking for a number the user has no basis to pick.
+                    .contains("CREATE cần ĐỦ: name, targetAmount, và MỘT TRONG HAI: \"pace\"")
+                    .contains("HỎI NHỊP ĐỘ, KHÔNG HỎI THỜI HẠN")
+                    // Nothing is created during the turn that builds the draft — the card is, and
+                    // the project only exists once the user confirms it. A past-tense claim here
+                    // is the "chatbot said it created it but the list is empty" report.
+                    .contains("CHƯA CÓ GÌ ĐƯỢC TẠO Ở LƯỢT NÀY")
+                    .contains("viết \"đã tạo dự án\"");
         }
 
         @Test

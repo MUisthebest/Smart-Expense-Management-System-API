@@ -135,6 +135,7 @@ public class JsonSchemaGuardrail {
                 text(node, "currency"),
                 text(node, "deadline"),
                 text(node, "priority"),
+                text(node, "pace"),
                 node.path("complete").asBoolean(false));
     }
 
@@ -260,9 +261,16 @@ public class JsonSchemaGuardrail {
      * @param deadline "dd/MM/yyyy" or "yyyy-MM-dd" — both accepted, since the model produces
      *                 either depending on the conversation language
      */
+    /**
+     * @param pace {@code URGENT} | {@code RELAXED} — the same choice the project-creation screen
+     *             offers instead of a deadline. When set, the horizon is COMPUTED from the user's
+     *             remaining saving capacity ({@code ProjectPacePlanner}) rather than typed, which
+     *             is how the app itself works; {@code deadline} stays optional and only wins when
+     *             the user names an actual date.
+     */
     public record ProjectDraft(String operation, String projectId, String name, String description,
                                java.math.BigDecimal targetAmount, String currency, String deadline,
-                               String priority, boolean complete) {}
+                               String priority, String pace, boolean complete) {}
 
     /**
      * The assistant's running record of a group / group-project operation it is collecting field

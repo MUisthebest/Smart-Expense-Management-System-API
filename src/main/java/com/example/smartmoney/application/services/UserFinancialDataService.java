@@ -9,6 +9,7 @@ import com.example.smartmoney.domain.models.insight.Insight;
 import com.example.smartmoney.domain.models.insight.Severity;
 import com.example.smartmoney.domain.models.project.Project;
 import com.example.smartmoney.domain.models.project.ProjectTracking;
+import com.example.smartmoney.domain.models.project.enums.ProjectPriority;
 import com.example.smartmoney.domain.models.project.enums.ProjectStatus;
 import com.example.smartmoney.domain.models.project.valueobjects.Money;
 import com.example.smartmoney.domain.models.project.valueobjects.UserId;
@@ -26,6 +27,7 @@ import com.example.smartmoney.domain.repositories.UserRepository;
 import com.example.smartmoney.application.usecases.settlement.SettlementProperties;
 import com.example.smartmoney.domain.services.EnvelopeCalculator;
 import com.example.smartmoney.domain.services.EnvelopeSnapshot;
+import com.example.smartmoney.domain.services.ProjectPacePlanner;
 import com.example.smartmoney.domain.services.SettlementEngine;
 import com.example.smartmoney.domain.services.SpendingInsightAnalyzer;
 import lombok.RequiredArgsConstructor;
@@ -792,6 +794,8 @@ public class UserFinancialDataService {
                     .append("  TUYỆT ĐỐI KHÔNG cộng nó vào chi tiêu/cam kết hàng tháng của người dùng.\n");
         }
 
+        appendNewProjectCapacity(sb, contextUser, projects, today);
+
         appendGroups(sb, userId);
 
         // ── Tất toán cuối tháng ───────────────────────────────────────────────
@@ -1275,6 +1279,78 @@ public class UserFinancialDataService {
     private String text(Map<String, Object> metrics, String key) {
         Object v = metrics.get(key);
         return v == null ? "?" : String.valueOf(v);
+    }
+
+    /** {@code CreateProjectUseCase}'s cap on simultaneously ACTIVE projects. */
+    private static final int MAX_ACTIVE_PROJECTS = 3;
+
+    /**
+     * Whether a new project can be created right now, and how big it may be.
+     *
+     * <p>Creating a project is refused by {@code CreateProjectUseCase} on three counts the
+     * assistant previously could not see: the three-project cap, the one-project-per-priority
+     * rule, and — the one that bites hardest — a monthly commitment beyond the user's saving
+     * capacity. Blind to all three, the assistant would happily walk someone through a target and
+     * a deadline, promise the project, and hand the backend a request that was never going to be
+     * accepted. Stating the room that is actually left turns that into a conversation about a
+     * target that fits.
+     *
+     * <p>The remaining capacity is also the input the URGENT/RELAXED pace planner divides by, so
+     * this block is what lets the assistant offer the same two options the create screen offers
+     * instead of demanding a deadline the user has no basis to pick.
+     */
+    private void appendNewProjectCapacity(StringBuilder sb, User user, List<Project> projects,
+                                          LocalDate today) {
+        if (user == null || !user.hasCompletedFinancialSetup()) return;
+
+        List<Project> active = projects.stream()
+                .filter(p -> p != null && p.getStatus() == ProjectStatus.ACTIVE)
+                .toList();
+        BigDecimal committed = active.stream()
+                .map(p -> ProjectPacePlanner.monthlyCommitment(
+                        p.getTargetAmount().amount(), monthsToDeadline(today, p.getDeadline())))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal capacity = user.getSavingCapacity() == null ? BigDecimal.ZERO : user.getSavingCapacity();
+        BigDecimal left = capacity.subtract(committed).max(BigDecimal.ZERO);
+
+        Set<ProjectPriority> taken = active.stream().map(Project::getPriority)
+                .collect(Collectors.toCollection(() -> EnumSet.noneOf(ProjectPriority.class)));
+        String freePriorities = Arrays.stream(ProjectPriority.values())
+                .filter(p -> !taken.contains(p))
+                .map(Enum::name)
+                .collect(Collectors.joining(", "));
+
+        sb.append("\n=== G2. Khả năng TẠO DỰ ÁN MỚI ===\n");
+        sb.append(String.format("Số dự án đang chạy: %d/%d.\n", active.size(), MAX_ACTIVE_PROJECTS));
+        sb.append(String.format("Khả năng tiết kiệm hàng tháng: %,.0f VND; đã cam kết cho dự án đang chạy: %,.0f VND.\n",
+                capacity, committed));
+        sb.append(String.format("=> NHỊP GÓP TỐI ĐA CÒN TRỐNG CHO DỰ ÁN MỚI: %,.0f VND/tháng.\n", left));
+        if (active.size() >= MAX_ACTIVE_PROJECTS) {
+            sb.append("KHÔNG tạo thêm được dự án lúc này (đã đủ ").append(MAX_ACTIVE_PROJECTS)
+                    .append(" dự án đang chạy). Muốn tạo mới thì phải hoàn tất, huỷ hoặc xoá bớt một dự án.\n");
+        } else if (left.signum() <= 0) {
+            sb.append("KHÔNG tạo thêm được dự án lúc này: các dự án hiện tại đã dùng hết khả năng tiết kiệm.\n");
+        } else {
+            sb.append("Mức ưu tiên còn trống: ").append(freePriorities).append(".\n");
+            sb.append(String.format(
+                    "Hai lựa chọn nhịp độ (đúng như màn hình tạo dự án của ứng dụng), với mục tiêu T VND:\n"
+                            + "  - GẤP (URGENT): góp %,.0f VND/tháng => số tháng = LÀM TRÒN LÊN(T / %,.0f)\n"
+                            + "  - THONG THẢ (RELAXED): góp %,.0f VND/tháng => số tháng = LÀM TRÒN LÊN(T / %,.0f)\n",
+                    left, left,
+                    left.divide(BigDecimal.valueOf(2), 2, RoundingMode.FLOOR),
+                    left.divide(BigDecimal.valueOf(2), 2, RoundingMode.FLOOR)));
+            sb.append("  Số tháng tối đa là ").append(ProjectPacePlanner.MAX_MONTHS)
+                    .append("; hệ thống tự tính lại con số chính xác khi bạn nêu mục tiêu và nhịp độ,\n")
+                    .append("  nên KHÔNG cần hỏi người dùng thời hạn — chỉ cần hỏi họ chọn GẤP hay THONG THẢ.\n");
+        }
+    }
+
+    /** Inclusive of the current month, matching {@code CreateProjectUseCase}. */
+    private int monthsToDeadline(LocalDate today, LocalDate deadline) {
+        if (deadline == null) return 1;
+        int months = (deadline.getYear() - today.getYear()) * 12
+                + (deadline.getMonthValue() - today.getMonthValue()) + 1;
+        return Math.max(1, months);
     }
 
     /**

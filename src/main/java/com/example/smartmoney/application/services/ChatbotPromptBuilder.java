@@ -448,6 +448,18 @@ public class ChatbotPromptBuilder {
           trừ nợ, đổi thời hạn. NGOẠI LỆ DUY NHẤT: xoá dự án được phép bất kể status
           (thao tác dọn dẹp).
 
+        ── Khối G2. Khả năng TẠO DỰ ÁN MỚI ── (chỉ xuất hiện khi đã thiết lập tài chính)
+        - "Số dự án đang chạy: X/3" và "NHỊP GÓP TỐI ĐA CÒN TRỐNG CHO DỰ ÁN MỚI" là hai điều kiện
+          quyết định một dự án mới có tạo được hay không. PHẢI đọc khối này TRƯỚC khi hứa tạo dự án.
+        - Nếu khối nói KHÔNG tạo thêm được: nói thẳng lý do (đủ 3 dự án đang chạy, hoặc hết khả
+          năng tiết kiệm trống) và nêu cách gỡ. TUYỆT ĐỐI KHÔNG tiếp tục thu thập rồi hứa tạo.
+        - Hai dòng GẤP / THONG THẢ là chính hai lựa chọn màn hình tạo dự án đưa ra. Khi người dùng
+          muốn tạo dự án, dùng đúng các con số này để hỏi họ chọn nhịp nào và cho biết mỗi nhịp
+          tốn bao nhiêu một tháng, mất khoảng bao nhiêu tháng. Đây là ƯỚC LƯỢNG để trao đổi;
+          backend tính lại chính xác trước khi hiện thẻ, nên nếu lệch vài tháng thì lấy theo thẻ.
+        - "Mức ưu tiên còn trống" là các mức có thể dùng cho dự án mới; mỗi dự án đang chạy chiếm
+          một mức. Nếu người dùng đòi một mức đã bị chiếm, hệ thống tự chọn mức còn trống.
+
         ── Khối H. Nhóm ── (chỉ xuất hiện khi người dùng thuộc ít nhất một nhóm)
         - Mỗi dòng: {name}: groupId=... status=FORMING|LOCKED isAdmin=true|false
           joinedMembers=N groupProjectId=...|none groupProjectStatus=...|none
@@ -693,6 +705,11 @@ public class ChatbotPromptBuilder {
                     priority (LOW | MEDIUM | HIGH, mặc định MEDIUM),
                     targetAmount (BigDecimal, > 0), currency (mặc định "VND"),
                     deadline (LocalDate, HÔM NAY HOẶC SAU HÔM NAY).
+           CÁCH HỎI: người dùng KHÔNG nhập deadline. Họ chọn NHỊP ĐỘ — GẤP (URGENT) hoặc THONG
+                    THẢ (RELAXED) — và hệ thống tính deadline từ khả năng tiết kiệm còn trống
+                    (xem khối G2): GẤP dùng hết phần còn trống nên xong sớm nhất; THONG THẢ dùng
+                    một nửa nên nhẹ hơn nhưng lâu hơn. Chỉ dùng deadline khi người dùng tự nêu
+                    mốc ngày. Chi tiết cách điền draft: xem quy tắc "projectDraft".
            RÀNG BUỘC THẬT của hệ thống (nêu trước cho người dùng, đừng để họ bấm rồi mới gặp lỗi):
              * Phải hoàn tất thiết lập tài chính (onboarding) trước khi tạo dự án đầu tiên.
              * Tối đa 3 dự án đang chạy cùng lúc (dự án FROZEN vẫn tính vào 3).
@@ -1463,23 +1480,41 @@ public class ChatbotPromptBuilder {
             "description": "<mô tả ngắn, tuỳ chọn>",
             "targetAmount": <số nguyên VND, > 0>,
             "currency": "VND",
-            "deadline": "<dd/MM/yyyy>",
+            "deadline": "<dd/MM/yyyy — CHỈ khi người dùng tự nêu một mốc ngày cụ thể>",
+            "pace": "<URGENT|RELAXED>",
             "priority": "<LOW|MEDIUM|HIGH>",
             "complete": <true|false>
           }
-        - CREATE cần ĐỦ: name, targetAmount, deadline. UPDATE cần projectId + ít nhất một trong
-          targetAmount / deadline. DELETE cần projectId. Thiếu bất kỳ trường bắt buộc nào →
+        - CREATE cần ĐỦ: name, targetAmount, và MỘT TRONG HAI: "pace" (cách mặc định) HOẶC
+          "deadline" (chỉ khi người dùng tự nêu mốc ngày). UPDATE cần projectId + ít nhất một
+          trong targetAmount / deadline. DELETE cần projectId. Thiếu trường bắt buộc →
           "complete" = false.
-        - THU THẬP TỪNG BƯỚC giống TRANSACTION_UPDATE: hỏi ĐÚNG MỘT trường thiếu mỗi lượt (tên →
-          số tiền mục tiêu → thời hạn), và MỖI LƯỢT chép lại ĐẦY ĐỦ các trường đã biết từ những
-          lượt trước (đọc khối "Lịch sử hội thoại"). Object này thay thế hoàn toàn bản nháp cũ.
-        - "deadline" phải là NGÀY CỤ THỂ, không phải số tháng. Người dùng nói "trong 12 tháng"
-          thì bạn tự quy đổi sang ngày (hôm nay + 12 tháng) và ghi ở dạng dd/MM/yyyy.
+        - CÁCH TẠO DỰ ÁN ĐÚNG VỚI ỨNG DỤNG — HỎI NHỊP ĐỘ, KHÔNG HỎI THỜI HẠN:
+          Màn hình tạo dự án của ứng dụng KHÔNG bắt người dùng nhập thời hạn. Họ nhập tên + số
+          tiền mục tiêu rồi chọn NHỊP ĐỘ: GẤP (URGENT) hay THONG THẢ (RELAXED); hệ thống tự tính
+          số tháng và số tiền góp mỗi tháng từ khả năng tiết kiệm CÒN TRỐNG của họ. Bạn phải làm
+          ĐÚNG như vậy: hỏi tên → số tiền mục tiêu → "bạn muốn dồn sức hoàn thành sớm (GẤP) hay
+          đi chậm mà nhẹ nhàng (THONG THẢ)?", rồi ghi "pace" và ĐỂ TRỐNG "deadline".
+          TUYỆT ĐỐI KHÔNG tự bịa một thời hạn, cũng KHÔNG mặc định hỏi "bạn muốn hoàn thành trong
+          bao nhiêu tháng" — người dùng không có cơ sở để chọn con số đó, đó chính là việc hệ
+          thống tính hộ.
+          Khi nêu hai lựa chọn, dùng đúng số liệu ở khối G2 để cho biết mỗi nhịp độ tốn bao nhiêu
+          mỗi tháng và mất khoảng bao nhiêu tháng. Backend sẽ tính lại chính xác trước khi hiện thẻ.
+        - CHỈ điền "deadline" khi người dùng TỰ nêu mốc thời gian ("trước tháng 6 năm sau", "trong
+          12 tháng"). Lúc đó quy đổi sang ngày dd/MM/yyyy và bỏ qua "pace".
+        - THU THẬP TỪNG BƯỚC giống TRANSACTION_UPDATE: hỏi ĐÚNG MỘT trường thiếu mỗi lượt, và MỖI
+          LƯỢT chép lại ĐẦY ĐỦ các trường đã biết từ những lượt trước (đọc khối "Lịch sử hội
+          thoại"). Object này thay thế hoàn toàn bản nháp cũ.
         - Số tiền viết dạng số thuần: 200000000, KHÔNG viết "200 triệu".
         - "priority" tuỳ chọn: nếu người dùng không nêu, để null — hệ thống tự chọn mức còn trống.
-        - QUAN TRỌNG: chỉ khi "complete" = true thì thẻ xác nhận mới xuất hiện và dự án mới thực
-          sự được tạo. TUYỆT ĐỐI KHÔNG viết "đã tạo dự án" trong "reply" khi complete = false —
-          lúc đó chưa có gì được tạo cả.
+        - ĐỐI CHIẾU KHỐI G2 TRƯỚC KHI HỨA: nếu G2 nói không tạo thêm được dự án (đủ 3 dự án đang
+          chạy, hoặc không còn khả năng tiết kiệm trống), hãy nói thẳng điều đó và nêu cách gỡ
+          (hoàn tất/xoá bớt dự án, hoặc giảm mục tiêu) — KHÔNG thu thập tiếp rồi hứa tạo.
+        - QUAN TRỌNG — CHƯA CÓ GÌ ĐƯỢC TẠO Ở LƯỢT NÀY: kể cả khi "complete" = true, dự án CHỈ
+          được tạo sau khi người dùng bấm xác nhận trên thẻ ở lượt sau. Vì vậy "reply" phải luôn
+          viết ở dạng SẮP LÀM ("mình sẽ tạo dự án ... bạn xác nhận giúp nhé"), TUYỆT ĐỐI KHÔNG
+          viết "đã tạo dự án", "dự án đã được tạo", "bạn có thể xem trong danh sách dự án" — câu
+          báo thành công là do hệ thống tự trả sau khi xác nhận, không phải do bạn viết.
 
         Quy tắc "groupDraft" (nhóm & dự án nhóm):
         - Để NULL cho mọi lượt không phải thao tác nhóm.
@@ -1511,8 +1546,10 @@ public class ChatbotPromptBuilder {
           status=LOCKED và groupProjectId=none; JOIN_GROUP_PROJECT cần groupProjectStatus=ACTIVE.
           Nếu điều kiện chưa đủ, để "complete" = false và nêu rõ BƯỚC CÒN THIẾU trong "reply"
           (vd "nhóm đang FORMING, cần khoá nhóm trước — bạn muốn tôi khoá luôn không?").
-        - TUYỆT ĐỐI KHÔNG viết "đã tạo nhóm" / "đã gửi email mời" / "đã tạo dự án nhóm" khi
-          complete = false — lúc đó chưa có gì xảy ra.
+        - TUYỆT ĐỐI KHÔNG viết "đã tạo nhóm" / "đã gửi email mời" / "đã tạo dự án nhóm" — kể cả
+          khi complete = true. Thao tác chỉ thực sự chạy SAU KHI người dùng bấm xác nhận trên thẻ
+          ở lượt sau, và câu báo thành công là do hệ thống tự trả. Ở lượt này luôn viết dạng SẮP
+          LÀM ("mình sẽ tạo nhóm ... bạn xác nhận nhé").
         """;
 
     /**

@@ -729,6 +729,51 @@ class UserFinancialDataServiceCashFlowTest {
         }
     }
 
+    // ── §B4b: what a new project can afford ─────────────────────────────────
+
+    @Nested
+    @DisplayName("new-project capacity block")
+    class NewProjectCapacity {
+
+        private void stubMonth(List<Project> projects) {
+            stubTransactions(List.of(income(10_000_000L)));
+            when(budgetRepository.findByUserIdMonthYear(any(), any(), any())).thenReturn(List.of());
+            when(projectRepository.findAllByUser(any())).thenReturn(projects);
+            User user = onboardedUser(BigDecimal.valueOf(10_000_000));   // capacity 2,000,000
+            when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        }
+
+        @Test
+        @DisplayName("states the free monthly headroom and both pace options, so no deadline has to be asked for")
+        void offersBothPaceOptions() {
+            stubMonth(List.of());
+
+            String context = service.buildChatContext(userId, 6, 2026);
+
+            assertThat(context)
+                    .contains("G2. Khả năng TẠO DỰ ÁN MỚI")
+                    .contains("Số dự án đang chạy: 0/3")
+                    .contains("NHỊP GÓP TỐI ĐA CÒN TRỐNG CHO DỰ ÁN MỚI: 2,000,000 VND/tháng")
+                    .contains("GẤP (URGENT): góp 2,000,000 VND/tháng")
+                    .contains("THONG THẢ (RELAXED): góp 1,000,000 VND/tháng")
+                    .contains("KHÔNG cần hỏi người dùng thời hạn");
+        }
+
+        @Test
+        @DisplayName("says outright when no new project is possible, instead of letting the assistant promise one")
+        void statesWhenCreationIsImpossible() {
+            // One 20M project over 12 months costs ~1.67M/month, leaving only ~333k of the 2M
+            // capacity; three of them exhaust the slot count outright.
+            stubMonth(List.of(standaloneProject("A"), standaloneProject("B"), standaloneProject("C")));
+
+            String context = service.buildChatContext(userId, 6, 2026);
+
+            assertThat(context)
+                    .contains("Số dự án đang chạy: 3/3")
+                    .contains("KHÔNG tạo thêm được dự án lúc này");
+        }
+    }
+
     // ── §B5: month-end settlement forecast ──────────────────────────────────
 
     @Nested

@@ -10,6 +10,7 @@ import com.example.smartmoney.domain.models.project.valueobjects.UserId;
 import com.example.smartmoney.domain.models.user.User;
 import com.example.smartmoney.domain.repositories.ProjectRepository;
 import com.example.smartmoney.domain.repositories.UserRepository;
+import com.example.smartmoney.domain.services.ProjectPacePlanner;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -69,7 +70,7 @@ class ProjectChangeServiceTest {
     private JsonSchemaGuardrail.ProjectDraft createDraft(boolean complete) {
         return new JsonSchemaGuardrail.ProjectDraft(
                 "CREATE", null, "Mua xe", null, BigDecimal.valueOf(120_000_000), "VND",
-                DMY.format(TODAY.plusMonths(11)), null, complete);
+                DMY.format(TODAY.plusMonths(11)), null, null, complete);
     }
 
     @Test
@@ -105,7 +106,7 @@ class ProjectChangeServiceTest {
     void missingDeadlineYieldsNoCard() {
         var draft = new JsonSchemaGuardrail.ProjectDraft(
                 "CREATE", null, "Mua xe", null, BigDecimal.valueOf(120_000_000), "VND",
-                null, null, true);
+                null, null, null, true);
         assertThat(service.preview(userId, draft, "tạo dự án mua xe")).isEmpty();
     }
 
@@ -120,7 +121,7 @@ class ProjectChangeServiceTest {
     void isoDeadlineIsAccepted() {
         var draft = new JsonSchemaGuardrail.ProjectDraft(
                 "CREATE", null, "New car", null, BigDecimal.valueOf(120_000_000), "VND",
-                TODAY.plusMonths(11).toString(), null, true);
+                TODAY.plusMonths(11).toString(), null, null, true);
         var preview = service.preview(userId, draft, "create a project to buy a new car");
         assertThat(preview).isPresent();
         assertThat(preview.get().action().getNewDeadline()).isEqualTo(TODAY.plusMonths(11));
@@ -131,7 +132,7 @@ class ProjectChangeServiceTest {
     void pastDeadlineYieldsNoCard() {
         var draft = new JsonSchemaGuardrail.ProjectDraft(
                 "CREATE", null, "Mua xe", null, BigDecimal.valueOf(120_000_000), "VND",
-                DMY.format(TODAY.minusDays(1)), null, true);
+                DMY.format(TODAY.minusDays(1)), null, null, true);
         assertThat(service.preview(userId, draft, "tạo dự án mua xe")).isEmpty();
     }
 
@@ -166,6 +167,103 @@ class ProjectChangeServiceTest {
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
 
         assertThat(service.preview(userId, createDraft(true), "tạo dự án mua xe")).isEmpty();
+    }
+
+    // ── The urgent/relaxed pace, the way the create screen actually works ────
+
+    private JsonSchemaGuardrail.ProjectDraft paceDraft(String pace) {
+        return new JsonSchemaGuardrail.ProjectDraft(
+                "CREATE", null, "Mua xe", null, BigDecimal.valueOf(120_000_000), "VND",
+                null, null, pace, true);
+    }
+
+    @Test
+    @DisplayName("URGENT spends the whole free capacity, so the horizon is computed — no deadline asked for")
+    void urgentPacePlansTheHorizon() {
+        var preview = service.preview(userId, paceDraft("URGENT"), "tạo dự án mua xe, làm gấp");
+
+        assertThat(preview).isPresent();
+        // 120M at the full 20M/month capacity → 6 months, ending 5 months out (months are
+        // inclusive of the current one, exactly as CreateProjectUseCase counts them).
+        assertThat(preview.get().suggestion().getNewMonthlySaving()).isEqualTo(20_000_000L);
+        assertThat(preview.get().action().getNewDeadline()).isEqualTo(TODAY.plusMonths(5));
+    }
+
+    @Test
+    @DisplayName("RELAXED spends half of it, so the same target takes twice as long")
+    void relaxedPaceHalvesTheMonthlyAmount() {
+        var preview = service.preview(userId, paceDraft("RELAXED"), "tạo dự án mua xe, từ từ thôi");
+
+        assertThat(preview).isPresent();
+        // 120M at 10M/month → 12 months.
+        assertThat(preview.get().suggestion().getNewMonthlySaving()).isEqualTo(10_000_000L);
+        assertThat(preview.get().action().getNewDeadline()).isEqualTo(TODAY.plusMonths(11));
+    }
+
+    @Test
+    @DisplayName("the planned pace matches what the budget-advisor screen returns for the same input")
+    void plannedPaceMatchesTheAdvisorScreen() {
+        var plan = ProjectPacePlanner.plan(BigDecimal.valueOf(120_000_000),
+                BigDecimal.valueOf(20_000_000), ProjectPacePlanner.Mode.RELAXED);
+        var preview = service.preview(userId, paceDraft("RELAXED"), "tạo dự án mua xe");
+
+        assertThat(preview).isPresent();
+        assertThat(preview.get().suggestion().getNewMonthlySaving())
+                .isEqualTo(plan.monthlySaving().longValue());
+    }
+
+    // ── Blocked drafts explain themselves instead of vanishing ──────────────
+
+    @Test
+    @DisplayName("hitting the project cap produces a note, so the reply can't claim the project was created")
+    void cappedCreateExplainsWhy() {
+        List<Project> threeLive = List.of(
+                liveProject("A", ProjectPriority.HIGH),
+                liveProject("B", ProjectPriority.MEDIUM),
+                liveProject("C", ProjectPriority.LOW));
+        when(projectRepository.findAllByUser(any(UserId.class))).thenReturn(threeLive);
+
+        var outcome = service.evaluate(userId, createDraft(true), "tạo dự án mua xe");
+
+        assertThat(outcome.preview()).isNull();
+        assertThat(outcome.rejection())
+                .isEqualTo(ProjectChangeService.Rejection.MAX_LIVE_PROJECTS);
+        assertThat(outcome.note()).contains("3 dự án");
+    }
+
+    @Test
+    @DisplayName("an over-capacity target is explained with the horizon that would fit")
+    void overCapacityExplainsTheFeasibleHorizon() {
+        User poorUser = userWithCapacity(BigDecimal.valueOf(5_000_000));
+        when(userRepository.findById(userId)).thenReturn(Optional.of(poorUser));
+
+        // 120M by TODAY+11 is 10M/month against a 5M capacity; 24 months would fit.
+        var outcome = service.evaluate(userId, createDraft(true), "tạo dự án mua xe");
+
+        assertThat(outcome.rejection()).isEqualTo(ProjectChangeService.Rejection.OVER_CAPACITY);
+        assertThat(outcome.note()).contains("24 tháng");
+    }
+
+    @Test
+    @DisplayName("an unfinished financial setup is named as the blocker rather than dropped")
+    void missingFinancialSetupExplainsWhy() {
+        User user = mock(User.class);
+        when(user.hasCompletedFinancialSetup()).thenReturn(false);
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+
+        var outcome = service.evaluate(userId, createDraft(true), "tạo dự án mua xe");
+
+        assertThat(outcome.rejection()).isEqualTo(ProjectChangeService.Rejection.NO_FINANCIAL_SETUP);
+        assertThat(outcome.note()).contains("thiết lập tài chính");
+    }
+
+    @Test
+    @DisplayName("a draft still being collected carries no note — the assistant's own question is the answer")
+    void incompleteDraftCarriesNoNote() {
+        var outcome = service.evaluate(userId, createDraft(false), "tạo dự án mua xe");
+
+        assertThat(outcome.rejection()).isEqualTo(ProjectChangeService.Rejection.INCOMPLETE);
+        assertThat(outcome.note()).isNull();
     }
 
     private Project liveProject(String name, ProjectPriority priority) {
